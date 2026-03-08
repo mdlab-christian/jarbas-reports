@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>LAPIDADOR v3 — Análise Arquitetural</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800;900&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+:root{--bg:#0d0b09;--bg2:#12100e;--bg3:#1a1815;--bg4:#221f1c;--p:#20c997;--t:#f0ece5;--td:#9e9794;--b:rgba(255,255,255,.07);--r:#ff6b6b;--y:#ffd93d;--bl:#74b9ff;--pu:#a29bfe;--or:#fd9644}
+*{margin:0;padding:0;box-sizing:border-box}html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--t);font-family:Inter,sans-serif;line-height:1.6}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hero{padding:72px 24px 48px;text-align:center;background:radial-gradient(ellipse 900px 400px at 50% 0,rgba(32,201,151,.18) 0%,transparent 60%)}
+.sl{font-family:JetBrains Mono;font-size:.68rem;color:var(--p);letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sl::before{content:'';width:14px;height:1px;background:var(--p)}
+.sh{font-family:Manrope;font-size:clamp(1.7rem,3.5vw,2.8rem);font-weight:900;color:#fff;letter-spacing:-.03em;margin-bottom:10px}
+.sh em{font-style:normal;color:var(--p)}
+.sp{color:var(--td);font-size:.92rem;max-width:680px;line-height:1.8;margin-bottom:32px}
+.section{padding:64px 24px;max-width:1040px;margin:0 auto}
+.divider{height:1px;background:var(--b);max-width:1040px;margin:0 auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.card{background:var(--bg3);border:1px solid var(--b);border-radius:16px;padding:20px;transition:border-color .2s}
+.card:hover{border-color:rgba(32,201,151,.2)}
+.card-title{font-family:Manrope;font-weight:800;color:#fff;font-size:.95rem;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card-desc{font-size:.82rem;color:var(--td);line-height:1.6}
+.tag{display:inline-block;padding:2px 8px;border-radius:5px;font-family:JetBrains Mono;font-size:.65rem;font-weight:600;margin:3px 3px 0 0}
+.tg{background:rgba(32,201,151,.1);color:var(--p);border:1px solid rgba(32,201,151,.25)}
+.tb{background:rgba(116,185,255,.1);color:var(--bl);border:1px solid rgba(116,185,255,.25)}
+.ty{background:rgba(255,217,61,.1);color:var(--y);border:1px solid rgba(255,217,61,.25)}
+.tr{background:rgba(255,107,107,.1);color:var(--r);border:1px solid rgba(255,107,107,.25)}
+.to{background:rgba(253,150,68,.1);color:var(--or);border:1px solid rgba(253,150,68,.25)}
+.tp{background:rgba(162,155,254,.1);color:var(--pu);border:1px solid rgba(162,155,254,.25)}
+.alert{padding:14px 18px;border-radius:11px;display:flex;gap:10px;font-size:.83rem;margin:14px 0;line-height:1.5}
+.ag{background:rgba(32,201,151,.07);border:1px solid rgba(32,201,151,.25);color:var(--t)}
+.ay{background:rgba(255,217,61,.07);border:1px solid rgba(255,217,61,.25);color:var(--t)}
+.ar{background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.25);color:var(--t)}
+.ab{background:rgba(116,185,255,.07);border:1px solid rgba(116,185,255,.25);color:var(--t)}
+pre{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px 16px;font-family:JetBrains Mono;font-size:.75rem;color:#c8c4be;line-height:1.8;overflow-x:auto;margin:10px 0}
+code{font-family:JetBrains Mono;font-size:.78rem;color:var(--p);background:rgba(32,201,151,.1);padding:1px 6px;border-radius:4px}
+/* TABLE */
+.tw{overflow-x:auto;border-radius:12px;border:1px solid var(--b);margin:16px 0}
+table{width:100%;border-collapse:collapse}
+th{background:var(--bg4);color:var(--td);font-family:Manrope;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:.7rem 1rem;text-align:left}
+td{padding:.6rem 1rem;font-size:.82rem;border-top:1px solid var(--b);vertical-align:top}
+tr:hover td{background:var(--bg3)}
+/* FLOW */
+.flow{display:flex;flex-direction:column;gap:0;position:relative}
+.flow-item{display:flex;gap:16px;padding-bottom:0}
+.flow-left{display:flex;flex-direction:column;align-items:center;width:44px;flex-shrink:0}
+.flow-dot{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;z-index:1;flex-shrink:0;border:2px solid}
+.flow-line{width:2px;flex:1;min-height:20px;margin:0 auto}
+.flow-body{flex:1;padding:8px 0 24px}
+.flow-tag{font-family:JetBrains Mono;font-size:.65rem;color:var(--td);text-transform:uppercase;letter-spacing:.07em}
+.flow-title{font-family:Manrope;font-weight:800;color:#fff;margin:3px 0 5px}
+.flow-desc{font-size:.8rem;color:var(--td);line-height:1.5}
+/* CHECKLIST */
+.cl-item{display:flex;gap:10px;align-items:flex-start;padding:10px 14px;border-radius:9px;margin-bottom:6px;border:1px solid var(--b);background:var(--bg3);font-size:.83rem}
+.cl-item.done{border-color:rgba(32,201,151,.25);background:rgba(32,201,151,.04)}
+.cl-item.todo{border-color:rgba(255,217,61,.15)}
+.cl-item.new{border-color:rgba(116,185,255,.2);background:rgba(116,185,255,.03)}
+.cl-check{width:20px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;margin-top:1px}
+/* COST BOX */
+.cost-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--b);font-size:.83rem}
+.cost-row:last-child{border-bottom:none}
+.cost-val{font-family:Manrope;font-weight:800;font-size:.95rem}
+footer{border-top:1px solid var(--b);padding:36px 24px;text-align:center;color:var(--td);font-size:.78rem}
+@media(max-width:700px){.grid2,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div style="font-size:3rem;animation:float 3s ease-in-out infinite;display:block;margin-bottom:12px">🦞</div>
+  <div style="font-family:JetBrains Mono;font-size:.7rem;color:var(--p);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px;display:inline-flex;align-items:center;gap:8px;padding:4px 14px;border:1px solid rgba(32,201,151,.3);border-radius:100px"><span style="width:6px;height:6px;border-radius:50%;background:var(--p);animation:blink 1.5s infinite"></span>Análise Arquitetural · 07/03/2026</div>
+  <h1 style="font-family:Manrope;font-size:clamp(2rem,5vw,3.5rem);font-weight:900;color:#fff;letter-spacing:-.04em;margin:12px 0">LAPIDADOR <span style="color:var(--p)">v3.0</span></h1>
+  <p style="color:var(--td);max-width:600px;margin:0 auto;font-size:.95rem;line-height:1.8">JARBAS direto vs Claude Code · MCPs necessários · Fluxo completo de revisão · UI/UX com 21.st · PRD structure</p>
+</div>
+
+<div class="divider"></div>
+
+<!-- 01 MAPEAMENTO DO QUE JÁ EXISTE -->
+<section class="section">
+  <div class="sl">01 · Mapeamento atual</div>
+  <h2 class="sh">O que o JARBAS <em>já tem</em> hoje.</h2>
+  <p class="sp">Investiguei o Claude Code e o JARBAS. Resultado:</p>
+
+  <div class="grid2" style="margin-bottom:16px">
+    <div class="card" style="border-color:rgba(32,201,151,.3);background:rgba(32,201,151,.03)">
+      <div class="card-title">⚡ Claude Code — MCPs configurados</div>
+      <ul style="font-size:.82rem;color:var(--td);line-height:2;list-style:none">
+        <li>✅ <strong style="color:var(--p)">21.st Magic</strong> (<code>@21st-dev/magic</code>) — componentes UI/UX</li>
+        <li>✅ Git CLI completo (via terminal)</li>
+        <li>✅ Supabase CLI (<code>supabase 2.75.0</code>)</li>
+        <li>✅ n8n via REST API</li>
+        <li>✅ 1094 arquivos .tsx indexados</li>
+        <li>✅ Busca semântica em todo o codebase</li>
+        <li>✅ <code>dangerouslySkipPermissions: true</code></li>
+      </ul>
+    </div>
+    <div class="card" style="border-color:rgba(116,185,255,.3);background:rgba(116,185,255,.03)">
+      <div class="card-title">🦞 JARBAS — capacidades diretas</div>
+      <ul style="font-size:.82rem;color:var(--td);line-height:2;list-style:none">
+        <li>✅ Git CLI — push/commit/branch direto</li>
+        <li>✅ Supabase CLI + API direta</li>
+        <li>✅ n8n REST API</li>
+        <li>✅ Edita arquivos diretamente</li>
+        <li>✅ Roda Claude Code via <code>skill_claude_code</code></li>
+        <li>⚠️ Sem 21.st MCP (precisa adicionar)</li>
+        <li>⚠️ Sem indexação semântica do codebase</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="alert ab">
+    <span>💡</span>
+    <div><strong>Conclusão do mapeamento:</strong> O Claude Code já tem o 21.st configurado. O JARBAS tem acesso a tudo via CLI/API, mas sem a camada de MCP. Para adicionar 21.st ao JARBAS: basta adicionar o mesmo MCP ao OpenClaw. Mas há uma diferença mais importante entre os dois — veja na próxima seção.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 02 JARBAS DIRETO vs CLAUDE CODE -->
+<section class="section">
+  <div class="sl">02 · A questão central</div>
+  <h2 class="sh">JARBAS direto vs <em>Claude Code</em> — qual usar?</h2>
+  <p class="sp">Esta é a decisão arquitetural mais importante. A resposta honesta é: <strong style="color:#fff">depende do tipo de tarefa</strong>.</p>
+
+  <div class="tw">
+    <table>
+      <thead><tr><th>Capacidade</th><th>JARBAS direto (Sonnet)</th><th>Claude Code (via JARBAS)</th><th>Vencedor</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:#fff">Entendimento do codebase</strong></td>
+          <td>Lê arquivo por arquivo, sem índice global</td>
+          <td>Indexa todo o projeto, entende dependências entre 1094 arquivos</td>
+          <td><span class="tag tg">Claude Code</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Edição multi-arquivo</strong></td>
+          <td>Possível mas trabalhoso (um por vez)</td>
+          <td>Edita 10-30 arquivos em uma única instrução atômica</td>
+          <td><span class="tag tg">Claude Code</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Busca semântica</strong></td>
+          <td>Grep/find manual</td>
+          <td>"Onde esse hook é usado?" → responde com todos os arquivos</td>
+          <td><span class="tag tg">Claude Code</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Refatoração complexa</strong></td>
+          <td>Arriscado — sem visão global</td>
+          <td>Vê o impacto completo antes de mudar</td>
+          <td><span class="tag tg">Claude Code</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">UI/UX com 21.st</strong></td>
+          <td>Precisa adicionar MCP</td>
+          <td>✅ Já configurado e funcionando</td>
+          <td><span class="tag tg">Claude Code</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Investigação / análise</strong></td>
+          <td>Excelente — lê arquivos, DB, n8n, tira screenshots</td>
+          <td>Bom, mas mais caro para só investigar</td>
+          <td><span class="tag tb">JARBAS</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Orquestração do fluxo</strong></td>
+          <td>✅ Nativo — controla agentes, estados, Telegram</td>
+          <td>Não orquestra — executa código</td>
+          <td><span class="tag tb">JARBAS</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Revisão / aprovação</strong></td>
+          <td>✅ Agentes independentes com nota</td>
+          <td>Não tem painel de revisão</td>
+          <td><span class="tag tb">JARBAS</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Git commit/push</strong></td>
+          <td>✅ Direto</td>
+          <td>✅ Direto</td>
+          <td><span class="tag ty">Empate</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Supabase queries</strong></td>
+          <td>✅ API + CLI</td>
+          <td>✅ CLI</td>
+          <td><span class="tag ty">Empate</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">n8n</strong></td>
+          <td>✅ REST API</td>
+          <td>✅ REST API</td>
+          <td><span class="tag ty">Empate</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Custo por tarefa complexa</strong></td>
+          <td style="color:var(--y)">R$15–R$80</td>
+          <td style="color:var(--or)">R$80–R$600</td>
+          <td><span class="tag tb">JARBAS</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:#fff">Qualidade código complexo</strong></td>
+          <td style="color:var(--or)">Razoável (sem índice global)</td>
+          <td style="color:var(--p)">Excelente</td>
+          <td><span class="tag tg">Claude Code</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert ag">
+    <span>🎯</span>
+    <div>
+      <strong>Veredito:</strong> JARBAS e Claude Code são complementares, não concorrentes. <strong style="color:var(--p)">JARBAS orquestra. Claude Code executa o código.</strong><br><br>
+      Para as revisões de página que você quer: JARBAS faz a investigação, gera os prompts de correção, passa para Claude Code executar, verifica o resultado e aprova ou manda de volta. Esse é exatamente o LAPIDADOR — e já funciona assim.
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 03 CUSTO COMPARATIVO -->
+<section class="section">
+  <div class="sl">03 · Custo real</div>
+  <h2 class="sh">Quanto custa <em>revisar uma página</em>?</h2>
+  <p class="sp">Baseado nos dados reais de uso (07/03/2026). Páginas do MdFlow: ~300–600 linhas de TSX + hooks + n8n.</p>
+
+  <div class="grid3">
+    <div class="card">
+      <div class="card-title" style="font-size:.85rem">🔍 Investigação (JARBAS)</div>
+      <div style="padding:12px 0">
+        <div class="cost-row"><span>Screenshots (4-6)</span><span class="cost-val" style="color:var(--p)">~R$2</span></div>
+        <div class="cost-row"><span>Análise código + DB</span><span class="cost-val" style="color:var(--p)">~R$3</span></div>
+        <div class="cost-row"><span>Verificação n8n</span><span class="cost-val" style="color:var(--p)">~R$1</span></div>
+        <div class="cost-row"><span>HTML report + prompts</span><span class="cost-val" style="color:var(--p)">~R$4</span></div>
+        <div style="padding-top:8px;border-top:1px solid var(--b);display:flex;justify-content:space-between">
+          <span style="font-family:Manrope;font-weight:700;color:#fff">Total</span>
+          <span style="font-family:Manrope;font-weight:900;font-size:1.1rem;color:var(--p)">R$8–R$15</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="font-size:.85rem">⚡ Correção (Claude Code)</div>
+      <div style="padding:12px 0">
+        <div class="cost-row"><span>C1 — Frontend fix</span><span class="cost-val" style="color:var(--or)">~R$40</span></div>
+        <div class="cost-row"><span>C2 — Backend/DB</span><span class="cost-val" style="color:var(--or)">~R$30</span></div>
+        <div class="cost-row"><span>C3 — n8n</span><span class="cost-val" style="color:var(--or)">~R$25</span></div>
+        <div class="cost-row"><span>C4 — Refatoração</span><span class="cost-val" style="color:var(--or)">~R$60</span></div>
+        <div style="padding-top:8px;border-top:1px solid var(--b);display:flex;justify-content:space-between">
+          <span style="font-family:Manrope;font-weight:700;color:#fff">Total</span>
+          <span style="font-family:Manrope;font-weight:900;font-size:1.1rem;color:var(--or)">R$100–R$250</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="font-size:.85rem">✅ Revisão final (JARBAS)</div>
+      <div style="padding:12px 0">
+        <div class="cost-row"><span>E2E 3 agentes</span><span class="cost-val" style="color:var(--bl)">~R$15</span></div>
+        <div class="cost-row"><span>UI/UX com 21.st</span><span class="cost-val" style="color:var(--bl)">~R$10</span></div>
+        <div class="cost-row"><span>Code review TSX</span><span class="cost-val" style="color:var(--bl)">~R$8</span></div>
+        <div class="cost-row"><span>Aprovação + commit</span><span class="cost-val" style="color:var(--bl)">~R$2</span></div>
+        <div style="padding-top:8px;border-top:1px solid var(--b);display:flex;justify-content:space-between">
+          <span style="font-family:Manrope;font-weight:700;color:#fff">Total</span>
+          <span style="font-family:Manrope;font-weight:900;font-size:1.1rem;color:var(--bl)">R$25–R$50</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;background:rgba(32,201,151,.04);border-color:rgba(32,201,151,.25)">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px">
+      <div>
+        <div style="font-family:Manrope;font-weight:900;color:#fff;font-size:1rem">Custo total por página: <span style="color:var(--p)">R$130–R$315</span></div>
+        <div style="font-size:.8rem;color:var(--td);margin-top:4px">Inclui: investigação + todas as correções + refatoração + revisão final</div>
+      </div>
+      <div style="text-align:right;font-size:.8rem;color:var(--td)">
+        33 páginas × R$200 médio = <span style="color:var(--y);font-weight:700">R$6.600</span> total<br>
+        Parece muito mas substitui semanas de dev manual
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 04 FLUXO COMPLETO -->
+<section class="section">
+  <div class="sl">04 · O fluxo ideal</div>
+  <h2 class="sh">LAPIDADOR v3 — <em>fluxo completo</em>.</h2>
+  <p class="sp">O mecanismo que você descreveu, arquitetado em fases com responsável por cada etapa.</p>
+
+  <div class="flow">
+    <div class="flow-item">
+      <div class="flow-left">
+        <div class="flow-dot" style="background:rgba(32,201,151,.12);border-color:var(--p)">📋</div>
+        <div class="flow-line" style="background:linear-gradient(to bottom,var(--p),rgba(116,185,255,.5))"></div>
+      </div>
+      <div class="flow-body">
+        <div class="flow-tag">Fase 0 · JARBAS</div>
+        <div class="flow-title">Geração do PRD da página</div>
+        <div class="flow-desc">Christian manda: <code>lapida /rota descrição</code>. JARBAS investiga (screenshots + código + DB + n8n), gera o PRD com checklist de itens a corrigir, organizado por camada: Frontend · Backend · n8n · UX · Código. Publica HTML no jarbas-reports, envia link no Telegram.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag tg">JARBAS</span><span class="tag tg">Screenshot-First</span><span class="tag tg">HTML Report</span>
+        </div>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-left">
+        <div class="flow-dot" style="background:rgba(116,185,255,.12);border-color:var(--bl)">👨‍💻</div>
+        <div class="flow-line" style="background:linear-gradient(to bottom,rgba(116,185,255,.5),rgba(162,155,254,.5))"></div>
+      </div>
+      <div class="flow-body">
+        <div class="flow-tag">Fase 1 · Equipe (Kayron + devs)</div>
+        <div class="flow-title">Execução das correções</div>
+        <div class="flow-desc">Equipe trabalha seguindo o PRD. Cada item do checklist é uma tarefa atômica. Quando finalizam, marcam o PRD como "done" e avisam o JARBAS: <code>revisao /rota pronto</code>. Ou o JARBAS pode receber via Telegram de qualquer membro da equipe.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag tb">Kayron</span><span class="tag tb">Claude Code</span><span class="tag tb">Manual</span>
+        </div>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-left">
+        <div class="flow-dot" style="background:rgba(162,155,254,.12);border-color:var(--pu)">🧹</div>
+        <div class="flow-line" style="background:linear-gradient(to bottom,rgba(162,155,254,.5),rgba(253,150,68,.5))"></div>
+      </div>
+      <div class="flow-body">
+        <div class="flow-tag">Fase 2 · Claude Code (via JARBAS)</div>
+        <div class="flow-title">Limpeza e refatoração do código</div>
+        <div class="flow-desc">Antes da revisão final, JARBAS dispara Claude Code para: (1) Identificar e remover arquivos .tsx órfãos referentes à página; (2) Refatorar componentes "Frankenstein" — código sobreempilhado de múltiplas iterações; (3) Garantir que não existe dead code, console.log, imports não usados; (4) Validar que todos os arquivos estão ≤ 500 linhas. Esta fase roda ANTES do revisor.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag tp">Claude Code</span><span class="tag tp">Refactor</span><span class="tag tp">Dead code</span><span class="tag tp">≤500 linhas</span>
+        </div>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-left">
+        <div class="flow-dot" style="background:rgba(253,150,68,.12);border-color:var(--or)">✨</div>
+        <div class="flow-line" style="background:linear-gradient(to bottom,rgba(253,150,68,.5),rgba(32,201,151,.5))"></div>
+      </div>
+      <div class="flow-body">
+        <div class="flow-tag">Fase 3 · Claude Code + 21.st (via JARBAS)</div>
+        <div class="flow-title">Revisão UI/UX com 21.st Magic</div>
+        <div class="flow-desc">NOVO — Claude Code com MCP 21.st analisa a página como designer: (1) Consulta componentes disponíveis na biblioteca 21.st que podem substituir código customizado; (2) Avalia hierarquia visual, espaçamento, tipografia conforme DS v5; (3) Sugere melhorias UX (loading states, empty states, feedback de erro); (4) Gera diff com as melhorias recomendadas e aplica as aprovadas automaticamente.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag to">21.st Magic</span><span class="tag to">DS v5</span><span class="tag to">UX Review</span>
+        </div>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-left">
+        <div class="flow-dot" style="background:rgba(32,201,151,.12);border-color:var(--p)">🏆</div>
+        <div class="flow-line" style="background:linear-gradient(to bottom,var(--p),rgba(255,107,107,.5))"></div>
+      </div>
+      <div class="flow-body">
+        <div class="flow-tag">Fase 4 · JARBAS (3 agentes)</div>
+        <div class="flow-title">Revisão final — Painel de 3 agentes</div>
+        <div class="flow-desc">JARBAS entra como revisor final com 3 agentes em paralelo: Frontend Auditor (DS v5, TypeScript, staleTime), Backend Specialist (RLS, RPCs, segurança), E2E Tester (testa campo a campo como usuário real). Cada agente dá nota 0–10. Todos precisam de ≥ 8/10.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag tg">3 agentes paralelos</span><span class="tag tg">nota mínima 8/10</span>
+        </div>
+      </div>
+    </div>
+    <div class="flow-item">
+      <div class="flow-left">
+        <div class="flow-dot" style="background:rgba(255,107,107,.12);border-color:var(--r)">🔁</div>
+      </div>
+      <div class="flow-body">
+        <div class="flow-tag">Condicional</div>
+        <div class="flow-title">Aprovado → commit · Reprovado → loop</div>
+        <div class="flow-desc"><strong style="color:var(--p)">Se aprovado (todos ≥ 8):</strong> JARBAS faz git commit com nota e resumo, informa Christian com relatório final.<br><strong style="color:var(--r)">Se reprovado:</strong> Gera novos C-prompts específicos para o que falhou, retorna para Claude Code, e recomeça da Fase 2 (sem refazer Fase 1 da equipe).</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 05 PRD STRUCTURE -->
+<section class="section">
+  <div class="sl">05 · Estrutura do PRD</div>
+  <h2 class="sh">Como o PRD de <em>cada página</em> vai ser.</h2>
+  <p class="sp">Um documento vivo. Começa com a investigação do JARBAS, a equipe executa, o revisor valida cada item.</p>
+
+  <pre>## PRD — /olivia/gerador/ia
+**Versão:** 1.0 · **Gerado por:** JARBAS · **Data:** 07/03/2026
+**Status:** 🟡 Em correção | **Nota atual:** 6.2/10
+
+### 📊 Resumo da Investigação
+- Arquivos envolvidos: 8 TSX, 3 hooks, 2 workflows n8n
+- TypeScript errors: 0 ✅
+- console.log ativos: 3 ⚠️
+- Arquivos > 500 linhas: 1 (useOliviaWizard.ts — 612 linhas)
+- staleTime ausente: 2 hooks
+- RLS verificado: ✅
+
+### ✅ Checklist de Correções
+
+#### Frontend (responsável: Kayron)
+- [ ] C1: Remover 3 console.log em useWizardTabs.ts:47, :89, :134
+- [ ] C2: Adicionar staleTime em useOliviaModelos e useOliviaVersoes
+- [ ] C3: Substituir &lt;button&gt; dentro de &lt;AccordionTrigger&gt; em Step2.tsx:28
+
+#### Backend (responsável: JARBAS/Claude Code)
+- [ ] C4: RLS policy em olivia_sessoes — verificar organizacao_id filter
+- [ ] C5: RPC get_olivia_metrics com SECURITY DEFINER
+
+#### n8n (responsável: JARBAS)
+- [ ] C6: Campo vibelaw-apply-patch — mismatch de schema v3
+
+#### Refatoração (responsável: Claude Code)
+- [ ] R1: Quebrar useOliviaWizard.ts em 3 hooks menores (≤200 linhas cada)
+- [ ] R2: Remover arquivo wizard_legacy.ts (não referenciado em lugar nenhum)
+
+#### UI/UX com 21.st (responsável: Claude Code + 21.st)
+- [ ] U1: Substituir spinner customizado por &lt;Spinner&gt; do 21.st
+- [ ] U2: Adicionar empty state em lista de modelos vazia
+
+### 📋 Histórico de Revisões
+| Revisão | Data | Nota | Resultado |
+|---------|------|------|-----------|
+| R1 | 07/03 | 6.2 | Reprovado — C3, C6 pendentes |</pre>
+
+  <div class="alert ag">
+    <span>💡</span>
+    <div>O PRD fica no repo <code>beta-mdflow/PRDs/</code> ou no <code>jarbas-reports</code>. Cada página tem o seu. O JARBAS atualiza as notas e status automaticamente conforme revisões avançam.</div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- 06 MCPs A ADICIONAR -->
+<section class="section">
+  <div class="sl">06 · Próximos passos</div>
+  <h2 class="sh">O que precisa ser <em>implementado.</em></h2>
+
+  <div style="margin-bottom:8px">
+    <div class="cl-item done">
+      <div class="cl-check" style="background:rgba(32,201,151,.15);color:var(--p)">✅</div>
+      <div><strong style="color:#fff">21.st Magic MCP no Claude Code</strong> — já configurado em <code>~/.claude.json</code></div>
+    </div>
+    <div class="cl-item done">
+      <div class="cl-check" style="background:rgba(32,201,151,.15);color:var(--p)">✅</div>
+      <div><strong style="color:#fff">LAPIDADOR v2 base</strong> — skill_lapidar_pagina.mjs existe, fluxo funciona</div>
+    </div>
+    <div class="cl-item done">
+      <div class="cl-check" style="background:rgba(32,201,151,.15);color:var(--p)">✅</div>
+      <div><strong style="color:#fff">Claude Code auto-approve</strong> — dangerouslySkipPermissions ativo</div>
+    </div>
+    <div class="cl-item todo" style="border-color:rgba(255,217,61,.2)">
+      <div class="cl-check" style="background:rgba(255,217,61,.1);color:var(--y)">⏳</div>
+      <div><strong style="color:#fff">Fase 2 — Limpeza de código</strong> — adicionar ao fluxo do LAPIDADOR: prompt de refatoração + busca de arquivos órfãos antes da revisão final</div>
+    </div>
+    <div class="cl-item todo" style="border-color:rgba(255,217,61,.2)">
+      <div class="cl-check" style="background:rgba(255,217,61,.1);color:var(--y)">⏳</div>
+      <div><strong style="color:#fff">Fase 3 — UI/UX com 21.st</strong> — adicionar prompt específico passando contexto do DS v5 para Claude Code usar o 21.st Magic na revisão visual</div>
+    </div>
+    <div class="cl-item todo" style="border-color:rgba(255,217,61,.2)">
+      <div class="cl-check" style="background:rgba(255,217,61,.1);color:var(--y)">⏳</div>
+      <div><strong style="color:#fff">PRD template padronizado</strong> — template Markdown com checklist por camada, status, histórico de revisões</div>
+    </div>
+    <div class="cl-item new">
+      <div class="cl-check" style="background:rgba(116,185,255,.1);color:var(--bl)">🆕</div>
+      <div><strong style="color:#fff">registerSkill em start.mjs</strong> — lapidar_pagina e e2e_test ainda não registradas (pendência de sessão anterior)</div>
+    </div>
+    <div class="cl-item new">
+      <div class="cl-check" style="background:rgba(116,185,255,.1);color:var(--bl)">🆕</div>
+      <div><strong style="color:#fff">Supabase MCP (opcional)</strong> — adicionar ao Claude Code para que ele execute queries SQL direto no editor sem sair do terminal. Melhora qualidade das correções de backend.</div>
+    </div>
+  </div>
+
+  <div class="alert ay" style="margin-top:16px">
+    <span>⚡</span>
+    <div><strong>Recomendação de implementação:</strong> Implementar as Fases 2 e 3 como extensões do skill_lapidar_pagina.mjs existente — não criar novo sistema. A base já está certa. É adicionar mais duas etapas no fluxo: <em>cleanup → ui/ux review → agentes finais.</em> Quer que eu implemente agora?</div>
+  </div>
+</section>
+
+<footer>
+  <div style="font-size:2rem;margin-bottom:8px">🦞</div>
+  <div style="font-family:Manrope;font-weight:800;color:#fff">LAPIDADOR v3 — MDX LegalTech</div>
+  <div style="margin-top:4px">JARBAS orquestra · Claude Code executa · 21.st revisa UI · 3 agentes aprovam</div>
+  <div style="margin-top:12px;font-size:.72rem;opacity:.4">© 2026 MDX LegalTech · Análise gerada por JARBAS v3.0</div>
+</footer>
+</body>
+</html>

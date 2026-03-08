@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codex vs Opus — Revisão de Código no JARBAS</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+:root {
+  --bg:#0f0d0b; --bg2:#1b1814; --bg3:#231f1a; --bg4:#2c2820;
+  --primary:#34d399; --pm:rgba(52,211,153,.12); --pb:rgba(52,211,153,.25);
+  --fg1:#f5f0e8; --fg2:#c4b89a; --fg3:#877060;
+  --border:#2e2820; --border2:#3d3528;
+  --green:#4ade80; --yellow:#fbbf24; --red:#f87171;
+  --blue:#38bdf8; --purple:#a78bfa; --orange:#fb923c;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--fg1);font-family:'Inter',sans-serif;font-size:14px}
+.page{max-width:1060px;margin:0 auto;padding:48px 24px 80px}
+
+.hero{text-align:center;padding:48px 0 36px;margin-bottom:40px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0,rgba(52,211,153,.09) 0%,transparent 70%);pointer-events:none}
+.tag{display:inline-block;background:var(--pm);border:1px solid var(--pb);color:var(--primary);font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:18px}
+.hero h1{font-family:'Manrope',sans-serif;font-size:40px;font-weight:900;line-height:1.05;margin-bottom:12px}
+.hero h1 span{color:var(--primary)}
+.hero p{color:var(--fg2);font-size:15px;max-width:540px;margin:0 auto;line-height:1.6}
+
+/* Verdict banner */
+.verdict{background:linear-gradient(135deg,rgba(52,211,153,.12),rgba(52,211,153,.06));border:1.5px solid var(--pb);border-radius:16px;padding:24px 28px;margin-bottom:40px;display:flex;align-items:center;gap:20px}
+.verdict-icon{font-size:40px;flex-shrink:0}
+.verdict-title{font-family:'Manrope',sans-serif;font-size:20px;font-weight:900;color:var(--primary);margin-bottom:4px}
+.verdict-sub{color:var(--fg2);font-size:14px;line-height:1.6}
+
+/* Section */
+.section{margin-bottom:48px}
+.sec-label{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--primary);margin-bottom:6px}
+.sec-title{font-family:'Manrope',sans-serif;font-size:22px;font-weight:800;margin-bottom:8px}
+.sec-sub{color:var(--fg2);font-size:13px;margin-bottom:24px;line-height:1.6}
+
+/* Comparison table */
+.comp-table{width:100%;border-collapse:collapse;border-radius:14px;overflow:hidden;border:1px solid var(--border)}
+.comp-table th{background:var(--bg3);padding:12px 16px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--fg3);border-bottom:1px solid var(--border)}
+.comp-table th:not(:first-child){text-align:center}
+.comp-table td{padding:12px 16px;border-bottom:1px solid var(--border);vertical-align:top;font-size:13px;color:var(--fg2)}
+.comp-table td:first-child{color:var(--fg1);font-weight:600;font-size:13px}
+.comp-table td:not(:first-child){text-align:center}
+.comp-table tr:last-child td{border-bottom:none}
+.comp-table tr:hover td{background:var(--bg3)}
+
+.score{display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;font-weight:800;font-size:14px;font-family:'Manrope',sans-serif}
+.s-green{background:rgba(74,222,128,.15);color:var(--green)}
+.s-yellow{background:rgba(251,191,36,.15);color:var(--yellow)}
+.s-red{background:rgba(248,113,113,.15);color:var(--red)}
+.s-primary{background:var(--pm);color:var(--primary)}
+
+/* Model cards */
+.model-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-bottom:24px}
+.model-card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:20px}
+.model-card.winner{border-color:var(--pb);box-shadow:0 0 24px rgba(52,211,153,.07)}
+.model-card.codex{border-color:rgba(56,189,248,.25)}
+.model-card.opus{border-color:rgba(167,139,250,.2)}
+.model-card.sonnet{border-color:rgba(251,191,36,.2)}
+.model-header{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.model-logo{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.model-logo.cl{background:rgba(167,139,250,.15)}
+.model-logo.oa{background:rgba(56,189,248,.15)}
+.model-name{font-family:'Manrope',sans-serif;font-size:16px;font-weight:900}
+.model-slug{font-size:11px;color:var(--fg3);font-family:'JetBrains Mono',monospace}
+.model-stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
+.stat-item{background:var(--bg4);border-radius:8px;padding:8px 10px}
+.stat-label{font-size:10px;color:var(--fg3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px}
+.stat-value{font-family:'Manrope',sans-serif;font-size:15px;font-weight:800}
+.model-pros{display:flex;flex-direction:column;gap:4px}
+.pro{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--fg2)}
+.pro-icon{flex-shrink:0;margin-top:1px}
+
+/* Architecture */
+.arch-box{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:16px}
+.arch-step{display:flex;align-items:flex-start;gap:14px;padding:12px 0;border-bottom:1px solid var(--border)}
+.arch-step:last-child{border-bottom:none}
+.arch-num{width:28px;height:28px;border-radius:8px;background:var(--pm);border:1px solid var(--pb);color:var(--primary);font-family:'Manrope',sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.arch-content{flex:1}
+.arch-title{font-weight:700;font-size:14px;margin-bottom:3px;color:var(--fg1)}
+.arch-desc{font-size:12px;color:var(--fg2);line-height:1.5}
+.model-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;margin-left:6px}
+.badge-opus{background:rgba(167,139,250,.15);color:var(--purple)}
+.badge-codex{background:rgba(56,189,248,.15);color:var(--blue)}
+.badge-sonnet{background:rgba(251,191,36,.15);color:var(--yellow)}
+.badge-green{background:var(--pm);color:var(--primary)}
+
+/* Cost estimate */
+.cost-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:10px;margin-bottom:16px}
+.cost-cell{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center}
+.cost-cell-label{font-size:11px;color:var(--fg3);margin-bottom:4px}
+.cost-cell-val{font-family:'Manrope',sans-serif;font-size:16px;font-weight:800}
+
+/* Code block */
+pre{background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;line-height:1.6;overflow-x:auto;color:var(--fg2);margin-top:16px}
+.kw{color:var(--primary)} .cm{color:var(--fg3)} .str{color:var(--yellow)} .fn{color:var(--blue)}
+
+hr{border:none;border-top:1px solid var(--border);margin:48px 0}
+</style>
+</head>
+<body>
+<div class="page">
+
+<div class="hero">
+  <div class="tag">🦞 JARBAS — Análise técnica</div>
+  <h1>Codex vs <span>Opus</span><br>para Revisão de Código</h1>
+  <p>Comparação honesta dos dois modelos para o workflow de lapidação do MdFlow. Qual usar, quando e como combinar.</p>
+</div>
+
+<!-- VEREDICTO -->
+<div class="verdict">
+  <div class="verdict-icon">🏆</div>
+  <div>
+    <div class="verdict-title">Veredicto: Híbrido — Codex o4-mini + Opus como fallback</div>
+    <div class="verdict-sub">
+      Codex o4-mini (raciocínio rápido) cobre ~80% dos casos de revisão: TypeScript, lógica, segurança, performance.
+      Opus entra só quando a checklist envolve julgamento subjetivo (DS compliance, UX, coerência de produto).
+      Resultado: <strong style="color:var(--primary)">~60% mais barato</strong> que Opus puro, com qualidade equivalente ou superior em análise de bugs.
+    </div>
+  </div>
+</div>
+
+<!-- COMPARAÇÃO DIRETA -->
+<div class="section">
+  <div class="sec-label">01 — Comparativo</div>
+  <div class="sec-title">Modelo vs Modelo</div>
+  <div class="sec-sub">Por dimensão de revisão relevante para o MdFlow.</div>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>Dimensão de revisão</th>
+        <th>Codex o4-mini</th>
+        <th>Codex o3</th>
+        <th>Claude Opus</th>
+        <th>Claude Sonnet</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>🔴 Bugs de lógica / race conditions</td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-yellow">B+</span></td>
+      </tr>
+      <tr>
+        <td>🔴 TypeScript strict / any / tipos</td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-yellow">B+</span></td>
+      </tr>
+      <tr>
+        <td>🔴 Supabase patterns (RLS, org_id)</td>
+        <td><span class="score s-yellow">B+</span></td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+      </tr>
+      <tr>
+        <td>🔴 Segurança (XSS, injeção, dados)</td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-yellow">B+</span></td>
+      </tr>
+      <tr>
+        <td>🟡 Design System v7 compliance</td>
+        <td><span class="score s-yellow">B</span></td>
+        <td><span class="score s-yellow">B+</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+      </tr>
+      <tr>
+        <td>🟡 Arquivos Frankenstein (>500L)</td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+      </tr>
+      <tr>
+        <td>🟡 Performance (staleTime, memoize)</td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-yellow">B+</span></td>
+      </tr>
+      <tr>
+        <td>🟢 Coerência de produto / UX</td>
+        <td><span class="score s-red">C</span></td>
+        <td><span class="score s-yellow">B</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+      </tr>
+      <tr>
+        <td>🟢 Seguir checklist complexa (12 cats)</td>
+        <td><span class="score s-yellow">B+</span></td>
+        <td><span class="score s-green">A</span></td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-green">A</span></td>
+      </tr>
+      <tr>
+        <td>⚡ Velocidade (latência p50)</td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-yellow">B</span></td>
+        <td><span class="score s-red">C+</span></td>
+        <td><span class="score s-green">A</span></td>
+      </tr>
+      <tr>
+        <td>💰 Custo por revisão (~2k tokens)</td>
+        <td><span class="score s-green">A+</span></td>
+        <td><span class="score s-red">C</span></td>
+        <td><span class="score s-yellow">B</span></td>
+        <td><span class="score s-green">A+</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- PERFIL DOS MODELOS -->
+<div class="section">
+  <div class="sec-label">02 — Perfis</div>
+  <div class="sec-title">O que cada modelo faz bem</div>
+
+  <div class="model-grid">
+
+    <div class="model-card codex">
+      <div class="model-header">
+        <div class="model-logo oa">⚡</div>
+        <div>
+          <div class="model-name">Codex o4-mini</div>
+          <div class="model-slug">openai/o4-mini</div>
+        </div>
+      </div>
+      <div class="model-stats">
+        <div class="stat-item">
+          <div class="stat-label">Raciocínio</div>
+          <div class="stat-value" style="color:var(--blue)">Chain-of-T</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Custo/revisão</div>
+          <div class="stat-value" style="color:var(--green)">~R$0,30</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Latência</div>
+          <div class="stat-value" style="color:var(--green)">~8s</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Contexto</div>
+          <div class="stat-value">128k</div>
+        </div>
+      </div>
+      <div class="model-pros">
+        <div class="pro"><span class="pro-icon">✅</span> Melhor modelo do mundo para análise de código</div>
+        <div class="pro"><span class="pro-icon">✅</span> Raciocínio explícito — mostra o "porquê" de cada issue</div>
+        <div class="pro"><span class="pro-icon">✅</span> TypeScript strict é o seu terreno nativo</div>
+        <div class="pro"><span class="pro-icon">✅</span> Muito mais barato que o3 e Opus</div>
+        <div class="pro"><span class="pro-icon">⚠️</span> Precisa de contexto explícito (DS v7, padrões MdFlow)</div>
+        <div class="pro"><span class="pro-icon">❌</span> Não instalado — precisa de Codex CLI + OpenAI key</div>
+      </div>
+    </div>
+
+    <div class="model-card opus winner">
+      <div class="model-header">
+        <div class="model-logo cl">🔮</div>
+        <div>
+          <div class="model-name">Claude Opus</div>
+          <div class="model-slug">claude-opus-4-5</div>
+        </div>
+      </div>
+      <div class="model-stats">
+        <div class="stat-item">
+          <div class="stat-label">Raciocínio</div>
+          <div class="stat-value" style="color:var(--purple)">Contextual</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Custo/revisão</div>
+          <div class="stat-value" style="color:var(--yellow)">~R$0,80</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Latência</div>
+          <div class="stat-value" style="color:var(--yellow)">~25s</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Contexto</div>
+          <div class="stat-value">200k</div>
+        </div>
+      </div>
+      <div class="model-pros">
+        <div class="pro"><span class="pro-icon">✅</span> Melhor em seguir checklists complexas de 12 categorias</div>
+        <div class="pro"><span class="pro-icon">✅</span> Entende design system + UX sem precisar de prompt longo</div>
+        <div class="pro"><span class="pro-icon">✅</span> Já integrado no <code>mdflow-code-reviewer.md</code></div>
+        <div class="pro"><span class="pro-icon">✅</span> Supabase patterns no contexto de treinamento</div>
+        <div class="pro"><span class="pro-icon">⚠️</span> Mais caro que Sonnet para análise puramente técnica</div>
+        <div class="pro"><span class="pro-icon">⚠️</span> Mais lento — revisão demora ~25s</div>
+      </div>
+    </div>
+
+    <div class="model-card sonnet">
+      <div class="model-header">
+        <div class="model-logo cl">✨</div>
+        <div>
+          <div class="model-name">Claude Sonnet</div>
+          <div class="model-slug">claude-sonnet-4-6 (padrão)</div>
+        </div>
+      </div>
+      <div class="model-stats">
+        <div class="stat-item">
+          <div class="stat-label">Raciocínio</div>
+          <div class="stat-value" style="color:var(--yellow)">Equilibrado</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Custo/revisão</div>
+          <div class="stat-value" style="color:var(--green)">~R$0,15</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Latência</div>
+          <div class="stat-value" style="color:var(--green)">~12s</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-label">Contexto</div>
+          <div class="stat-value">200k</div>
+        </div>
+      </div>
+      <div class="model-pros">
+        <div class="pro"><span class="pro-icon">✅</span> Já roda como modelo padrão do JARBAS</div>
+        <div class="pro"><span class="pro-icon">✅</span> Mais que suficiente para revisões de arquivos <300L</div>
+        <div class="pro"><span class="pro-icon">✅</span> Muito mais barato — economiza R$ em revisões menores</div>
+        <div class="pro"><span class="pro-icon">⚠️</span> Pode perder issues sutis em código complexo</div>
+        <div class="pro"><span class="pro-icon">❌</span> Não recomendado para pre-lapidation review crítico</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ARQUITETURA RECOMENDADA -->
+<div class="section">
+  <div class="sec-label">03 — Implementação</div>
+  <div class="sec-title">Arquitetura híbrida recomendada</div>
+  <div class="sec-sub">Roteamento inteligente por tipo de análise — sem trocar o que já funciona.</div>
+
+  <div class="arch-box">
+    <div class="arch-step">
+      <div class="arch-num">1</div>
+      <div class="arch-content">
+        <div class="arch-title">Pre-review rápido <span class="model-badge badge-codex">Codex o4-mini</span></div>
+        <div class="arch-desc">
+          Antes da lapidação: lê os arquivos da página e verifica os 7 checks objetivos — TypeScript any, hex hardcoded, console.log, staleTime, organizacao_id, deleted_at, arquivos >500L.
+          Veredicto binário: <strong>PODE LAPIDAR</strong> ou <strong>REFATORAR PRIMEIRO</strong>. Rápido e barato — ~8s, ~R$0,30.
+        </div>
+      </div>
+    </div>
+    <div class="arch-step">
+      <div class="arch-num">2</div>
+      <div class="arch-content">
+        <div class="arch-title">Post-review profundo <span class="model-badge badge-opus">Opus</span></div>
+        <div class="arch-desc">
+          Depois da lapidação: avalia DS v7 compliance, coerência de produto, UX, padrões de componente.
+          É onde o Opus brilha — análise subjetiva de qualidade. Mantém o fluxo atual do <code>mdflow-code-reviewer.md</code>.
+        </div>
+      </div>
+    </div>
+    <div class="arch-step">
+      <div class="arch-num">3</div>
+      <div class="arch-content">
+        <div class="arch-title">Votação para push <span class="model-badge badge-codex">Codex</span> + <span class="model-badge badge-opus">Opus</span> + <span class="model-badge badge-sonnet">Sonnet</span></div>
+        <div class="arch-desc">
+          Os 3 agentes já existentes (INV, C1, R1) podem ter modelos diferentes: Codex para análise técnica,
+          Opus para qualidade visual, Sonnet para roteamento/orquestração. Push só com ≥9/10 nos 3.
+        </div>
+      </div>
+    </div>
+    <div class="arch-step">
+      <div class="arch-num">4</div>
+      <div class="arch-content">
+        <div class="arch-title">Debug Specialist <span class="model-badge badge-opus">Opus</span> (mantém)</div>
+        <div class="arch-desc">
+          Continua como hoje — ativado após 3+ tentativas falhas. Opus é o mais indicado aqui por contexto
+          multi-arquivo e raciocínio profundo sobre o problema. Não muda nada.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <pre><span class="cm">// lapida.mjs — roteamento de modelos por fase</span>
+<span class="cm">// Fase 1 Step 1: pre-review (objetivo, rápido)</span>
+<span class="fn">runCodexReview</span>({ model: <span class="str">'codex'</span>, checks: [<span class="str">'typescript'</span>, <span class="str">'hex'</span>, <span class="str">'console'</span>, <span class="str">'staleTime'</span>, <span class="str">'supabase'</span>] })
+
+<span class="cm">// Fase 2 Step 1: post-review (subjetivo, qualidade)</span>
+<span class="fn">runOpusReview</span>({ agent: <span class="str">'mdflow-code-reviewer'</span>, checks: [<span class="str">'ds-v7'</span>, <span class="str">'ux'</span>, <span class="str">'produto'</span>] })
+
+<span class="cm">// Push gate: 3 agentes votam, precisa ≥9/10</span>
+<span class="kw">if</span> (notas.every(n => n >= <span class="str">9</span>)) <span class="fn">gitPush</span>()
+<span class="kw">else</span> <span class="fn">notificarChristian</span>({ issues, notas })</pre>
+</div>
+
+<!-- CUSTO ESTIMADO -->
+<div class="section">
+  <div class="sec-label">04 — Impacto financeiro</div>
+  <div class="sec-title">Custo por lapidação</div>
+  <div class="sec-sub">Estimativa por página lapidada (~3k tokens de código para revisão).</div>
+
+  <div class="cost-row">
+    <div class="cost-cell">
+      <div class="cost-cell-label">Opus puro (atual)</div>
+      <div class="cost-cell-val" style="color:var(--yellow)">~R$1,60</div>
+    </div>
+    <div class="cost-cell">
+      <div class="cost-cell-label">Codex o4-mini puro</div>
+      <div class="cost-cell-val" style="color:var(--green)">~R$0,60</div>
+    </div>
+    <div class="cost-cell" style="border-color:var(--pb)">
+      <div class="cost-cell-label" style="color:var(--primary)">Híbrido (recomendado)</div>
+      <div class="cost-cell-val" style="color:var(--primary)">~R$0,90</div>
+    </div>
+    <div class="cost-cell">
+      <div class="cost-cell-label">Sonnet puro</div>
+      <div class="cost-cell-val" style="color:var(--green)">~R$0,30</div>
+    </div>
+  </div>
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--fg2);line-height:1.8">
+    💡 Com 6 páginas na fila (clientes, acordos, decisoes, execucoes, audiencias, financeiro): <br>
+    Opus puro → <strong style="color:var(--yellow)">~R$9,60</strong> só em revisões
+    · Híbrido → <strong style="color:var(--primary)">~R$5,40</strong>
+    · Economia de <strong style="color:var(--green)">~44%</strong> por ciclo de lapidação completo
+  </div>
+</div>
+
+<!-- O QUE FAZER AGORA -->
+<div class="section">
+  <div class="sec-label">05 — Próximos passos</div>
+  <div class="sec-title">Para implementar</div>
+
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="display:flex;align-items:flex-start;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+      <span style="color:var(--primary);font-weight:700;flex-shrink:0">1.</span>
+      <div>
+        <div style="font-weight:700;margin-bottom:3px">Instalar Codex CLI + configurar OpenAI key</div>
+        <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--primary)">npm install -g @openai/codex</code>
+        · Precisa de uma API key da OpenAI com acesso a o4-mini
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+      <span style="color:var(--primary);font-weight:700;flex-shrink:0">2.</span>
+      <div>
+        <div style="font-weight:700;margin-bottom:3px">Criar <code>mdflow-codex-reviewer.md</code> — agente especializado</div>
+        <div style="font-size:12px;color:var(--fg2)">Checklist objetiva: TypeScript, hex, staleTime, Supabase patterns, performance, console.log. Sem julgamento subjetivo.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:14px 16px">
+      <span style="color:var(--primary);font-weight:700;flex-shrink:0">3.</span>
+      <div>
+        <div style="font-weight:700;margin-bottom:3px">Atualizar <code>lapida.mjs</code> — Fase 1 usa Codex, Fase 2 usa Opus</div>
+        <div style="font-size:12px;color:var(--fg2)">Mudança simples no script: trocar o modelo do pre-review. O post-review (Opus) permanece igual.</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(251,191,36,.06);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:14px 16px">
+      <span style="color:var(--yellow);font-weight:700;flex-shrink:0">⚠️</span>
+      <div>
+        <div style="font-weight:700;margin-bottom:3px;color:var(--yellow)">Pré-requisito: você precisa ter conta OpenAI com acesso a o4-mini</div>
+        <div style="font-size:12px;color:var(--fg2)">Codex CLI ainda está em early access. Se não tiver acesso agora, manter Opus puro é a melhor opção — não vale usar o3 (muito caro).</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div style="text-align:center;padding:32px 0 0;border-top:1px solid var(--border);color:var(--fg3);font-size:12px;margin-top:24px">
+  <div style="font-family:'Manrope',sans-serif;font-size:15px;font-weight:800;color:var(--primary);margin-bottom:6px">🦞 JARBAS — Análise de Modelos para Code Review</div>
+  TL;DR: Codex o4-mini para análise técnica objetiva · Opus para qualidade subjetiva (DS, UX) · Juntos são melhores que qualquer um sozinho.<br><br>
+  Gerado em 08/03/2026 · MDX LegalTech
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JARBAS Mission Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #12100e;
+      --card:         #1a1714;
+      --surface:      #211e1a;
+      --border:       #3a3530;
+      --fg:           #f2efe8;
+      --muted:        #9e978a;
+      --primary:      #20c997;
+      --primary-dim:  rgba(32,201,151,0.12);
+      --primary-glow: rgba(32,201,151,0.25);
+      --warning:      #f59e0b;
+      --warning-dim:  rgba(245,158,11,0.12);
+      --error:        #ef4444;
+      --error-dim:    rgba(239,68,68,0.12);
+      --success:      #22c55e;
+      --info:         #38bdf8;
+      --info-dim:     rgba(56,189,248,0.12);
+      --violet:       #a78bfa;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      padding: 0 0 40px 0;
+    }
+
+    /* ─── HEADER ─────────────────────────────────────── */
+    header {
+      background: rgba(26,23,20,0.85);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .header-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: var(--primary-dim);
+      border: 1px solid var(--primary-glow);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+
+    .header-title h1 {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      color: var(--fg);
+    }
+
+    .header-title p {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .last-refresh {
+      font-size: 12px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .refresh-btn {
+      background: var(--primary-dim);
+      border: 1px solid var(--primary-glow);
+      color: var(--primary);
+      padding: 7px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Inter', sans-serif;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .refresh-btn:hover {
+      background: var(--primary-glow);
+    }
+
+    .refresh-btn.loading {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .spin {
+      display: inline-block;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    /* ─── LAYOUT ─────────────────────────────────────── */
+    main {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ─── GLASS CARD ─────────────────────────────────── */
+    .card {
+      background: rgba(26,23,20,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover {
+      border-color: rgba(58,53,48,0.9);
+    }
+
+    .card-unavailable {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+
+    .unavailable-msg {
+      color: var(--muted);
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 0;
+    }
+
+    /* ─── SEMÁFORO ───────────────────────────────────── */
+    .semaforo-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .semaforo-card {
+      background: rgba(26,23,20,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .semaforo-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .semaforo-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      letter-spacing: 0.3px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .status-dot.verde  { background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,0.5); }
+    .status-dot.amarelo { background: var(--warning); box-shadow: 0 0 8px rgba(245,158,11,0.5); }
+    .status-dot.vermelho { background: var(--error); box-shadow: 0 0 8px rgba(239,68,68,0.5); }
+    .status-dot.cinza  { background: var(--muted); }
+    .status-dot.pulse  { animation: pulse-dot 2s ease-in-out infinite; }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .semaforo-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -1px;
+    }
+
+    .semaforo-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ─── MISSÃO PROGRESS ────────────────────────────── */
+    .missao-inner {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .missao-stats {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .missao-count {
+      font-size: 36px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--primary);
+      letter-spacing: -1px;
+    }
+
+    .missao-total {
+      font-size: 18px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .missao-desc {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .progress-bar-wrap {
+      background: var(--surface);
+      border-radius: 999px;
+      height: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--primary), #3dd9b3);
+      transition: width 1s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 40px; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
+      animation: shimmer 2s ease infinite;
+    }
+
+    @keyframes shimmer {
+      from { transform: translateX(-40px); }
+      to   { transform: translateX(40px); }
+    }
+
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ─── TABLE ──────────────────────────────────────── */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: 8px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(58,53,48,0.4);
+      transition: background 0.15s;
+    }
+
+    tbody tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    tbody tr:last-child {
+      border-bottom: none;
+    }
+
+    tbody td {
+      padding: 11px 14px;
+      color: var(--fg);
+      vertical-align: middle;
+    }
+
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+
+    /* ─── BADGES ─────────────────────────────────────── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+
+    .badge.pendente  { background: var(--warning-dim); color: var(--warning); }
+    .badge.processando { background: var(--info-dim); color: var(--info); }
+    .badge.concluida, .badge.concluido { background: rgba(34,197,94,0.12); color: var(--success); }
+    .badge.erro      { background: var(--error-dim); color: var(--error); }
+    .badge.fila      { background: rgba(167,139,250,0.12); color: var(--violet); }
+    .badge.cancelado { background: rgba(158,151,138,0.12); color: var(--muted); }
+
+    /* ─── LOGS ───────────────────────────────────────── */
+    .logs-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .log-row {
+      display: grid;
+      grid-template-columns: 90px 50px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      transition: background 0.15s;
+    }
+
+    .log-row:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .log-time {
+      color: var(--muted);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .log-level {
+      font-weight: 700;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    .log-level.info  { background: rgba(56,189,248,0.1); color: var(--info); }
+    .log-level.warn  { background: var(--warning-dim); color: var(--warning); }
+    .log-level.error { background: var(--error-dim); color: var(--error); }
+    .log-level.debug { background: rgba(158,151,138,0.1); color: var(--muted); }
+
+    .log-msg {
+      color: var(--fg);
+      line-height: 1.4;
+    }
+
+    /* ─── CUSTOS KPI ─────────────────────────────────── */
+    .custos-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .custo-card {
+      background: rgba(26,23,20,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .custo-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .custo-value {
+      font-size: 30px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      letter-spacing: -0.5px;
+      color: var(--primary);
+    }
+
+    .custo-sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* ─── DOIS PAINÉIS LADO A LADO ───────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+
+    /* ─── LOADING SKELETON ───────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, rgba(58,53,48,0.5) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-shimmer 1.5s ease infinite;
+      border-radius: 6px;
+      height: 14px;
+    }
+
+    @keyframes skeleton-shimmer {
+      from { background-position: 200% 0; }
+      to   { background-position: -200% 0; }
+    }
+
+    /* ─── RESPONSIVE ─────────────────────────────────── */
+    @media (max-width: 900px) {
+      main { padding: 20px 16px; }
+      header { padding: 16px 16px; }
+      .semaforo-grid, .custos-grid { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+      .log-row { grid-template-columns: 80px 45px 1fr; gap: 8px; }
+    }
+
+    @media (max-width: 640px) {
+      .header-right .last-refresh { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ─── HEADER ───────────────────────────────────────── -->
+<header>
+  <div class="header-left">
+    <div class="header-logo">⚡</div>
+    <div class="header-title">
+      <h1>JARBAS Mission Control</h1>
+      <p>mac-mini-m4 · MdFlow Lapidador v3 · qdivfairxhdihaqqypgb</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="last-refresh" id="lastRefresh">Carregando...</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
+      <span id="refreshIcon">↻</span>
+      Atualizar
+    </button>
+  </div>
+</header>
+
+<!-- ─── MAIN ─────────────────────────────────────────── -->
+<main>
+
+  <!-- SEÇÃO 1: SEMÁFORO -->
+  <section>
+    <p class="section-title">Semáforo do Sistema</p>
+    <div class="semaforo-grid">
+
+      <div class="semaforo-card" id="card-jarbas">
+        <div class="semaforo-header">
+          <span class="semaforo-label">Status JARBAS</span>
+          <span class="status-dot cinza" id="dot-jarbas"></span>
+        </div>
+        <div class="semaforo-value" id="val-jarbas">—</div>
+        <div class="semaforo-sub" id="sub-jarbas">Verificando instâncias...</div>
+      </div>
+
+      <div class="semaforo-card">
+        <div class="semaforo-header">
+          <span class="semaforo-label">Memória RAM</span>
+          <span class="status-dot" id="dot-ram"></span>
+        </div>
+        <div class="semaforo-value" id="val-ram">—</div>
+        <div class="semaforo-sub" id="sub-ram">Verificar com /status no Telegram</div>
+      </div>
+
+      <div class="semaforo-card" id="card-custo-hoje-semaforo">
+        <div class="semaforo-header">
+          <span class="semaforo-label">Custo Hoje</span>
+          <span class="status-dot cinza" id="dot-custo"></span>
+        </div>
+        <div class="semaforo-value" id="val-custo-semaforo">—</div>
+        <div class="semaforo-sub" id="sub-custo-semaforo">Carregando...</div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- SEÇÃO 2: MISSÃO MDFLOW -->
+  <section>
+    <p class="section-title">Missão MdFlow — Lapidação 2026</p>
+    <div class="card">
+      <div class="missao-inner" id="missao-content">
+        <div class="skeleton" style="width:120px;height:40px;border-radius:8px;"></div>
+        <div class="skeleton" style="height:10px;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 3+4: FILA DE TAREFAS + LOGS RECENTES -->
+  <section class="two-col">
+
+    <div>
+      <p class="section-title">Fila de Tarefas — Últimas 10</p>
+      <div class="card" id="tarefas-card">
+        <div class="table-wrap">
+          <div id="tarefas-content"><div class="skeleton" style="height:200px;"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <p class="section-title">Logs Recentes — Últimas 15 linhas</p>
+      <div class="card" id="logs-card">
+        <div id="logs-content"><div class="skeleton" style="height:200px;"></div></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- SEÇÃO 5: CUSTOS POR PERÍODO -->
+  <section>
+    <p class="section-title">Custos por Período</p>
+    <div class="custos-grid">
+
+      <div class="custo-card">
+        <span class="custo-label">Hoje</span>
+        <span class="custo-value" id="custo-hoje">R$ —</span>
+        <span class="custo-sub" id="custo-hoje-sub">Carregando...</span>
+      </div>
+
+      <div class="custo-card">
+        <span class="custo-label">Esta Semana</span>
+        <span class="custo-value" id="custo-semana">R$ —</span>
+        <span class="custo-sub" id="custo-semana-sub">Carregando...</span>
+      </div>
+
+      <div class="custo-card">
+        <span class="custo-label">Este Mês</span>
+        <span class="custo-value" id="custo-mes">R$ —</span>
+        <span class="custo-sub" id="custo-mes-sub">Carregando...</span>
+      </div>
+
+    </div>
+  </section>
+
+</main>
+
+<script>
+  const SUPABASE_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzM3MDgsImV4cCI6MjA4NjY0OTcwOH0.4l3KLUxAehqVbk2PvWTmDu2E_bOrl_srgkmGMPfB-Gw';
+
+  const HEADERS = {
+    'apikey': SUPABASE_KEY,
+    'Authorization': `Bearer ${SUPABASE_KEY}`,
+    'Content-Type': 'application/json'
+  };
+
+  // ─── REST helpers ──────────────────────────────────
+  async function rest(path, params = '') {
+    const url = `${SUPABASE_URL}/rest/v1/${path}${params ? '?' + params : ''}`;
+    const res = await fetch(url, { headers: HEADERS });
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
+    return res.json();
+  }
+
+  function formatBRL(value) {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency', currency: 'BRL', minimumFractionDigits: 2
+    }).format(value);
+  }
+
+  function timeAgo(isoStr) {
+    if (!isoStr) return '—';
+    const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+    if (diff < 60) return `${Math.floor(diff)}s atrás`;
+    if (diff < 3600) return `${Math.floor(diff/60)}m atrás`;
+    if (diff < 86400) return `${Math.floor(diff/3600)}h atrás`;
+    return `${Math.floor(diff/86400)}d atrás`;
+  }
+
+  function fmtTime(isoStr) {
+    if (!isoStr) return '—';
+    try {
+      return new Date(isoStr).toLocaleTimeString('pt-BR', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit'
+      });
+    } catch { return '—'; }
+  }
+
+  function fmtDate(isoStr) {
+    if (!isoStr) return '—';
+    try {
+      return new Date(isoStr).toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch { return '—'; }
+  }
+
+  function unavailableMsg(text = 'Dados indisponíveis') {
+    return `<div class="unavailable-msg">
+      <span>◌</span>
+      <span>${text}</span>
+    </div>`;
+  }
+
+  function statusBadge(status) {
+    const s = (status || '').toLowerCase();
+    const labels = {
+      pendente: 'Pendente',
+      processando: 'Processando',
+      concluida: 'Concluída',
+      concluido: 'Concluído',
+      erro: 'Erro',
+      fila: 'Fila',
+      cancelado: 'Cancelado',
+      ativo: 'Ativo',
+      inativo: 'Inativo'
+    };
+    const cls = s in labels ? s : 'fila';
+    const label = labels[s] || status || '—';
+    return `<span class="badge ${cls}">${label}</span>`;
+  }
+
+  // ─── SEÇÃO: STATUS JARBAS ──────────────────────────
+  async function loadJarbasStatus() {
+    try {
+      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+      const rows = await rest(
+        'jarbas_instances',
+        `select=instance_id,status,last_seen,ram_free_mb,versao,erros_hoje&status=eq.ativo&last_seen=gte.${fiveMinAgo}&limit=5`
+      );
+
+      const dot = document.getElementById('dot-jarbas');
+      const val = document.getElementById('val-jarbas');
+      const sub = document.getElementById('sub-jarbas');
+
+      if (rows.length > 0) {
+        const inst = rows[0];
+        dot.className = 'status-dot verde pulse';
+        val.textContent = 'ONLINE';
+        val.style.color = 'var(--success)';
+        sub.textContent = `${inst.instance_id} · ${inst.versao || 'v?'} · visto ${timeAgo(inst.last_seen)}`;
+
+        // RAM do instance
+        const ramEl = document.getElementById('val-ram');
+        const dotRam = document.getElementById('dot-ram');
+        const subRam = document.getElementById('sub-ram');
+        if (inst.ram_free_mb != null) {
+          ramEl.textContent = `${inst.ram_free_mb} MB`;
+          const ramOk = inst.ram_free_mb > 4000;
+          dotRam.className = `status-dot ${ramOk ? 'verde' : 'amarelo'}`;
+          subRam.textContent = `RAM livre · ${ramOk ? 'OK' : 'Atenção: baixo'}`;
+        } else {
+          ramEl.textContent = 'N/D';
+          dotRam.className = 'status-dot cinza';
+          subRam.textContent = 'Verificar com /status no Telegram';
+        }
+      } else {
+        // Checar se tem instância inativa
+        const all = await rest('jarbas_instances', 'select=status,last_seen&limit=1');
+        dot.className = 'status-dot vermelho';
+        val.textContent = 'OFFLINE';
+        val.style.color = 'var(--error)';
+        if (all.length > 0) {
+          sub.textContent = `Último sinal: ${timeAgo(all[0].last_seen)}`;
+        } else {
+          sub.textContent = 'Nenhuma instância registrada';
+        }
+        document.getElementById('dot-ram').className = 'status-dot cinza';
+        document.getElementById('val-ram').textContent = 'N/D';
+      }
+    } catch (e) {
+      console.warn('loadJarbasStatus error:', e);
+      document.getElementById('dot-jarbas').className = 'status-dot cinza';
+      document.getElementById('val-jarbas').textContent = 'Erro';
+      document.getElementById('sub-jarbas').textContent = 'Dados indisponíveis';
+    }
+  }
+
+  // ─── SEÇÃO: CUSTO HOJE (semáforo) ─────────────────
+  async function loadCustoSemaforo() {
+    try {
+      const hoje = new Date().toISOString().split('T')[0];
+      const rows = await rest(
+        'jarbas_custos_tokens',
+        `select=custo_reais&data=eq.${hoje}`
+      );
+      const total = rows.reduce((s, r) => s + parseFloat(r.custo_reais || 0), 0);
+
+      document.getElementById('val-custo-semaforo').textContent = formatBRL(total);
+      const dot = document.getElementById('dot-custo');
+      const sub = document.getElementById('sub-custo-semaforo');
+
+      if (total === 0) {
+        dot.className = 'status-dot cinza';
+        sub.textContent = 'Nenhum gasto hoje';
+      } else if (total < 5) {
+        dot.className = 'status-dot verde';
+        sub.textContent = 'Dentro do limite diário';
+      } else if (total < 20) {
+        dot.className = 'status-dot amarelo';
+        sub.textContent = 'Atenção: gasto elevado';
+      } else {
+        dot.className = 'status-dot vermelho';
+        sub.textContent = 'Alerta: gasto alto!';
+      }
+    } catch (e) {
+      console.warn('loadCustoSemaforo error:', e);
+      document.getElementById('val-custo-semaforo').textContent = '—';
+      document.getElementById('sub-custo-semaforo').textContent = 'Dados indisponíveis';
+    }
+  }
+
+  // ─── SEÇÃO: MISSÃO MDFLOW ─────────────────────────
+  function renderMissao(concluidas, total, pendentes) {
+    const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+    const el = document.getElementById('missao-content');
+    el.innerHTML = `
+      <div class="missao-stats">
+        <span class="missao-count">${concluidas}</span>
+        <span class="missao-total">/ ${total} páginas</span>
+      </div>
+      <div class="missao-desc">${pendentes} pendentes · ${pct}% concluído · Meta: nota ≥ 9/10 em todas as páginas</div>
+      <div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar-fill" style="width: ${pct}%"></div>
+        </div>
+        <div class="progress-labels" style="margin-top:6px">
+          <span>0%</span>
+          <span>${pct}%</span>
+          <span>100%</span>
+        </div>
+      </div>
+    `;
+  }
+
+  async function loadMissao() {
+    try {
+      // Tentar ler da tabela jarbas_mission_control
+      const rows = await rest(
+        'jarbas_mission_control',
+        'select=paginas_concluidas,paginas_total,status&limit=1&order=updated_at.desc'
+      );
+
+      if (rows.length > 0) {
+        const m = rows[0];
+        const total = m.paginas_total || 44;
+        const concluidas = m.paginas_concluidas || 0;
+        renderMissao(concluidas, total, total - concluidas);
+      } else {
+        // Fallback: contar tarefas tipo lapidacao concluidas
+        const done = await rest(
+          'jarbas_tarefas',
+          'select=id&tipo=eq.lapidacao&status=eq.concluida'
+        );
+        renderMissao(done.length, 44, 44 - done.length);
+      }
+    } catch (e) {
+      console.warn('loadMissao error:', e);
+      // Fallback estático se não houver dados
+      renderMissao(0, 44, 44);
+      const el = document.getElementById('missao-content');
+      el.innerHTML += `<div class="semaforo-sub" style="margin-top:4px;color:var(--muted);font-size:11px;">
+        (dados em tempo real indisponíveis — aguardando primeira sessão de lapidação)
+      </div>`;
+    }
+  }
+
+  // ─── SEÇÃO: FILA DE TAREFAS ───────────────────────
+  async function loadTarefas() {
+    const el = document.getElementById('tarefas-content');
+    try {
+      const rows = await rest(
+        'jarbas_tarefas',
+        'select=tipo,status,created_at,created_by,descricao&order=created_at.desc&limit=10'
+      );
+
+      if (!rows.length) {
+        el.innerHTML = unavailableMsg('Nenhuma tarefa encontrada');
+        return;
+      }
+
+      const html = `
+        <table>
+          <thead>
+            <tr>
+              <th>Tipo</th>
+              <th>Status</th>
+              <th>Criado</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows.map(r => `
+              <tr>
+                <td>
+                  <div class="mono" style="color:var(--fg)">${r.tipo || '—'}</div>
+                  ${r.descricao ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${r.descricao.slice(0,60)}${r.descricao.length > 60 ? '…' : ''}</div>` : ''}
+                </td>
+                <td>${statusBadge(r.status)}</td>
+                <td class="mono" style="color:var(--muted);font-size:11px">${fmtDate(r.created_at)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+      el.innerHTML = html;
+    } catch (e) {
+      console.warn('loadTarefas error:', e);
+      el.innerHTML = unavailableMsg('Erro ao carregar tarefas');
+    }
+  }
+
+  // ─── SEÇÃO: LOGS RECENTES ─────────────────────────
+  async function loadLogs() {
+    const el = document.getElementById('logs-content');
+    try {
+      const rows = await rest(
+        'jarbas_logs',
+        'select=message,level,timestamp,category&order=timestamp.desc&limit=15'
+      );
+
+      if (!rows.length) {
+        el.innerHTML = unavailableMsg('Nenhum log encontrado');
+        return;
+      }
+
+      const html = `
+        <div class="logs-list">
+          ${rows.map(r => {
+            const lvl = (r.level || 'info').toLowerCase();
+            return `
+              <div class="log-row">
+                <span class="log-time">${fmtTime(r.timestamp)}</span>
+                <span class="log-level ${lvl}">${lvl}</span>
+                <span class="log-msg">${escapeHtml(r.message || '')}</span>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+      el.innerHTML = html;
+    } catch (e) {
+      console.warn('loadLogs error:', e);
+      el.innerHTML = unavailableMsg('Erro ao carregar logs');
+    }
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ─── SEÇÃO: CUSTOS POR PERÍODO ────────────────────
+  async function loadCustos() {
+    try {
+      const hoje = new Date().toISOString().split('T')[0];
+
+      // Início da semana (segunda-feira)
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0=dom
+      const diff = (dayOfWeek + 6) % 7; // dias desde segunda
+      const inicioSemana = new Date(now);
+      inicioSemana.setDate(now.getDate() - diff);
+      const semanaStr = inicioSemana.toISOString().split('T')[0];
+
+      // Início do mês
+      const inicioMes = `${hoje.slice(0, 7)}-01`;
+
+      const [rowsHoje, rowsSemana, rowsMes] = await Promise.all([
+        rest('jarbas_custos_tokens', `select=custo_reais,tokens_total,api&data=eq.${hoje}`),
+        rest('jarbas_custos_tokens', `select=custo_reais,tokens_total&data=gte.${semanaStr}`),
+        rest('jarbas_custos_tokens', `select=custo_reais,tokens_total&data=gte.${inicioMes}`)
+      ]);
+
+      const sumCusto  = arr => arr.reduce((s, r) => s + parseFloat(r.custo_reais || 0), 0);
+      const sumTokens = arr => arr.reduce((s, r) => s + parseInt(r.tokens_total || 0, 10), 0);
+
+      const totalHoje   = sumCusto(rowsHoje);
+      const totalSemana = sumCusto(rowsSemana);
+      const totalMes    = sumCusto(rowsMes);
+
+      document.getElementById('custo-hoje').textContent   = formatBRL(totalHoje);
+      document.getElementById('custo-semana').textContent = formatBRL(totalSemana);
+      document.getElementById('custo-mes').textContent    = formatBRL(totalMes);
+
+      const tokHoje   = sumTokens(rowsHoje).toLocaleString('pt-BR');
+      const tokSemana = sumTokens(rowsSemana).toLocaleString('pt-BR');
+      const tokMes    = sumTokens(rowsMes).toLocaleString('pt-BR');
+
+      // APIs breakdown hoje
+      const apis = {};
+      rowsHoje.forEach(r => { apis[r.api] = (apis[r.api] || 0) + parseFloat(r.custo_reais || 0); });
+      const apiStr = Object.entries(apis).map(([k,v]) => `${k}: ${formatBRL(v)}`).join(' · ') || 'sem dados';
+
+      document.getElementById('custo-hoje-sub').textContent   = `${tokHoje} tokens · ${apiStr}`;
+      document.getElementById('custo-semana-sub').textContent = `${tokSemana} tokens no período`;
+      document.getElementById('custo-mes-sub').textContent    = `${tokMes} tokens no mês`;
+    } catch (e) {
+      console.warn('loadCustos error:', e);
+      ['custo-hoje','custo-semana','custo-mes'].forEach(id => {
+        document.getElementById(id).textContent = '—';
+      });
+      ['custo-hoje-sub','custo-semana-sub','custo-mes-sub'].forEach(id => {
+        document.getElementById(id).textContent = 'Dados indisponíveis';
+      });
+    }
+  }
+
+  // ─── LOAD ALL ─────────────────────────────────────
+  let isLoading = false;
+
+  async function loadAll() {
+    if (isLoading) return;
+    isLoading = true;
+
+    const btn  = document.getElementById('refreshBtn');
+    const icon = document.getElementById('refreshIcon');
+    btn.classList.add('loading');
+    icon.classList.add('spin');
+    icon.textContent = '↻';
+
+    await Promise.all([
+      loadJarbasStatus(),
+      loadCustoSemaforo(),
+      loadMissao(),
+      loadTarefas(),
+      loadLogs(),
+      loadCustos()
+    ]);
+
+    const now = new Date().toLocaleTimeString('pt-BR');
+    document.getElementById('lastRefresh').textContent = `Atualizado às ${now}`;
+
+    btn.classList.remove('loading');
+    icon.classList.remove('spin');
+    icon.textContent = '↻';
+    isLoading = false;
+  }
+
+  // ─── INIT ─────────────────────────────────────────
+  loadAll();
+  setInterval(loadAll, 30_000);
+</script>
+</body>
+</html>

@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARBAS — Auditoria Completa do Sistema | 2026-03-08</title>
+<style>
+  :root {
+    --bg: #0d0b09;
+    --card: #1a1714;
+    --surface: #211e1a;
+    --border: #3a3530;
+    --fg: #f2efe8;
+    --muted: #9e978a;
+    --primary: #20c997;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --violet: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  h1 { font-family: 'Manrope', sans-serif; font-size: 28px; color: var(--primary); margin-bottom: 4px; }
+  h2 { font-family: 'Manrope', sans-serif; font-size: 18px; color: var(--fg); margin: 28px 0 12px; border-left: 3px solid var(--primary); padding-left: 12px; }
+  h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 10px; }
+  .meta { color: var(--muted); font-size: 12px; margin-bottom: 32px; }
+  .grid { display: grid; gap: 12px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 768px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .kpi { text-align: center; padding: 20px 16px; }
+  .kpi .val { font-family: 'Manrope', sans-serif; font-size: 36px; font-weight: 700; color: var(--primary); }
+  .kpi .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-top: 4px; }
+  .kpi.ok .val { color: var(--success); }
+  .kpi.warn .val { color: var(--warning); }
+  .kpi.err .val { color: var(--error); }
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  }
+  .badge-ok { background: #16301e; color: var(--success); }
+  .badge-warn { background: #2e2208; color: var(--warning); }
+  .badge-err { background: #2e1212; color: var(--error); }
+  .badge-info { background: #0f2a22; color: var(--primary); }
+  .badge-purple { background: #1e1535; color: var(--violet); }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 10px; border-bottom: 1px solid rgba(58,53,48,.4); font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+  .tag-ok::before { content: "✅ "; }
+  .tag-warn::before { content: "⚠️ "; }
+  .tag-err::before { content: "❌ "; }
+  .tag-stub::before { content: "🔧 "; }
+  .section { margin-bottom: 32px; }
+  .timeline { list-style: none; padding: 0; }
+  .timeline li {
+    position: relative;
+    padding-left: 20px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--fg);
+  }
+  .timeline li::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 7px;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+  }
+  .timeline li small { color: var(--muted); display: block; font-size: 11px; }
+  .skill-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+  .skill-chip {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 3px 10px;
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+    color: var(--primary);
+  }
+  .skill-chip.stub { color: var(--warning); border-color: rgba(245,158,11,.3); }
+  .progress { background: var(--surface); border-radius: 999px; height: 8px; overflow: hidden; }
+  .progress-bar { height: 100%; border-radius: 999px; background: var(--primary); }
+  .progress-bar.warn { background: var(--warning); }
+  .issue-p0 { border-left: 3px solid var(--error); padding: 10px 12px; background: #1a0e0e; border-radius: 0 6px 6px 0; margin-bottom: 8px; }
+  .issue-p1 { border-left: 3px solid var(--warning); padding: 10px 12px; background: #1a1208; border-radius: 0 6px 6px 0; margin-bottom: 8px; }
+  .issue-p2 { border-left: 3px solid var(--muted); padding: 10px 12px; background: var(--surface); border-radius: 0 6px 6px 0; margin-bottom: 8px; }
+  .resolved { opacity: .5; text-decoration: line-through; }
+  .fix-tag { font-size: 11px; color: var(--success); font-weight: 600; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--surface); padding: 1px 5px; border-radius: 4px; color: var(--warning); }
+  .pill-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>🦞 JARBAS — Auditoria Completa do Sistema</h1>
+<div class="meta">Gerado em 2026-03-08 22:12 · Mac Mini M4 16GB · JARBAS v2.5.0 · PIDs 22936/22937</div>
+
+<!-- KPIs -->
+<div class="section">
+  <h2>Status Geral</h2>
+  <div class="grid grid-4">
+    <div class="card kpi ok">
+      <div class="val">✅</div>
+      <div class="label">JARBAS Online</div>
+    </div>
+    <div class="card kpi ok">
+      <div class="val">49</div>
+      <div class="label">Skills Registradas</div>
+    </div>
+    <div class="card kpi ok">
+      <div class="val">47%</div>
+      <div class="label">RAM Usada (7.8GB/16GB)</div>
+    </div>
+    <div class="card kpi ok">
+      <div class="val">0</div>
+      <div class="label">Erros de Sintaxe</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tarefas 7 dias -->
+<div class="section">
+  <h2>Tarefas — Últimos 7 Dias</h2>
+  <div class="grid grid-4">
+    <div class="card kpi ok">
+      <div class="val">126</div>
+      <div class="label">Docs IA Analisados</div>
+    </div>
+    <div class="card kpi ok">
+      <div class="val">64</div>
+      <div class="label">Intimações Capturadas</div>
+    </div>
+    <div class="card kpi ok">
+      <div class="val">15</div>
+      <div class="label">Análises Bulk</div>
+    </div>
+    <div class="card kpi ok">
+      <div class="val">17</div>
+      <div class="label">Importações Diárias</div>
+    </div>
+  </div>
+</div>
+
+<!-- Componentes -->
+<div class="section">
+  <h2>Mapa de Saúde dos Componentes</h2>
+  <div class="card">
+    <table>
+      <tr>
+        <th>Componente</th>
+        <th>Arquivo</th>
+        <th>Status</th>
+        <th>Observação</th>
+      </tr>
+      <tr>
+        <td>Start / Entry Point</td>
+        <td class="mono">src/start.mjs</td>
+        <td><span class="badge badge-ok">✅ Ativo</span></td>
+        <td>v2.5.0, PID 22937</td>
+      </tr>
+      <tr>
+        <td>Telegram Poller</td>
+        <td class="mono">src/lib/telegram-poller.mjs</td>
+        <td><span class="badge badge-ok">✅ Corrigido</span></td>
+        <td>cc: prefix + multi-grupo ativo</td>
+      </tr>
+      <tr>
+        <td>Task Consumer</td>
+        <td class="mono">src/workers/task-consumer.mjs</td>
+        <td><span class="badge badge-ok">✅ Ativo</span></td>
+        <td>Fila jarbas_tarefas rodando</td>
+      </tr>
+      <tr>
+        <td>Heartbeat</td>
+        <td class="mono">src/workers/heartbeat.mjs</td>
+        <td><span class="badge badge-ok">✅ Ativo</span></td>
+        <td>Ping Supabase cada 60s</td>
+      </tr>
+      <tr>
+        <td>Cron Monitor</td>
+        <td class="mono">src/workers/cron-monitorar.mjs</td>
+        <td><span class="badge badge-ok">✅ Ativo</span></td>
+        <td>Schedule 6h/13h/19h</td>
+      </tr>
+      <tr>
+        <td>Briefing Builder</td>
+        <td class="mono">src/workers/briefing-builder.mjs</td>
+        <td><span class="badge badge-ok">✅ Ativo</span></td>
+        <td>Briefing matinal</td>
+      </tr>
+      <tr>
+        <td>Mission Control</td>
+        <td class="mono">src/workers/mission-control-update.mjs</td>
+        <td><span class="badge badge-ok">✅ Ativo</span></td>
+        <td>Lê vm_stat real — dados reais ✅</td>
+      </tr>
+      <tr>
+        <td>Lapidador HTML</td>
+        <td class="mono">src/skills/skill_lapidar_pagina.mjs</td>
+        <td><span class="badge badge-ok">✅ Corrigido</span></td>
+        <td>Agora publica GitHub Pages (não Supabase Storage)</td>
+      </tr>
+      <tr>
+        <td>Claude Code (OpenClaw)</td>
+        <td class="mono">src/skills/skill_claude_code.mjs</td>
+        <td><span class="badge badge-ok">✅ Ativo</span></td>
+        <td>Fallback para claude --print disponível</td>
+      </tr>
+      <tr>
+        <td>ciencia_renuncia</td>
+        <td class="mono">src/skills/skill_ciencia_renuncia.mjs</td>
+        <td><span class="badge badge-warn">⚠️ STUB</span></td>
+        <td>Aguarda vídeo treinamento do João</td>
+      </tr>
+      <tr>
+        <td>Vídeos Treinamento</td>
+        <td class="mono">knowledge/videos-training/transcripts/</td>
+        <td><span class="badge badge-warn">⚠️ 32 arquivos</span></td>
+        <td>Transcrições existem — RAG ChromaDB não populado</td>
+      </tr>
+      <tr>
+        <td>Curso OpenClaw 2026</td>
+        <td class="mono">~/Documents/Curso OpenClaw (2026)/</td>
+        <td><span class="badge badge-warn">⚠️ Não absorvido</span></td>
+        <td>12 aulas com PRDs — pendente ingestão no SOUL.md</td>
+      </tr>
+      <tr>
+        <td>Multi-grupo Telegram</td>
+        <td class="mono">TELEGRAM_EXTRA_GROUPS env</td>
+        <td><span class="badge badge-ok">✅ Implementado</span></td>
+        <td>ALLOWED_CHATS Set — configurar grupos no .env</td>
+      </tr>
+      <tr>
+        <td>TTS (ElevenLabs)</td>
+        <td class="mono">skill_voz_resposta.js</td>
+        <td><span class="badge badge-ok">✅ Registrada</span></td>
+        <td>Ativa por opt-in no chat IA inline</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- Issues -->
+<div class="section">
+  <h2>Issues Identificados</h2>
+
+  <h3>P0 — Resolvidos Nesta Sessão</h3>
+
+  <div class="issue-p0 resolved">
+    <strong class="fix-tag">✅ CORRIGIDO</strong> — HTML lapidação publicava no Supabase Storage<br>
+    <small>publicar() em skill_lapidar_pagina.mjs agora usa git + GitHub Pages</small>
+  </div>
+  <div class="issue-p0 resolved">
+    <strong class="fix-tag">✅ CORRIGIDO</strong> — Chat inline Telegram não diferenciava filesystem de IA<br>
+    <small>Adicionado cc: prefix para rotear a claude_code; system prompt atualizado com limites explícitos</small>
+  </div>
+  <div class="issue-p0 resolved">
+    <strong class="fix-tag">✅ CORRIGIDO</strong> — MEMORY.md desatualizado causava desorientação pós-restart<br>
+    <small>~/jarbas/memory/MEMORY.md reescrito com estado atual correto</small>
+  </div>
+  <div class="issue-p0 resolved">
+    <strong class="fix-tag">✅ CORRIGIDO</strong> — Multi-grupo Telegram bloqueado no ALLOWED_CHAT_ID único<br>
+    <small>ALLOWED_CHATS Set + TELEGRAM_EXTRA_GROUPS env + handleMessage usa .has() agora</small>
+  </div>
+
+  <h3 style="margin-top:16px">P1 — Pendentes</h3>
+
+  <div class="issue-p1">
+    <strong>Curso OpenClaw 2026 — 12 aulas não absorvidas</strong><br>
+    <small>Pasta: ~/Documents/Curso OpenClaw (2026)/ — PRDs e templates de aula 04 (memória), 08 (multi-agentes), 09 (immune), 10 (mission control) precisam ser integrados ao SOUL.md ou a um knowledge file dedicado</small>
+  </div>
+  <div class="issue-p1">
+    <strong>ChromaDB RAG vazio — processos_jarbas e intimacoes_jarbas</strong><br>
+    <small>32 transcrições existem mas não foram ingeridas. RAG retorna resultados vazios para consultas sobre processos.</small>
+  </div>
+  <div class="issue-p1">
+    <strong>Multi-grupo Telegram — configuração de grupos por página</strong><br>
+    <small>ALLOWED_CHATS implementado mas falta: a) adicionar grupos no .env b) comando /set_context para mapear grupo → página lapidando</small>
+  </div>
+
+  <h3 style="margin-top:16px">P2 — Melhorias</h3>
+
+  <div class="issue-p2">
+    <strong>ciencia_renuncia STUB</strong> — aguarda vídeo treinamento do João para implementar lógica real
+  </div>
+  <div class="issue-p2">
+    <strong>RAM auto-pause</strong> — implementar pausa automática de lapidações quando RAM > 75% (7.8GB/16GB = 47% agora)
+  </div>
+  <div class="issue-p2">
+    <strong>Session snapshot Supabase</strong> — tabela jarbas_session_snapshots para persistir contexto entre restarts
+  </div>
+  <div class="issue-p2">
+    <strong>Rate limit por tipo de tarefa</strong> — lapidar_pagina max 1 simultâneo com timeout de 10min
+  </div>
+</div>
+
+<!-- Skills completas -->
+<div class="section">
+  <h2>Skills Registradas (49 total)</h2>
+
+  <h3>Inline — Resposta Imediata</h3>
+  <div class="skill-grid">
+    <span class="skill-chip">ping</span>
+    <span class="skill-chip">status</span>
+    <span class="skill-chip">memoria</span>
+    <span class="skill-chip">git_digest</span>
+    <span class="skill-chip">monitor_n8n</span>
+  </div>
+
+  <h3 style="margin-top:16px">EPROC / Jurídico</h3>
+  <div class="skill-grid">
+    <span class="skill-chip">login_eproc</span>
+    <span class="skill-chip">monitorar</span>
+    <span class="skill-chip">captura_intimacoes</span>
+    <span class="skill-chip">importar_processo</span>
+    <span class="skill-chip">enriquecer_processo</span>
+    <span class="skill-chip">distribuir</span>
+    <span class="skill-chip">download_pecas</span>
+    <span class="skill-chip">download_documentos</span>
+    <span class="skill-chip">eproc_cnj</span>
+    <span class="skill-chip">consulta_processo</span>
+    <span class="skill-chip stub">ciencia_renuncia (STUB)</span>
+  </div>
+
+  <h3 style="margin-top:16px">IA / Análise</h3>
+  <div class="skill-grid">
+    <span class="skill-chip">analise_juridica</span>
+    <span class="skill-chip">analise_intimacoes_bulk</span>
+    <span class="skill-chip">analisar_ia_documentos</span>
+    <span class="skill-chip">analisar_video</span>
+    <span class="skill-chip">jurimetria</span>
+    <span class="skill-chip">importacao_diaria</span>
+  </div>
+
+  <h3 style="margin-top:16px">OlivIA 3.0</h3>
+  <div class="skill-grid">
+    <span class="skill-chip">olivia_gerar_peticao</span>
+    <span class="skill-chip">olivia_gerar_triagem</span>
+    <span class="skill-chip">olivia_gerar_pdf</span>
+    <span class="skill-chip">olivia_analista_sentenca</span>
+    <span class="skill-chip">olivia_eproc_protocolar</span>
+  </div>
+
+  <h3 style="margin-top:16px">Dev Tools / Lapidador</h3>
+  <div class="skill-grid">
+    <span class="skill-chip">lapidar_pagina</span>
+    <span class="skill-chip">claude_code</span>
+    <span class="skill-chip">e2e_test</span>
+    <span class="skill-chip">revisao_pagina</span>
+    <span class="skill-chip">pair_programmer</span>
+    <span class="skill-chip">gerar_prd</span>
+    <span class="skill-chip">documentador</span>
+    <span class="skill-chip">handoff_prompt</span>
+  </div>
+
+  <h3 style="margin-top:16px">Sistema / Utilitários</h3>
+  <div class="skill-grid">
+    <span class="skill-chip">self_update</span>
+    <span class="skill-chip">supabase</span>
+    <span class="skill-chip">rag_mdflow</span>
+    <span class="skill-chip">integracao_jarbas</span>
+    <span class="skill-chip">atualiza_knowledge</span>
+    <span class="skill-chip">custo_tracker</span>
+    <span class="skill-chip">projeto_delegado</span>
+    <span class="skill-chip">immune_system</span>
+    <span class="skill-chip">memoria_contextual</span>
+    <span class="skill-chip">relatorio_html</span>
+    <span class="skill-chip">voz_resposta</span>
+    <span class="skill-chip">receber_video</span>
+  </div>
+</div>
+
+<!-- Fixes desta sessão -->
+<div class="section">
+  <h2>Correções Aplicadas Nesta Sessão</h2>
+  <ul class="timeline">
+    <li>
+      <code>telegram-poller.mjs</code> — Adicionado prefixo <code>cc:</code> que roteia para <code>claude_code</code> (execução real)
+      <small>Resolve: chat inline fingia ter acesso ao filesystem quando não tinha</small>
+    </li>
+    <li>
+      <code>telegram-poller.mjs</code> — System prompt atualizado com limites explícitos da IA inline
+      <small>Instrução clara: "Você NÃO PODE ler arquivos do Mac Mini... use cc: para tarefas reais"</small>
+    </li>
+    <li>
+      <code>telegram-poller.mjs</code> — Multi-grupo: <code>ALLOWED_CHATS</code> Set + <code>TELEGRAM_EXTRA_GROUPS</code> env + <code>_groupContext</code> map
+      <small>handleMessage usa .has() — suporta N grupos simultaneamente</small>
+    </li>
+    <li>
+      <code>skill_lapidar_pagina.mjs</code> — <code>publicar()</code> reescrita: salva em ~/jarbas-reports + git push → retorna link GitHub Pages
+      <small>Antes: upload Supabase Storage (link privado). Agora: GitHub Pages público</small>
+    </li>
+    <li>
+      <code>~/jarbas/memory/MEMORY.md</code> — Reescrito com estado real atual
+      <small>Corrigido: voz_resposta JÁ registrada, cc: prefix ATIVO, GitHub Pages correto</small>
+    </li>
+    <li>
+      JARBAS reiniciado como PID 22936/22937 — todos os workers online
+      <small>Processo antigo (PIDs 21202/21194) encerrado antes do restart</small>
+    </li>
+  </ul>
+</div>
+
+<!-- Fluxo lapidação -->
+<div class="section">
+  <h2>Fluxo de Lapidação — Validado</h2>
+  <div class="card">
+    <table>
+      <tr><th>#</th><th>Etapa</th><th>Status</th></tr>
+      <tr><td>1</td><td>Christian manda <code>/lapidar_pagina {"rota":"/olivia","modo":"gerar"}</code></td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+      <tr><td>2</td><td>JARBAS navega na página (Playwright), tira screenshots</td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+      <tr><td>3</td><td>Analisa código + spec da página</td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+      <tr><td>4</td><td>Consulta n8n e PRD anterior</td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+      <tr><td>5</td><td>Gera HTML completo de proposta</td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+      <tr><td>6</td><td>Salva em <code>~/jarbas-reports/lapidacoes/ROTA-YYYYMMDD.html</code></td><td><span class="badge badge-ok">✅ CORRIGIDO</span></td></tr>
+      <tr><td>7</td><td>git add + commit + push → GitHub Pages</td><td><span class="badge badge-ok">✅ CORRIGIDO</span></td></tr>
+      <tr><td>8</td><td>Envia APENAS o link para Christian</td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+      <tr><td>9</td><td>Christian responde "auto" ou aprova manual</td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+      <tr><td>10</td><td>JARBAS executa correções — itera até nota ≥ 9/10</td><td><span class="badge badge-ok">✅ OK</span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- Páginas lapidadas -->
+<div class="section">
+  <h2>Status de Lapidações por Página</h2>
+  <div class="card">
+    <table>
+      <tr>
+        <th>Página</th>
+        <th>Status</th>
+        <th>HTML Publicado</th>
+        <th>Nota</th>
+        <th>Próximo passo</th>
+      </tr>
+      <tr>
+        <td>/olivia</td>
+        <td><span class="badge badge-ok">✅ Concluída</span></td>
+        <td><a href="https://mdlab-christian.github.io/jarbas-reports/lapidacoes/olivia-lapidacao-2026-03-08.html" style="color:var(--primary)" target="_blank">ver HTML</a></td>
+        <td>9/10</td>
+        <td>E2E bugs corrigidos (f7903d6)</td>
+      </tr>
+      <tr>
+        <td>/modelos</td>
+        <td><span class="badge badge-ok">✅ Concluída</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>lapida: olivia-v2 + modelos-v2 (0481efd)</td>
+      </tr>
+      <tr>
+        <td>/agentes</td>
+        <td><span class="badge badge-ok">✅ Concluída</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>dados reais + UI polish (0481efd)</td>
+      </tr>
+      <tr>
+        <td>/financeiro</td>
+        <td><span class="badge badge-ok">✅ Concluída</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>Tabs DS v6 + KPI cards (f979234)</td>
+      </tr>
+      <tr>
+        <td>/controller</td>
+        <td><span class="badge badge-warn">🔄 Pendente</span></td>
+        <td><a href="https://mdlab-christian.github.io/jarbas-reports/lapidacoes/lapidador-plano-aprovado.html" style="color:var(--primary)" target="_blank">plano</a></td>
+        <td>—</td>
+        <td>Aguarda lapidação</td>
+      </tr>
+      <tr>
+        <td>/distribuicao</td>
+        <td><span class="badge badge-warn">⏸️ Não iniciada</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>Próxima da fila</td>
+      </tr>
+      <tr>
+        <td>/processos</td>
+        <td><span class="badge badge-warn">⏸️ Não iniciada</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- Guia multi-grupo -->
+<div class="section">
+  <h2>Multi-Grupo Telegram — Como Configurar</h2>
+  <div class="card">
+    <p style="margin-bottom:12px">Suporte a múltiplos grupos implementado. Para ativar:</p>
+    <ol style="padding-left:20px; line-height:2">
+      <li>Adicionar ao <code>~/jarbas/.env</code>:<br><code style="display:block; margin:4px 0 8px; padding:8px; background:var(--surface); border-radius:6px">TELEGRAM_EXTRA_GROUPS=chatId1,chatId2,chatId3</code></li>
+      <li>Cada grupo pode ter um contexto de página (ex: grupo de /olivia, grupo de /controller)</li>
+      <li>Reiniciar JARBAS após adicionar os IDs</li>
+      <li>Próximo passo P1: adicionar comando <code>/set_context /PAGINA</code> para mapear grupo → lapidação</li>
+    </ol>
+  </div>
+</div>
+
+<!-- Fluxo cc: -->
+<div class="section">
+  <h2>Novo Prefixo <code>cc:</code> — Como Usar</h2>
+  <div class="card">
+    <table>
+      <tr>
+        <th>Tipo de mensagem</th>
+        <th>Roteamento</th>
+        <th>Exemplo</th>
+      </tr>
+      <tr>
+        <td>Sem prefixo</td>
+        <td>Chat IA inline (Haiku) — rápido, sem filesystem</td>
+        <td>"qual o status do JARBAS?"</td>
+      </tr>
+      <tr>
+        <td><code>cc:</code></td>
+        <td>Claude Code via OpenClaw — acesso REAL ao Mac Mini</td>
+        <td>"cc: leia ~/jarbas/SOUL.md e me diz a versão"</td>
+      </tr>
+      <tr>
+        <td><code>/skill</code></td>
+        <td>Skill JARBAS — fila ou inline conforme tipo</td>
+        <td>"/lapidar_pagina {"rota":"/olivia"}"</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- Curso OpenClaw -->
+<div class="section">
+  <h2>Curso OpenClaw 2026 — 12 Aulas</h2>
+  <div class="card">
+    <p style="color:var(--warning); margin-bottom:12px">⚠️ Conteúdo existe mas não foi absorvido pelo SOUL.md ainda (P1)</p>
+    <div class="grid grid-3">
+      <div>
+        <div style="font-size:12px; color:var(--muted); margin-bottom:8px">FUNDAMENTOS</div>
+        <ul style="list-style:none; font-size:12px; line-height:2">
+          <li>🟡 Aula 00 — Abertura</li>
+          <li>🟡 Aula 01 — Setup</li>
+          <li>🟡 Aula 02 — Segurança</li>
+          <li>🟡 Aula 03 — Identidade</li>
+        </ul>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--muted); margin-bottom:8px">CORE</div>
+        <ul style="list-style:none; font-size:12px; line-height:2">
+          <li>🟡 Aula 04 — Memória (PRD lido)</li>
+          <li>🟡 Aula 05 — Integrações</li>
+          <li>🟡 Aula 06 — Skills</li>
+          <li>🟡 Aula 07 — Proatividade</li>
+        </ul>
+      </div>
+      <div>
+        <div style="font-size:12px; color:var(--muted); margin-bottom:8px">AVANÇADO</div>
+        <ul style="list-style:none; font-size:12px; line-height:2">
+          <li>🟡 Aula 08 — Multi-agentes (PRD lido)</li>
+          <li>🟡 Aula 09 — Immune System (PRD lido)</li>
+          <li>🟡 Aula 10 — Mission Control (PRD lido)</li>
+          <li>🟡 Aula 11 — Wrap-up</li>
+          <li>🟡 Aula 12 — Skills e APIs</li>
+        </ul>
+      </div>
+    </div>
+    <p style="margin-top:12px; font-size:12px; color:var(--muted)">Para absorver: <code>cc: leia aula por aula do curso ~/Documents/Curso OpenClaw (2026)/ e integre ao SOUL.md</code></p>
+  </div>
+</div>
+
+<!-- Próximos passos -->
+<div class="section">
+  <h2>Plano de Execução — Próximos Passos</h2>
+  <div class="card">
+    <table>
+      <tr><th>Prioridade</th><th>Ação</th><th>Como executar</th></tr>
+      <tr>
+        <td><span class="badge badge-err">P1</span></td>
+        <td>Absorver Curso OpenClaw 2026 no SOUL.md</td>
+        <td><code>cc: leia ~/Documents/Curso OpenClaw (2026)/ aula por aula e integre conceitos ao SOUL.md</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-err">P1</span></td>
+        <td>Popular ChromaDB com transcrições (32 existentes)</td>
+        <td><code>/atualiza_knowledge</code> ou <code>cc: popula ChromaDB com as transcrições em ~/jarbas/knowledge/</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-warn">P1</span></td>
+        <td>Configurar grupos Telegram extra</td>
+        <td>Adicionar IDs ao .env em TELEGRAM_EXTRA_GROUPS=id1,id2</td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-warn">P1</span></td>
+        <td>Lapidar /controller</td>
+        <td><code>/lapidar_pagina {"rota":"/controller","modo":"gerar"}</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-info">P2</span></td>
+        <td>Implementar auto-pause por RAM</td>
+        <td><code>cc: implementa auto-pause em task-consumer quando RAM > 75%</code></td>
+      </tr>
+      <tr>
+        <td><span class="badge badge-info">P2</span></td>
+        <td>jarbas_session_snapshots — nunca mais perder contexto</td>
+        <td><code>cc: cria tabela e skill de snapshot de sessão no Supabase JARBAS</code></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<footer style="margin-top:48px; padding-top:20px; border-top:1px solid var(--border); color:var(--muted); font-size:11px; text-align:center">
+  JARBAS v2.5.0 | Mac Mini M4 16GB | Perinotti Paz Advogados — MDX LegalTech | 2026-03-08
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARBAS — Monitor de Custo · 09/03/2026</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    min-height: 100vh;
+    padding: 24px;
+  }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+  .logo { font-size: 32px; }
+  .title h1 { font-size: 20px; font-weight: 700; color: #f0f6fc; }
+  .title p { font-size: 13px; color: #8b949e; margin-top: 2px; }
+  .badge {
+    margin-left: auto;
+    background: #21262d;
+    border: 1px solid #30363d;
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 12px;
+    color: #8b949e;
+  }
+  .badge span { color: #58a6ff; font-weight: 600; }
+
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .card .label { font-size: 12px; color: #8b949e; text-transform: uppercase; letter-spacing: 0.5px; }
+  .card .value { font-size: 28px; font-weight: 700; margin-top: 6px; }
+  .card .sub { font-size: 12px; color: #8b949e; margin-top: 4px; }
+  .card.red .value { color: #f85149; }
+  .card.yellow .value { color: #e3b341; }
+  .card.blue .value { color: #58a6ff; }
+  .card.green .value { color: #3fb950; }
+
+  .chart-box {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .chart-box h2 { font-size: 14px; color: #8b949e; margin-bottom: 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .table-box {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .table-box h2 { font-size: 14px; color: #8b949e; padding: 16px 20px; border-bottom: 1px solid #21262d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 20px; font-size: 12px; color: #8b949e; background: #0d1117; border-bottom: 1px solid #21262d; }
+  td { padding: 10px 20px; font-size: 13px; border-bottom: 1px solid #21262d; }
+  tr:last-child td { border-bottom: none; }
+  .delta-pos { color: #f85149; }
+  .delta-neg { color: #3fb950; }
+  .delta-zero { color: #8b949e; }
+  tr:hover td { background: #1c2128; }
+
+  .alert-banner {
+    background: #2d1b1b;
+    border: 1px solid #f85149;
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    color: #f85149;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .footer { text-align: center; font-size: 11px; color: #484f58; margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🦞</div>
+  <div class="title">
+    <h1>JARBAS — Monitor de Custo</h1>
+    <p>Sessão 09/03/2026 · Monitoramento noturno 04h–05h44</p>
+  </div>
+  <div class="badge">Mês: <span>R$ 9.891,65</span></div>
+</div>
+
+<div class="alert-banner">
+  🚨 <strong>R$ 10.000 se aproximando</strong> — Faltam ~R$ 108 para atingir a marca mensal de R$ 10k no mês.
+</div>
+
+<div class="cards">
+  <div class="card red">
+    <div class="label">Total Hoje</div>
+    <div class="value">R$ 740,94</div>
+    <div class="sub">+R$ 167,07 desde 04h02</div>
+  </div>
+  <div class="card yellow">
+    <div class="label">Claude Code</div>
+    <div class="value">R$ 562,87</div>
+    <div class="sub">76% do gasto do dia</div>
+  </div>
+  <div class="card blue">
+    <div class="label">OpenClaw</div>
+    <div class="value">R$ 178,07</div>
+    <div class="sub">24% do gasto do dia</div>
+  </div>
+  <div class="card green">
+    <div class="label">Velocidade Atual</div>
+    <div class="value">~R$ 10/h</div>
+    <div class="sub">Média última hora</div>
+  </div>
+</div>
+
+<div class="chart-box">
+  <h2>📈 Custo Acumulado na Sessão</h2>
+  <canvas id="chartTotal" height="100"></canvas>
+</div>
+
+<div class="chart-box">
+  <h2>⚡ Delta por Intervalo (10 min)</h2>
+  <canvas id="chartDelta" height="80"></canvas>
+</div>
+
+<div class="table-box">
+  <h2>📋 Histórico Detalhado</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Horário</th>
+        <th>Total Dia</th>
+        <th>OpenClaw</th>
+        <th>Claude Code</th>
+        <th>Δ 10min</th>
+        <th>Mês</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div class="footer">JARBAS v3.0 · MDX LegalTech · Atualizado em 09/03/2026 05:44</div>
+
+<script>
+const data = [
+  { time: '04:02', total: 573.87, oc: 172.37, cc: 401.50, mes: 9724.58 },
+  { time: '04:12', total: 585.27, oc: 172.85, cc: 412.43, mes: 9735.98 },
+  { time: '04:22', total: 585.75, oc: 173.32, cc: 412.43, mes: 9736.46 },
+  { time: '04:32', total: 586.23, oc: 173.80, cc: 412.43, mes: 9736.94 },
+  { time: '04:42', total: 604.85, oc: 174.29, cc: 430.56, mes: 9755.56 },
+  { time: '04:52', total: 623.69, oc: 174.79, cc: 448.90, mes: 9774.40 },
+  { time: '05:02', total: 630.70, oc: 175.29, cc: 455.41, mes: 9781.41 },
+  { time: '05:12', total: 689.18, oc: 175.80, cc: 513.38, mes: 9839.89 },
+  { time: '05:22', total: 709.04, oc: 176.32, cc: 532.72, mes: 9860.75 },
+  { time: '05:32', total: 718.79, oc: 176.85, cc: 541.94, mes: 9869.50 },
+  { time: '05:42', total: 737.46, oc: 177.39, cc: 560.07, mes: 9888.16 },
+  { time: '05:44', total: 740.94, oc: 178.07, cc: 562.87, mes: 9891.65 },
+];
+
+// Chart 1 — Stacked area
+const ctx1 = document.getElementById('chartTotal').getContext('2d');
+new Chart(ctx1, {
+  type: 'line',
+  data: {
+    labels: data.map(d => d.time),
+    datasets: [
+      {
+        label: 'Claude Code',
+        data: data.map(d => d.cc),
+        borderColor: '#e3b341',
+        backgroundColor: 'rgba(227,179,65,0.15)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+      },
+      {
+        label: 'OpenClaw',
+        data: data.map(d => d.oc),
+        borderColor: '#58a6ff',
+        backgroundColor: 'rgba(88,166,255,0.10)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: 3,
+      },
+    ]
+  },
+  options: {
+    responsive: true,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: '#8b949e', boxWidth: 12 } },
+      tooltip: {
+        backgroundColor: '#161b22',
+        borderColor: '#30363d',
+        borderWidth: 1,
+        titleColor: '#f0f6fc',
+        bodyColor: '#8b949e',
+        callbacks: {
+          label: ctx => ` ${ctx.dataset.label}: R$ ${ctx.raw.toFixed(2)}`
+        }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+      y: {
+        ticks: { color: '#8b949e', callback: v => 'R$ ' + v },
+        grid: { color: '#21262d' },
+      }
+    }
+  }
+});
+
+// Chart 2 — Delta bar
+const deltas = data.map((d, i) => i === 0 ? 0 : +(d.total - data[i-1].total).toFixed(2));
+const ctx2 = document.getElementById('chartDelta').getContext('2d');
+new Chart(ctx2, {
+  type: 'bar',
+  data: {
+    labels: data.map(d => d.time),
+    datasets: [{
+      label: 'Δ Gasto (R$)',
+      data: deltas,
+      backgroundColor: deltas.map(v => v > 30 ? '#f85149' : v > 10 ? '#e3b341' : '#3fb950'),
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#161b22',
+        borderColor: '#30363d',
+        borderWidth: 1,
+        titleColor: '#f0f6fc',
+        bodyColor: '#8b949e',
+        callbacks: { label: ctx => ` +R$ ${ctx.raw.toFixed(2)}` }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#8b949e' }, grid: { color: '#21262d' } },
+      y: {
+        ticks: { color: '#8b949e', callback: v => 'R$ ' + v },
+        grid: { color: '#21262d' },
+      }
+    }
+  }
+});
+
+// Table
+const tbody = document.getElementById('tableBody');
+data.forEach((d, i) => {
+  const delta = i === 0 ? 0 : d.total - data[i-1].total;
+  const deltaClass = delta > 30 ? 'delta-pos' : delta > 5 ? 'delta-pos' : delta < 1 ? 'delta-zero' : 'delta-neg';
+  const deltaStr = i === 0 ? '—' : `+R$ ${delta.toFixed(2)}`;
+  tbody.innerHTML += `
+    <tr>
+      <td><strong>${d.time}</strong></td>
+      <td>R$ ${d.total.toFixed(2)}</td>
+      <td style="color:#58a6ff">R$ ${d.oc.toFixed(2)}</td>
+      <td style="color:#e3b341">R$ ${d.cc.toFixed(2)}</td>
+      <td class="${deltaClass}">${deltaStr}</td>
+      <td style="color:#8b949e">R$ ${d.mes.toFixed(2)}</td>
+    </tr>
+  `;
+});
+</script>
+</body>
+</html>

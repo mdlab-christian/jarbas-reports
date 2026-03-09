@@ -480,6 +480,81 @@
       gap: 20px;
     }
 
+    /* ─── PROJETOS ATIVOS ────────────────────────────── */
+    .projetos-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .projeto-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .projeto-card:hover {
+      border-color: rgba(32,201,151,0.3);
+    }
+
+    .projeto-nome {
+      font-weight: 600;
+      color: var(--fg);
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .projeto-meta {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      gap: 14px;
+      align-items: center;
+    }
+
+    .projeto-progress-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 180px;
+    }
+
+    .projeto-progress-bar {
+      flex: 1;
+      height: 6px;
+      background: var(--surface);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .projeto-progress-fill {
+      height: 100%;
+      background: var(--primary);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .projeto-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--primary);
+      white-space: nowrap;
+    }
+
+    .projeto-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 12px;
+    }
+
+    .projeto-link:hover { text-decoration: underline; }
+
     /* ─── LOADING SKELETON ───────────────────────────── */
     .skeleton {
       background: linear-gradient(90deg, var(--surface) 25%, rgba(58,53,48,0.5) 50%, var(--surface) 75%);
@@ -574,6 +649,14 @@
         <div class="skeleton" style="width:120px;height:40px;border-radius:8px;"></div>
         <div class="skeleton" style="height:10px;"></div>
       </div>
+    </div>
+  </section>
+
+  <!-- SEÇÃO 2B: PROJETOS ATIVOS -->
+  <section>
+    <p class="section-title">Projetos Ativos</p>
+    <div id="projetos-content">
+      <div class="skeleton" style="height:80px;border-radius:12px;"></div>
     </div>
   </section>
 
@@ -818,33 +901,86 @@
 
   async function loadMissao() {
     try {
-      // Tentar ler da tabela jarbas_mission_control
+      // Tentar ler da tabela jarbas_missoes (nova, multi-missão)
       const rows = await rest(
-        'jarbas_mission_control',
-        'select=paginas_concluidas,paginas_total,status&limit=1&order=updated_at.desc'
+        'jarbas_missoes',
+        "select=tarefas_concluidas,tarefas_total,status&missao_id=eq.mdflow-lapidation-2026&limit=1"
       );
 
       if (rows.length > 0) {
         const m = rows[0];
-        const total = m.paginas_total || 44;
-        const concluidas = m.paginas_concluidas || 0;
+        const total = m.tarefas_total || 44;
+        const concluidas = m.tarefas_concluidas || 0;
         renderMissao(concluidas, total, total - concluidas);
-      } else {
-        // Fallback: contar tarefas tipo lapidacao concluidas
-        const done = await rest(
-          'jarbas_tarefas',
-          'select=id&tipo=eq.lapidacao&status=eq.concluida'
-        );
-        renderMissao(done.length, 44, 44 - done.length);
+        return;
       }
+
+      // Fallback: contar tarefas tipo lapidar_pagina concluidas
+      const done = await rest(
+        'jarbas_tarefas',
+        'select=id&tipo=eq.lapidar_pagina&status=eq.concluida'
+      );
+      renderMissao(done.length, 44, 44 - done.length);
     } catch (e) {
       console.warn('loadMissao error:', e);
-      // Fallback estático se não houver dados
       renderMissao(0, 44, 44);
       const el = document.getElementById('missao-content');
       el.innerHTML += `<div class="semaforo-sub" style="margin-top:4px;color:var(--muted);font-size:11px;">
-        (dados em tempo real indisponíveis — aguardando primeira sessão de lapidação)
+        (aguardando primeira sessão de lapidação)
       </div>`;
+    }
+  }
+
+  // ─── SEÇÃO: PROJETOS ATIVOS ───────────────────────
+  async function loadProjetos() {
+    const el = document.getElementById('projetos-content');
+    try {
+      const rows = await rest(
+        'jarbas_missoes',
+        'select=missao_id,nome,status,progresso_pct,tarefas_total,tarefas_concluidas,tarefas_erro,relatorio_url,atualizado_em&order=atualizado_em.desc&limit=10'
+      );
+
+      if (!rows.length) {
+        el.innerHTML = `<div class="unavailable-msg" style="border:1px solid var(--border);border-radius:10px;padding:20px;">
+          <span>◌</span><span>Nenhum projeto ativo. Use <code style="font-family:monospace;color:var(--primary)">/projeto [descrição]</code> no Telegram para iniciar.</span>
+        </div>`;
+        return;
+      }
+
+      const html = `<div class="projetos-grid">${rows.map(p => {
+        const pct = p.progresso_pct || 0;
+        const statusColor = {
+          ativa: 'var(--primary)', pausada: 'var(--warning)',
+          concluida: 'var(--success)', erro: 'var(--error)'
+        }[p.status] || 'var(--muted)';
+        const statusLabel = {
+          ativa: 'Ativa', pausada: 'Pausada', concluida: 'Concluída', erro: 'Erro'
+        }[p.status] || p.status;
+        return `
+        <div class="projeto-card">
+          <div>
+            <div class="projeto-nome">${p.nome || p.missao_id}</div>
+            <div class="projeto-meta">
+              <span style="color:${statusColor};font-weight:600">${statusLabel}</span>
+              <span>${p.tarefas_concluidas || 0}/${p.tarefas_total || 0} tarefas</span>
+              ${p.tarefas_erro ? `<span style="color:var(--error)">${p.tarefas_erro} erro(s)</span>` : ''}
+              <span>atualizado ${timeAgo(p.atualizado_em)}</span>
+              ${p.relatorio_url ? `<a class="projeto-link" href="${p.relatorio_url}" target="_blank">📊 Relatório</a>` : ''}
+            </div>
+          </div>
+          <div class="projeto-progress-wrap">
+            <div class="projeto-progress-bar">
+              <div class="projeto-progress-fill" style="width:${pct}%;background:${statusColor}"></div>
+            </div>
+            <span class="projeto-pct">${pct}%</span>
+          </div>
+        </div>`;
+      }).join('')}</div>`;
+
+      el.innerHTML = html;
+    } catch (e) {
+      console.warn('loadProjetos error:', e);
+      el.innerHTML = unavailableMsg('Tabela jarbas_missoes não disponível');
     }
   }
 
@@ -1008,6 +1144,7 @@
       loadJarbasStatus(),
       loadCustoSemaforo(),
       loadMissao(),
+      loadProjetos(),
       loadTarefas(),
       loadLogs(),
       loadCustos()

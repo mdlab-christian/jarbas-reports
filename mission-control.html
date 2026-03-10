@@ -20,6 +20,11 @@ html{scroll-behavior:smooth;}
 body{background:var(--bg);color:var(--text);font-family:'Inter',system-ui,sans-serif;min-height:100vh;font-size:14px;line-height:1.5;}
 a{color:var(--blue);text-decoration:none;}a:hover{text-decoration:underline;}
 button{font-family:inherit;cursor:pointer;border:none;outline:none;}
+.btn-yellow{background:var(--yellow);color:#000;padding:8px 16px;border-radius:var(--rsm);font-weight:600;font-size:12px;}
+.btn-yellow:hover{background:#d9a620;}
+.btn-green{background:var(--green);color:#000;padding:8px 16px;border-radius:var(--rsm);font-weight:600;font-size:12px;}
+.btn-green:hover{background:var(--gd);}
+.kpi-pressao{text-transform:uppercase;letter-spacing:0.5px;}
 
 /* TOP BAR */
 .topbar{background:rgba(13,11,9,.97);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:200;backdrop-filter:blur(12px);}
@@ -242,14 +247,15 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none;}
   <!-- KPIs -->
   <div class="kpi-grid">
     <div class="kpi">
-      <div class="kpi-lbl">RAM</div>
+      <div class="kpi-lbl">RAM <span id="kpi-ram-emoji" style="font-size:14px;"></span></div>
       <div class="kpi-val" id="kpi-ram">—</div>
       <div class="kpi-sub" id="kpi-ram-sub">—</div>
+      <div class="kpi-pressao" id="kpi-ram-pressao" style="font-size:10px;margin-top:4px;font-weight:700;"></div>
     </div>
     <div class="kpi">
-      <div class="kpi-lbl">CPU</div>
-      <div class="kpi-val" id="kpi-cpu">—</div>
-      <div class="kpi-sub" id="kpi-cpu-sub">Média atual</div>
+      <div class="kpi-lbl">Turbo</div>
+      <div class="kpi-val" id="kpi-turbo">—</div>
+      <div class="kpi-sub" id="kpi-turbo-sub">paralela(s)</div>
     </div>
     <div class="kpi">
       <div class="kpi-lbl">Claude Procs</div>
@@ -257,9 +263,9 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none;}
       <div class="kpi-sub" id="kpi-procs-sub">Ativos agora</div>
     </div>
     <div class="kpi">
-      <div class="kpi-lbl">Tarefas</div>
-      <div class="kpi-val" id="kpi-tarefas">—</div>
-      <div class="kpi-sub" id="kpi-tarefas-sub">—</div>
+      <div class="kpi-lbl">ETA Missão</div>
+      <div class="kpi-val" id="kpi-eta">—</div>
+      <div class="kpi-sub" id="kpi-eta-sub">—</div>
     </div>
   </div>
 
@@ -318,10 +324,46 @@ button{font-family:inherit;cursor:pointer;border:none;outline:none;}
     <div class="progress-track">
       <div class="progress-fill" id="prog-fill" style="width:0%"></div>
     </div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:11px;color:var(--muted);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:var(--muted);">
       <span>Em andamento: <strong id="prog-running" style="color:var(--yellow)">0</strong></span>
       <span>Pendentes: <strong id="prog-pend" style="color:var(--blue)">44</strong></span>
+      <span id="prog-eta" style="color:var(--purple);font-weight:600;">ETA: calculando...</span>
       <span>Meta: nota ≥ 9/10</span>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button id="btn-pausar" class="btn btn-yellow" onclick="togglePauseMissao(true)" style="flex:1;">⏸️ Pausar</button>
+      <button id="btn-retomar" class="btn btn-green" onclick="togglePauseMissao(false)" style="flex:1;display:none;">▶️ Retomar</button>
+    </div>
+  </div>
+
+  <!-- ⚡ TURBO MODE CONTROL -->
+  <div class="card" style="border-color:rgba(88,166,255,.25);">
+    <div class="card-header"><span>⚡</span><span class="card-title">Turbo Mode</span><span id="turbo-badge" style="margin-left:auto;font-size:11px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(88,166,255,.15);color:var(--blue);">—</span></div>
+    <div class="card-body" style="padding:14px;">
+      <!-- RAM indicator -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;" id="turbo-ram-label">⚪ RAM —</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;" id="turbo-conc-label">Concorrência: —</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:22px;font-weight:900;" id="turbo-paralelas">—<span style="font-size:13px;color:var(--muted);font-weight:400;">x</span></div>
+          <div style="font-size:10px;color:var(--muted);">paralelas</div>
+        </div>
+      </div>
+      <!-- RAM bar -->
+      <div style="background:var(--bg3);border-radius:4px;height:6px;margin-bottom:14px;overflow:hidden;">
+        <div id="turbo-ram-bar" style="height:100%;border-radius:4px;background:var(--green);transition:width .5s,background .5s;width:0%;"></div>
+      </div>
+      <!-- Toggle buttons -->
+      <div style="display:flex;gap:8px;">
+        <button id="btn-turbo-on" class="btn btn-green" onclick="toggleTurbo(true)" style="flex:1;">⚡ Turbo ON</button>
+        <button id="btn-turbo-off" class="btn btn-gray" onclick="toggleTurbo(false)" style="flex:1;">🐢 Turbo OFF</button>
+      </div>
+      <!-- Conflict info -->
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);line-height:1.7;" id="turbo-conflict-info">
+        Pares protegidos: /controller ≠ /distribuicao · /acordos ≠ /execucoes · /olivia ≠ /crm
+      </div>
     </div>
   </div>
 
@@ -724,19 +766,32 @@ async function loadOverview() {
     `RAM ${mc.ram_pct||0}% · CPU ${mc.cpu_pct||0}% · ${mc.claude_procs||0} procs Claude ativos`;
   document.getElementById('ov-updated').textContent = agoFull(mc.updated_at);
 
-  // KPIs
+  // KPIs — RAM com pressão e emoji
   const ramColor = mc.ram_pct>=90?'var(--red)':mc.ram_pct>=75?'var(--yellow)':'var(--green)';
-  const cpuColor = mc.cpu_pct>=80?'var(--red)':mc.cpu_pct>=60?'var(--yellow)':'var(--green)';
   document.getElementById('kpi-ram').innerHTML = `<span style="color:${ramColor}">${mc.ram_pct||0}%</span>`;
-  document.getElementById('kpi-ram-sub').textContent = `${mc.ram_used_gb||0}GB / ${mc.ram_total_gb||16}GB`;
-  document.getElementById('kpi-cpu').innerHTML = `<span style="color:${cpuColor}">${mc.cpu_pct||0}%</span>`;
+  document.getElementById('kpi-ram-sub').textContent = `${mc.ram_used_gb||0}GB / 16GB`;
+  document.getElementById('kpi-ram-emoji').textContent = mc.ram_emoji || '';
+  const pressaoColors = {ok:'var(--green)',moderado:'var(--yellow)',alto:'var(--orange)',critico:'var(--red)',emergencia:'var(--red)'};
+  const pressaoEl = document.getElementById('kpi-ram-pressao');
+  pressaoEl.textContent = mc.ram_pressao || '—';
+  pressaoEl.style.color = pressaoColors[mc.ram_pressao] || 'var(--muted)';
+
+  // KPIs — Turbo (concorrência)
+  const turboVal = mc.concorrencia_turbo || 1;
+  const turboColor = turboVal >= 3 ? 'var(--green)' : turboVal >= 2 ? 'var(--yellow)' : 'var(--orange)';
+  document.getElementById('kpi-turbo').innerHTML = `<span style="color:${turboColor}">${turboVal}x</span>`;
+  document.getElementById('kpi-turbo-sub').textContent = turboVal > 1 ? 'paralelas' : 'sequencial';
+
+  // KPIs — Procs
   const procsColor = mc.claude_procs>=4?'var(--red)':mc.claude_procs>=2?'var(--yellow)':'var(--green)';
   document.getElementById('kpi-procs').innerHTML = `<span style="color:${procsColor}">${mc.claude_procs||0}</span>`;
   document.getElementById('kpi-procs-sub').textContent = 'procs Claude';
-  const pend = mc.tarefas_pendentes_count||0;
-  const proc = mc.tarefas_processando_count||0;
-  document.getElementById('kpi-tarefas').textContent = pend+proc;
-  document.getElementById('kpi-tarefas-sub').textContent = `${pend} fila · ${proc} rodando`;
+
+  // KPIs — ETA
+  const etaHoras = mc.eta_horas || 0;
+  const etaFim = mc.eta_fim ? new Date(mc.eta_fim).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
+  document.getElementById('kpi-eta').innerHTML = etaHoras > 0 ? `~${etaHoras}h` : '✅';
+  document.getElementById('kpi-eta-sub').textContent = etaHoras > 0 ? `fim ~${etaFim}` : 'Concluída';
 
   // Gauges
   document.getElementById('g-ram').style.width = `${mc.ram_pct||0}%`;
@@ -778,6 +833,9 @@ async function loadOverview() {
   // Badge
   document.getElementById('badge-lap').textContent = done>0?`${done}/44`:'44';
   document.getElementById('badge-lap').className = done>0?'tab-badge warm':'tab-badge';
+
+  // Turbo panel
+  await updateTurboPanel(mc);
 
   await loadRecentActivity();
 }
@@ -1055,6 +1113,77 @@ async function loadLogs() {
     return `<div class="log-entry"><span class="log-time">${ago(t.updated_at)}</span><span>${icon} ${esc(t.tipo)}${page}${nota}</span></div>`;
   }).join('') || '<div class="loading-msg">Sem atividade</div>';
   document.getElementById('full-log').innerHTML = logHtml;
+}
+
+// ═══════════════════════════════════════════════════
+// TURBO MODE CONTROL
+// ═══════════════════════════════════════════════════
+const TURBO_CONC = (pct) => pct < 50 ? 3 : pct < 65 ? 2 : pct < 80 ? 1 : 0;
+const TURBO_PRES = (pct) => pct < 50 ? {emoji:'🟢',label:'ok',color:'var(--green)'} : pct < 65 ? {emoji:'🟡',label:'moderado',color:'var(--yellow)'} : pct < 80 ? {emoji:'🟠',label:'alto',color:'#ff8c00'} : {emoji:'🔴',label:'crítico',color:'var(--red)'};
+
+async function updateTurboPanel(mc) {
+  const ramPct = mc?.ram_pct || 0;
+  const turboOn = mc?.meta?.turbo || false;
+  const conc = TURBO_CONC(ramPct);
+  const pres = TURBO_PRES(ramPct);
+
+  // Badge
+  const badge = document.getElementById('turbo-badge');
+  if (badge) { badge.textContent = turboOn ? '⚡ ON' : 'OFF'; badge.style.background = turboOn ? 'rgba(32,201,151,.15)' : 'rgba(120,120,120,.15)'; badge.style.color = turboOn ? 'var(--green)' : 'var(--muted)'; }
+
+  // RAM label
+  const ramLabel = document.getElementById('turbo-ram-label');
+  if (ramLabel) ramLabel.innerHTML = `${pres.emoji} RAM <strong style="color:${pres.color}">${ramPct}%</strong> — pressão: ${pres.label}`;
+
+  // Concorrência
+  const concLabel = document.getElementById('turbo-conc-label');
+  if (concLabel) concLabel.textContent = turboOn ? `Concorrência turbo: ${conc}x paralela(s)` : `Turbo desativado — 1 página por vez`;
+
+  const paralelas = document.getElementById('turbo-paralelas');
+  if (paralelas) { paralelas.firstChild.textContent = turboOn ? conc : '1'; paralelas.style.color = conc > 1 ? 'var(--green)' : conc === 1 ? 'var(--yellow)' : 'var(--red)'; }
+
+  // RAM bar
+  const bar = document.getElementById('turbo-ram-bar');
+  if (bar) { bar.style.width = ramPct + '%'; bar.style.background = pres.color; }
+
+  // Botões
+  const btnOn  = document.getElementById('btn-turbo-on');
+  const btnOff = document.getElementById('btn-turbo-off');
+  if (btnOn)  { btnOn.disabled  = turboOn;  btnOn.style.opacity  = turboOn ? '.4' : '1'; }
+  if (btnOff) { btnOff.disabled = !turboOn; btnOff.style.opacity = !turboOn ? '.4' : '1'; }
+}
+
+async function toggleTurbo(ativar) {
+  const btn = document.getElementById(ativar ? 'btn-turbo-on' : 'btn-turbo-off');
+  if (btn) btn.textContent = '⏳ Salvando...';
+  try {
+    // Busca estado atual
+    const rows = await sbGet('jarbas_mission_control', `node_id=eq.mac-mini-01`);
+    const row = rows[0];
+    const metaAtual = row?.meta || {};
+    const newMeta = { ...metaAtual, turbo: ativar };
+
+    const resp = await fetch(`${SB_URL}/rest/v1/jarbas_mission_control?node_id=eq.mac-mini-01`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SB_KEY}`, 'apikey': SB_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ meta: newMeta })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    await updateTurboPanel({ ...row, meta: newMeta });
+    showToast(ativar ? '⚡ Turbo ativado!' : '🐢 Turbo desativado');
+  } catch(e) {
+    showToast('❌ Erro: ' + e.message);
+  }
+  if (btn) btn.textContent = ativar ? '⚡ Turbo ON' : '🐢 Turbo OFF';
+}
+
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) { t = document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px 16px;font-size:13px;z-index:9999;transition:opacity .3s;'; document.body.appendChild(t); }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._hide);
+  t._hide = setTimeout(() => t.style.opacity = '0', 3000);
 }
 
 // ═══════════════════════════════════════════════════

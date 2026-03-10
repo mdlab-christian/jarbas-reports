@@ -1,1167 +1,468 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JARBAS Mission Control</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    :root {
-      --bg:           #12100e;
-      --card:         #1a1714;
-      --surface:      #211e1a;
-      --border:       #3a3530;
-      --fg:           #f2efe8;
-      --muted:        #9e978a;
-      --primary:      #20c997;
-      --primary-dim:  rgba(32,201,151,0.12);
-      --primary-glow: rgba(32,201,151,0.25);
-      --warning:      #f59e0b;
-      --warning-dim:  rgba(245,158,11,0.12);
-      --error:        #ef4444;
-      --error-dim:    rgba(239,68,68,0.12);
-      --success:      #22c55e;
-      --info:         #38bdf8;
-      --info-dim:     rgba(56,189,248,0.12);
-      --violet:       #a78bfa;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--fg);
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      line-height: 1.5;
-      min-height: 100vh;
-      padding: 0 0 40px 0;
-    }
-
-    /* ─── HEADER ─────────────────────────────────────── */
-    header {
-      background: rgba(26,23,20,0.85);
-      backdrop-filter: blur(20px);
-      border-bottom: 1px solid var(--border);
-      padding: 20px 32px;
-      position: sticky;
-      top: 0;
-      z-index: 30;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .header-left {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .header-logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-      background: var(--primary-dim);
-      border: 1px solid var(--primary-glow);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-    }
-
-    .header-title h1 {
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: -0.3px;
-      color: var(--fg);
-    }
-
-    .header-title p {
-      font-size: 12px;
-      color: var(--muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .header-right {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-    }
-
-    .last-refresh {
-      font-size: 12px;
-      color: var(--muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .refresh-btn {
-      background: var(--primary-dim);
-      border: 1px solid var(--primary-glow);
-      color: var(--primary);
-      padding: 7px 14px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 12px;
-      font-weight: 600;
-      font-family: 'Inter', sans-serif;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .refresh-btn:hover {
-      background: var(--primary-glow);
-    }
-
-    .refresh-btn.loading {
-      opacity: 0.6;
-      cursor: not-allowed;
-    }
-
-    .spin {
-      display: inline-block;
-      animation: spin 1s linear infinite;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-
-    /* ─── LAYOUT ─────────────────────────────────────── */
-    main {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 28px 32px;
-      display: flex;
-      flex-direction: column;
-      gap: 28px;
-    }
-
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 14px;
-    }
-
-    /* ─── GLASS CARD ─────────────────────────────────── */
-    .card {
-      background: rgba(26,23,20,0.7);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      transition: border-color 0.2s;
-    }
-
-    .card:hover {
-      border-color: rgba(58,53,48,0.9);
-    }
-
-    .card-unavailable {
-      opacity: 0.5;
-      pointer-events: none;
-    }
-
-    .unavailable-msg {
-      color: var(--muted);
-      font-size: 12px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 12px 0;
-    }
-
-    /* ─── SEMÁFORO ───────────────────────────────────── */
-    .semaforo-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .semaforo-card {
-      background: rgba(26,23,20,0.7);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .semaforo-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .semaforo-label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--muted);
-      letter-spacing: 0.3px;
-    }
-
-    .status-dot {
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      flex-shrink: 0;
-    }
-
-    .status-dot.verde  { background: var(--success); box-shadow: 0 0 8px rgba(34,197,94,0.5); }
-    .status-dot.amarelo { background: var(--warning); box-shadow: 0 0 8px rgba(245,158,11,0.5); }
-    .status-dot.vermelho { background: var(--error); box-shadow: 0 0 8px rgba(239,68,68,0.5); }
-    .status-dot.cinza  { background: var(--muted); }
-    .status-dot.pulse  { animation: pulse-dot 2s ease-in-out infinite; }
-
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-
-    .semaforo-value {
-      font-size: 28px;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-      letter-spacing: -1px;
-    }
-
-    .semaforo-sub {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* ─── MISSÃO PROGRESS ────────────────────────────── */
-    .missao-inner {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .missao-stats {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-    }
-
-    .missao-count {
-      font-size: 36px;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-      color: var(--primary);
-      letter-spacing: -1px;
-    }
-
-    .missao-total {
-      font-size: 18px;
-      color: var(--muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    .missao-desc {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .progress-bar-wrap {
-      background: var(--surface);
-      border-radius: 999px;
-      height: 10px;
-      overflow: hidden;
-      border: 1px solid var(--border);
-    }
-
-    .progress-bar-fill {
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(90deg, var(--primary), #3dd9b3);
-      transition: width 1s ease;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .progress-bar-fill::after {
-      content: '';
-      position: absolute;
-      top: 0; right: 0;
-      width: 40px; height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3));
-      animation: shimmer 2s ease infinite;
-    }
-
-    @keyframes shimmer {
-      from { transform: translateX(-40px); }
-      to   { transform: translateX(40px); }
-    }
-
-    .progress-labels {
-      display: flex;
-      justify-content: space-between;
-      font-size: 11px;
-      color: var(--muted);
-      font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* ─── TABLE ──────────────────────────────────────── */
-    .table-wrap {
-      overflow-x: auto;
-      border-radius: 8px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }
-
-    thead th {
-      text-align: left;
-      padding: 10px 14px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.8px;
-      text-transform: uppercase;
-      color: var(--muted);
-      border-bottom: 1px solid var(--border);
-      white-space: nowrap;
-    }
-
-    tbody tr {
-      border-bottom: 1px solid rgba(58,53,48,0.4);
-      transition: background 0.15s;
-    }
-
-    tbody tr:hover {
-      background: rgba(255,255,255,0.02);
-    }
-
-    tbody tr:last-child {
-      border-bottom: none;
-    }
-
-    tbody td {
-      padding: 11px 14px;
-      color: var(--fg);
-      vertical-align: middle;
-    }
-
-    .mono {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-    }
-
-    /* ─── BADGES ─────────────────────────────────────── */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 5px;
-      padding: 3px 9px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-
-    .badge-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-    }
-
-    .badge.pendente  { background: var(--warning-dim); color: var(--warning); }
-    .badge.processando { background: var(--info-dim); color: var(--info); }
-    .badge.concluida, .badge.concluido { background: rgba(34,197,94,0.12); color: var(--success); }
-    .badge.erro      { background: var(--error-dim); color: var(--error); }
-    .badge.fila      { background: rgba(167,139,250,0.12); color: var(--violet); }
-    .badge.cancelado { background: rgba(158,151,138,0.12); color: var(--muted); }
-
-    /* ─── LOGS ───────────────────────────────────────── */
-    .logs-list {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .log-row {
-      display: grid;
-      grid-template-columns: 90px 50px 1fr;
-      gap: 12px;
-      align-items: start;
-      padding: 7px 10px;
-      border-radius: 6px;
-      font-size: 12px;
-      transition: background 0.15s;
-    }
-
-    .log-row:hover {
-      background: rgba(255,255,255,0.02);
-    }
-
-    .log-time {
-      color: var(--muted);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      white-space: nowrap;
-    }
-
-    .log-level {
-      font-weight: 700;
-      font-size: 10px;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-align: center;
-    }
-
-    .log-level.info  { background: rgba(56,189,248,0.1); color: var(--info); }
-    .log-level.warn  { background: var(--warning-dim); color: var(--warning); }
-    .log-level.error { background: var(--error-dim); color: var(--error); }
-    .log-level.debug { background: rgba(158,151,138,0.1); color: var(--muted); }
-
-    .log-msg {
-      color: var(--fg);
-      line-height: 1.4;
-    }
-
-    /* ─── CUSTOS KPI ─────────────────────────────────── */
-    .custos-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 16px;
-    }
-
-    .custo-card {
-      background: rgba(26,23,20,0.7);
-      backdrop-filter: blur(12px);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .custo-label {
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--muted);
-    }
-
-    .custo-value {
-      font-size: 30px;
-      font-weight: 700;
-      font-family: 'JetBrains Mono', monospace;
-      letter-spacing: -0.5px;
-      color: var(--primary);
-    }
-
-    .custo-sub {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    /* ─── DOIS PAINÉIS LADO A LADO ───────────────────── */
-    .two-col {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-    }
-
-    /* ─── PROJETOS ATIVOS ────────────────────────────── */
-    .projetos-grid {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .projeto-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 16px 20px;
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      align-items: center;
-    }
-
-    .projeto-card:hover {
-      border-color: rgba(32,201,151,0.3);
-    }
-
-    .projeto-nome {
-      font-weight: 600;
-      color: var(--fg);
-      font-size: 14px;
-      margin-bottom: 4px;
-    }
-
-    .projeto-meta {
-      font-size: 12px;
-      color: var(--muted);
-      display: flex;
-      gap: 14px;
-      align-items: center;
-    }
-
-    .projeto-progress-wrap {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 180px;
-    }
-
-    .projeto-progress-bar {
-      flex: 1;
-      height: 6px;
-      background: var(--surface);
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .projeto-progress-fill {
-      height: 100%;
-      background: var(--primary);
-      border-radius: 3px;
-      transition: width 0.3s ease;
-    }
-
-    .projeto-pct {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--primary);
-      white-space: nowrap;
-    }
-
-    .projeto-link {
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 12px;
-    }
-
-    .projeto-link:hover { text-decoration: underline; }
-
-    /* ─── LOADING SKELETON ───────────────────────────── */
-    .skeleton {
-      background: linear-gradient(90deg, var(--surface) 25%, rgba(58,53,48,0.5) 50%, var(--surface) 75%);
-      background-size: 200% 100%;
-      animation: skeleton-shimmer 1.5s ease infinite;
-      border-radius: 6px;
-      height: 14px;
-    }
-
-    @keyframes skeleton-shimmer {
-      from { background-position: 200% 0; }
-      to   { background-position: -200% 0; }
-    }
-
-    /* ─── RESPONSIVE ─────────────────────────────────── */
-    @media (max-width: 900px) {
-      main { padding: 20px 16px; }
-      header { padding: 16px 16px; }
-      .semaforo-grid, .custos-grid { grid-template-columns: 1fr; }
-      .two-col { grid-template-columns: 1fr; }
-      .log-row { grid-template-columns: 80px 45px 1fr; gap: 8px; }
-    }
-
-    @media (max-width: 640px) {
-      .header-right .last-refresh { display: none; }
-    }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>JARBAS — Mission Control</title>
+<style>
+:root {
+  --bg:#0d0b09; --bg2:#141210; --bg3:#1c1816; --bg4:#242019;
+  --green:#20c997; --gd:#14866a; --gg:rgba(32,201,151,.08);
+  --blue:#58a6ff; --purple:#bc8cff; --orange:#fb923c;
+  --red:#f85149; --yellow:#f0b429; --teal:#2dd4bf;
+  --text:#e8e2dc; --muted:#8b8178; --border:#242019;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body { background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; min-height:100vh; }
+
+/* TOP BAR */
+.topbar { background:rgba(13,11,9,.97); border-bottom:1px solid var(--border); padding:12px 24px; display:flex; align-items:center; gap:12px; position:sticky; top:0; z-index:100; backdrop-filter:blur(12px); }
+.logo { font-size:18px; font-weight:900; color:var(--green); }
+.logo span { color:var(--muted); font-weight:400; font-size:13px; }
+.topbar-right { margin-left:auto; display:flex; align-items:center; gap:10px; }
+.refresh-btn { background:var(--bg3); border:1px solid var(--border); color:var(--muted); padding:5px 12px; border-radius:8px; font-size:12px; cursor:pointer; font-family:inherit; transition:all .15s; }
+.refresh-btn:hover { border-color:var(--green); color:var(--green); }
+.last-update { font-size:11px; color:var(--muted); }
+
+/* SEMAPHORE */
+.semaforo-bar { display:flex; align-items:center; gap:10px; padding:10px 24px; border-bottom:1px solid var(--border); }
+.dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.dot.green { background:var(--green); box-shadow:0 0 8px var(--green); }
+.dot.yellow { background:var(--yellow); box-shadow:0 0 8px var(--yellow); }
+.dot.red { background:var(--red); box-shadow:0 0 8px var(--red); }
+.dot.gray { background:var(--muted); }
+.sem-label { font-size:12px; color:var(--muted); }
+.sem-val { font-size:12px; font-weight:700; }
+
+/* MAIN GRID */
+.main { display:grid; grid-template-columns:1fr 1fr 1fr; grid-template-rows:auto auto; gap:0; }
+
+/* KPI ROW */
+.kpi-row { grid-column:1/-1; display:grid; grid-template-columns:repeat(6,1fr); border-bottom:1px solid var(--border); }
+.kpi { padding:18px 20px; border-right:1px solid var(--border); }
+.kpi:last-child { border-right:none; }
+.kpi-label { font-size:10px; text-transform:uppercase; letter-spacing:1px; color:var(--muted); margin-bottom:4px; }
+.kpi-value { font-size:26px; font-weight:900; }
+.kpi-sub { font-size:11px; color:var(--muted); margin-top:3px; }
+
+/* PANELS */
+.panel { border-right:1px solid var(--border); border-bottom:1px solid var(--border); }
+.panel:last-child { border-right:none; }
+.panel-header { padding:14px 18px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:8px; }
+.panel-title { font-size:13px; font-weight:700; }
+.panel-body { padding:14px; }
+
+/* KANBAN */
+.kanban { grid-column:1/-1; border-top:1px solid var(--border); }
+.kanban-header { padding:14px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+.kanban-title { font-size:14px; font-weight:800; }
+.kanban-board { display:grid; grid-template-columns:repeat(4,1fr); gap:0; }
+.kb-col { border-right:1px solid var(--border); }
+.kb-col:last-child { border-right:none; }
+.kb-col-header { padding:12px 14px; font-size:11px; font-weight:700; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:6px; }
+.kb-col-body { padding:10px; min-height:160px; }
+.kb-card { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:10px 12px; margin-bottom:8px; cursor:default; transition:border-color .15s; }
+.kb-card:hover { border-color:rgba(32,201,151,.3); }
+.kb-card-rota { font-size:12px; font-weight:700; margin-bottom:3px; }
+.kb-card-sub { font-size:11px; color:var(--muted); }
+.kb-card-nota { font-size:22px; font-weight:900; margin-top:6px; }
+.kb-empty { text-align:center; color:var(--muted); font-size:12px; padding:20px; }
+
+/* STATUS BADGE */
+.badge { display:inline-block; font-size:10px; font-weight:700; padding:2px 7px; border-radius:6px; }
+.b-ok { background:rgba(32,201,151,.15); color:var(--green); }
+.b-run { background:rgba(240,180,41,.15); color:var(--yellow); }
+.b-err { background:rgba(248,81,73,.15); color:var(--red); }
+.b-pend { background:rgba(88,166,255,.15); color:var(--blue); }
+.b-gray { background:var(--bg3); color:var(--muted); }
+
+/* TAREFAS TABLE */
+.tarefas-table { width:100%; border-collapse:collapse; font-size:12px; }
+.tarefas-table th { text-align:left; padding:8px 10px; background:var(--bg3); color:var(--muted); font-size:10px; text-transform:uppercase; border-bottom:1px solid var(--border); }
+.tarefas-table td { padding:8px 10px; border-bottom:1px solid var(--border); vertical-align:top; }
+.tarefas-table tr:last-child td { border-bottom:none; }
+.tarefas-table tr:hover td { background:rgba(32,201,151,.02); }
+
+/* GAUGE */
+.gauge-wrap { display:flex; flex-direction:column; gap:8px; }
+.gauge-row { display:flex; align-items:center; gap:8px; }
+.gauge-label { width:60px; font-size:11px; color:var(--muted); flex-shrink:0; }
+.gauge-track { flex:1; height:6px; background:var(--bg3); border-radius:3px; overflow:hidden; }
+.gauge-fill { height:100%; border-radius:3px; transition:width .5s; }
+.gauge-val { width:36px; text-align:right; font-size:11px; font-weight:700; }
+
+/* ANTI-STALL */
+.stall-item { background:rgba(248,81,73,.06); border:1px solid rgba(248,81,73,.2); border-radius:8px; padding:10px 12px; margin-bottom:8px; }
+.stall-rota { font-size:12px; font-weight:700; color:var(--red); }
+.stall-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+
+/* LOG */
+.log-line { font-family:monospace; font-size:11px; padding:4px 0; border-bottom:1px solid var(--border); display:flex; gap:10px; }
+.log-line:last-child { border-bottom:none; }
+.log-time { color:var(--muted); flex-shrink:0; }
+.log-msg { color:var(--text); }
+
+/* PAUSE BUTTON */
+.pause-btn { background:rgba(248,81,73,.1); border:1px solid rgba(248,81,73,.3); color:var(--red); padding:5px 14px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+.pause-btn:hover { background:rgba(248,81,73,.2); }
+.resume-btn { background:rgba(32,201,151,.1); border:1px solid var(--gd); color:var(--green); padding:5px 14px; border-radius:8px; font-size:11px; font-weight:700; cursor:pointer; font-family:inherit; transition:all .15s; }
+.resume-btn:hover { background:rgba(32,201,151,.2); }
+
+/* LOADING */
+.skeleton { background:linear-gradient(90deg,var(--bg3) 25%,var(--bg4) 50%,var(--bg3) 75%); background-size:200% 100%; animation:shimmer 1.5s infinite; border-radius:4px; }
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.sk-line { height:14px; border-radius:4px; margin-bottom:6px; }
+
+footer { text-align:center; padding:20px; color:var(--muted); font-size:11px; border-top:1px solid var(--border); }
+</style>
 </head>
 <body>
 
-<!-- ─── HEADER ───────────────────────────────────────── -->
-<header>
-  <div class="header-left">
-    <div class="header-logo">⚡</div>
-    <div class="header-title">
-      <h1>JARBAS Mission Control</h1>
-      <p>mac-mini-m4 · MdFlow Lapidador v3 · qdivfairxhdihaqqypgb</p>
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">🦞 JARBAS <span>Mission Control</span></div>
+  <div id="sem-bar" class="semaforo-bar" style="padding:0;border:none;background:none;">
+    <div class="dot gray" id="dot-main"></div>
+    <span class="sem-val" id="sem-txt">Carregando...</span>
+  </div>
+  <div class="topbar-right">
+    <span class="last-update" id="last-update">—</span>
+    <button class="pause-btn" id="btn-pause" onclick="togglePause()">⏸ Pausar fila</button>
+    <button class="refresh-btn" onclick="loadAll()">↻ Atualizar</button>
+  </div>
+</div>
+
+<!-- KPI ROW -->
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">RAM</div>
+    <div class="kpi-value" id="kpi-ram">—</div>
+    <div class="kpi-sub" id="kpi-ram-sub">de 16GB</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">CPU</div>
+    <div class="kpi-value" id="kpi-cpu">—</div>
+    <div class="kpi-sub">processos IA</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Claude procs</div>
+    <div class="kpi-value" id="kpi-claude">—</div>
+    <div class="kpi-sub">ativos agora</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Custo hoje</div>
+    <div class="kpi-value" id="kpi-custo" style="font-size:20px;">—</div>
+    <div class="kpi-sub" id="kpi-custo-mes">mês: —</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Lapidadas</div>
+    <div class="kpi-value" id="kpi-lapida-c">—</div>
+    <div class="kpi-sub" id="kpi-lapida-t">de — páginas</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Em execução</div>
+    <div class="kpi-value" id="kpi-lapida-atual" style="font-size:14px;margin-top:6px;">—</div>
+    <div class="kpi-sub" id="kpi-lapida-prog">—</div>
+  </div>
+</div>
+
+<!-- PANELS ROW -->
+<div class="main">
+
+  <!-- GAUGES -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>📊</span><span class="panel-title">Recursos do Sistema</span>
+    </div>
+    <div class="panel-body">
+      <div class="gauge-wrap" id="gauges">
+        <div class="gauge-row">
+          <div class="gauge-label">RAM</div>
+          <div class="gauge-track"><div class="gauge-fill" id="g-ram" style="width:0%;background:var(--green);"></div></div>
+          <div class="gauge-val" id="gv-ram">—</div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-label">CPU</div>
+          <div class="gauge-track"><div class="gauge-fill" id="g-cpu" style="width:0%;background:var(--blue);"></div></div>
+          <div class="gauge-val" id="gv-cpu">—</div>
+        </div>
+        <div class="gauge-row">
+          <div class="gauge-label">Claude</div>
+          <div class="gauge-track"><div class="gauge-fill" id="g-claude" style="width:0%;background:var(--purple);"></div></div>
+          <div class="gauge-val" id="gv-claude">—</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:8px;">Anti-Stall</div>
+        <div id="stall-status" style="font-size:12px;color:var(--green);">✅ Watchdog ativo (30s)</div>
+        <div id="stall-list"></div>
+      </div>
     </div>
   </div>
-  <div class="header-right">
-    <span class="last-refresh" id="lastRefresh">Carregando...</span>
-    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
-      <span id="refreshIcon">↻</span>
-      Atualizar
-    </button>
+
+  <!-- TAREFAS RECENTES -->
+  <div class="panel">
+    <div class="panel-header">
+      <span>📋</span><span class="panel-title">Tarefas Recentes</span>
+    </div>
+    <div class="panel-body" style="padding:0;overflow:auto;max-height:240px;">
+      <table class="tarefas-table">
+        <thead><tr><th>Tipo</th><th>Status</th><th>Rota</th><th>Atualizado</th></tr></thead>
+        <tbody id="tarefas-body"><tr><td colspan="4" style="color:var(--muted);padding:12px;text-align:center;">Carregando...</td></tr></tbody>
+      </table>
+    </div>
   </div>
-</header>
 
-<!-- ─── MAIN ─────────────────────────────────────────── -->
-<main>
-
-  <!-- SEÇÃO 1: SEMÁFORO -->
-  <section>
-    <p class="section-title">Semáforo do Sistema</p>
-    <div class="semaforo-grid">
-
-      <div class="semaforo-card" id="card-jarbas">
-        <div class="semaforo-header">
-          <span class="semaforo-label">Status JARBAS</span>
-          <span class="status-dot cinza" id="dot-jarbas"></span>
-        </div>
-        <div class="semaforo-value" id="val-jarbas">—</div>
-        <div class="semaforo-sub" id="sub-jarbas">Verificando instâncias...</div>
-      </div>
-
-      <div class="semaforo-card">
-        <div class="semaforo-header">
-          <span class="semaforo-label">Memória RAM</span>
-          <span class="status-dot" id="dot-ram"></span>
-        </div>
-        <div class="semaforo-value" id="val-ram">—</div>
-        <div class="semaforo-sub" id="sub-ram">Verificar com /status no Telegram</div>
-      </div>
-
-      <div class="semaforo-card" id="card-custo-hoje-semaforo">
-        <div class="semaforo-header">
-          <span class="semaforo-label">Custo Hoje</span>
-          <span class="status-dot cinza" id="dot-custo"></span>
-        </div>
-        <div class="semaforo-value" id="val-custo-semaforo">—</div>
-        <div class="semaforo-sub" id="sub-custo-semaforo">Carregando...</div>
-      </div>
-
+  <!-- LOG DO MC -->
+  <div class="panel" style="border-right:none;">
+    <div class="panel-header">
+      <span>📡</span><span class="panel-title">Log Mission Control</span>
     </div>
-  </section>
-
-  <!-- SEÇÃO 2: MISSÃO MDFLOW -->
-  <section>
-    <p class="section-title">Missão MdFlow — Lapidação 2026</p>
-    <div class="card">
-      <div class="missao-inner" id="missao-content">
-        <div class="skeleton" style="width:120px;height:40px;border-radius:8px;"></div>
-        <div class="skeleton" style="height:10px;"></div>
-      </div>
+    <div class="panel-body" style="padding:0;overflow:auto;max-height:240px;padding:10px 14px;">
+      <div id="mc-log" style="font-family:monospace;font-size:11px;color:var(--muted);">Carregando...</div>
     </div>
-  </section>
+  </div>
 
-  <!-- SEÇÃO 2B: PROJETOS ATIVOS -->
-  <section>
-    <p class="section-title">Projetos Ativos</p>
-    <div id="projetos-content">
-      <div class="skeleton" style="height:80px;border-radius:12px;"></div>
+</div>
+
+<!-- KANBAN DE LAPIDAÇÕES -->
+<div class="kanban">
+  <div class="kanban-header">
+    <span style="font-size:18px;">🗂️</span>
+    <span class="kanban-title">Fila de Lapidação</span>
+    <span id="lapida-paused-badge" style="display:none;" class="badge b-err">⏸ PAUSADO</span>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+      <span id="lapida-progress-txt" style="font-size:12px;color:var(--muted);">—</span>
     </div>
-  </section>
-
-  <!-- SEÇÃO 3+4: FILA DE TAREFAS + LOGS RECENTES -->
-  <section class="two-col">
-
-    <div>
-      <p class="section-title">Fila de Tarefas — Últimas 10</p>
-      <div class="card" id="tarefas-card">
-        <div class="table-wrap">
-          <div id="tarefas-content"><div class="skeleton" style="height:200px;"></div></div>
-        </div>
-      </div>
+  </div>
+  <div class="kanban-board">
+    <div class="kb-col">
+      <div class="kb-col-header" style="color:var(--blue);">📋 Na Fila <span id="count-fila" class="badge b-pend">0</span></div>
+      <div class="kb-col-body" id="col-fila"><div class="kb-empty">Vazio</div></div>
     </div>
-
-    <div>
-      <p class="section-title">Logs Recentes — Últimas 15 linhas</p>
-      <div class="card" id="logs-card">
-        <div id="logs-content"><div class="skeleton" style="height:200px;"></div></div>
-      </div>
+    <div class="kb-col">
+      <div class="kb-col-header" style="color:var(--yellow);">⚙️ Em Execução <span id="count-run" class="badge b-run">0</span></div>
+      <div class="kb-col-body" id="col-run"><div class="kb-empty">Nenhuma em andamento</div></div>
     </div>
-
-  </section>
-
-  <!-- SEÇÃO 5: CUSTOS POR PERÍODO -->
-  <section>
-    <p class="section-title">Custos por Período</p>
-    <div class="custos-grid">
-
-      <div class="custo-card">
-        <span class="custo-label">Hoje</span>
-        <span class="custo-value" id="custo-hoje">R$ —</span>
-        <span class="custo-sub" id="custo-hoje-sub">Carregando...</span>
-      </div>
-
-      <div class="custo-card">
-        <span class="custo-label">Esta Semana</span>
-        <span class="custo-value" id="custo-semana">R$ —</span>
-        <span class="custo-sub" id="custo-semana-sub">Carregando...</span>
-      </div>
-
-      <div class="custo-card">
-        <span class="custo-label">Este Mês</span>
-        <span class="custo-value" id="custo-mes">R$ —</span>
-        <span class="custo-sub" id="custo-mes-sub">Carregando...</span>
-      </div>
-
+    <div class="kb-col">
+      <div class="kb-col-header" style="color:var(--red);">⚠️ Com Problema <span id="count-prob" class="badge b-err">0</span></div>
+      <div class="kb-col-body" id="col-prob"><div class="kb-empty">Nenhum problema</div></div>
     </div>
-  </section>
+    <div class="kb-col" style="border-right:none;">
+      <div class="kb-col-header" style="color:var(--green);">✅ Concluídas <span id="count-ok" class="badge b-ok">0</span></div>
+      <div class="kb-col-body" id="col-ok"><div class="kb-empty">Nenhuma ainda</div></div>
+    </div>
+  </div>
+</div>
 
-</main>
+<footer>
+  🦞 JARBAS Mission Control · Supabase: qdivfairxhdihaqqypgb · Atualiza a cada 30s · <span id="footer-time">—</span>
+</footer>
 
 <script>
-  const SUPABASE_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';
-  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzM3MDgsImV4cCI6MjA4NjY0OTcwOH0.4l3KLUxAehqVbk2PvWTmDu2E_bOrl_srgkmGMPfB-Gw';
+const SB_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwNzM3MDgsImV4cCI6MjA4NjY0OTcwOH0.4l3KLUxAehqVbk2PvWTmDu2E_bOrl_srgkmGMPfB-Gw';
+const MC_MGMT_URL = 'https://api.supabase.com/v1/projects/qdivfairxhdihaqqypgb/database/query';
 
-  const HEADERS = {
-    'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
-    'Content-Type': 'application/json'
+const H = { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}`, 'Content-Type': 'application/json' };
+
+async function sb(path, qs='') {
+  try {
+    const r = await fetch(`${SB_URL}/rest/v1/${path}${qs?'?'+qs:''}`, { headers: H });
+    return r.ok ? r.json() : [];
+  } catch { return []; }
+}
+
+function ago(iso) {
+  if (!iso) return '—';
+  const s = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return `${s}s atrás`;
+  if (s < 3600) return `${Math.round(s/60)}min atrás`;
+  return `${Math.round(s/3600)}h atrás`;
+}
+function brl(v) { return v != null ? `R$${Number(v).toFixed(2)}` : '—'; }
+function pct(v) { return v != null ? `${v}%` : '—'; }
+
+function badgeStatus(s) {
+  const map = {
+    pendente:'b-pend', processando:'b-run', concluido:'b-ok', problema:'b-err', erro:'b-err', aguardando_aprovacao_html:'b-gray', aguardando_aprovacao_prd:'b-gray'
   };
+  const labels = {
+    pendente:'fila', processando:'rodando', concluido:'ok', problema:'❌ problema', erro:'erro',
+    aguardando_aprovacao_html:'⏸ html', aguardando_aprovacao_prd:'⏸ prd'
+  };
+  const cls = map[s] || 'b-gray';
+  const lbl = labels[s] || s || '?';
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
 
-  // ─── REST helpers ──────────────────────────────────
-  async function rest(path, params = '') {
-    const url = `${SUPABASE_URL}/rest/v1/${path}${params ? '?' + params : ''}`;
-    const res = await fetch(url, { headers: HEADERS });
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${await res.text()}`);
-    return res.json();
+// ── LOAD MC STATE ─────────────────────────────────────────────────────────
+async function loadMC() {
+  const rows = await sb('jarbas_mission_control', 'node_id=eq.mac-mini-01&limit=1');
+  const mc = rows[0];
+  if (!mc) return;
+
+  // Semáforo
+  const dot = document.getElementById('dot-main');
+  const semTxt = document.getElementById('sem-txt');
+  const colors = { green:'green', yellow:'yellow', red:'red' };
+  dot.className = `dot ${colors[mc.semaforo] || 'gray'}`;
+  semTxt.textContent = { green:'✅ Sistema OK', yellow:'⚠️ Atenção', red:'🚨 Sobrecarga' }[mc.semaforo] || '—';
+
+  // KPIs
+  const ramPct = mc.ram_pct || 0;
+  document.getElementById('kpi-ram').textContent = mc.ram_used_gb ? `${mc.ram_used_gb}GB` : '—';
+  document.getElementById('kpi-ram').style.color = ramPct > 80 ? 'var(--red)' : ramPct > 65 ? 'var(--yellow)' : 'var(--green)';
+  document.getElementById('kpi-ram-sub').textContent = `${ramPct}% de 16GB`;
+  document.getElementById('kpi-cpu').textContent = pct(mc.cpu_pct);
+  document.getElementById('kpi-cpu').style.color = mc.cpu_pct > 80 ? 'var(--red)' : 'var(--text)';
+  document.getElementById('kpi-claude').textContent = mc.claude_procs ?? '—';
+  document.getElementById('kpi-claude').style.color = mc.claude_procs > 3 ? 'var(--yellow)' : 'var(--text)';
+  document.getElementById('kpi-custo').textContent = brl(mc.custo_hoje);
+  document.getElementById('kpi-custo-mes').textContent = `mês: ${brl(mc.custo_mes)}`;
+  document.getElementById('kpi-lapida-c').textContent = mc.lapidacao_concluidas ?? '0';
+  document.getElementById('kpi-lapida-t').textContent = `de ${mc.lapidacao_total ?? '?'} páginas`;
+  document.getElementById('kpi-lapida-atual').textContent = mc.lapidacao_atual || 'nenhuma';
+  document.getElementById('kpi-lapida-prog').textContent = mc.lapidacao_progresso ? `${mc.lapidacao_progresso}% concluído` : '—';
+
+  // Gauges
+  const gRam = Math.min(ramPct, 100);
+  document.getElementById('g-ram').style.width = gRam + '%';
+  document.getElementById('g-ram').style.background = gRam > 80 ? 'var(--red)' : gRam > 65 ? 'var(--yellow)' : 'var(--green)';
+  document.getElementById('gv-ram').textContent = pct(mc.ram_pct);
+  document.getElementById('g-cpu').style.width = Math.min(mc.cpu_pct || 0, 100) + '%';
+  document.getElementById('gv-cpu').textContent = pct(mc.cpu_pct);
+  document.getElementById('g-claude').style.width = Math.min((mc.claude_procs || 0) * 20, 100) + '%';
+  document.getElementById('gv-claude').textContent = mc.claude_procs ?? 0;
+
+  // Lapidação paused badge
+  const pausedBadge = document.getElementById('lapida-paused-badge');
+  const btnPause = document.getElementById('btn-pause');
+  if (mc.lapidacao_paused) {
+    pausedBadge.style.display = 'inline-block';
+    btnPause.textContent = '▶️ Retomar fila';
+    btnPause.className = 'resume-btn';
+  } else {
+    pausedBadge.style.display = 'none';
+    btnPause.textContent = '⏸ Pausar fila';
+    btnPause.className = 'pause-btn';
   }
 
-  function formatBRL(value) {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency', currency: 'BRL', minimumFractionDigits: 2
-    }).format(value);
+  // Progress
+  const prog = mc.lapidacao_progresso || 0;
+  document.getElementById('lapida-progress-txt').textContent = mc.lapidacao_total
+    ? `${mc.lapidacao_concluidas || 0} / ${mc.lapidacao_total} páginas (${prog}%)`
+    : 'Fila não iniciada';
+
+  // Kanban — fila
+  const fila = mc.lapidacao_queue || [];
+  renderCol('col-fila', 'count-fila', fila.map(r => ({ rota: r, sub: 'Na fila', nota: null, cor: 'var(--blue)' })));
+
+  // Kanban — em execução
+  const emExec = mc.lapidacao_atual ? [{ rota: mc.lapidacao_atual, sub: `Progresso: ${prog}%`, nota: null, cor: 'var(--yellow)' }] : [];
+  renderCol('col-run', 'count-run', emExec);
+
+  document.getElementById('last-update').textContent = `Atualizado: ${ago(mc.updated_at)}`;
+  document.getElementById('footer-time').textContent = new Date().toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+}
+
+function renderCol(colId, countId, items) {
+  const col = document.getElementById(colId);
+  const cnt = document.getElementById(countId);
+  cnt.textContent = items.length;
+  if (!items.length) { col.innerHTML = '<div class="kb-empty">Vazio</div>'; return; }
+  col.innerHTML = items.map(i => `
+    <div class="kb-card" style="border-left:3px solid ${i.cor || 'var(--border)'}">
+      <div class="kb-card-rota">${i.rota}</div>
+      <div class="kb-card-sub">${i.sub || ''}</div>
+      ${i.nota ? `<div class="kb-card-nota" style="color:${parseFloat(i.nota)>=9?'var(--green)':'var(--yellow)'}">${i.nota}</div>` : ''}
+    </div>`).join('');
+}
+
+// ── TAREFAS RECENTES ──────────────────────────────────────────────────────
+async function loadTarefas() {
+  const rows = await sb('jarbas_tarefas',
+    'select=id,tipo,status,pagina,updated_at,nota_atual,loops_done&order=updated_at.desc&limit=12');
+  const tbody = document.getElementById('tarefas-body');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="4" style="color:var(--muted);padding:12px;text-align:center;">Sem tarefas</td></tr>'; return; }
+
+  // Kanban problema e concluidas
+  const problemas = rows.filter(r => r.status === 'problema' || r.status === 'erro');
+  const concluidas = rows.filter(r => r.status === 'concluido');
+
+  renderCol('col-prob', 'count-prob', problemas.map(r => ({
+    rota: r.pagina || r.tipo,
+    sub: `${r.status} · ${ago(r.updated_at)}`,
+    nota: r.nota_atual,
+    cor: 'var(--red)'
+  })));
+  renderCol('col-ok', 'count-ok', concluidas.map(r => ({
+    rota: r.pagina || r.tipo,
+    sub: `Concluída ${ago(r.updated_at)}`,
+    nota: r.nota_atual,
+    cor: 'var(--green)'
+  })));
+
+  tbody.innerHTML = rows.map(r => `
+    <tr>
+      <td style="color:var(--muted)">${r.tipo || '—'}</td>
+      <td>${badgeStatus(r.status)}</td>
+      <td style="font-family:monospace">${r.pagina || '—'}</td>
+      <td style="color:var(--muted)">${ago(r.updated_at)}</td>
+    </tr>`).join('');
+
+  // Anti-stall visual
+  const stallList = document.getElementById('stall-list');
+  const presas = rows.filter(r => r.status === 'processando' &&
+    (Date.now() - new Date(r.updated_at).getTime()) > 5*60*1000);
+  if (presas.length) {
+    stallList.innerHTML = presas.map(t => `
+      <div class="stall-item" style="margin-top:8px;">
+        <div class="stall-rota">🚨 ${t.pagina || t.tipo}</div>
+        <div class="stall-sub">Presa há ${Math.round((Date.now()-new Date(t.updated_at).getTime())/60000)}min</div>
+      </div>`).join('');
+    document.getElementById('stall-status').textContent = `⚠️ ${presas.length} tarefa(s) presa(s) detectada(s)`;
+    document.getElementById('stall-status').style.color = 'var(--red)';
+  } else {
+    document.getElementById('stall-status').textContent = '✅ Watchdog ativo — sem tarefas presas';
+    document.getElementById('stall-status').style.color = 'var(--green)';
+    stallList.innerHTML = '';
   }
+}
 
-  function timeAgo(isoStr) {
-    if (!isoStr) return '—';
-    const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
-    if (diff < 60) return `${Math.floor(diff)}s atrás`;
-    if (diff < 3600) return `${Math.floor(diff/60)}m atrás`;
-    if (diff < 86400) return `${Math.floor(diff/3600)}h atrás`;
-    return `${Math.floor(diff/86400)}d atrás`;
-  }
+// ── MC LOG ────────────────────────────────────────────────────────────────
+async function loadLog() {
+  try {
+    const r = await fetch('/Users/jarbas/jarbas/logs/mission-control.log').catch(() => null);
+    // Fallback: mock das últimas linhas do log
+    const logEl = document.getElementById('mc-log');
+    logEl.textContent = 'Log disponível no Mac Mini:\n~/jarbas/logs/mission-control.log';
+  } catch {}
+}
 
-  function fmtTime(isoStr) {
-    if (!isoStr) return '—';
-    try {
-      return new Date(isoStr).toLocaleTimeString('pt-BR', {
-        hour: '2-digit', minute: '2-digit', second: '2-digit'
-      });
-    } catch { return '—'; }
-  }
+// ── PAUSE / RESUME ────────────────────────────────────────────────────────
+async function togglePause() {
+  const btn = document.getElementById('btn-pause');
+  const isPaused = btn.className === 'resume-btn';
+  btn.disabled = true;
+  try {
+    await fetch(`${SB_URL}/rest/v1/jarbas_mission_control?node_id=eq.mac-mini-01`, {
+      method: 'PATCH',
+      headers: { ...H, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ lapidacao_paused: !isPaused }),
+    });
+    await loadAll();
+  } finally { btn.disabled = false; }
+}
 
-  function fmtDate(isoStr) {
-    if (!isoStr) return '—';
-    try {
-      return new Date(isoStr).toLocaleString('pt-BR', {
-        day: '2-digit', month: '2-digit',
-        hour: '2-digit', minute: '2-digit'
-      });
-    } catch { return '—'; }
-  }
+// ── LOAD ALL ──────────────────────────────────────────────────────────────
+async function loadAll() {
+  await Promise.all([loadMC(), loadTarefas()]);
+}
 
-  function unavailableMsg(text = 'Dados indisponíveis') {
-    return `<div class="unavailable-msg">
-      <span>◌</span>
-      <span>${text}</span>
-    </div>`;
-  }
-
-  function statusBadge(status) {
-    const s = (status || '').toLowerCase();
-    const labels = {
-      pendente: 'Pendente',
-      processando: 'Processando',
-      concluida: 'Concluída',
-      concluido: 'Concluído',
-      erro: 'Erro',
-      fila: 'Fila',
-      cancelado: 'Cancelado',
-      ativo: 'Ativo',
-      inativo: 'Inativo'
-    };
-    const cls = s in labels ? s : 'fila';
-    const label = labels[s] || status || '—';
-    return `<span class="badge ${cls}">${label}</span>`;
-  }
-
-  // ─── SEÇÃO: STATUS JARBAS ──────────────────────────
-  async function loadJarbasStatus() {
-    try {
-      const fiveMinAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-      const rows = await rest(
-        'jarbas_instances',
-        `select=instance_id,status,last_seen,ram_free_mb,versao,erros_hoje&status=eq.ativo&last_seen=gte.${fiveMinAgo}&limit=5`
-      );
-
-      const dot = document.getElementById('dot-jarbas');
-      const val = document.getElementById('val-jarbas');
-      const sub = document.getElementById('sub-jarbas');
-
-      if (rows.length > 0) {
-        const inst = rows[0];
-        dot.className = 'status-dot verde pulse';
-        val.textContent = 'ONLINE';
-        val.style.color = 'var(--success)';
-        sub.textContent = `${inst.instance_id} · ${inst.versao || 'v?'} · visto ${timeAgo(inst.last_seen)}`;
-
-        // RAM do instance
-        const ramEl = document.getElementById('val-ram');
-        const dotRam = document.getElementById('dot-ram');
-        const subRam = document.getElementById('sub-ram');
-        if (inst.ram_free_mb != null) {
-          ramEl.textContent = `${inst.ram_free_mb} MB`;
-          const ramOk = inst.ram_free_mb > 4000;
-          dotRam.className = `status-dot ${ramOk ? 'verde' : 'amarelo'}`;
-          subRam.textContent = `RAM livre · ${ramOk ? 'OK' : 'Atenção: baixo'}`;
-        } else {
-          ramEl.textContent = 'N/D';
-          dotRam.className = 'status-dot cinza';
-          subRam.textContent = 'Verificar com /status no Telegram';
-        }
-      } else {
-        // Checar se tem instância inativa
-        const all = await rest('jarbas_instances', 'select=status,last_seen&limit=1');
-        dot.className = 'status-dot vermelho';
-        val.textContent = 'OFFLINE';
-        val.style.color = 'var(--error)';
-        if (all.length > 0) {
-          sub.textContent = `Último sinal: ${timeAgo(all[0].last_seen)}`;
-        } else {
-          sub.textContent = 'Nenhuma instância registrada';
-        }
-        document.getElementById('dot-ram').className = 'status-dot cinza';
-        document.getElementById('val-ram').textContent = 'N/D';
-      }
-    } catch (e) {
-      console.warn('loadJarbasStatus error:', e);
-      document.getElementById('dot-jarbas').className = 'status-dot cinza';
-      document.getElementById('val-jarbas').textContent = 'Erro';
-      document.getElementById('sub-jarbas').textContent = 'Dados indisponíveis';
-    }
-  }
-
-  // ─── SEÇÃO: CUSTO HOJE (semáforo) ─────────────────
-  async function loadCustoSemaforo() {
-    try {
-      const hoje = new Date().toISOString().split('T')[0];
-      const rows = await rest(
-        'jarbas_custos_tokens',
-        `select=custo_reais&data=eq.${hoje}`
-      );
-      const total = rows.reduce((s, r) => s + parseFloat(r.custo_reais || 0), 0);
-
-      document.getElementById('val-custo-semaforo').textContent = formatBRL(total);
-      const dot = document.getElementById('dot-custo');
-      const sub = document.getElementById('sub-custo-semaforo');
-
-      if (total === 0) {
-        dot.className = 'status-dot cinza';
-        sub.textContent = 'Nenhum gasto hoje';
-      } else if (total < 5) {
-        dot.className = 'status-dot verde';
-        sub.textContent = 'Dentro do limite diário';
-      } else if (total < 20) {
-        dot.className = 'status-dot amarelo';
-        sub.textContent = 'Atenção: gasto elevado';
-      } else {
-        dot.className = 'status-dot vermelho';
-        sub.textContent = 'Alerta: gasto alto!';
-      }
-    } catch (e) {
-      console.warn('loadCustoSemaforo error:', e);
-      document.getElementById('val-custo-semaforo').textContent = '—';
-      document.getElementById('sub-custo-semaforo').textContent = 'Dados indisponíveis';
-    }
-  }
-
-  // ─── SEÇÃO: MISSÃO MDFLOW ─────────────────────────
-  function renderMissao(concluidas, total, pendentes) {
-    const pct = total > 0 ? Math.round((concluidas / total) * 100) : 0;
-    const el = document.getElementById('missao-content');
-    el.innerHTML = `
-      <div class="missao-stats">
-        <span class="missao-count">${concluidas}</span>
-        <span class="missao-total">/ ${total} páginas</span>
-      </div>
-      <div class="missao-desc">${pendentes} pendentes · ${pct}% concluído · Meta: nota ≥ 9/10 em todas as páginas</div>
-      <div>
-        <div class="progress-bar-wrap">
-          <div class="progress-bar-fill" style="width: ${pct}%"></div>
-        </div>
-        <div class="progress-labels" style="margin-top:6px">
-          <span>0%</span>
-          <span>${pct}%</span>
-          <span>100%</span>
-        </div>
-      </div>
-    `;
-  }
-
-  async function loadMissao() {
-    try {
-      // Tentar ler da tabela jarbas_missoes (nova, multi-missão)
-      const rows = await rest(
-        'jarbas_missoes',
-        "select=tarefas_concluidas,tarefas_total,status&missao_id=eq.mdflow-lapidation-2026&limit=1"
-      );
-
-      if (rows.length > 0) {
-        const m = rows[0];
-        const total = m.tarefas_total || 44;
-        const concluidas = m.tarefas_concluidas || 0;
-        renderMissao(concluidas, total, total - concluidas);
-        return;
-      }
-
-      // Fallback: contar tarefas tipo lapidar_pagina concluidas
-      const done = await rest(
-        'jarbas_tarefas',
-        'select=id&tipo=eq.lapidar_pagina&status=eq.concluida'
-      );
-      renderMissao(done.length, 44, 44 - done.length);
-    } catch (e) {
-      console.warn('loadMissao error:', e);
-      renderMissao(0, 44, 44);
-      const el = document.getElementById('missao-content');
-      el.innerHTML += `<div class="semaforo-sub" style="margin-top:4px;color:var(--muted);font-size:11px;">
-        (aguardando primeira sessão de lapidação)
-      </div>`;
-    }
-  }
-
-  // ─── SEÇÃO: PROJETOS ATIVOS ───────────────────────
-  async function loadProjetos() {
-    const el = document.getElementById('projetos-content');
-    try {
-      const rows = await rest(
-        'jarbas_missoes',
-        'select=missao_id,nome,status,progresso_pct,tarefas_total,tarefas_concluidas,tarefas_erro,relatorio_url,atualizado_em&order=atualizado_em.desc&limit=10'
-      );
-
-      if (!rows.length) {
-        el.innerHTML = `<div class="unavailable-msg" style="border:1px solid var(--border);border-radius:10px;padding:20px;">
-          <span>◌</span><span>Nenhum projeto ativo. Use <code style="font-family:monospace;color:var(--primary)">/projeto [descrição]</code> no Telegram para iniciar.</span>
-        </div>`;
-        return;
-      }
-
-      const html = `<div class="projetos-grid">${rows.map(p => {
-        const pct = p.progresso_pct || 0;
-        const statusColor = {
-          ativa: 'var(--primary)', pausada: 'var(--warning)',
-          concluida: 'var(--success)', erro: 'var(--error)'
-        }[p.status] || 'var(--muted)';
-        const statusLabel = {
-          ativa: 'Ativa', pausada: 'Pausada', concluida: 'Concluída', erro: 'Erro'
-        }[p.status] || p.status;
-        return `
-        <div class="projeto-card">
-          <div>
-            <div class="projeto-nome">${p.nome || p.missao_id}</div>
-            <div class="projeto-meta">
-              <span style="color:${statusColor};font-weight:600">${statusLabel}</span>
-              <span>${p.tarefas_concluidas || 0}/${p.tarefas_total || 0} tarefas</span>
-              ${p.tarefas_erro ? `<span style="color:var(--error)">${p.tarefas_erro} erro(s)</span>` : ''}
-              <span>atualizado ${timeAgo(p.atualizado_em)}</span>
-              ${p.relatorio_url ? `<a class="projeto-link" href="${p.relatorio_url}" target="_blank">📊 Relatório</a>` : ''}
-            </div>
-          </div>
-          <div class="projeto-progress-wrap">
-            <div class="projeto-progress-bar">
-              <div class="projeto-progress-fill" style="width:${pct}%;background:${statusColor}"></div>
-            </div>
-            <span class="projeto-pct">${pct}%</span>
-          </div>
-        </div>`;
-      }).join('')}</div>`;
-
-      el.innerHTML = html;
-    } catch (e) {
-      console.warn('loadProjetos error:', e);
-      el.innerHTML = unavailableMsg('Tabela jarbas_missoes não disponível');
-    }
-  }
-
-  // ─── SEÇÃO: FILA DE TAREFAS ───────────────────────
-  async function loadTarefas() {
-    const el = document.getElementById('tarefas-content');
-    try {
-      const rows = await rest(
-        'jarbas_tarefas',
-        'select=tipo,status,created_at,created_by,descricao&order=created_at.desc&limit=10'
-      );
-
-      if (!rows.length) {
-        el.innerHTML = unavailableMsg('Nenhuma tarefa encontrada');
-        return;
-      }
-
-      const html = `
-        <table>
-          <thead>
-            <tr>
-              <th>Tipo</th>
-              <th>Status</th>
-              <th>Criado</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows.map(r => `
-              <tr>
-                <td>
-                  <div class="mono" style="color:var(--fg)">${r.tipo || '—'}</div>
-                  ${r.descricao ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${r.descricao.slice(0,60)}${r.descricao.length > 60 ? '…' : ''}</div>` : ''}
-                </td>
-                <td>${statusBadge(r.status)}</td>
-                <td class="mono" style="color:var(--muted);font-size:11px">${fmtDate(r.created_at)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-      el.innerHTML = html;
-    } catch (e) {
-      console.warn('loadTarefas error:', e);
-      el.innerHTML = unavailableMsg('Erro ao carregar tarefas');
-    }
-  }
-
-  // ─── SEÇÃO: LOGS RECENTES ─────────────────────────
-  async function loadLogs() {
-    const el = document.getElementById('logs-content');
-    try {
-      const rows = await rest(
-        'jarbas_logs',
-        'select=message,level,timestamp,category&order=timestamp.desc&limit=15'
-      );
-
-      if (!rows.length) {
-        el.innerHTML = unavailableMsg('Nenhum log encontrado');
-        return;
-      }
-
-      const html = `
-        <div class="logs-list">
-          ${rows.map(r => {
-            const lvl = (r.level || 'info').toLowerCase();
-            return `
-              <div class="log-row">
-                <span class="log-time">${fmtTime(r.timestamp)}</span>
-                <span class="log-level ${lvl}">${lvl}</span>
-                <span class="log-msg">${escapeHtml(r.message || '')}</span>
-              </div>
-            `;
-          }).join('')}
-        </div>
-      `;
-      el.innerHTML = html;
-    } catch (e) {
-      console.warn('loadLogs error:', e);
-      el.innerHTML = unavailableMsg('Erro ao carregar logs');
-    }
-  }
-
-  function escapeHtml(str) {
-    return String(str)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
-  // ─── SEÇÃO: CUSTOS POR PERÍODO ────────────────────
-  async function loadCustos() {
-    try {
-      const hoje = new Date().toISOString().split('T')[0];
-
-      // Início da semana (segunda-feira)
-      const now = new Date();
-      const dayOfWeek = now.getDay(); // 0=dom
-      const diff = (dayOfWeek + 6) % 7; // dias desde segunda
-      const inicioSemana = new Date(now);
-      inicioSemana.setDate(now.getDate() - diff);
-      const semanaStr = inicioSemana.toISOString().split('T')[0];
-
-      // Início do mês
-      const inicioMes = `${hoje.slice(0, 7)}-01`;
-
-      const [rowsHoje, rowsSemana, rowsMes] = await Promise.all([
-        rest('jarbas_custos_tokens', `select=custo_reais,tokens_total,api&data=eq.${hoje}`),
-        rest('jarbas_custos_tokens', `select=custo_reais,tokens_total&data=gte.${semanaStr}`),
-        rest('jarbas_custos_tokens', `select=custo_reais,tokens_total&data=gte.${inicioMes}`)
-      ]);
-
-      const sumCusto  = arr => arr.reduce((s, r) => s + parseFloat(r.custo_reais || 0), 0);
-      const sumTokens = arr => arr.reduce((s, r) => s + parseInt(r.tokens_total || 0, 10), 0);
-
-      const totalHoje   = sumCusto(rowsHoje);
-      const totalSemana = sumCusto(rowsSemana);
-      const totalMes    = sumCusto(rowsMes);
-
-      document.getElementById('custo-hoje').textContent   = formatBRL(totalHoje);
-      document.getElementById('custo-semana').textContent = formatBRL(totalSemana);
-      document.getElementById('custo-mes').textContent    = formatBRL(totalMes);
-
-      const tokHoje   = sumTokens(rowsHoje).toLocaleString('pt-BR');
-      const tokSemana = sumTokens(rowsSemana).toLocaleString('pt-BR');
-      const tokMes    = sumTokens(rowsMes).toLocaleString('pt-BR');
-
-      // APIs breakdown hoje
-      const apis = {};
-      rowsHoje.forEach(r => { apis[r.api] = (apis[r.api] || 0) + parseFloat(r.custo_reais || 0); });
-      const apiStr = Object.entries(apis).map(([k,v]) => `${k}: ${formatBRL(v)}`).join(' · ') || 'sem dados';
-
-      document.getElementById('custo-hoje-sub').textContent   = `${tokHoje} tokens · ${apiStr}`;
-      document.getElementById('custo-semana-sub').textContent = `${tokSemana} tokens no período`;
-      document.getElementById('custo-mes-sub').textContent    = `${tokMes} tokens no mês`;
-    } catch (e) {
-      console.warn('loadCustos error:', e);
-      ['custo-hoje','custo-semana','custo-mes'].forEach(id => {
-        document.getElementById(id).textContent = '—';
-      });
-      ['custo-hoje-sub','custo-semana-sub','custo-mes-sub'].forEach(id => {
-        document.getElementById(id).textContent = 'Dados indisponíveis';
-      });
-    }
-  }
-
-  // ─── LOAD ALL ─────────────────────────────────────
-  let isLoading = false;
-
-  async function loadAll() {
-    if (isLoading) return;
-    isLoading = true;
-
-    const btn  = document.getElementById('refreshBtn');
-    const icon = document.getElementById('refreshIcon');
-    btn.classList.add('loading');
-    icon.classList.add('spin');
-    icon.textContent = '↻';
-
-    await Promise.all([
-      loadJarbasStatus(),
-      loadCustoSemaforo(),
-      loadMissao(),
-      loadProjetos(),
-      loadTarefas(),
-      loadLogs(),
-      loadCustos()
-    ]);
-
-    const now = new Date().toLocaleTimeString('pt-BR');
-    document.getElementById('lastRefresh').textContent = `Atualizado às ${now}`;
-
-    btn.classList.remove('loading');
-    icon.classList.remove('spin');
-    icon.textContent = '↻';
-    isLoading = false;
-  }
-
-  // ─── INIT ─────────────────────────────────────────
-  loadAll();
-  setInterval(loadAll, 30_000);
+// ── AUTO REFRESH ──────────────────────────────────────────────────────────
+loadAll();
+setInterval(loadAll, 30000);
 </script>
 </body>
 </html>

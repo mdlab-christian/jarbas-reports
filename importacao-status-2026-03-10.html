@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="refresh" content="120">
+<title>Importação EPROC — Status em Tempo Real | MDflow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0d14; color: #e2e8f0; min-height: 100vh; }
+
+  .topbar {
+    background: #0f1420;
+    border-bottom: 1px solid #1e2538;
+    padding: 16px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+  .topbar h1 { font-size: 16px; font-weight: 700; color: #f0f4f8; }
+  .topbar-meta { font-size: 12px; color: #4a5568; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: #48bb78; animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.6;transform:scale(1.3)} }
+  .refresh-badge { font-size: 11px; color: #4a5568; background: #1a2035; padding: 3px 10px; border-radius: 20px; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 28px 24px; }
+
+  /* HERO STATS */
+  .hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 32px; }
+  .hero-card { background: #0f1420; border: 1px solid #1e2538; border-radius: 14px; padding: 20px 18px; position: relative; overflow: hidden; }
+  .hero-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .hero-card.green::before { background: linear-gradient(90deg, #38a169, #68d391); }
+  .hero-card.blue::before { background: linear-gradient(90deg, #3182ce, #63b3ed); }
+  .hero-card.purple::before { background: linear-gradient(90deg, #553c9a, #b794f4); }
+  .hero-card.orange::before { background: linear-gradient(90deg, #c05621, #f6ad55); }
+  .hero-card.red::before { background: linear-gradient(90deg, #c53030, #fc8181); }
+  .hero-card.teal::before { background: linear-gradient(90deg, #285e61, #81e6d9); }
+  .hero-label { font-size: 10px; color: #4a5568; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 10px; }
+  .hero-value { font-size: 32px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+  .hero-card.green .hero-value { color: #68d391; }
+  .hero-card.blue .hero-value { color: #63b3ed; }
+  .hero-card.purple .hero-value { color: #b794f4; }
+  .hero-card.orange .hero-value { color: #f6ad55; }
+  .hero-card.red .hero-value { color: #fc8181; }
+  .hero-card.teal .hero-value { color: #81e6d9; }
+  .hero-sub { font-size: 11px; color: #4a5568; }
+
+  /* SECTION */
+  .section { margin-bottom: 36px; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .section-header h2 { font-size: 15px; font-weight: 600; color: #e2e8f0; }
+  .section-header .count { font-size: 12px; color: #4a5568; background: #1a2035; padding: 2px 10px; border-radius: 20px; }
+
+  /* FASES */
+  .fases-grid { display: flex; flex-direction: column; gap: 12px; }
+  .fase { background: #0f1420; border: 1px solid #1e2538; border-radius: 12px; overflow: hidden; }
+  .fase-header { display: flex; align-items: center; gap: 14px; padding: 14px 20px; }
+  .fase-icon { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; flex-shrink: 0; }
+  .fase.running .fase-icon { background: #1a365d; color: #63b3ed; animation: spin-slow 3s linear infinite; }
+  .fase.done .fase-icon { background: #1c4532; color: #68d391; }
+  .fase.pending .fase-icon { background: #2d3748; color: #4a5568; }
+  .fase.error .fase-icon { background: #2d1515; color: #fc8181; }
+  @keyframes spin-slow { 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+  .fase-info { flex: 1; }
+  .fase-info h3 { font-size: 14px; font-weight: 600; color: #f0f4f8; margin-bottom: 3px; }
+  .fase-info p { font-size: 12px; color: #4a5568; }
+  .fase-right { text-align: right; }
+  .fase-status { font-size: 12px; font-weight: 600; padding: 3px 12px; border-radius: 20px; }
+  .fase.running .fase-status { background: #1a365d; color: #63b3ed; }
+  .fase.done .fase-status { background: #1c4532; color: #68d391; }
+  .fase.pending .fase-status { background: #1a2035; color: #4a5568; }
+  .fase.error .fase-status { background: #2d1515; color: #fc8181; }
+  .fase-count { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+  .fase.running .fase-count { color: #63b3ed; }
+  .fase.done .fase-count { color: #68d391; }
+  .fase.pending .fase-count { color: #4a5568; }
+  .fase-progress-bar { height: 4px; background: #1a2035; margin-top: 1px; }
+  .fase-progress-fill { height: 100%; transition: width 0.5s; }
+  .fase.running .fase-progress-fill { background: linear-gradient(90deg, #3182ce, #63b3ed); animation: shimmer 2s infinite; }
+  .fase.done .fase-progress-fill { background: linear-gradient(90deg, #38a169, #68d391); }
+  @keyframes shimmer { 0%,100%{opacity:.8} 50%{opacity:1} }
+
+  /* TAREFAS TABLE */
+  .table-wrap { background: #0f1420; border: 1px solid #1e2538; border-radius: 12px; overflow: hidden; }
+  .table-wrap table { width: 100%; border-collapse: collapse; }
+  .table-wrap th { font-size: 11px; color: #4a5568; text-transform: uppercase; letter-spacing: 0.05em; padding: 12px 16px; text-align: left; border-bottom: 1px solid #1e2538; }
+  .table-wrap td { font-size: 12px; color: #a0aec0; padding: 10px 16px; border-bottom: 1px solid #0d1117; }
+  .table-wrap tr:last-child td { border-bottom: none; }
+  .table-wrap tr:hover td { background: #0d1117; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.running { background: #1a365d; color: #63b3ed; }
+  .badge.done { background: #1c4532; color: #68d391; }
+  .badge.pending { background: #1a2035; color: #718096; }
+  .badge.error { background: #2d1515; color: #fc8181; }
+  .badge.warning { background: #2d1f0f; color: #f6ad55; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .badge.running .dot { animation: pulse 1.5s infinite; }
+
+  /* PROGRESSO POR DIMENSÃO */
+  .dims-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .dim-card { background: #0f1420; border: 1px solid #1e2538; border-radius: 12px; padding: 18px 20px; }
+  .dim-card h3 { font-size: 13px; font-weight: 600; color: #e2e8f0; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .dim-pct { font-size: 11px; color: #4a5568; margin-left: auto; }
+  .progress-row { margin-bottom: 12px; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+  .progress-label span:first-child { color: #718096; }
+  .progress-label span:last-child { color: #e2e8f0; font-weight: 600; }
+  .progress-bar { height: 6px; background: #1a2035; border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; }
+  .fill-green { background: linear-gradient(90deg, #38a169, #68d391); }
+  .fill-blue { background: linear-gradient(90deg, #3182ce, #63b3ed); }
+  .fill-red { background: linear-gradient(90deg, #c53030, #fc8181); }
+  .fill-purple { background: linear-gradient(90deg, #553c9a, #b794f4); }
+  .fill-teal { background: linear-gradient(90deg, #285e61, #81e6d9); }
+  .fill-orange { background: linear-gradient(90deg, #c05621, #f6ad55); }
+
+  /* TIMELINE */
+  .timeline-log { background: #070a12; border: 1px solid #1e2538; border-radius: 12px; padding: 16px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; max-height: 240px; overflow-y: auto; }
+  .log-line { display: flex; gap: 10px; padding: 3px 0; border-bottom: 1px solid #0f1420; }
+  .log-line:last-child { border: none; }
+  .log-time { color: #2d3748; flex-shrink: 0; font-size: 11px; }
+  .log-type { flex-shrink: 0; }
+  .log-msg { color: #a0aec0; }
+  .log-msg.ok { color: #68d391; }
+  .log-msg.err { color: #fc8181; }
+  .log-msg.run { color: #63b3ed; }
+  .log-msg.warn { color: #f6ad55; }
+
+  /* ALERTA */
+  .alert { background: #1a1f2e; border: 1px solid; border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; gap: 10px; }
+  .alert.info { border-color: #2b6cb0; }
+  .alert.info .alert-icon { color: #63b3ed; }
+  .alert.success { border-color: #276749; }
+  .alert.success .alert-icon { color: #68d391; }
+  .alert.warning { border-color: #c05621; }
+  .alert.warning .alert-icon { color: #f6ad55; }
+  .alert-body { font-size: 13px; color: #a0aec0; line-height: 1.6; }
+  .alert-body strong { color: #e2e8f0; }
+
+  /* FOOTER */
+  .footer { text-align: center; padding: 28px; font-size: 11px; color: #2d3748; border-top: 1px solid #0f1420; margin-top: 32px; }
+
+  @media (max-width: 600px) {
+    .hero { grid-template-columns: repeat(2, 1fr); }
+    .topbar { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="pulse"></div>
+    <div>
+      <h1>🗂️ Importação EPROC → MDflow</h1>
+      <div class="topbar-meta">Gerado 10/03/2026 05:20 BRT · JARBAS v3.1</div>
+    </div>
+  </div>
+  <div class="refresh-badge">↻ auto-refresh 2min</div>
+</div>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-card green">
+      <div class="hero-label">Processos Ativos</div>
+      <div class="hero-value">5.826</div>
+      <div class="hero-sub">↓ 925 órfãos arquivados</div>
+    </div>
+    <div class="hero-card orange">
+      <div class="hero-label">Tarefas na Fila</div>
+      <div class="hero-value">209</div>
+      <div class="hero-sub">2 em execução agora</div>
+    </div>
+    <div class="hero-card blue">
+      <div class="hero-label">Enriquecidos</div>
+      <div class="hero-value">1.580</div>
+      <div class="hero-sub">27% · 4.246 pendentes</div>
+    </div>
+    <div class="hero-card purple">
+      <div class="hero-label">Com IA Resumo</div>
+      <div class="hero-value">2.053</div>
+      <div class="hero-sub">35% · 3.773 pendentes</div>
+    </div>
+    <div class="hero-card red">
+      <div class="hero-label">Movimentações</div>
+      <div class="hero-value">0</div>
+      <div class="hero-sub">⚙️ sync iniciando agora</div>
+    </div>
+    <div class="hero-card teal">
+      <div class="hero-label">Órfãos Arquivados</div>
+      <div class="hero-value">925</div>
+      <div class="hero-sub">✅ soft-delete concluído</div>
+    </div>
+  </div>
+
+  <!-- ALERTAS -->
+  <div class="alert success">
+    <div class="alert-icon" style="font-size:18px; margin-top:1px;">✅</div>
+    <div class="alert-body">
+      <strong>Bug crítico corrigido:</strong> o pipeline <code style="background:#0d1117;padding:1px 6px;border-radius:4px;font-size:11px;">ingest-turbo</code> no n8n não tinha workflow ativo — as movimentações eram perdidas. Adicionei salvamento direto no Supabase no <code style="background:#0d1117;padding:1px 6px;border-radius:4px;font-size:11px;">skill_importar_processo.mjs</code>. Todos os processos importados de agora em diante terão movimentações salvas.
+    </div>
+  </div>
+
+  <div class="alert info">
+    <div class="alert-icon" style="font-size:18px; margin-top:1px;">⚙️</div>
+    <div class="alert-body">
+      <strong>JARBAS online</strong> e processando — heartbeat 08:20 UTC · Task consumer ativo (poll 5s) · 2 tarefas em execução simultânea · Esta página atualiza automaticamente a cada 2 minutos.
+    </div>
+  </div>
+
+  <!-- FASES -->
+  <div class="section">
+    <div class="section-header">
+      <h2>⚡ Status das Fases</h2>
+    </div>
+    <div class="fases-grid">
+
+      <div class="fase done">
+        <div class="fase-header">
+          <div class="fase-icon">✓</div>
+          <div class="fase-info">
+            <h3>Fase 0 — Pré-validação e Correção de Bugs</h3>
+            <p>Bug movimentações corrigido · maxPages ilimitado · 925 órfãos arquivados</p>
+          </div>
+          <div class="fase-right">
+            <div class="fase-count">✅</div>
+            <div class="fase-status">Concluído</div>
+          </div>
+        </div>
+        <div class="fase-progress-bar"><div class="fase-progress-fill" style="width:100%"></div></div>
+      </div>
+
+      <div class="fase running">
+        <div class="fase-header">
+          <div class="fase-icon">⟳</div>
+          <div class="fase-info">
+            <h3>Fase 1 — Varredura EPROC + Importação de Novos</h3>
+            <p>5 OABs · maxPages=999 · 1 concluída, 4 em fila · novos CNJs serão importados automaticamente</p>
+          </div>
+          <div class="fase-right">
+            <div class="fase-count">5</div>
+            <div class="fase-status">● Rodando</div>
+          </div>
+        </div>
+        <div class="fase-progress-bar"><div class="fase-progress-fill" style="width:20%"></div></div>
+      </div>
+
+      <div class="fase running">
+        <div class="fase-header">
+          <div class="fase-icon">⟳</div>
+          <div class="fase-info">
+            <h3>Fase 2 — Sync de Movimentações</h3>
+            <p>5.826 processos · 196 tarefas · 30 CNJs/tarefa · 1 em execução · salva direto no Supabase</p>
+          </div>
+          <div class="fase-right">
+            <div class="fase-count">196</div>
+            <div class="fase-status">● Rodando</div>
+          </div>
+        </div>
+        <div class="fase-progress-bar"><div class="fase-progress-fill" style="width:1%"></div></div>
+      </div>
+
+      <div class="fase pending">
+        <div class="fase-header">
+          <div class="fase-icon">3</div>
+          <div class="fase-info">
+            <h3>Fase 3 — Enriquecimento (vara/juiz/partes)</h3>
+            <p>5.171 processos sem dados · 5 tarefas (1 por OAB) · aguarda fila liberar</p>
+          </div>
+          <div class="fase-right">
+            <div class="fase-count">5</div>
+            <div class="fase-status">Na fila</div>
+          </div>
+        </div>
+        <div class="fase-progress-bar"><div class="fase-progress-fill" style="width:0%"></div></div>
+      </div>
+
+      <div class="fase pending">
+        <div class="fase-header">
+          <div class="fase-icon">4</div>
+          <div class="fase-info">
+            <h3>Fase 4 — Análise Jurídica IA</h3>
+            <p>3.773 sem IA resumo · 5 tarefas · Claude Haiku · estimativa R$15–40</p>
+          </div>
+          <div class="fase-right">
+            <div class="fase-count">5</div>
+            <div class="fase-status">Na fila</div>
+          </div>
+        </div>
+        <div class="fase-progress-bar"><div class="fase-progress-fill" style="width:0%"></div></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- COMPLETUDE -->
+  <div class="section">
+    <div class="section-header">
+      <h2>📊 Completude do Banco</h2>
+    </div>
+    <div class="dims-grid">
+
+      <div class="dim-card">
+        <h3>📋 Registros <span class="dim-pct">5.826 ativos</span></h3>
+        <div class="progress-row">
+          <div class="progress-label"><span>Processos com CNJ válido</span><span>5.826 / 5.826</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-green" style="width:100%"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label"><span>Distribuídos</span><span>5.826 / 5.826</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-teal" style="width:100%"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label"><span>Órfãos arquivados</span><span>925 arquivados ✅</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-orange" style="width:100%"></div></div>
+        </div>
+      </div>
+
+      <div class="dim-card">
+        <h3>⚙️ Enriquecimento <span class="dim-pct">27%</span></h3>
+        <div class="progress-row">
+          <div class="progress-label"><span>Com vara/juiz/partes</span><span>1.580 / 5.826</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-blue" style="width:27%"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label"><span>Pendentes (F3 na fila)</span><span>4.246</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-orange" style="width:73%"></div></div>
+        </div>
+      </div>
+
+      <div class="dim-card">
+        <h3>🤖 Análise IA <span class="dim-pct">35%</span></h3>
+        <div class="progress-row">
+          <div class="progress-label"><span>Com IA resumo</span><span>2.053 / 5.826</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-purple" style="width:35%"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label"><span>Pendentes (F4 na fila)</span><span>3.773</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-orange" style="width:65%"></div></div>
+        </div>
+      </div>
+
+      <div class="dim-card">
+        <h3>📌 Movimentações <span class="dim-pct">0% → sync em andamento</span></h3>
+        <div class="progress-row">
+          <div class="progress-label"><span>Processos com movs salvas</span><span>0 / 5.826</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-red" style="width:0%"></div></div>
+        </div>
+        <div class="progress-row">
+          <div class="progress-label"><span>Registros na tabela movimentacoes</span><span>0 → growing</span></div>
+          <div class="progress-bar"><div class="progress-fill fill-blue" style="width:0%;animation:shimmer 2s infinite"></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DETALHES DA FILA -->
+  <div class="section">
+    <div class="section-header">
+      <h2>🗄️ Detalhe da Fila de Tarefas</h2>
+      <span class="count">209 tarefas</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tipo</th>
+            <th>Status</th>
+            <th>Qtd</th>
+            <th>Escopo</th>
+            <th>Obs</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>importacao_diaria</strong></td>
+            <td><span class="badge done"><span class="dot"></span>concluido</span></td>
+            <td>1</td>
+            <td>1 OAB varrida</td>
+            <td>✅ Novas CNJs detectadas</td>
+          </tr>
+          <tr>
+            <td><strong>importacao_diaria</strong></td>
+            <td><span class="badge running"><span class="dot"></span>pendente</span></td>
+            <td>4</td>
+            <td>SP535101, RS116571, RS131163, SC074025</td>
+            <td>maxPages=999</td>
+          </tr>
+          <tr>
+            <td><strong>importar_processo</strong></td>
+            <td><span class="badge running"><span class="dot"></span>em_andamento</span></td>
+            <td>1</td>
+            <td>30 CNJs · sync movimentações</td>
+            <td>Salvando direto no Supabase ✅</td>
+          </tr>
+          <tr>
+            <td><strong>importar_processo</strong></td>
+            <td><span class="badge pending">pendente</span></td>
+            <td>195</td>
+            <td>5.796 CNJs restantes</td>
+            <td>~12–24h estimado</td>
+          </tr>
+          <tr>
+            <td><strong>enriquecer_processo</strong></td>
+            <td><span class="badge pending">pendente</span></td>
+            <td>5</td>
+            <td>4.246 processos sem vara/juiz</td>
+            <td>Aguarda fila</td>
+          </tr>
+          <tr>
+            <td><strong>analise_juridica</strong></td>
+            <td><span class="badge running"><span class="dot"></span>em_andamento</span></td>
+            <td>1</td>
+            <td>Análise IA iniciada</td>
+            <td>Claude Haiku</td>
+          </tr>
+          <tr>
+            <td><strong>analise_juridica</strong></td>
+            <td><span class="badge pending">pendente</span></td>
+            <td>4</td>
+            <td>3.773 processos sem resumo</td>
+            <td>~4–8h estimado</td>
+          </tr>
+          <tr style="opacity:.5">
+            <td><strong>cerebro_documental</strong></td>
+            <td><span class="badge error">erro</span></td>
+            <td>51</td>
+            <td>—</td>
+            <td>⚠️ Erro pré-existente (não relacionado)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- O QUE FOI FEITO -->
+  <div class="section">
+    <div class="section-header">
+      <h2>🔧 Mudanças Implementadas</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;">
+
+      <div style="background:#0f1420;border:1px solid #1e2538;border-left:3px solid #68d391;border-radius:10px;padding:16px;">
+        <div style="font-size:12px;font-weight:600;color:#68d391;margin-bottom:8px;">✅ BUG FIX — skill_importar_processo.mjs</div>
+        <div style="font-size:12px;color:#718096;line-height:1.6;">Adicionado <code style="color:#81e6d9;font-size:11px;">saveMovimentacoesSupabase()</code> + <code style="color:#81e6d9;font-size:11px;">updateProcessoMovimentacoes()</code>. Agora salva direto no banco após cada processo extraído, com mapeamento de tipo e dedup por <code style="color:#81e6d9;font-size:11px;">external_id</code>.</div>
+      </div>
+
+      <div style="background:#0f1420;border:1px solid #1e2538;border-left:3px solid #63b3ed;border-radius:10px;padding:16px;">
+        <div style="font-size:12px;font-weight:600;color:#63b3ed;margin-bottom:8px;">✅ FIX — skill_importacao_diaria.mjs</div>
+        <div style="font-size:12px;color:#718096;line-height:1.6;"><code style="color:#81e6d9;font-size:11px;">maxPages</code> alterado de <code style="color:#fc8181;font-size:11px;">2</code> para <code style="color:#68d391;font-size:11px;">999</code> (efetivamente ilimitado). Também melhorado o seletor do botão "Próxima página" para TJSP/TJSC/TJRS.</div>
+      </div>
+
+      <div style="background:#0f1420;border:1px solid #1e2538;border-left:3px solid #b794f4;border-radius:10px;padding:16px;">
+        <div style="font-size:12px;font-weight:600;color:#b794f4;margin-bottom:8px;">✅ NOVO — scripts/importacao-completa.mjs</div>
+        <div style="font-size:12px;color:#718096;line-height:1.6;">Script de orquestração que cria todas as tarefas em fila de uma vez. 212 tarefas criadas em 12 segundos. Suporta <code style="color:#81e6d9;font-size:11px;">--dry-run</code> e <code style="color:#81e6d9;font-size:11px;">--fase N</code> para retomada parcial.</div>
+      </div>
+
+      <div style="background:#0f1420;border:1px solid #1e2538;border-left:3px solid #f6ad55;border-radius:10px;padding:16px;">
+        <div style="font-size:12px;font-weight:600;color:#f6ad55;margin-bottom:8px;">✅ LIMPEZA — 925 órfãos arquivados</div>
+        <div style="font-size:12px;color:#718096;line-height:1.6;">925 registros sem CNJ e sem número de processo foram soft-deletados (<code style="color:#81e6d9;font-size:11px;">ativo=false, deleted_at=now()</code>). Banco passou de 6.751 → 5.826 processos ativos.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ESTIMATIVA -->
+  <div class="section">
+    <div style="background:#0f1420;border:1px solid #1e2538;border-radius:12px;padding:20px;">
+      <div style="font-size:13px;font-weight:600;color:#e2e8f0;margin-bottom:16px;">⏱️ Estimativa de Conclusão</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;">
+        <div>
+          <div style="font-size:10px;color:#4a5568;text-transform:uppercase;margin-bottom:6px;">Fase 1 — Varredura</div>
+          <div style="font-size:18px;font-weight:700;color:#63b3ed;">~2–3h</div>
+          <div style="font-size:11px;color:#4a5568;">1/5 OABs concluída</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5568;text-transform:uppercase;margin-bottom:6px;">Fase 2 — Movimentações</div>
+          <div style="font-size:18px;font-weight:700;color:#68d391;">~12–20h</div>
+          <div style="font-size:11px;color:#4a5568;">5.826 processos × ~4s</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5568;text-transform:uppercase;margin-bottom:6px;">Fase 3 — Enriquecimento</div>
+          <div style="font-size:18px;font-weight:700;color:#b794f4;">~6–12h</div>
+          <div style="font-size:11px;color:#4a5568;">4.246 processos</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5568;text-transform:uppercase;margin-bottom:6px;">Fase 4 — IA Análise</div>
+          <div style="font-size:18px;font-weight:700;color:#f687b3;">~4–8h</div>
+          <div style="font-size:11px;color:#4a5568;">3.773 processos</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5568;text-transform:uppercase;margin-bottom:6px;">Total Estimado</div>
+          <div style="font-size:24px;font-weight:800;color:#f6ad55;">~24–48h</div>
+          <div style="font-size:11px;color:#4a5568;">✅ Rodando sem intervenção</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#4a5568;text-transform:uppercase;margin-bottom:6px;">Custo Estimado</div>
+          <div style="font-size:24px;font-weight:800;color:#81e6d9;">R$20–55</div>
+          <div style="font-size:11px;color:#4a5568;">Haiku + OpenClaw</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  JARBAS v3.1 · MdLab · 10/03/2026 · Atualizado em 05:20 BRT
+</div>
+
+</body>
+</html>

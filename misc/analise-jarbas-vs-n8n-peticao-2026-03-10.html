@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARBAS vs n8n — Análise Arquitetural | Gerador de Docs</title>
+<style>
+  :root{--bg:#09090f;--s1:#101018;--s2:#14141e;--border:#1c1c2e;--acc:#7c3aed;--cyan:#06b6d4;--green:#10b981;--warn:#f59e0b;--red:#ef4444;--text:#e2e8f0;--muted:#64748b;--sub:#94a3b8}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;font-size:13px;line-height:1.6}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 20px}
+
+  .hdr{padding:32px 24px;background:linear-gradient(135deg,#070710,#110826,#071218);border-radius:14px;border:1px solid var(--border);margin-bottom:24px;text-align:center;position:relative;overflow:hidden}
+  .hdr::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% -10%,rgba(124,58,237,.2),transparent 50%),radial-gradient(ellipse at 70% -10%,rgba(6,182,212,.15),transparent 50%);pointer-events:none}
+  .hdr h1{font-size:24px;font-weight:900;background:linear-gradient(135deg,#a78bfa,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:6px}
+  .hdr p{color:var(--sub);font-size:12px}
+  .hdr .counsel{background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3);border-radius:8px;padding:10px 20px;margin-top:16px;font-size:12px;color:#c4b5fd;display:inline-block}
+
+  .sec{margin-bottom:22px}
+  .sec-t{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--cyan);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+  .sec-t::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  .card{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:10px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+
+  .platform{border-radius:12px;padding:16px;position:relative;overflow:hidden}
+  .platform.jarbas{background:linear-gradient(135deg,#0a080f,#12062a);border:1px solid rgba(124,58,237,.35)}
+  .platform.n8n{background:linear-gradient(135deg,#090f0a,#0a1a0f);border:1px solid rgba(237,140,58,.35)}
+  .platform-label{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .platform.jarbas .platform-label{color:#a78bfa}
+  .platform.n8n .platform-label{color:#fb923c}
+
+  .pro{display:flex;gap:8px;padding:5px 0;font-size:12px;align-items:flex-start;color:var(--sub)}
+  .pro span{flex-shrink:0;margin-top:1px}
+
+  /* DOC TABLE */
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th{background:var(--s2);color:var(--sub);font-weight:600;padding:8px 10px;text-align:left;border-bottom:1px solid var(--border)}
+  td{padding:8px 10px;border-bottom:1px solid rgba(28,28,46,.4);vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  code{font-family:monospace;font-size:11px;background:rgba(6,182,212,.08);color:#67e8f9;padding:1px 5px;border-radius:3px}
+
+  .bp{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;white-space:nowrap}
+  .bp.ok{background:rgba(16,185,129,.2);color:#10b981}
+  .bp.warn{background:rgba(245,158,11,.2);color:#f59e0b}
+  .bp.err{background:rgba(239,68,68,.2);color:#ef4444}
+  .bp.jarbas{background:rgba(124,58,237,.2);color:#a78bfa}
+  .bp.n8n{background:rgba(251,146,60,.2);color:#fb923c}
+  .bp.both{background:rgba(6,182,212,.15);color:#06b6d4}
+  .bp.p0{background:rgba(239,68,68,.25);color:#f87171}
+
+  /* DIAGNOSIS BOX */
+  .diag{background:rgba(239,68,68,.05);border:1px solid rgba(239,68,68,.2);border-radius:10px;padding:14px;margin-bottom:14px}
+  .diag h3{font-size:13px;font-weight:700;color:#f87171;margin-bottom:8px}
+  .diag p{font-size:12px;color:var(--sub);line-height:1.7}
+
+  /* PLAN STEPS */
+  .step{display:flex;gap:12px;padding:10px;border-radius:8px;background:var(--s1);border:1px solid var(--border);margin-bottom:8px;align-items:flex-start}
+  .step-num{font-size:11px;font-weight:800;background:rgba(6,182,212,.15);color:#06b6d4;padding:3px 9px;border-radius:5px;flex-shrink:0;margin-top:2px}
+  .step-body strong{display:block;font-size:13px;margin-bottom:3px}
+  .step-body p{font-size:12px;color:var(--muted);line-height:1.6}
+  .step-meta{font-size:10px;color:var(--cyan);margin-top:4px}
+
+  /* VERDICT */
+  .verdict{background:linear-gradient(135deg,#060a06,#08060e);border:2px solid rgba(16,185,129,.35);border-radius:14px;padding:22px;margin-top:24px}
+  .verdict-title{font-size:16px;font-weight:900;color:#10b981;margin-bottom:12px}
+  .verdict-body{font-size:12px;color:var(--sub);line-height:1.9}
+
+  /* PLACEHOLDER TABLE */
+  .ph-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+  @media(max-width:600px){.ph-grid{grid-template-columns:repeat(2,1fr)}}
+  .ph{background:rgba(6,182,212,.06);border:1px solid rgba(6,182,212,.15);border-radius:5px;padding:5px 8px;font-family:monospace;font-size:11px;color:#67e8f9}
+
+  .flow{display:flex;align-items:center;gap:0;flex-wrap:wrap;margin:10px 0}
+  .fs{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:11px;text-align:center}
+  .fa{color:var(--muted);padding:0 5px;font-size:14px}
+  .fs.ok{border-color:rgba(16,185,129,.4);background:rgba(16,185,129,.05);color:#6ee7b7}
+  .fs.jarbas{border-color:rgba(124,58,237,.4);background:rgba(124,58,237,.05);color:#c4b5fd}
+  .fs.n8n{border-color:rgba(251,146,60,.4);background:rgba(251,146,60,.05);color:#fb923c}
+  .fs.err{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.05);color:#f87171}
+
+  .ft{text-align:center;margin-top:28px;padding-top:14px;border-top:1px solid var(--border);font-size:11px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div class="hdr">
+  <h1>🦞 JARBAS vs n8n — Análise Arquitetural</h1>
+  <p>Gerador de Documentos · 10/03/2026 · Baseado em dados reais do sistema</p>
+  <div class="counsel">💬 Você pediu um conselheiro. Aqui está minha análise honesta, sem viés.</div>
+</div>
+
+<!-- DIAGNÓSTICO CRÍTICO -->
+<div class="sec">
+  <div class="sec-t">🚨 Diagnóstico: O problema real com a petição atual</div>
+  <div class="diag">
+    <h3>⚠️ A skill atual gera petição do ZERO com IA — isso está errado</h3>
+    <p>
+      O que deveria acontecer: <strong>buscar o template do banco → substituir os <code>{{placeholders}}</code> com dados reais do processo → gerar PDF</strong>.<br>
+      O que está acontecendo agora: a skill usa o template como "inspiração" e manda o Claude Sonnet gerar uma petição inteira do zero, resultado em scores 4.5–5.5 e tempo de 2–3 minutos.<br><br>
+      <strong>Placeholders já mapeados nos templates reais (olivia_modelos_peticao):</strong>
+    </p>
+    <div class="ph-grid">
+      <div class="ph">{{advogado_enderecamento}}</div>
+      <div class="ph">{{advogado_nome}}</div>
+      <div class="ph">{{advogado_oab_codigo}}</div>
+      <div class="ph">{{data_hoje}}</div>
+      <div class="ph">{{empresa_re}}</div>
+      <div class="ph">{{enderecamento_vara}}</div>
+      <div class="ph">{{jurisprudencia_1}}</div>
+      <div class="ph">{{numero_processo}}</div>
+      <div class="ph">{{parte_autora}}</div>
+      <div class="ph">{{qualificacao_sexo}}</div>
+      <div class="ph">{{valor_dano_moral}}</div>
+      <div class="ph">{{valor_honorarios}}</div>
+    </div>
+    <p style="margin-top:10px">Isso significa que a petição já está escrita. Não precisa de IA para gerar. Precisa só de <strong>substituição de variáveis + geração de PDF</strong>. Isso é 10× mais rápido, mais confiável e previsível.</p>
+  </div>
+</div>
+
+<!-- STATUS ATUAL POR DOCUMENTO -->
+<div class="sec">
+  <div class="sec-t">📄 Status atual por documento</div>
+  <div class="card">
+    <table>
+      <tr><th>Documento</th><th>Onde roda</th><th>Status</th><th>Funciona?</th><th>Tempo</th></tr>
+      <tr>
+        <td><strong>Comprovante de Restrição</strong></td>
+        <td><span class="bp jarbas">JARBAS</span></td>
+        <td>Playwright → Storage privado → Signed URL 30d</td>
+        <td><span class="bp ok">✅ E2E OK</span></td>
+        <td>~2–3s</td>
+      </tr>
+      <tr>
+        <td><strong>Petição Inicial</strong></td>
+        <td><span class="bp jarbas">JARBAS</span></td>
+        <td>IA gera do zero (❌ errado) — deveria ser template + substituição</td>
+        <td><span class="bp err">❌ Score 4.5</span></td>
+        <td>~204s</td>
+      </tr>
+      <tr>
+        <td><strong>Procuração</strong></td>
+        <td><span class="bp n8n">n8n</span></td>
+        <td>WH-DOC-PROCURACAO — ATIVO</td>
+        <td><span class="bp ok">✅ Funcionando</span></td>
+        <td>~5–10s</td>
+      </tr>
+      <tr>
+        <td><strong>Contrato Honorários</strong></td>
+        <td><span class="bp n8n">n8n</span></td>
+        <td>WH-DOC-CONTRATO-MIDAS — ATIVO</td>
+        <td><span class="bp ok">✅ Funcionando</span></td>
+        <td>~5–10s</td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<!-- COMPARATIVO PLATAFORMAS -->
+<div class="sec">
+  <div class="sec-t">⚖️ JARBAS vs n8n — comparativo honesto</div>
+  <div class="grid2">
+    <div class="platform jarbas">
+      <div class="platform-label">🦞 JARBAS (Mac Mini local)</div>
+      <div class="pro"><span>✅</span><span>Playwright nativo → PDF perfeito (comprovante em 2s)</span></div>
+      <div class="pro"><span>✅</span><span>Acesso direto ao banco (sem HTTP extra)</span></div>
+      <div class="pro"><span>✅</span><span>Código Node.js livre — qualquer lógica complexa</span></div>
+      <div class="pro"><span>✅</span><span>Zero custo de infra (Mac Mini já ligado 24/7)</span></div>
+      <div class="pro"><span>✅</span><span>Template substitution = trivial em JS</span></div>
+      <div class="pro"><span>❌</span><span>Depende do Mac Mini estar ligado e saudável</span></div>
+      <div class="pro"><span>❌</span><span>Sem UI de monitoramento (precisa do terminal ou Telegram)</span></div>
+      <div class="pro"><span>❌</span><span>Sem retry automático com backoff visual</span></div>
+      <div class="pro"><span>❌</span><span>Curva de debug: precisa ler logs no Telegram</span></div>
+    </div>
+    <div class="platform n8n">
+      <div class="platform-label">🔄 n8n (Railway)</div>
+      <div class="pro"><span>✅</span><span>WH-OLIVIA-GERAR-DOC-V3 já funciona (GPT + Google Docs)</span></div>
+      <div class="pro"><span>✅</span><span>Visual editor — debug fácil, log de execução completo</span></div>
+      <div class="pro"><span>✅</span><span>Railway sempre online — não depende do Mac Mini</span></div>
+      <div class="pro"><span>✅</span><span>Retry nativo, error handling, webhook log</span></div>
+      <div class="pro"><span>✅</span><span>Procuração + Contrato já funcionam perfeitamente</span></div>
+      <div class="pro"><span>❌</span><span>Sem Playwright/Chrome no Railway → PDF precisa de API externa</span></div>
+      <div class="pro"><span>❌</span><span>WH-DOC-COMPROVANTE INATIVO (pdf.co sem key)</span></div>
+      <div class="pro"><span>❌</span><span>Custo Railway + custo API PDF (se usar htmlcsstoimage, gotenberg etc.)</span></div>
+      <div class="pro"><span>❌</span><span>Menos flexível para lógica custom (limitado ao no-code)</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- FLUXOS IDEAIS -->
+<div class="sec">
+  <div class="sec-t">🏗️ Arquitetura ideal por documento</div>
+  <div class="card">
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">Com base na análise acima, minha recomendação por documento:</p>
+
+    <p style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Comprovante de Restrição</p>
+    <div class="flow">
+      <div class="fs jarbas">JARBAS<br><small>mantém</small></div>
+      <span class="fa">→</span>
+      <div class="fs ok">Playwright<br><small>PDF local</small></div>
+      <span class="fa">→</span>
+      <div class="fs ok">Storage Supabase<br><small>signed URL 30d</small></div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:14px">✅ 2s, zero dependência externa, PDF perfeito. Não mudar.</p>
+
+    <p style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Petição Inicial — Recomendação: REFATORAR skill para template substitution</p>
+    <div class="flow">
+      <div class="fs ok">Banco: olivia_modelos_peticao<br><small>busca template por modelo_id</small></div>
+      <span class="fa">→</span>
+      <div class="fs ok">Substituir {{placeholders}}<br><small>dados do processo</small></div>
+      <span class="fa">→</span>
+      <div class="fs jarbas">Playwright → PDF<br><small>~5s</small></div>
+      <span class="fa">→</span>
+      <div class="fs ok">Storage Supabase<br><small>signed URL</small></div>
+    </div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:14px">🎯 Petição idêntica ao template original do advogado, em 5s, sem variação de IA.</p>
+
+    <p style="font-size:11px;font-weight:700;color:var(--sub);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Procuração + Contrato Honorários</p>
+    <div class="flow">
+      <div class="fs n8n">n8n Railway<br><small>mantém como está</small></div>
+      <span class="fa">→</span>
+      <div class="fs ok">Google Docs/Drive<br><small>compartilhável</small></div>
+    </div>
+    <p style="font-size:11px;color:var(--muted)">✅ Funcionando bem. Não tocar.</p>
+  </div>
+</div>
+
+<!-- DIAGNÓSTICO N8N EXISTENTE -->
+<div class="sec">
+  <div class="sec-t">🔍 O que existe hoje no n8n para petição</div>
+  <div class="card">
+    <table>
+      <tr><th>Workflow</th><th>Status</th><th>O que faz</th></tr>
+      <tr>
+        <td><code>WH-OLIVIA-GERAR-DOC-V3</code></td>
+        <td><span class="bp ok">✅ ATIVO</span></td>
+        <td>Webhook → busca modelo → monta prompt → GPT → Google Docs → Drive. Funciona mas usa GPT (custo + variação).</td>
+      </tr>
+      <tr>
+        <td><code>N8N-DIST-PETICAO</code></td>
+        <td><span class="bp ok">✅ ATIVO</span></td>
+        <td>Validação + log + responde resultado. Orquestrador de petição.</td>
+      </tr>
+      <tr>
+        <td><code>N8N-DIST-GERAR-PETICAO</code></td>
+        <td><span class="bp err">❌ INATIVO</span></td>
+        <td>Versão async mais nova — nunca ativada.</td>
+      </tr>
+      <tr>
+        <td><code>WH-DOC-COMPROVANTE</code></td>
+        <td><span class="bp err">❌ INATIVO</span></td>
+        <td>Comprovante via pdf.co — sem API key, abandonado.</td>
+      </tr>
+    </table>
+    <p style="font-size:11px;color:var(--muted);margin-top:10px">Conclusão: n8n já tentou resolver petição antes (GPT + Google Docs). Funciona, mas saída é Google Doc, não PDF. Para virar PDF precisaria de uma etapa extra de exportação.</p>
+  </div>
+</div>
+
+<!-- PLANO DE AÇÃO -->
+<div class="sec">
+  <div class="sec-t">🛠️ Plano de ação — o que fazer quando o cenário Make chegar</div>
+
+  <div class="step">
+    <div class="step-num">01</div>
+    <div class="step-body">
+      <strong>Refatorar skill_olivia_gerar_peticao para template substitution puro</strong>
+      <p>Eliminar a geração IA do zero. Nova lógica:<br>
+      1. Buscar template de <code>olivia_modelos_peticao</code><br>
+      2. Buscar dados: processo, cliente, advogado, restricao<br>
+      3. Substituir <code>{{placeholder}}</code> → valor real<br>
+      4. Converter template (texto/HTML) → PDF via Playwright<br>
+      5. Upload Storage → signed URL → UPDATE processos_documentos</p>
+      <div class="step-meta">Esforço: 2h | Impacto: petição de 204s → ~5s | Score: determinístico (não mais 4.5)</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">02</div>
+    <div class="step-body">
+      <strong>Extrair modelos reais do cenário Make e cadastrar no banco</strong>
+      <p>Quando você mandar o cenário Make:<br>
+      1. Extrair templates de petição (com {{placeholders}})<br>
+      2. Mapear tipos: SPC/Serasa, Boa Vista, Dívida Prescrita etc.<br>
+      3. Inserir em <code>olivia_modelos_peticao</code> com <code>tipo_peticao_id</code> correto<br>
+      4. Vincular automaticamente ao tipo de processo (pela empresa réu)</p>
+      <div class="step-meta">Esforço: 1h após receber o cenário | Resultado: templates reais funcionando</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">03</div>
+    <div class="step-body">
+      <strong>Auto-select inteligente de modelo no dispatcher</strong>
+      <p>Hoje: pega o 1º modelo ativo (qualquer um).<br>
+      Proposta: match por empresa réu → tipo_peticao_id → modelo mais recente ativo.<br>
+      Lógica: <code>empresa_nome ILIKE '%serasa%' → tipo SPC/Serasa → modelo correspondente</code></p>
+      <div class="step-meta">Esforço: 1h | Resultado: template sempre correto sem intervenção do advogado</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">04</div>
+    <div class="step-body">
+      <strong>[OPCIONAL] n8n como backup/fallback de petição</strong>
+      <p>Se quiser redundância: manter <code>WH-OLIVIA-GERAR-DOC-V3</code> ativo como fallback.<br>
+      Se JARBAS falhar (Mac Mini offline), frontend tenta n8n automaticamente.<br>
+      Não é prioridade agora, mas é viável.</p>
+      <div class="step-meta">Esforço: 3h | Resultado: zero downtime mesmo com Mac Mini off</div>
+    </div>
+  </div>
+</div>
+
+<!-- VEREDICTO -->
+<div class="verdict">
+  <div class="verdict-title">🦞 Meu veredicto como conselheiro</div>
+  <div class="verdict-body">
+    <strong style="color:var(--text)">Comprovante → JARBAS. Decisão correta. Não muda.</strong><br>
+    PDF em 2s, bucket privado, sem custo de API. n8n não consegue igualar isso sem pagar por um serviço de PDF externo.<br><br>
+
+    <strong style="color:var(--text)">Petição → JARBAS, mas refatorar AGORA.</strong><br>
+    A abordagem atual (gerar do zero com IA) é errada. Os templates já existem, com os placeholders certos. Substituição de variáveis em Node.js leva 50ms. PDF via Playwright leva 3–5s. Total: ~5s em vez de 204s, score 10/10 em vez de 4.5, resultado idêntico ao template do advogado.<br><br>
+
+    <strong style="color:var(--text)">n8n como backup de petição → Sim, faz sentido.</strong><br>
+    WH-OLIVIA-GERAR-DOC-V3 já existe e funciona. Se o Mac Mini cair, o sistema precisa funcionar. Mas a saída dele é Google Doc (não PDF). Para o fluxo principal, JARBAS ganha.<br><br>
+
+    <strong style="color:var(--text)">Procuração + Contrato → n8n. Não toca.</strong><br>
+    Já funcionam perfeitamente. Não há razão para mover para JARBAS.<br><br>
+
+    <strong style="color:var(--text)">Próximo passo imediato:</strong><br>
+    Manda o cenário Make. Vou extrair os templates, cadastrar no banco com os tipos corretos, refatorar a skill para template substitution e você terá petição real em 5s.
+  </div>
+</div>
+
+<div class="ft">
+  JARBAS Advisory Report · 10/03/2026 · Gerador de Docs<br>
+  Análise baseada em dados reais: n8n workflows, olivia_modelos_peticao, E2E tests, skill performance
+</div>
+
+</div>
+</body>
+</html>

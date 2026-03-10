@@ -824,11 +824,22 @@ async function loadOverview() {
   const done = lapTasks.filter(t=>t.status==='concluido').length;
   const running = lapTasks.filter(t=>['processando','em_andamento'].includes(t.status)).length;
   const problems = lapTasks.filter(t=>['problema','erro'].includes(t.status)).length;
+  const pendentes = 44-done-running-problems;
   const pctDone = Math.round(done/44*100);
   document.getElementById('prog-fill').style.width = `${pctDone}%`;
   document.getElementById('prog-done').textContent = done;
   document.getElementById('prog-running').textContent = running;
-  document.getElementById('prog-pend').textContent = 44-done-running-problems;
+  document.getElementById('prog-pend').textContent = pendentes;
+
+  // ETA na barra de progresso
+  const etaH = mc.eta_horas || 0;
+  const etaF = mc.eta_fim ? new Date(mc.eta_fim).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '—';
+  document.getElementById('prog-eta').textContent = etaH > 0 ? `ETA: ~${etaH}h (${etaF})` : 'ETA: ✅';
+
+  // Botões Pausar/Retomar
+  const isPaused = mc.lapidacao_paused === true;
+  document.getElementById('btn-pausar').style.display = isPaused ? 'none' : 'block';
+  document.getElementById('btn-retomar').style.display = isPaused ? 'block' : 'none';
 
   // Badge
   document.getElementById('badge-lap').textContent = done>0?`${done}/44`:'44';
@@ -1175,6 +1186,29 @@ async function toggleTurbo(ativar) {
     showToast('❌ Erro: ' + e.message);
   }
   if (btn) btn.textContent = ativar ? '⚡ Turbo ON' : '🐢 Turbo OFF';
+}
+
+// ═══════════════════════════════════════════════════
+// PAUSE/RESUME MISSÃO
+// ═══════════════════════════════════════════════════
+async function togglePauseMissao(pausar) {
+  const btn = document.getElementById(pausar ? 'btn-pausar' : 'btn-retomar');
+  if (btn) btn.textContent = '⏳...';
+  try {
+    const resp = await fetch(`${SB_URL}/rest/v1/jarbas_mission_control?node_id=eq.mac-mini-01`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${SB_KEY}`, 'apikey': SB_KEY, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ lapidacao_paused: pausar })
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    // Atualizar botões
+    document.getElementById('btn-pausar').style.display = pausar ? 'none' : 'block';
+    document.getElementById('btn-retomar').style.display = pausar ? 'block' : 'none';
+    showToast(pausar ? '⏸️ Missão pausada' : '▶️ Missão retomada');
+  } catch(e) {
+    showToast('❌ Erro: ' + e.message);
+  }
+  if (btn) btn.textContent = pausar ? '⏸️ Pausar' : '▶️ Retomar';
 }
 
 function showToast(msg) {

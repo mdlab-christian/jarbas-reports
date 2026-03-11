@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRD — OlivIA: Gerador de Petições Completo</title>
+<style>
+  :root {
+    --bg: #12100e; --bg2: #1a1816; --bg3: #242220;
+    --primary: #20c997; --primary-dim: #1a9e78;
+    --text: #e8e6e3; --text-dim: #9a9590;
+    --border: #2e2c2a;
+    --red: #ef4444; --yellow: #f59e0b; --blue: #3b82f6; --purple: #a855f7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  h1 { font-size: 28px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+  h2 { font-size: 18px; font-weight: 600; color: var(--text); margin: 32px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 14px; font-weight: 600; color: var(--primary); margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  p { margin-bottom: 8px; color: var(--text-dim); }
+  .subtitle { color: var(--text-dim); font-size: 13px; margin-bottom: 24px; }
+  .meta { display: flex; gap: 24px; margin-bottom: 32px; flex-wrap: wrap; }
+  .meta-item { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; }
+  .meta-item .label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+  .meta-item .value { font-size: 15px; font-weight: 600; color: var(--text); margin-top: 2px; }
+
+  /* Status badges */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: #20c99722; color: var(--primary); border: 1px solid #20c99744; }
+  .badge-red { background: #ef444422; color: #ef4444; border: 1px solid #ef444444; }
+  .badge-yellow { background: #f59e0b22; color: #f59e0b; border: 1px solid #f59e0b44; }
+  .badge-blue { background: #3b82f622; color: #3b82f6; border: 1px solid #3b82f644; }
+  .badge-purple { background: #a855f722; color: #a855f7; border: 1px solid #a855f744; }
+
+  /* Mode cards */
+  .modes-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .mode-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: border-color 0.2s; }
+  .mode-card:hover { border-color: var(--primary); }
+  .mode-card .mode-icon { font-size: 28px; margin-bottom: 8px; }
+  .mode-card .mode-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .mode-card .mode-desc { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; }
+  .mode-card .mode-status { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+
+  /* Status indicator */
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot-green { background: var(--primary); box-shadow: 0 0 6px var(--primary); }
+  .dot-red { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+  .dot-yellow { background: #f59e0b; box-shadow: 0 0 6px #f59e0b; }
+
+  /* Progress */
+  .progress-bar { background: var(--bg3); border-radius: 8px; height: 6px; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg, var(--primary-dim), var(--primary)); transition: width 0.5s; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th { background: var(--bg3); color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 8px 12px; text-align: left; }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); }
+
+  /* Step list */
+  .step-list { list-style: none; }
+  .step-list li { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .step-list li:last-child { border-bottom: none; }
+  .step-num { width: 24px; height: 24px; border-radius: 50%; background: var(--primary); color: var(--bg); font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step-content .step-title { font-weight: 600; margin-bottom: 2px; }
+  .step-content .step-detail { font-size: 12px; color: var(--text-dim); }
+
+  /* N8N map */
+  .wf-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+  .wf-card .wf-name { font-weight: 600; font-size: 13px; }
+  .wf-card .wf-path { font-size: 11px; color: var(--text-dim); font-family: monospace; margin-top: 2px; }
+  .wf-card .wf-id { font-size: 11px; color: var(--text-dim); font-family: monospace; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; }
+  .timeline-item::before { content: ''; position: absolute; left: -22px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg); }
+  .timeline-item .tl-phase { font-size: 11px; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .timeline-item .tl-title { font-size: 14px; font-weight: 600; margin: 2px 0; }
+  .timeline-item .tl-detail { font-size: 12px; color: var(--text-dim); }
+
+  /* Alert */
+  .alert { background: var(--bg2); border-left: 3px solid; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  .alert-green { border-color: var(--primary); }
+  .alert-yellow { border-color: #f59e0b; }
+  .alert-red { border-color: #ef4444; }
+  .alert-title { font-weight: 600; margin-bottom: 4px; }
+  .alert-body { font-size: 12px; color: var(--text-dim); }
+
+  /* Code */
+  code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; background: var(--bg3); padding: 1px 5px; border-radius: 3px; color: var(--primary); }
+  pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 14px; overflow-x: auto; font-size: 12px; line-height: 1.5; margin: 12px 0; }
+
+  /* Checklist */
+  .checklist { list-style: none; }
+  .checklist li { padding: 6px 0; display: flex; align-items: flex-start; gap: 8px; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .checklist li:last-child { border-bottom: none; }
+  .check-done::before { content: '✅'; flex-shrink: 0; }
+  .check-todo::before { content: '🔲'; flex-shrink: 0; }
+  .check-partial::before { content: '🟡'; flex-shrink: 0; }
+  .check-block::before { content: '❌'; flex-shrink: 0; }
+
+  .section { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 16px 0; }
+  .tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; background: var(--bg3); color: var(--text-dim); margin: 1px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } .modes-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <h1>🤖 PRD — OlivIA: Gerador de Petições</h1>
+  <p class="subtitle">Plano completo de entrega dos 4 modos do gerador · JARBAS · 2026-03-11</p>
+
+  <div class="meta">
+    <div class="meta-item"><div class="label">Data</div><div class="value">11/03/2026</div></div>
+    <div class="meta-item"><div class="label">Versão</div><div class="value">2.0</div></div>
+    <div class="meta-item"><div class="label">Prioridade</div><div class="value" style="color:#ef4444">P0 — Crítico</div></div>
+    <div class="meta-item"><div class="label">Modos</div><div class="value">4 geradores</div></div>
+    <div class="meta-item"><div class="label">Estimativa</div><div class="value">~4–6h execução</div></div>
+  </div>
+
+  <!-- ESTADO ATUAL -->
+  <h2>📊 Estado Atual — Diagnóstico</h2>
+  <div class="modes-grid">
+
+    <div class="mode-card">
+      <div class="mode-icon">🧱</div>
+      <div class="mode-title">Smart Blocks</div>
+      <div class="mode-desc">Manual: usuário seleciona blocos de texto + jurisprudências. Fallback nativo no frontend já funciona.</div>
+      <div class="mode-status"><span class="dot dot-yellow"></span> Parcial — fallback OK, Google Doc não</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:65%"></div></div>
+    </div>
+
+    <div class="mode-card">
+      <div class="mode-icon">⚡</div>
+      <div class="mode-title">Modo Express</div>
+      <div class="mode-desc">Wizard 5 steps via n8n (triagem → estrutura → revisão → gerar). Bug no node "OlivIA → Petição" bloqueia geração.</div>
+      <div class="mode-status"><span class="dot dot-yellow"></span> Parcial — webhook ativo, bug no código</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:55%"></div></div>
+    </div>
+
+    <div class="mode-card">
+      <div class="mode-icon">🤖</div>
+      <div class="mode-title">Modo Agente (JARBAS)</div>
+      <div class="mode-desc">Wizard 5 steps via JARBAS autônomo. Frontend existe (OliviaGeradorJarbas.tsx), backend via jarbas_tarefas.</div>
+      <div class="mode-status"><span class="dot dot-red"></span> Não implementado</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:20%"></div></div>
+    </div>
+
+    <div class="mode-card">
+      <div class="mode-icon">🎨</div>
+      <div class="mode-title">VibeLaw Studio</div>
+      <div class="mode-desc">Split view 38/62: chat IA + preview documento. Workflows WH-OLI-06 a 09 não criados no n8n.</div>
+      <div class="mode-status"><span class="dot dot-red"></span> Não funcional</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:30%"></div></div>
+    </div>
+
+  </div>
+
+  <!-- BANCO DE DADOS -->
+  <h2>🗄️ Estado do Banco</h2>
+  <div class="section">
+    <table>
+      <thead><tr><th>Tabela</th><th>Registros</th><th>Status</th><th>Obs</th></tr></thead>
+      <tbody>
+        <tr><td><code>olivia_modelos_peticao</code></td><td>329</td><td><span class="badge badge-green">✅ OK</span></td><td>276 com conteúdo Drive, 53 sem (403)</td></tr>
+        <tr><td><code>olivia_blocos_texto</code></td><td>1.244</td><td><span class="badge badge-green">✅ OK</span></td><td>1.240 com conteúdo</td></tr>
+        <tr><td><code>olivia_jurisprudencias</code></td><td>1.353</td><td><span class="badge badge-green">✅ OK</span></td><td>Todas importadas</td></tr>
+        <tr><td><code>olivia_tags</code></td><td>75</td><td><span class="badge badge-yellow">⚠️ Baixo</span></td><td>Banco antigo tinha 183 tags</td></tr>
+        <tr><td><code>olivia_modelos_grupo</code></td><td>168</td><td><span class="badge badge-green">✅ OK</span></td><td>Com active_version_id</td></tr>
+        <tr><td><code>olivia_flow</code></td><td>2</td><td><span class="badge badge-yellow">⚠️ Baixo</span></td><td>Só 2 flows de triagem criados</td></tr>
+        <tr><td><code>olivia_historico</code></td><td>35+</td><td><span class="badge badge-green">✅ OK</span></td><td>Registros de teste</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- N8N MAPEAMENTO -->
+  <h2>🔗 N8N — Mapeamento de Workflows</h2>
+
+  <h3>✅ Ativos e Conectados</h3>
+  <div class="wf-card">
+    <div><div class="wf-name">WH-OLIVIA-TRIAGEM-QUESTIONS</div><div class="wf-path">path: mdflow/olivia/triagem-get-questions</div></div>
+    <div><span class="badge badge-green">ATIVO</span><div class="wf-id">AvmF07YPjxXvM2H0</div></div>
+  </div>
+  <div class="wf-card">
+    <div><div class="wf-name">N8N-DIST-GERAR-PETICAO — OlivIA Async</div><div class="wf-path">path: mdflow/olivia/gerar-doc</div></div>
+    <div><span class="badge badge-yellow">ATIVO ⚠️ BUG</span><div class="wf-id">5H7icedAtJIia23i</div></div>
+  </div>
+  <div class="wf-card">
+    <div><div class="wf-name">N8N-OLIVIA-VIBELAW-APPLY-PATCH</div><div class="wf-path">patch aplicado via webhook</div></div>
+    <div><span class="badge badge-green">ATIVO</span><div class="wf-id">Akg1AxMpZayDdnk2</div></div>
+  </div>
+  <div class="wf-card">
+    <div><div class="wf-name">WH-OLIVIA-TRIAGEM (antigo)</div><div class="wf-path">path: uuid direto</div></div>
+    <div><span class="badge badge-green">ATIVO</span><div class="wf-id">AvmF07YPjxXvM2H0</div></div>
+  </div>
+
+  <h3>❌ Faltando / A Criar</h3>
+  <div class="wf-card" style="border-color:#ef444444">
+    <div><div class="wf-name">WH-OLIVIA-GERAR-MANUAL</div><div class="wf-path">path: olivia/gerar-manual → gerar Google Doc com blocos selecionados</div></div>
+    <div><span class="badge badge-red">NÃO EXISTE</span></div>
+  </div>
+  <div class="wf-card" style="border-color:#f59e0b44">
+    <div><div class="wf-name">WH-OLIVIA-VIBELAW-CREATE-DOC</div><div class="wf-path">path: olivia/vibelaw-create-doc → criar doc no Drive via VibeLaw</div></div>
+    <div><span class="badge badge-yellow">PARCIAL</span></div>
+  </div>
+  <div class="wf-card" style="border-color:#ef444444">
+    <div><div class="wf-name">WH-PETICAO-V3 (chain gerar+redator+revisor)</div><div class="wf-path">IDs antigos não encontrados: rFxJtaKqBm5YM4dBWtz3S, lXxs3xXg0UAtbcOu6v1h3, etc.</div></div>
+    <div><span class="badge badge-red">VERIFICAR</span></div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- PLANO POR MODO -->
+  <h2>🎯 Plano de Entrega — 4 Modos</h2>
+
+  <!-- MODO 1: SMART BLOCKS -->
+  <div class="section">
+    <h3>🧱 MODO 1 — Smart Blocks</h3>
+    <p>Rota: <code>/olivia/gerador/smart-blocks</code> → <code>OliviaGeradorManual.tsx</code></p>
+
+    <div class="alert alert-green">
+      <div class="alert-title">✅ Já funciona (fallback)</div>
+      <div class="alert-body">Frontend tem fallback nativo: busca blocos do Supabase → concatena conteúdo → salva em olivia_historico. 1.240/1.244 blocos têm conteúdo.</div>
+    </div>
+
+    <div class="alert alert-yellow">
+      <div class="alert-title">🟡 Enhancement: Google Doc via n8n</div>
+      <div class="alert-body">Criar workflow <code>olivia/gerar-manual</code> que recebe blocos_ids + jurisprudencias_ids, concatena textos, cria Google Doc e retorna URL.</div>
+    </div>
+
+    <h3>O que fazer</h3>
+    <ul class="checklist">
+      <li class="check-done">Banco populado (blocos importados)</li>
+      <li class="check-done">Fallback frontend funcional</li>
+      <li class="check-done">olivia_historico schema correto</li>
+      <li class="check-todo">Criar workflow <code>olivia/gerar-manual</code> no n8n</li>
+      <li class="check-todo">Workflow busca blocos → concatena → cria Google Doc → retorna URL</li>
+      <li class="check-todo">Testar E2E: selecionar 3 blocos → gerar → ver Google Doc</li>
+    </ul>
+
+    <h3>Payload enviado pelo frontend</h3>
+    <pre>{
+  "organizacao_id": "...",
+  "actor_user_id": "...",
+  "data": {
+    "processo_id": "...",
+    "tipo_peticao_id": "...",
+    "modelo_id": "...",
+    "advogado_id": "...",
+    "blocos_ids": ["uuid1", "uuid2", "uuid3"],
+    "jurisprudencias_ids": ["uuid4"],
+    "instrucoes_adicionais": "..."
+  }
+}</pre>
+
+    <h3>Resposta esperada</h3>
+    <pre>{
+  "success": true,
+  "action": "download_file",
+  "data": {
+    "google_doc_url": "https://docs.google.com/...",
+    "historico_id": "..."
+  }
+}</pre>
+  </div>
+
+  <!-- MODO 2: EXPRESS -->
+  <div class="section">
+    <h3>⚡ MODO 2 — Express (Wizard IA via n8n)</h3>
+    <p>Rota: <code>/olivia/gerador/express</code> → <code>OliviaGeradorIA.tsx</code> (5 steps)</p>
+
+    <div class="alert alert-yellow">
+      <div class="alert-title">🟡 Quase funcional — 1 bug bloqueante</div>
+      <div class="alert-body">Webhook triagem ✅ ativo. Webhook gerar-doc ✅ ativo. Bug: node "OlivIA → Petição" falha ao inserir em jarbas_tarefas — linha que desestrutura array retorna erro se Supabase retorna objeto.</div>
+    </div>
+
+    <h3>Fluxo do wizard</h3>
+    <ul class="step-list">
+      <li><span class="step-num">1</span><div class="step-content"><div class="step-title">Identificação</div><div class="step-detail">Selecionar processo + modelo de petição</div></div></li>
+      <li><span class="step-num">2</span><div class="step-content"><div class="step-title">Triagem</div><div class="step-detail">Perguntas dinâmicas via <code>fn_olivia_get_triagem</code> → WH-OLIVIA-TRIAGEM-QUESTIONS</div></div></li>
+      <li><span class="step-num">3</span><div class="step-content"><div class="step-title">Estrutura</div><div class="step-detail">Outline do documento gerado pela IA</div></div></li>
+      <li><span class="step-num">4</span><div class="step-content"><div class="step-title">Revisão</div><div class="step-detail">Editor markdown com autosave 30s</div></div></li>
+      <li><span class="step-num">5</span><div class="step-content"><div class="step-title">Conclusão</div><div class="step-detail">Gerar petição final via <code>mdflow/olivia/gerar-doc</code> → jarbas_tarefas → olivia_gerar_peticao skill</div></div></li>
+    </ul>
+
+    <h3>O que fazer</h3>
+    <ul class="checklist">
+      <li class="check-done">Webhook triagem-get-questions ativo (AvmF07YPjxXvM2H0)</li>
+      <li class="check-done">Webhook gerar-doc ativo (5H7icedAtJIia23i)</li>
+      <li class="check-partial">Bug node "OlivIA → Petição" — fix de desestruturação array (PUT não funcionou via API, precisa editar diretamente)</li>
+      <li class="check-todo">Corrigir via n8n UI ou abordagem alternativa de update</li>
+      <li class="check-todo">Testar E2E: selecionar processo → triagem → conclusão → ver tarefa criada</li>
+      <li class="check-todo">Validar que olivia_historico é atualizado ao final</li>
+    </ul>
+
+    <div class="alert alert-red">
+      <div class="alert-title">❌ Bug específico — linha 55 do node</div>
+      <div class="alert-body"><code>const [tarefa] = await supaReq(...);</code><br>Se Supabase retorna objeto de erro ao invés de array, <code>[tarefa]</code> não é iterável. Fix: <code>const _r = await supaReq(...); const tarefa = Array.isArray(_r) ? _r[0] : _r;</code></div>
+    </div>
+  </div>
+
+  <!-- MODO 3: AGENTE -->
+  <div class="section">
+    <h3>🤖 MODO 3 — Modo Agente (JARBAS Autônomo)</h3>
+    <p>Rota: <code>/olivia/gerador/modo-agente</code> → <code>OliviaGeradorJarbas.tsx</code></p>
+
+    <div class="alert alert-yellow">
+      <div class="alert-title">🟡 Frontend existe, backend parcial</div>
+      <div class="alert-body">OliviaGeradorJarbas.tsx usa os mesmos steps do Express, mas motor='jarbas'. A triagem usa jarbas_tarefas (olivia_gerar_triagem). A geração usa jarbas_tarefas (olivia_gerar_peticao). A skill olivia_gerar_peticao.mjs precisa estar funcional no JARBAS.</div>
+    </div>
+
+    <h3>Arquitetura do Modo Agente</h3>
+    <pre>Frontend → jarbas_tarefas (olivia_gerar_peticao) → JARBAS skill
+  → Busca modelo + conteudo_template no banco
+  → Busca dados do processo (partes, ré, comarca)
+  → Resolve placeholders ({{numero_processo}}, {{parte_autora}}, etc.)
+  → Chama Claude API com system prompt jurídico especializado
+  → Salva resultado em olivia_historico (texto_gerado + google_doc_url)
+  → Notifica frontend via Supabase Realtime</pre>
+
+    <h3>Diferencial vs Express</h3>
+    <table>
+      <thead><tr><th>Aspecto</th><th>Express (n8n)</th><th>Modo Agente (JARBAS)</th></tr></thead>
+      <tbody>
+        <tr><td>Motor</td><td>n8n workflow chain</td><td>JARBAS skill autônoma</td></tr>
+        <tr><td>Triagem</td><td>Perguntas fixas por modelo</td><td>JARBAS analisa processo e gera perguntas contextuais</td></tr>
+        <tr><td>Geração</td><td>Template + substituição</td><td>IA jurídica com contexto completo do processo</td></tr>
+        <tr><td>Revisão</td><td>Revisor automático n8n</td><td>JARBAS auto-revisa e itera até aprovação</td></tr>
+        <tr><td>Google Doc</td><td>Via script Apps Script</td><td>Via Google Drive API (rclone token)</td></tr>
+        <tr><td>Fallback</td><td>Concatena blocos</td><td>JARBAS mantém contexto e retry automático</td></tr>
+      </tbody>
+    </table>
+
+    <h3>O que fazer</h3>
+    <ul class="checklist">
+      <li class="check-done">Frontend OliviaGeradorJarbas.tsx existe</li>
+      <li class="check-done">jarbas_tarefas schema correto</li>
+      <li class="check-partial">Skill olivia_gerar_peticao.mjs — verificar se existe e está funcional</li>
+      <li class="check-todo">Se não existir: criar skill com lógica de resolução de placeholders</li>
+      <li class="check-todo">System prompt jurídico: especialista em direito do consumidor, restrição de crédito, TJRS/TJSC/TJSP</li>
+      <li class="check-todo">Integração com Google Drive API para criar Google Doc</li>
+      <li class="check-todo">Atualizar olivia_historico via Management API</li>
+      <li class="check-todo">Notificação Realtime → frontend fecha polling</li>
+    </ul>
+
+    <h3>System Prompt base (Modo Agente)</h3>
+    <pre>Você é um advogado especialista em direito do consumidor brasileiro,
+focado em ações de restrição de crédito indevida (negativação indevida).
+
+Escritório: Perinotti Paz Advogados | Midas Advocacia
+Estados: RS, SC, SP
+Tipos de ação mais comuns: negativação indevida, dano moral, 
+  cobrança indevida, protesto, cartão de crédito, empréstimos,
+  bureaus (SPC, SERASA, Boa Vista)
+
+Ao gerar petições:
+1. Use o template fornecido como estrutura base
+2. Substitua placeholders com dados reais do processo
+3. Adapte argumentação ao tipo de réu e fundamento
+4. Aplique jurisprudência do tribunal competente (TJRS/TJSC/TJSP)
+5. Mantenha linguagem formal e técnica jurídica</pre>
+  </div>
+
+  <!-- MODO 4: VIBELAW -->
+  <div class="section">
+    <h3>🎨 MODO 4 — VibeLaw Studio</h3>
+    <p>Rota: <code>/olivia/gerador/vibelaw</code> → <code>OliviaVibelawStudio.tsx</code></p>
+
+    <div class="alert alert-red">
+      <div class="alert-title">❌ Workflows n8n não criados</div>
+      <div class="alert-body">Frontend existe (split view 38/62). Workflows WH-OLI-06 a 09 documentados mas não criados. Workflow <code>olivia/vibelaw-create-doc</code> não existe no n8n.</div>
+    </div>
+
+    <div class="alert alert-yellow">
+      <div class="alert-title">📋 Primeiro tela — inspirada no Lovable</div>
+      <div class="alert-body">Christian quer que a landing do VibeLaw Studio tenha uma tela inspirada no Lovable (campo de prompt, sugestões de prompts, exemplos de documentos). Redesign necessário.</div>
+    </div>
+
+    <h3>Arquitetura VibeLaw</h3>
+    <pre>Layout split-view: 38% chat | 62% preview
+├── Chat (esq): conversação com OlivIA
+│   ├── Input de prompt livre ("Crie uma petição de réplica...")
+│   ├── Botões de ação contextual
+│   └── Histórico de mensagens
+└── Preview (dir): documento em tempo real
+    ├── Renderização markdown
+    ├── Edição inline
+    └── Botão "Gerar Google Doc"
+
+Webhooks necessários:
+├── olivia/vibelaw-create-doc → criar documento inicial
+├── olivia/vibelaw-apply-patch → aplicar edição pontual (já existe: Akg1AxMpZayDdnk2)
+├── olivia/vibelaw-chat → chat livre com OlivIA
+└── olivia/vibelaw-finalize → gerar Google Doc final</pre>
+
+    <h3>First Screen — Inspiração Lovable</h3>
+    <pre>┌─────────────────────────────────────────┐
+│  ✨ VibeLaw Studio                       │
+│  Descreva a petição que deseja criar     │
+│                                         │
+│  [Campo de prompt grande, placeholder:  │
+│   "Crie uma réplica para processo de    │
+│    negativação indevida pelo SPC..."]   │
+│                                         │
+│  💡 Sugestões:                          │
+│  ├─ Réplica BV · Recurso TJRS           │
+│  ├─ Contestação SPC · Inépcia           │
+│  └─ Manifestação · Audiência            │
+│                                         │
+│  [Ou selecione um modelo base ▼]        │
+└─────────────────────────────────────────┘</pre>
+
+    <h3>O que fazer</h3>
+    <ul class="checklist">
+      <li class="check-done">Frontend OliviaVibelawStudio.tsx existe</li>
+      <li class="check-done">N8N-OLIVIA-VIBELAW-APPLY-PATCH ativo (Akg1AxMpZayDdnk2)</li>
+      <li class="check-todo">Redesign first screen inspirada no Lovable</li>
+      <li class="check-todo">Criar WH-OLIVIA-VIBELAW-CREATE-DOC (path: olivia/vibelaw-create-doc)</li>
+      <li class="check-todo">Criar WH-OLIVIA-VIBELAW-CHAT (path: olivia/vibelaw-chat)</li>
+      <li class="check-todo">Criar WH-OLIVIA-VIBELAW-FINALIZE (path: olivia/vibelaw-finalize)</li>
+      <li class="check-todo">Testar E2E: digitar prompt → ver preview → aplicar patch → gerar Doc</li>
+    </ul>
+  </div>
+
+  <hr class="divider">
+
+  <!-- CRONOGRAMA -->
+  <h2>📅 Cronograma de Execução</h2>
+  <div class="timeline">
+    <div class="timeline-item">
+      <div class="tl-phase">FASE 1 · ~45min</div>
+      <div class="tl-title">Smart Blocks — Google Doc</div>
+      <div class="tl-detail">Criar workflow olivia/gerar-manual no n8n · Testar E2E · Confirmar google_doc_url retornado</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-phase">FASE 2 · ~30min</div>
+      <div class="tl-title">Express — Fix bug gerar-doc</div>
+      <div class="tl-detail">Corrigir node "OlivIA → Petição" (desestruturação array) via acesso direto ou UI n8n · Testar wizard completo 5 steps</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-phase">FASE 3 · ~90min</div>
+      <div class="tl-title">Modo Agente — Skill JARBAS</div>
+      <div class="tl-detail">Verificar/criar olivia_gerar_peticao.mjs · System prompt jurídico · Resolver placeholders · Criar Google Doc · Realtime feedback</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-phase">FASE 4 · ~60min</div>
+      <div class="tl-title">VibeLaw — First Screen + Workflows</div>
+      <div class="tl-detail">Redesign landing inspirada no Lovable · Criar 3 workflows n8n faltantes · Testar split-view E2E</div>
+    </div>
+    <div class="timeline-item">
+      <div class="tl-phase">FASE 5 · ~45min</div>
+      <div class="tl-title">E2E Global + Lapidação</div>
+      <div class="tl-detail">Abrir app.mdflow.com.br · Testar cada modo como usuário real · Corrigir erros visuais · Score ≥ 9/10</div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- VIABILIDADE -->
+  <h2>✅ Análise de Viabilidade</h2>
+  <div class="section">
+    <div class="two-col">
+      <div>
+        <h3>O que é certo entregar</h3>
+        <ul class="checklist">
+          <li class="check-done">Smart Blocks funcional (fallback já existe)</li>
+          <li class="check-done">Modo Express funcional (1 fix de código)</li>
+          <li class="check-done">Triagem dinâmica funcionando</li>
+          <li class="check-done">1.244 blocos + 1.353 juris disponíveis</li>
+        </ul>
+      </div>
+      <div>
+        <h3>O que depende de validação</h3>
+        <ul class="checklist">
+          <li class="check-partial">Modo Agente: skill olivia_gerar_peticao precisa ser verificada</li>
+          <li class="check-partial">VibeLaw: 3 workflows precisam ser criados do zero</li>
+          <li class="check-partial">Google Doc generation: Apps Script ou Drive API direto</li>
+          <li class="check-partial">53 modelos sem conteúdo Drive (acesso conta errada)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="alert alert-green" style="margin-top:16px">
+      <div class="alert-title">🎯 Resposta direta: SIM, é viável entregar os 4 modos funcionando</div>
+      <div class="alert-body">
+        Smart Blocks já funciona. Express tem 1 bug de 3 linhas de código. Modo Agente tem infraestrutura pronta (jarbas_tarefas, skills). VibeLaw precisa de mais trabalho mas a base existe.<br><br>
+        <strong>Estimativa realista:</strong> 4–6h de execução contínua para todos os modos funcionais, testados E2E, com lapidação visual.
+      </div>
+    </div>
+  </div>
+
+  <!-- CONSTANTES -->
+  <h2>🔧 Constantes do Sistema</h2>
+  <div class="section">
+    <table>
+      <tbody>
+        <tr><td><strong>Supabase</strong></td><td><code>qdivfairxhdihaqqypgb.supabase.co</code></td></tr>
+        <tr><td><strong>Org Midas</strong></td><td><code>55a0c7ba-1a23-4ae1-b69b-a13811324735</code></td></tr>
+        <tr><td><strong>User teste</strong></td><td><code>6dd16878-06a7-4655-b720-8a44bf18ab6a</code> (contato@perinottipazadvogados.com)</td></tr>
+        <tr><td><strong>n8n</strong></td><td><code>https://primary-production-e209.up.railway.app</code></td></tr>
+        <tr><td><strong>Auth header</strong></td><td><code>mdflow: MdL1501@</code></td></tr>
+        <tr><td><strong>App URL</strong></td><td><code>https://app.mdflow.com.br</code></td></tr>
+        <tr><td><strong>Repo</strong></td><td><code>/Users/jarbas/beta-mdflow</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TRIGGER -->
+  <h2>🚀 Trigger para Execução</h2>
+  <div class="alert alert-blue" style="border-color:#3b82f6; background:#3b82f622">
+    <div class="alert-title">Quando Christian validar este PRD, enviar a mensagem:</div>
+    <div class="alert-body" style="margin-top:8px">
+      <strong>"executa olivia"</strong> ou <strong>"continua o projeto olivia"</strong><br><br>
+      JARBAS irá:<br>
+      1. Salvar contexto em memory/project-olivia-gerador.md<br>
+      2. Executar Fase 1→5 em sequência<br>
+      3. Reportar a cada etapa concluída<br>
+      4. Testar E2E no browser ao final de cada modo<br>
+      5. Entregar relatório final com link GitHub Pages
+    </div>
+  </div>
+
+  <p style="text-align:center; color:var(--text-dim); margin-top:32px; font-size:12px">
+    🦞 JARBAS v3.0 TURBO · MdLab LegalTech · 2026-03-11
+  </p>
+
+</div>
+</body>
+</html>

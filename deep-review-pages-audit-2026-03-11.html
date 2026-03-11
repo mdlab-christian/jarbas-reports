@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdFlow — Deep Review Pages Audit · 11/03/2026</title>
+<style>
+  :root {
+    --bg: #0f0f13; --surface: #16161d; --surface2: #1e1e28;
+    --border: #2a2a38; --text: #e2e2ee; --muted: #7878a0;
+    --primary: #7c6af7; --success: #22c55e; --warning: #f59e0b;
+    --danger: #ef4444; --info: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 20px; }
+  h1 { font-size: 22px; font-weight: 700; color: #fff; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 28px; display: flex; align-items: center; gap: 14px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+  .kpi .num { font-size: 30px; font-weight: 700; line-height: 1; }
+  .kpi .label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .kpi.green .num { color: var(--success); }
+  .kpi.yellow .num { color: var(--warning); }
+  .kpi.blue .num { color: var(--info); }
+  .kpi.purple .num { color: var(--primary); }
+  .section { margin-bottom: 28px; }
+  .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: var(--surface2); color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; font-size: 13px; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #ffffff06; }
+  .score { font-weight: 700; font-size: 15px; }
+  .s10, .s9 { color: var(--success); }
+  .s8 { color: #86efac; }
+  .s7 { color: var(--warning); }
+  .s6 { color: #fb923c; }
+  .s5, .s4, .s3 { color: var(--danger); }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+  .b-ok { background: #22c55e15; color: var(--success); border: 1px solid #22c55e30; }
+  .b-warn { background: #f59e0b15; color: var(--warning); border: 1px solid #f59e0b30; }
+  .b-err { background: #ef444415; color: var(--danger); border: 1px solid #ef444430; }
+  .route { font-family: monospace; font-size: 12px; color: var(--primary); }
+  .pend { font-size: 12px; color: var(--muted); }
+  .pend em { color: var(--warning); font-style: normal; }
+  .bar-wrap { background: var(--surface2); border-radius: 999px; height: 8px; overflow: hidden; margin-top: 6px; }
+  .bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), var(--success)); }
+  .issues { display: flex; flex-direction: column; gap: 8px; }
+  .issue { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; display: flex; gap: 10px; }
+  .issue-pri { font-weight: 700; font-size: 11px; padding: 2px 8px; border-radius: 4px; flex-shrink: 0; height: fit-content; }
+  .ip1 { background: #ef444420; color: var(--danger); border: 1px solid #ef444440; }
+  .ip2 { background: #f59e0b20; color: var(--warning); border: 1px solid #f59e0b40; }
+  .ip3 { background: #3b82f620; color: var(--info); border: 1px solid #3b82f640; }
+  .issue-text { font-size: 13px; }
+  .issue-text strong { color: var(--text); }
+  .issue-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .positives { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 8px; }
+  .pos { background: var(--surface); border: 1px solid #22c55e20; border-radius: 8px; padding: 10px 12px; font-size: 13px; display: flex; gap: 8px; }
+  .pos-icon { color: var(--success); flex-shrink: 0; }
+  .verdict { background: linear-gradient(135deg, #7c6af720, #22c55e10); border: 1px solid var(--primary); border-radius: 10px; padding: 20px 24px; margin-bottom: 28px; }
+  .verdict-score { font-size: 48px; font-weight: 800; color: var(--success); line-height: 1; }
+  .verdict-label { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .verdict-text { font-size: 14px; color: var(--text); margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <span style="font-size:32px">🦞</span>
+    <div>
+      <h1>MdFlow — Deep Review: Pages Audit</h1>
+      <div class="subtitle">48 páginas avaliadas · 11/03/2026 · Pré-lançamento</div>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <div style="display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+      <div>
+        <div class="verdict-score">8.0</div>
+        <div class="verdict-label">Score médio geral</div>
+        <div class="bar-wrap" style="width:200px;margin-top:8px"><div class="bar" style="width:80%"></div></div>
+      </div>
+      <div class="verdict-text">
+        Projeto em <strong>excelente estado</strong> — <strong>40/48 páginas prontas para produção</strong>.<br>
+        8 páginas com pendências menores, todas corrigíveis. <strong>Zero páginas incompletas.</strong>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi green"><div class="num">40</div><div class="label">✅ Prontas (≥8)</div></div>
+    <div class="kpi yellow"><div class="num">8</div><div class="label">⚠️ Pendências (6-7)</div></div>
+    <div class="kpi blue"><div class="num">0</div><div class="label">❌ Incompletas (&lt;6)</div></div>
+    <div class="kpi purple"><div class="num">48</div><div class="label">Total páginas</div></div>
+  </div>
+
+  <!-- TABELA COMPLETA -->
+  <div class="section">
+    <div class="section-title">📋 Avaliação completa — 48 páginas</div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Página</th>
+            <th>Rota</th>
+            <th>Nota</th>
+            <th>Status</th>
+            <th>Pendências</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Login</td><td class="route">/login</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>2</td><td>Admin Login</td><td class="route">/admin_login</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>3</td><td>Reset Password</td><td class="route">/reset-password</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>4</td><td>Invite</td><td class="route">/invite</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">console.error sem guard DEV (L179)</td></tr>
+          <tr><td>5</td><td>Homepage</td><td class="route">/homepage</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>6</td><td>Dashboard TV</td><td class="route">/dashboard</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>7</td><td>Processos</td><td class="route">/processos</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>8</td><td>Página do Processo</td><td class="route">/pagina_processo</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>9</td><td>Distribuição</td><td class="route">/distribuicao</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>10</td><td>Empresas</td><td class="route">/empresas</td><td class="score s6">6</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>20+ any types, useAuth() as any</em></td></tr>
+          <tr><td>11</td><td>CRM</td><td class="route">/crm</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">staleTime 2×60_000 em KPIs (aceitável)</td></tr>
+          <tr><td>12</td><td>Clientes</td><td class="route">/clientes</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>13</td><td>Indicações</td><td class="route">/indicacoes</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>14</td><td>Parceiros</td><td class="route">/parceiros</td><td class="score s7">7</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>Record&lt;string, any&gt;[] no export</em></td></tr>
+          <tr><td>15</td><td>Parceiro (detalhe)</td><td class="route">/parceiro/*</td><td class="score s6">6</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>9+ any types (proxima_atividade, data as any[])</em></td></tr>
+          <tr><td>16</td><td>Controller</td><td class="route">/controller</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">as any limitado a sub-componentes</td></tr>
+          <tr><td>17</td><td>Controller v2</td><td class="route">/controller-v2</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>18</td><td>Decisões</td><td class="route">/decisoes</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>19</td><td>Atividades</td><td class="route">/atividades</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>20</td><td>Audiências</td><td class="route">/audiencias</td><td class="score s7">7</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>5× as any em ModalAudiencia; Google Calendar desabilitado</em></td></tr>
+          <tr><td>21</td><td>Docs Pendentes</td><td class="route">/documentos-pendentes</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>22</td><td>Auditorias</td><td class="route">/auditorias</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>23</td><td>Financeiro</td><td class="route">/financeiro</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>24</td><td>Acordos</td><td class="route">/acordos</td><td class="score s7">7</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>8+ as any nos modals; Record&lt;string,any&gt; no export</em></td></tr>
+          <tr><td>25</td><td>Execuções</td><td class="route">/execucoes</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>26</td><td>OlivIA</td><td class="route">/olivia</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>27</td><td>OlivIA v2</td><td class="route">/olivia-v2</td><td class="score s7">7</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>"R$10k" hardcoded (L62); staleTime divergente</em></td></tr>
+          <tr><td>28</td><td>Modelos</td><td class="route">/modelos</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">as any em sub-modals</td></tr>
+          <tr><td>29</td><td>Modelos v2</td><td class="route">/modelos-v2</td><td class="score s6">6</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>JURIS_MOCK hardcoded (L295-301); staleTime misto</em></td></tr>
+          <tr><td>30</td><td>Lolito</td><td class="route">/lolito</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>31</td><td>Agentes</td><td class="route">/agentes</td><td class="score s6">6</td><td><span class="badge b-warn">⚠️ Pendências</span></td><td class="pend"><em>TRAINING_ITEMS mock hardcoded (L360-365)</em></td></tr>
+          <tr><td>32</td><td>Cálculo</td><td class="route">/calculo</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>33</td><td>MDZap</td><td class="route">/mdzap</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>34</td><td>MDChat</td><td class="route">/mdchat</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>35</td><td>Marketing</td><td class="route">/marketing</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>36</td><td>Equipe</td><td class="route">/equipe</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>37</td><td>Relatórios</td><td class="route">/relatorios</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">as any em DrawerConcluirManual</td></tr>
+          <tr><td>38</td><td>Jurimetria</td><td class="route">/jurimetria</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>39</td><td>MdAcademy</td><td class="route">/mdacademy</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>40</td><td>MdLab</td><td class="route">/mdlab</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>41</td><td>Usuário</td><td class="route">/usuario</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>42</td><td>Configurações</td><td class="route">/configuracoes</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">7+ as any em sub-tabs (WhatsApp, DistribuicaoEditor)</td></tr>
+          <tr><td>43</td><td>Admin</td><td class="route">/admin</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>44</td><td>JARBAS</td><td class="route">/jarbas</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>45</td><td>Playbooks</td><td class="route">/playbooks</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>46</td><td>Apresentação</td><td class="route">/apresentacao</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>47</td><td>404</td><td class="route">/404</td><td class="score s9">9</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+          <tr><td>48</td><td>Placeholder</td><td class="route">/placeholder</td><td class="score s8">8</td><td><span class="badge b-ok">✅ Pronta</span></td><td class="pend">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- PROBLEMAS A CORRIGIR -->
+  <div class="section">
+    <div class="section-title">🔧 Problemas a corrigir</div>
+    <div class="issues">
+      <div class="issue"><span class="issue-pri ip1">P1</span><div class="issue-text"><strong>/empresas</strong> — 20+ any types, incluindo <code>useAuth() as any</code><div class="issue-sub">Frágil. Tipar useAuth corretamente e os joins de dados.</div></div></div>
+      <div class="issue"><span class="issue-pri ip1">P1</span><div class="issue-text"><strong>/parceiro/*</strong> — 9+ any types em joins de dados<div class="issue-sub">proxima_atividade as any, data as any[] — tipar com interfaces corretas.</div></div></div>
+      <div class="issue"><span class="issue-pri ip1">P1</span><div class="issue-text"><strong>/modelos-v2</strong> — JURIS_MOCK hardcoded (L295-301)<div class="issue-sub">Dados mock visíveis. Substituir por query real ou EmptyState enquanto não há dados.</div></div></div>
+      <div class="issue"><span class="issue-pri ip1">P1</span><div class="issue-text"><strong>/agentes</strong> — TRAINING_ITEMS mock hardcoded (L360-365)<div class="issue-sub">Array estático visível na UI. Substituir por dados do banco ou esconder.</div></div></div>
+      <div class="issue"><span class="issue-pri ip2">P2</span><div class="issue-text"><strong>/acordos</strong> — 8+ as any nos modals + Record&lt;string,any&gt; no export<div class="issue-sub">Tipar joins de processos/clientes nos modals.</div></div></div>
+      <div class="issue"><span class="issue-pri ip2">P2</span><div class="issue-text"><strong>/audiencias</strong> — 5× as any em ModalAudiencia; Google Calendar desabilitado<div class="issue-sub">Tipar modal. Decidir sobre Google Calendar: remover botão ou manter com aviso.</div></div></div>
+      <div class="issue"><span class="issue-pri ip2">P2</span><div class="issue-text"><strong>/olivia-v2</strong> — "R$10k" hardcoded no KPI banner (L62)<div class="issue-sub">Substituir por valor real ou remover.</div></div></div>
+      <div class="issue"><span class="issue-pri ip2">P2</span><div class="issue-text"><strong>/configuracoes</strong> — 7+ as any em sub-tabs WhatsApp e DistribuicaoEditor<div class="issue-sub">Tipar configurações com interfaces específicas.</div></div></div>
+      <div class="issue"><span class="issue-pri ip3">P3</span><div class="issue-text"><strong>staleTime divergente</strong> — olivia-v2, modelos-v2 com valores diferentes do padrão 30_000<div class="issue-sub">Padronizar para consistência.</div></div></div>
+      <div class="issue"><span class="issue-pri ip3">P3</span><div class="issue-text"><strong>/invite L179</strong> — console.error sem guard DEV<div class="issue-sub">Adicionar if (import.meta.env.DEV).</div></div></div>
+    </div>
+  </div>
+
+  <!-- PONTOS POSITIVOS -->
+  <div class="section">
+    <div class="section-title">✅ Padrões consistentes em todo o projeto</div>
+    <div class="positives">
+      <div class="pos"><span class="pos-icon">✓</span>ErrorBoundary por aba em todas as páginas com tabs</div>
+      <div class="pos"><span class="pos-icon">✓</span>organizacao_id em 100% das queries verificadas</div>
+      <div class="pos"><span class="pos-icon">✓</span>Zero hex hardcoded nos arquivos de página</div>
+      <div class="pos"><span class="pos-icon">✓</span>Loading / Error / Empty states consistentes</div>
+      <div class="pos"><span class="pos-icon">✓</span>Deep links via URL params (tabs, filtros, drawers)</div>
+      <div class="pos"><span class="pos-icon">✓</span>Keyboard shortcuts em controller, atividades, decisões, execuções</div>
+      <div class="pos"><span class="pos-icon">✓</span>console.log/warn guardados com import.meta.env.DEV</div>
+      <div class="pos"><span class="pos-icon">✓</span>TypeScript build: zero erros de compilação</div>
+    </div>
+  </div>
+
+  <div style="text-align:center;color:var(--muted);font-size:12px;padding-top:16px;border-top:1px solid var(--border)">
+    JARBAS v3.0 · MdLab LegalTech · Deep Review Pré-Lançamento · 11/03/2026
+  </div>
+
+</div>
+</body>
+</html>

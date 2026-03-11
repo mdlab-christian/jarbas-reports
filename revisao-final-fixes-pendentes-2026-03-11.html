@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdFlow — Fixes Pendentes · Deep Research 11/03/2026</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #161b27;
+    --bg3: #1e2538;
+    --border: #2a3352;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --blue: #3b82f6;
+    --red: #ef4444;
+    --purple: #a855f7;
+    --orange: #f97316;
+    --cyan: #06b6d4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .header { background: linear-gradient(135deg, #1e2538 0%, #0f1117 100%); border-bottom: 1px solid var(--border); padding: 28px 40px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+  .header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .header .method { display: inline-flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 100px; font-size: 11px; font-weight: 600; }
+  .chip-red { background: #ef444422; color: var(--red); border: 1px solid #ef444433; }
+  .chip-yellow { background: #eab30822; color: var(--yellow); border: 1px solid #eab30833; }
+  .chip-blue { background: #3b82f622; color: var(--blue); border: 1px solid #3b82f633; }
+  .chip-green { background: #22c55e22; color: var(--green); border: 1px solid #22c55e33; }
+  .chip-purple { background: #a855f722; color: var(--purple); border: 1px solid #a855f733; }
+  .chip-orange { background: #f9731622; color: var(--orange); border: 1px solid #f9731633; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 40px; }
+
+  /* KPI STRIP */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 32px; }
+  .kpi { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px; text-align: center; }
+  .kpi .num { font-size: 32px; font-weight: 800; line-height: 1; margin-bottom: 2px; }
+  .kpi .lbl { color: var(--muted); font-size: 12px; }
+
+  /* SECTIONS */
+  .section { margin-bottom: 36px; }
+  .section-title { font-size: 17px; font-weight: 700; color: #fff; padding: 14px 0 14px; border-bottom: 1px solid var(--border); margin-bottom: 16px; display: flex; align-items: center; gap: 10px; }
+
+  /* FIX CARD */
+  .fix-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 14px;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 16px;
+  }
+  .fix-card.p0 { border-left: 4px solid var(--red); }
+  .fix-card.p1 { border-left: 4px solid var(--yellow); }
+  .fix-card.p2 { border-left: 4px solid var(--blue); }
+  .fix-card.p3 { border-left: 4px solid var(--muted); }
+  .fix-icon { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; }
+  .fix-icon.p0 { background: #ef444422; }
+  .fix-icon.p1 { background: #eab30822; }
+  .fix-icon.p2 { background: #3b82f622; }
+  .fix-icon.p3 { background: #8892a422; }
+  .fix-body {}
+  .fix-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .fix-title { font-weight: 700; color: #fff; font-size: 14px; }
+  .fix-rm { color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .fix-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .tag { font-size: 11px; padding: 2px 7px; border-radius: 4px; background: var(--bg3); color: var(--muted); border: 1px solid var(--border); }
+  .tag-file { background: #1e293b; color: #94a3b8; border-color: #334155; font-family: monospace; font-size: 10px; }
+  .tag-action { background: #16213e; color: #60a5fa; border-color: #1e3a5f; }
+  .fix-desc { color: var(--text); font-size: 13px; line-height: 1.6; margin-top: 8px; }
+  .fix-desc ul { padding-left: 18px; margin-top: 6px; display: grid; gap: 3px; }
+  .fix-desc li { color: #cbd5e1; }
+  .fix-code { margin-top: 10px; background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: 'Menlo', 'Monaco', monospace; font-size: 11px; color: #94a3b8; overflow-x: auto; line-height: 1.7; }
+  .fix-code .hl { color: #f87171; }
+  .fix-code .ok { color: #4ade80; }
+  .fix-code .cm { color: #64748b; }
+  .fix-code .kw { color: #93c5fd; }
+
+  /* SUMMARY TABLE */
+  .summary-table { width: 100%; border-collapse: collapse; }
+  .summary-table th { background: var(--bg3); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 10px 14px; border-bottom: 1px solid #1e2538; font-size: 13px; vertical-align: middle; }
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table tr:hover td { background: #161b2788; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .dot-red { background: var(--red); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-blue { background: var(--blue); }
+  .dot-muted { background: var(--muted); }
+
+  /* DIVIDER */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+  .footer { margin-top: 48px; padding: 20px 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+
+  @media (max-width: 768px) {
+    .kpis { grid-template-columns: repeat(2,1fr); }
+    .container, .header, .footer { padding: 20px; }
+    .fix-card { grid-template-columns: 1fr; }
+    .fix-icon { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔬 MdFlow — Fixes Pendentes · Deep Research</h1>
+  <div class="sub">Análise: git log + leitura de código fonte + cruzamento com 34 arquivos RM · 11/03/2026</div>
+  <div class="method">
+    <span class="chip chip-green">✅ 0 erros TypeScript</span>
+    <span class="chip chip-blue">685 commits analisados</span>
+    <span class="chip chip-red">3 P0 confirmados</span>
+    <span class="chip chip-yellow">6 P1 confirmados</span>
+    <span class="chip chip-blue">3 P2 confirmados</span>
+    <span class="chip chip-purple">OlivIA excluída</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- KPIs -->
+  <div class="kpis">
+    <div class="kpi"><div class="num" style="color:var(--red)">3</div><div class="lbl">P0 — Crítico</div></div>
+    <div class="kpi"><div class="num" style="color:var(--yellow)">6</div><div class="lbl">P1 — Importante</div></div>
+    <div class="kpi"><div class="num" style="color:var(--blue)">3</div><div class="lbl">P2 — Médio</div></div>
+    <div class="kpi"><div class="num" style="color:var(--green)">30</div><div class="lbl">RMs 100% OK</div></div>
+  </div>
+
+  <!-- SUMMARY TABLE -->
+  <div class="section">
+    <div class="section-title">📋 Visão Geral dos Fixes</div>
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th>Pri</th>
+            <th>Página</th>
+            <th>Item</th>
+            <th>RM</th>
+            <th>Arquivo Principal</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="chip chip-red">P0</span></td>
+            <td>Financeiro</td>
+            <td>BlindedValue não aplicado em nenhum valor monetário</td>
+            <td>RM-16 A3</td>
+            <td><code style="font-size:11px;color:#94a3b8">TabLancamentos.tsx · TabVisaoGeral.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-red">P0</span></td>
+            <td>CRM</td>
+            <td>ClienteDrawer não migrado → ModalShellCliente</td>
+            <td>RM-06 A5</td>
+            <td><code style="font-size:11px;color:#94a3b8">CrmPage.tsx:386</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-red">P0</span></td>
+            <td>Controller</td>
+            <td>Hotkeys não implementados (U/N/A/←/→/Enter/Esc)</td>
+            <td>RM-05 A4</td>
+            <td><code style="font-size:11px;color:#94a3b8">nenhum arquivo tem useHotkeys</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-yellow">P1</span></td>
+            <td>Distribuição</td>
+            <td>Modal geração docs (checklist + Gerar PI + Marcar Pronto)</td>
+            <td>RM-07 A2</td>
+            <td><code style="font-size:11px;color:#94a3b8">TabPreparacao.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-yellow">P1</span></td>
+            <td>Distribuição</td>
+            <td>Aba Jarbas (protocolos, monitoramento, alertas rejeição)</td>
+            <td>RM-07 A6</td>
+            <td><code style="font-size:11px;color:#94a3b8">TabJarbas.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-yellow">P1</span></td>
+            <td>Controller</td>
+            <td>Aba documentos: sync com docs_pendentes do processo</td>
+            <td>RM-05 A12</td>
+            <td><code style="font-size:11px;color:#94a3b8">ControllerModalTabAcoes.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-yellow">P1</span></td>
+            <td>Controller</td>
+            <td>Modal arquivados (motivo, data, quem, opção desarquivar)</td>
+            <td>RM-05 A14</td>
+            <td><code style="font-size:11px;color:#94a3b8">ControllerArquivados.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-yellow">P1</span></td>
+            <td>Controller</td>
+            <td>Modal monitoramento (processos Jarbas, status, alertas)</td>
+            <td>RM-05 A14</td>
+            <td><code style="font-size:11px;color:#94a3b8">ControllerJarbasStatusCard.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-yellow">P1</span></td>
+            <td>Docs Pendentes</td>
+            <td>Estabilização pós-patches (4 bugs corrigidos hoje — testar)</td>
+            <td>RM-18</td>
+            <td><code style="font-size:11px;color:#94a3b8">DocumentosPendentesPage</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-blue">P2</span></td>
+            <td>Controller</td>
+            <td>Automações Jarbas no modal + múltiplas sugestões atividade</td>
+            <td>RM-05 A15-16</td>
+            <td><code style="font-size:11px;color:#94a3b8">ControllerModalTabChat.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-blue">P2</span></td>
+            <td>CRM</td>
+            <td>Aba restrições: bulk CSV upload</td>
+            <td>RM-06 A6</td>
+            <td><code style="font-size:11px;color:#94a3b8">ClienteDrawerTabRestricoes.tsx</code></td>
+          </tr>
+          <tr>
+            <td><span class="chip chip-blue">P2</span></td>
+            <td>Distribuição</td>
+            <td>Fix redirect pós-distribuição (não redirecionar)</td>
+            <td>RM-07 A4</td>
+            <td><code style="font-size:11px;color:#94a3b8">ModalEfetuarDistribuicao.tsx</code></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- P0 FIXES -->
+  <div class="section">
+    <div class="section-title">🔴 P0 — Críticos (3 fixes)</div>
+
+    <!-- P0-1: BlindedValue Financeiro -->
+    <div class="fix-card p0">
+      <div class="fix-icon p0">💰</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Financeiro — BlindedValue não aplicado em valores monetários</div>
+            <div class="fix-rm">RM-16 A2+A3 · Segurança multi-tenant</div>
+          </div>
+          <span class="chip chip-red">P0</span>
+        </div>
+        <div class="fix-desc">
+          <code>acesso_financeiro</code> está em <code>auth_context</code> mas não é usado em nenhum dos tabs financeiros. Todos os valores (receita, despesa, saldo, honorários) são exibidos sem mascaramento. Risco de vazamento de dados financeiros para usuários sem permissão.
+          <ul>
+            <li>Arquivo alvo: <code>src/pages/financeiro/tabs/TabVisaoGeral.tsx</code> — todos os KPIs (receita total, saldo, honorários)</li>
+            <li>Arquivo alvo: <code>src/pages/financeiro/components/LancamentosTable.tsx</code> — coluna "valor"</li>
+            <li>Arquivo alvo: <code>src/pages/financeiro/tabs/TabContasReceber.tsx</code> e <code>TabContasPagar.tsx</code></li>
+            <li>Arquivo alvo: <code>src/pages/financeiro/tabs/TabHonorarios.tsx</code></li>
+          </ul>
+        </div>
+        <div class="fix-code">
+<span class="cm">// ❌ ATUAL — expõe valor bruto</span>
+&lt;span&gt;{formatCurrency(lancamento.valor)}&lt;/span&gt;
+
+<span class="cm">// ✅ FIX — BlindedValue com gate acesso_financeiro</span>
+<span class="kw">import</span> { BlindedValue } <span class="kw">from</span> <span class="ok">'@/components/admin/apis/BlindedValue'</span>
+<span class="kw">const</span> { acesso_financeiro } = useAuth()
+&lt;BlindedValue visible={acesso_financeiro}&gt;
+  {formatCurrency(lancamento.valor)}
+&lt;/BlindedValue&gt;
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/financeiro/tabs/TabVisaoGeral.tsx</span>
+          <span class="tag tag-file">src/pages/financeiro/components/LancamentosTable.tsx</span>
+          <span class="tag tag-file">src/components/admin/apis/BlindedValue.tsx</span>
+          <span class="tag tag-action">BlindedValue</span>
+          <span class="tag tag-action">acesso_financeiro</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P0-2: CRM ClienteDrawer → Modal -->
+    <div class="fix-card p0">
+      <div class="fix-icon p0">📋</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">CRM — ClienteDrawer não migrado para ModalShellCliente</div>
+            <div class="fix-rm">RM-06 A5 · UX — Drawer → Modal wide</div>
+          </div>
+          <span class="chip chip-red">P0</span>
+        </div>
+        <div class="fix-desc">
+          <code>CrmPage.tsx:27</code> ainda importa e usa <code>ClienteDrawer</code> (Sheet lateral). A RM pede conversão para <code>modal_shell_cliente</code> (modal wide com 6 abas completas). O <code>modal_shell_cliente.tsx</code> já existe em <code>src/components/shared/</code>.
+          <ul>
+            <li>Remover: <code>import { ClienteDrawer } from '@/components/shared/cliente_drawer/ClienteDrawer'</code></li>
+            <li>Substituir por: <code>import { ModalShellCliente } from '@/components/shared/modal_shell_cliente'</code></li>
+            <li>Props do ModalShellCliente: <code>clienteId</code> / <code>leadId</code> / <code>open</code> / <code>onOpenChange</code></li>
+            <li>O <code>panelLeadId</code> state já existe — apenas trocar o componente</li>
+            <li>ClienteDrawer na linha 386 do CrmPage → substituir por ModalShellCliente</li>
+          </ul>
+        </div>
+        <div class="fix-code">
+<span class="cm">// ❌ ATUAL — Sheet lateral (CrmPage.tsx:27)</span>
+<span class="hl">import { ClienteDrawer } from '@/components/shared/cliente_drawer/ClienteDrawer'</span>
+...
+<span class="hl">&lt;ClienteDrawer open={!!panelLeadId} leadId={panelLeadId} ... /&gt;</span>
+
+<span class="cm">// ✅ FIX — Modal wide (componente já existe)</span>
+<span class="kw">import</span> { ModalShellCliente } <span class="kw">from</span> <span class="ok">'@/components/shared/modal_shell_cliente'</span>
+...
+&lt;ModalShellCliente
+  open={!!panelLeadId}
+  clienteId={panelLeadId ?? <span class="ok">undefined</span>}
+  onOpenChange={(v) =&gt; !v &amp;&amp; setPanelLeadId(<span class="ok">null</span>)}
+/&gt;
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/crm/CrmPage.tsx:27</span>
+          <span class="tag tag-file">src/components/shared/modal_shell_cliente.tsx</span>
+          <span class="tag tag-action">1 arquivo</span>
+          <span class="tag tag-action">~5 linhas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P0-3: Controller Hotkeys -->
+    <div class="fix-card p0">
+      <div class="fix-icon p0">⌨️</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Controller — Atalhos de teclado não implementados</div>
+            <div class="fix-rm">RM-05 A4 · Produtividade triagem</div>
+          </div>
+          <span class="chip chip-red">P0</span>
+        </div>
+        <div class="fix-desc">
+          Nenhum arquivo do Controller usa <code>useHotkeys</code> ou hotkeys globais. A RM especifica atalhos essenciais para triagem eficiente de intimações:
+          <ul>
+            <li><kbd>U</kbd> → marcar urgente | <kbd>N</kbd> → marcar normal</li>
+            <li><kbd>A</kbd> → arquivar intimação selecionada</li>
+            <li><kbd>→</kbd> / <kbd>J</kbd> → próxima intimação | <kbd>←</kbd> / <kbd>K</kbd> → anterior</li>
+            <li><kbd>Enter</kbd> → abrir modal da intimação selecionada</li>
+            <li><kbd>Esc</kbd> → fechar modal</li>
+          </ul>
+          Instalar <code>react-hotkeys-hook</code> (ou usar <code>useEffect</code> com <code>keydown</code> listener) no componente pai do Controller.
+        </div>
+        <div class="fix-code">
+<span class="cm">// Instalar: npm i react-hotkeys-hook (se não existir)</span>
+<span class="cm">// Adicionar em ControllerIntimacoes.tsx (ou componente pai)</span>
+<span class="kw">import</span> { useHotkeys } <span class="kw">from</span> <span class="ok">'react-hotkeys-hook'</span>
+
+<span class="kw">useHotkeys</span>(<span class="ok">'u'</span>, () =&gt; toggleUrgente(selectedId), [selectedId])
+<span class="kw">useHotkeys</span>(<span class="ok">'a'</span>, () =&gt; handleArquivar(selectedId), [selectedId])
+<span class="kw">useHotkeys</span>(<span class="ok">'right,j'</span>, () =&gt; selectNext(), [selectedIndex])
+<span class="kw">useHotkeys</span>(<span class="ok">'left,k'</span>, () =&gt; selectPrev(), [selectedIndex])
+<span class="kw">useHotkeys</span>(<span class="ok">'enter'</span>, () =&gt; openModal(selectedId), [selectedId])
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/controller/ControllerIntimacoes.tsx</span>
+          <span class="tag tag-action">react-hotkeys-hook</span>
+          <span class="tag tag-action">6 atalhos</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- P1 FIXES -->
+  <div class="section">
+    <div class="section-title">🟡 P1 — Importantes (6 fixes)</div>
+
+    <!-- P1-1: Distribuição modal geração docs -->
+    <div class="fix-card p1">
+      <div class="fix-icon p1">📄</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Distribuição — Modal geração de documentos não implementado</div>
+            <div class="fix-rm">RM-07 A2 · Fluxo "Aguardando Preparo"</div>
+          </div>
+          <span class="chip chip-yellow">P1</span>
+        </div>
+        <div class="fix-desc">
+          A seção "Aguardando Preparo" (TabPreparacao) não tem modal de revisão/checklist de documentos. O fluxo requer:
+          <ul>
+            <li>Modal: resumo do processo (parte autora, empresa ré, tipo ação, comarca)</li>
+            <li>Checklist: documentos necessários com status (gerado ✅ / pendente ⏳ / erro ❌)</li>
+            <li>Botão "Gerar Petição Inicial" → abre OlivIA com processo pré-selecionado</li>
+            <li>Botão "Gerar Comprovantes" → n8n webhook (declaração hipossuficiência, etc.)</li>
+            <li>Upload manual (procuração assinada)</li>
+            <li>Botão "Marcar como Pronto" → muda status para "Aguardando Distribuição"</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/distribuicao/components/TabPreparacao.tsx</span>
+          <span class="tag tag-action">Novo modal</span>
+          <span class="tag tag-action">link OlivIA</span>
+          <span class="tag tag-action">n8n webhook</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1-2: Distribuição aba Jarbas -->
+    <div class="fix-card p1">
+      <div class="fix-icon p1">🤖</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Distribuição — Aba Jarbas sem dados (status protocolos, alertas)</div>
+            <div class="fix-rm">RM-07 A6 · Monitoramento pós-distribuição</div>
+          </div>
+          <span class="chip chip-yellow">P1</span>
+        </div>
+        <div class="fix-desc">
+          <code>TabJarbas.tsx</code> existe na distribuição mas precisa ser conectado com dados reais:
+          <ul>
+            <li>Status dos protocolos em andamento pelo Jarbas (tabela <code>jarbas_tarefas</code>)</li>
+            <li>Processos monitorados pós-distribuição com última verificação</li>
+            <li>Alertas de rejeição/pendência do tribunal (EPROC/TJRS/TJSC/TJSP)</li>
+            <li>Gráfico de volume de distribuições por dia/semana</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/distribuicao/components/TabJarbas.tsx</span>
+          <span class="tag tag-action">jarbas_tarefas query</span>
+          <span class="tag tag-action">alertas rejeição</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1-3: Controller aba documentos sync -->
+    <div class="fix-card p1">
+      <div class="fix-icon p1">🔗</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Controller — Aba documentos não sincroniza com docs_pendentes</div>
+            <div class="fix-rm">RM-05 A12 · Sync bidirecional</div>
+          </div>
+          <span class="chip chip-yellow">P1</span>
+        </div>
+        <div class="fix-desc">
+          A aba "Documentos" no modal de intimação deve listar os <code>documentos_pendentes</code> vinculados ao processo daquela intimação. Atualmente a sincronização não existe:
+          <ul>
+            <li>Query: <code>documentos_pendentes WHERE processo_id = intimacao.processo_id</code></li>
+            <li>Status de cada doc: gerado / pendente / vencido</li>
+            <li>Link direto para <code>/documentos-pendentes</code> com filtro pré-aplicado</li>
+            <li>Botão "Criar doc pendente" a partir da intimação</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/controller/ControllerModalTabAcoes.tsx</span>
+          <span class="tag tag-action">documentos_pendentes</span>
+          <span class="tag tag-action">processo_id join</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1-4: Controller modal arquivados -->
+    <div class="fix-card p1">
+      <div class="fix-icon p1">🗃️</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Controller — Clicar em item arquivado não abre modal</div>
+            <div class="fix-rm">RM-05 A14 · Modais arquivados + monitoramento</div>
+          </div>
+          <span class="chip chip-yellow">P1</span>
+        </div>
+        <div class="fix-desc">
+          Dois modais ausentes:
+          <ul>
+            <li><strong>Modal Arquivados:</strong> clicar num item arquivado abre modal com motivo do arquivamento, data, quem arquivou, opção de desarquivar e reprocessar</li>
+            <li><strong>Modal Monitoramento:</strong> acessível via botão no <code>ControllerJarbasStatusCard</code> — lista processos monitorados pelo Jarbas, status de cada monitoramento, última verificação, alertas de mudança</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/controller/ControllerArquivados.tsx</span>
+          <span class="tag tag-file">src/pages/controller/ControllerJarbasStatusCard.tsx</span>
+          <span class="tag tag-action">2 modais novos</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1-5: Docs Pendentes estabilização -->
+    <div class="fix-card p1">
+      <div class="fix-icon p1">⚡</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Documentos Pendentes — Estabilização pós 4 patches (testar com dados reais)</div>
+            <div class="fix-rm">RM-18 · 4 bugs corrigidos hoje</div>
+          </div>
+          <span class="chip chip-yellow">P1</span>
+        </div>
+        <div class="fix-desc">
+          Hoje foram aplicados 4 patches críticos. É necessário testar o fluxo completo com dados reais antes de dar como estável:
+          <ul>
+            <li>✅ BUG-1: Auth race condition + isError state no accordion — corrigido</li>
+            <li>✅ BUG-2: <code>users.deleted_at</code> query inexistente — corrigido</li>
+            <li>✅ BUG-3: FK relational embed quebrando / export orgId — corrigido</li>
+            <li>✅ BUG-4: <code>prazo_limite</code> default +7 dias no modal — corrigido</li>
+            <li>⚠️ <strong>TESTE OBRIGATÓRIO:</strong> criar documento pendente → listar → editar → concluir → exportar</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-action">teste E2E</span>
+          <span class="tag tag-action">fluxo completo</span>
+          <span class="tag tag-action">dados reais</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1-6: Distribuição redirect pós-distribuição -->
+    <div class="fix-card p1">
+      <div class="fix-icon p1">↩️</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Distribuição — Redirect incorreto após distribuir processo</div>
+            <div class="fix-rm">RM-07 A4 · Bug UX pós-ação</div>
+          </div>
+          <span class="chip chip-yellow">P1</span>
+        </div>
+        <div class="fix-desc">
+          Após clicar "Efetuar Distribuição" no modal, o usuário é redirecionado para fora da página atual. O correto é: fechar o modal e permanecer na tab "Aguardando Distribuição" com lista atualizada (invalidar query).
+          <ul>
+            <li>Remover qualquer <code>navigate()</code> dentro do fluxo de sucesso</li>
+            <li>Ao invés: <code>queryClient.invalidateQueries(['distribuicao'])</code></li>
+            <li>Toast de sucesso: "Processo distribuído com sucesso"</li>
+            <li>Modal fecha → lista recarrega na tab</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/distribuicao/modals/ModalEfetuarDistribuicao.tsx</span>
+          <span class="tag tag-action">invalidateQueries</span>
+          <span class="tag tag-action">remover navigate()</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- P2 FIXES -->
+  <div class="section">
+    <div class="section-title">🔵 P2 — Médios (3 fixes)</div>
+
+    <!-- P2-1: Controller automações Jarbas -->
+    <div class="fix-card p2">
+      <div class="fix-icon p2">🦞</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Controller — Múltiplas sugestões de atividade por intimação</div>
+            <div class="fix-rm">RM-05 A15+A16 · IA productivity</div>
+          </div>
+          <span class="chip chip-blue">P2</span>
+        </div>
+        <div class="fix-desc">
+          Atualmente <code>ControllerSheetAtividade</code> só mostra 1 sugestão de atividade (<code>haIaSuggestion</code>). A RM pede:
+          <ul>
+            <li>Múltiplas sugestões de atividade geradas pela IA para cada intimação (array, não string)</li>
+            <li>Botão "Enviar para Jarbas" dentro do modal (A15): dispara <code>jarbas_tarefas</code> com a intimação</li>
+            <li>Progress indicator enquanto Jarbas processa</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/pages/controller/ControllerSheetAtividade.tsx</span>
+          <span class="tag tag-file">src/pages/controller/ControllerModalTabChat.tsx</span>
+          <span class="tag tag-action">sugestoes[] array</span>
+          <span class="tag tag-action">jarbas_tarefas</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2-2: CRM aba restrições bulk -->
+    <div class="fix-card p2">
+      <div class="fix-icon p2">📂</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">CRM — Aba restrições: upload bulk CSV não implementado</div>
+            <div class="fix-rm">RM-06 A6 · ImportExportBar</div>
+          </div>
+          <span class="chip chip-blue">P2</span>
+        </div>
+        <div class="fix-desc">
+          <code>ClienteDrawerTabRestricoes.tsx</code> tem CRUD manual mas não tem upload bulk CSV. A RM pede:
+          <ul>
+            <li>Importar <code>ImportExportBar</code> do Shell (já existe em <code>src/components/shared/import_export_bar.tsx</code>)</li>
+            <li>CSV columns: empresa, valor, data, tipo</li>
+            <li>Preview antes de confirmar import</li>
+            <li>Nota: este fix é bloqueado pelo P0 CRM (migração ClienteDrawer → Modal). Após P0 resolvido, este fica mais simples.</li>
+          </ul>
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-file">src/components/shared/cliente_drawer/tabs/ClienteDrawerTabRestricoes.tsx</span>
+          <span class="tag tag-file">src/components/shared/import_export_bar.tsx</span>
+          <span class="tag tag-action">bloqueado por P0-2</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2-3: Distribuição A3 deep review fluxo PI -->
+    <div class="fix-card p2">
+      <div class="fix-icon p2">⚖️</div>
+      <div class="fix-body">
+        <div class="fix-header">
+          <div>
+            <div class="fix-title">Distribuição — Deep review fluxo geração petição inicial</div>
+            <div class="fix-rm">RM-07 A3 · E2E petição → protocolo EPROC</div>
+          </div>
+          <span class="chip chip-blue">P2</span>
+        </div>
+        <div class="fix-desc">
+          A RM marcou este item como "⚠️ DEEP REVIEW" — o fluxo completo ainda não foi validado ponta-a-ponta:
+          <ul>
+            <li>Gerar petição inicial via OlivIA → salvar em storage</li>
+            <li>Gerar declaração de hipossuficiência</li>
+            <li>Gerar procuração (se template disponível)</li>
+            <li>Todos os docs presentes → habilitar botão "Protocolar no EPROC" via Jarbas</li>
+            <li>Status de retorno do EPROC visível na aba Jarbas</li>
+          </ul>
+          Este item depende do P1 "Modal geração docs" (RM-07 A2).
+        </div>
+        <div class="fix-tags">
+          <span class="tag tag-action">depende de P1</span>
+          <span class="tag tag-action">OlivIA → EPROC</span>
+          <span class="tag tag-action">fluxo E2E</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- O QUE ESTÁ OK -->
+  <div class="section">
+    <div class="section-title">✅ Itens que pareciam pendentes mas estão OK</div>
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; display:grid; gap:10px;">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Modelos tabs (Tags, Playbooks, Blocos, Jurisprudências)</strong> — todos têm hooks reais (<code>useTags</code>, <code>usePlaybooks</code>, <code>useJurisprudencias</code>, <code>useBlocos</code>) com 5-12 queries Supabase cada</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Suggestion bubbles no Controller chat</strong> — array <code>chatSuggestions</code> existe em <code>ControllerModalTabChat.tsx:42</code> com as 4 sugestões corretas</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Homepage</strong> — totalmente com dados reais: <code>useHomepagePessoal</code>, <code>useHomepageGestor</code>, toggle período, KPIs clicáveis com <code>navigateTo</code></span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Dashboard (TV)</strong> — <code>useDashboardRefresh</code>, dados reais, modo kiosk, fullscreen</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Relatórios</strong> — <code>useRelatoriosQuery</code>, 36 queries Supabase, KPIs reais</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Usuário — dirty state banner</strong> — <code>dirtyMap</code>, <code>isDirty</code>, <code>setDirty</code> todos implementados</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Clientes — CPF obrigatório</strong> — <code>.min(1, 'CPF obrigatório')</code> + validação 11 dígitos + check duplicata no <code>NovoClienteModal.tsx</code></span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Página Processo — aba OlivIA</strong> — <code>ProcessoTabOlivia.tsx</code> funcional com chat real via <code>olivia/chat</code> webhook</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>Light mode CSS</strong> — <code>.light</code> class existe em <code>index.css</code> com tokens completos (shell permanece dark)</span>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="chip chip-green">✅</span>
+        <span><strong>TypeScript Build</strong> — <strong>0 erros</strong> em toda a codebase</span>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEQUÊNCIA RECOMENDADA -->
+  <div class="section">
+    <div class="section-title">🎯 Sequência Recomendada de Execução</div>
+    <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px;">
+      <div style="display:grid; gap:12px;">
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#ef444422; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--red);">1</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">CRM — Trocar ClienteDrawer → ModalShellCliente</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">~5 linhas de código. Desbloqueador do P2-2 (bulk restrições). Impacto visual alto no CRM.</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#ef444422; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--red);">2</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">Financeiro — BlindedValue em todos os valores</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">Segurança. 4-5 arquivos, pattern repetitivo. Estimar ~30 min.</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#ef444422; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--red);">3</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">Controller — Hotkeys (U/N/A/→/←/Enter/Esc)</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">Grande impacto na velocidade de triagem. ~1h de implementação.</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#eab30822; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--yellow);">4</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">Distribuição — Fix redirect pós-distribuição</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">1 linha. Remover navigate(), adicionar invalidateQueries.</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#eab30822; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--yellow);">5</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">Docs Pendentes — Testar fluxo E2E completo</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">Sem código novo. Apenas validação com dados reais após 4 patches.</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#eab30822; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--yellow);">6</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">Controller — Modais Arquivados + Monitoramento Jarbas</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">2 modais novos. Moderado.</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#eab30822; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--yellow);">7</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">Distribuição — Modal geração docs + Aba Jarbas</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">Complexo. Integração com OlivIA e jarbas_tarefas.</div>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:36px 1fr; gap:12px; align-items:start;">
+          <div style="width:36px; height:36px; background:#3b82f622; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:800; color:var(--blue);">8</div>
+          <div>
+            <div style="font-weight:700; color:#fff;">P2s: Controller sync docs · CRM bulk restrições · Distribuição fluxo PI E2E</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;">Após P0s e P1s concluídos.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div>🦞 JARBAS · Deep Research · git log + source code analysis · 685 commits analisados</div>
+  <div>11/03/2026 · OlivIA excluída desta análise (tratada separadamente)</div>
+</div>
+
+</body>
+</html>

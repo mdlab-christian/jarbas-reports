@@ -114,6 +114,7 @@
   <a href="#pedidos">Pedidos Gustavo</a>
   <a href="#agendamento">Modelo Agendamento</a>
   <a href="#execucao">Ordem de Execução</a>
+  <a href="#regras">Fluxo + Regras</a>
 </nav>
 
 <div class="header">
@@ -527,12 +528,90 @@ const { data: advogadoDoCliente } = useQuery({
         <td><span class="tag tag-p1">P1 OlivIA</span></td>
         <td><code>OlivIA skill</code></td>
       </tr>
+          <tr>
+        <td><strong>12</strong></td>
+        <td><strong>G6: Alerta anti-litância visível nos Agendados</strong><br><span style="color:var(--muted);font-size:12px">Badge de aviso se mesmo cliente+empresa agendados para o mesmo dia</span></td>
+        <td><span class="source-tag src-audio">🎙️ Áudio</span></td>
+        <td><span class="tag tag-p1">P1</span></td>
+        <td><code>TabAgendados.tsx</code></td>
+      </tr>
     </table>
 
     <div class="alert alert-success" style="margin-top:20px">
       <div>✅</div>
       <div>
         <strong>Quando itens 1–7 estiverem prontos:</strong> Gustavo agenda os primeiros processos → JARBAS distribui em modo de teste (1 por OAB) → mede tempo real → ajusta N proc/hora → escala.
+      </div>
+    </div>
+  </div>
+
+
+  <!-- FLUXO AGENDAMENTO + REGRA ANTI-LITIGÂNCIA -->
+  <div class="section" id="regras">
+    <div class="section-title">📌 Fluxo de Agendamento Confirmado + Regra Anti-Litância</div>
+
+    <div class="card" style="border-color:var(--primary)">
+      <div class="card-title" style="color:var(--primary-light)">🔄 Fluxo combinado: Gustavo + JARBAS</div>
+      <div class="flow">
+        <div class="fbox ok">Gustavo agenda<br><small>processos por data</small></div>
+        <div class="farrow">→</div>
+        <div class="fbox ok">JARBAS valida<br><small>regras + conflitos</small></div>
+        <div class="farrow">→</div>
+        <div class="fbox new">Gustavo confirma<br><small>via Telegram/MdFlow</small></div>
+        <div class="farrow">→</div>
+        <div class="fbox ok">JARBAS distribui<br><small>na ordem agendada</small></div>
+        <div class="farrow">→</div>
+        <div class="fbox ok">Relatório<br><small>CNJ + resultados</small></div>
+      </div>
+      <div style="font-size:13px;color:var(--muted);margin-top:12px">
+        Gustavo não precisa dizer horário específico — vai adicionando os processos nos agendados conforme estiverem 100% prontos (petição gerada, dados ok) e confirma com o JARBAS. O JARBAS executa assim que confirmado.
+      </div>
+    </div>
+
+    <div class="issue-card p1">
+      <div class="issue-header">
+        <div>
+          <div class="issue-title">Regra de Negócio: Anti-Litância por Empresa/Dia</div>
+          <div class="issue-meta"><span class="source-tag src-audio">🎙️ Áudio Gustavo 22:35</span></div>
+        </div>
+        <span class="badge badge-success">Já implementado no JARBAS</span>
+      </div>
+      <div class="issue-body">
+        <strong>Regra:</strong> Mesmo cliente + mesma empresa → máximo 1 distribuição por dia.<br><br>
+        <strong>Exemplo prático:</strong> Cliente tem 2 restrições do Mercado Pago + 1 da Boa Vista.
+        <ul class="list" style="margin-top:8px">
+          <li>✅ Dia 1: distribui 1x Mercado Pago + 1x Boa Vista</li>
+          <li>⏳ Dia 2: distribui o 2º Mercado Pago</li>
+          <li>❌ Errado: 2x Mercado Pago no mesmo dia</li>
+        </ul>
+        <br>
+        <strong>Status no JARBAS:</strong> Função <code>verificarAntiLitigancia(autorCpf, nomeReu)</code> já implementada em <code>skill_distribuicao.mjs</code>. Verifica <code>jarbas_tarefas</code> do dia com mesmo CPF + mesmo réu.<br><br>
+        <strong>O que falta (G6 — novo item):</strong> Expor essa validação na aba <strong>Agendados</strong> do front-end. Se Gustavo agendar 2 processos do mesmo cliente+empresa para o mesmo dia, o MdFlow deve exibir um aviso <span style="color:#fbbf24">⚠️ Conflito: mesmo cliente+empresa no mesmo dia</span> antes de confirmar.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">➕ G6 — Validação anti-litância visível nos Agendados (novo item)</div>
+      <div style="font-size:13px;color:var(--muted)">
+        <strong>Onde:</strong> <code>TabAgendados.tsx</code> ou <code>WizardAgendarDistribuicao.tsx</code><br>
+        <strong>Quando:</strong> Ao salvar/visualizar a lista de agendados, cruzar: mesmo processo_cliente_id + mesma empresa_id + mesma data_agendamento → badge de aviso.<br>
+        <strong>Ação:</strong> Aviso visual (não bloqueia), Gustavo reorganiza manualmente se necessário.
+        <pre style="font-size:11px">-- Query de detecção de conflito nos agendados
+SELECT 
+  p1.id as processo_1, p2.id as processo_2,
+  c.nome as cliente, e.nome_fantasia as empresa,
+  a1.data_agendamento
+FROM processos_agendamentos a1
+JOIN processos_agendamentos a2 
+  ON a1.data_agendamento::date = a2.data_agendamento::date
+  AND a1.id != a2.id
+JOIN processos p1 ON a1.processo_id = p1.id
+JOIN processos p2 ON a2.processo_id = p2.id
+JOIN clientes c ON p1.cliente_id = c.id
+JOIN empresas e ON p1.empresa_id = e.id
+WHERE p1.cliente_id = p2.cliente_id
+  AND p1.empresa_id = p2.empresa_id
+  AND a1.status = 'pendente';</pre>
       </div>
     </div>
   </div>

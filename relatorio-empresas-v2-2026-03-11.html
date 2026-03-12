@@ -1,0 +1,3428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório de Empresas — MdFlow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+  
+  .header { background: linear-gradient(135deg, #1a1f2e 0%, #16213e 100%); padding: 32px 40px; border-bottom: 1px solid #2d3748; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .header p { color: #718096; font-size: 14px; }
+  
+  .stats { display: flex; gap: 20px; padding: 24px 40px; background: #141821; border-bottom: 1px solid #2d3748; flex-wrap: wrap; }
+  .stat { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 16px 24px; min-width: 160px; }
+  .stat .value { font-size: 28px; font-weight: 700; color: #63b3ed; }
+  .stat .label { font-size: 12px; color: #718096; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat.warning .value { color: #f6ad55; }
+  .stat.success .value { color: #68d391; }
+  .stat.danger .value { color: #fc8181; }
+
+  .container { padding: 32px 40px; }
+  
+  .section-title { font-size: 18px; font-weight: 600; color: #fff; margin-bottom: 16px; margin-top: 32px; display: flex; align-items: center; gap: 10px; }
+  .section-title:first-child { margin-top: 0; }
+  .badge { font-size: 11px; background: #2d3748; color: #a0aec0; padding: 3px 8px; border-radius: 20px; font-weight: 500; }
+  .badge.red { background: #742a2a; color: #fc8181; }
+  .badge.green { background: #1c4532; color: #68d391; }
+  .badge.yellow { background: #744210; color: #f6ad55; }
+
+  /* Duplicate groups */
+  .dup-group { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .dup-group-header { background: #16213e; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2d3748; }
+  .dup-group-name { font-weight: 600; color: #e2e8f0; font-size: 15px; }
+  .dup-group-stats { display: flex; gap: 12px; font-size: 12px; color: #718096; }
+  .dup-group-body { padding: 0; }
+  .dup-row { display: grid; grid-template-columns: 2fr 1.5fr 80px 100px 120px 80px; gap: 16px; padding: 12px 20px; border-bottom: 1px solid #1e2535; align-items: center; font-size: 13px; }
+  .dup-row:last-child { border-bottom: none; }
+  .dup-row.principal { background: rgba(72, 187, 120, 0.05); }
+  .dup-row.mergeable { background: rgba(246, 173, 85, 0.04); }
+  .dup-row-header { background: #0f1117; color: #718096; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .nome-empresa { font-weight: 500; }
+  .tag { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+  .tag.principal { background: #1c4532; color: #68d391; }
+  .tag.merge { background: #744210; color: #f6ad55; }
+  .tag.nao-proc { background: #742a2a; color: #fc8181; }
+  .proc-count { font-weight: 700; color: #63b3ed; }
+  .cnpj-text { font-family: monospace; font-size: 11px; color: #a0aec0; }
+
+  /* Main table */
+  .table-wrap { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; overflow: hidden; margin-bottom: 32px; }
+  .table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .table th { background: #0f1117; color: #718096; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 12px 16px; text-align: left; font-weight: 600; border-bottom: 1px solid #2d3748; }
+  .table td { padding: 11px 16px; border-bottom: 1px solid #1e2535; vertical-align: middle; }
+  .table tr:last-child td { border-bottom: none; }
+  .table tr:hover td { background: rgba(255,255,255,0.02); }
+  .table tr.is-dup td:first-child { border-left: 3px solid #f6ad55; }
+  .table tr.is-dup.is-principal td:first-child { border-left: 3px solid #68d391; }
+  
+  .cat-badge { display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  .cat-if { background: #1a365d; color: #63b3ed; }
+  .cat-ee { background: #1c4532; color: #48bb78; }
+  .cat-tel { background: #322659; color: #b794f4; }
+  .cat-loja { background: #7b341e; color: #fbb6ce; }
+  .cat-ens { background: #234e52; color: #4fd1c5; }
+  .cat-or { background: #2d3748; color: #e2e8f0; }
+  .cat-ml { background: #1e3a5f; color: #76e4f7; }
+  .cat-cos { background: #521b41; color: #f9a8d4; }
+  .cat-cess { background: #3d2314; color: #fbd38d; }
+  .cat-serv { background: #2d3748; color: #a0aec0; }
+  .cat-none { background: #1a1f2e; color: #718096; }
+
+  .estado-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+  .estado-tag { background: #2d3748; color: #a0aec0; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; }
+  
+  .bar-wrap { background: #2d3748; border-radius: 3px; height: 4px; width: 80px; display: inline-block; vertical-align: middle; }
+  .bar { background: #63b3ed; border-radius: 3px; height: 4px; }
+
+  .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-btn { background: #1a1f2e; border: 1px solid #2d3748; color: #a0aec0; padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+  .filter-btn:hover, .filter-btn.active { background: #2d3748; color: #fff; border-color: #4a5568; }
+
+  .processaveis-section { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; overflow: hidden; }
+  
+  @media (max-width: 768px) {
+    .header { padding: 20px; }
+    .container { padding: 20px; }
+    .stats { padding: 16px 20px; }
+    .dup-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Relatório de Empresas — MdFlow</h1>
+  <p>Gerado em 12/03/2026 às 00:01 · Investigação de duplicatas, categorias e endereços</p>
+</div>
+
+<div class="stats">
+  <div class="stat">
+    <div class="value">120</div>
+    <div class="label">Empresas Total</div>
+  </div>
+  <div class="stat">
+    <div class="value">7,388</div>
+    <div class="label">Processos Vinculados</div>
+  </div>
+  <div class="stat success">
+    <div class="value">107</div>
+    <div class="label">Processáveis</div>
+  </div>
+  <div class="stat warning">
+    <div class="value">15</div>
+    <div class="label">Grupos c/ Duplicatas</div>
+  </div>
+  <div class="stat danger">
+    <div class="value">17</div>
+    <div class="label">Registros p/ Fundir</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SECTION: DUPLICATAS -->
+  <div class="section-title">
+    🔀 Grupos com Duplicatas — Pendentes de Fusão
+    <span class="badge yellow">15 grupos · 17 registros a fundir</span>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Nu Pagamentos / Nubank</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 624 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">NU PAGAMENTOS S.A. - INSTITUICAO DE PAGAMENTO<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">18.236.120/0001-58</div>
+        <div class="proc-count">457</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">NU PAGAMENTOS SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">18.236.120/0001-58</div>
+        <div class="proc-count">167</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Banco Santander</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 397 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">BANCO SANTANDER (BRASIL) S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">90.400.888/0001-42</div>
+        <div class="proc-count">330</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">BANCO SANTANDER SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">90.400.888/0001-42</div>
+        <div class="proc-count">67</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Banco do Brasil</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 315 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">BANCO DO BRASIL S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">236</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">BANCO DO BRASIL SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">00.000.000/0001-91</div>
+        <div class="proc-count">79</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Itaú Unibanco</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 271 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">ITAU UNIBANCO S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">60.652.503/0001-58</div>
+        <div class="proc-count">227</div>
+        <div><div class="estado-tags"><span class="estado-tag">SP</span><span class="estado-tag">RS</span><span class="estado-tag">SC</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">ITAU UNIBANCO SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">44</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Banco Bradesco</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 167 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">BANCO BRADESCO S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">60.746.948/0001-12</div>
+        <div class="proc-count">117</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">BANCO BRADESCO SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">50</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Banrisul</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 262 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">BANCO DO ESTADO DO RIO GRANDE DO SUL S.A. - BANRISUL<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">92.702.067/0001-96</div>
+        <div class="proc-count">215</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">BANRISUL SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">92.702.067/0001-96</div>
+        <div class="proc-count">47</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Telefônica Vivo</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 143 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Telefonia e Internet</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">TELEFONICA BRASIL S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">02.558.157/0001-62</div>
+        <div class="proc-count">107</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SP</span><span class="estado-tag">SC</span></div></div>
+        <div>Telefonia e Internet</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">TELEFONICA BRASIL SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">36</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Telefonia e Internet</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">RGE Sul</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 351 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Energia Elétrica</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">RGE SUL DISTRIBUIDORA DE ENERGIA S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">02.016.440/0001-62</div>
+        <div class="proc-count">250</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">RGE SUL DISTRIBUIDORA DE ENERGIA SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">101</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Eletropaulo / Enel SP</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 315 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Energia Elétrica</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">ENEL ELETROPAULO METR ELET SAO PAULO<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">61.695.227/0001-93</div>
+        <div class="proc-count">191</div>
+        <div><div class="estado-tags"><span class="estado-tag">SP</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">ELETROPAULO METROPOLITANA ELETRICIDADE DE SAO PAULO S.A.<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">124</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">EDP São Paulo</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 125 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Energia Elétrica</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">EDP SÃO PAULO DISTRIBUIDORA DE ENERGIA SA<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">02.302.100/0001-06</div>
+        <div class="proc-count">81</div>
+        <div><div class="estado-tags"><span class="estado-tag">SP</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">EDP SAO PAULO DISTRIBUICAO DE ENERGIA S.A.<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">44</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">CELESC</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 132 processos totais</span>
+        <span>📁 3 registros</span>
+        <span>🏷️ Energia Elétrica</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">CENTRAIS ELETRICAS DE SANTA CATARINA S.A. - CELESC<span class="tag principal">PRINCIPAL</span><span class="tag nao-proc">NÃO PROC.</span></div>
+        <div class="cnpj-text">08.336.783/0001-90</div>
+        <div class="proc-count">76</div>
+        <div><div class="estado-tags"><span class="estado-tag">SC</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">CELESC - CENTRAIS ELETRICAS DE SANTA CATARINA SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">83.878.892/0001-55</div>
+        <div class="proc-count">30</div>
+        <div><div class="estado-tags"><span class="estado-tag">SC</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">CENTRAIS ELETRICAS DE SANTA CATARINA SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">26</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Energia Elétrica</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Sicredi</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 77 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">BANCO COOPERATIVO SICREDI S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">01.181.521/0001-55</div>
+        <div class="proc-count">57</div>
+        <div><div class="estado-tags"><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">BANCO COOPERATIVO SICREDI SA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">20</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Vero S.A.</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 121 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">VERO S.A.<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">31.748.174/0001-60</div>
+        <div class="proc-count">61</div>
+        <div><div class="estado-tags"><span class="estado-tag">SC</span><span class="estado-tag">SP</span><span class="estado-tag">RS</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">VERO S/A<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">60</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Ativos S.A.</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 125 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">ATIVOS S.A. SECURITIZADORA DE CREDITOS FINANCEIROS<span class="tag principal">PRINCIPAL</span></div>
+        <div class="cnpj-text">05.437.257/0001-29</div>
+        <div class="proc-count">110</div>
+        <div><div class="estado-tags"><span class="estado-tag">DF</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">ATIVOS SA - SEC DE CREDITOS FINANCEIROS<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">05.437.257/0001-29</div>
+        <div class="proc-count">15</div>
+        <div><div class="estado-tags"><span class="estado-tag">DF</span></div></div>
+        <div>Cessão</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dup-group">
+    <div class="dup-group-header">
+      <div class="dup-group-name">Itapeva XI</div>
+      <div class="dup-group-stats">
+        <span>🗂️ 48 processos totais</span>
+        <span>📁 2 registros</span>
+        <span>🏷️ Instituições Financeiras</span>
+      </div>
+    </div>
+    <div class="dup-group-body">
+      <div class="dup-row dup-row-header">
+        <div>Nome</div>
+        <div>CNPJ</div>
+        <div>Processos</div>
+        <div>Estados</div>
+        <div>Categoria</div>
+        <div>Status</div>
+      </div>
+
+      <div class="dup-row principal">
+        <div class="nome-empresa">ITAPEVA XI MULTICARTEIRA FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS RESPONSABILIDADE LIMITADA<span class="tag principal">PRINCIPAL</span><span class="tag nao-proc">NÃO PROC.</span></div>
+        <div class="cnpj-text">—</div>
+        <div class="proc-count">35</div>
+        <div><div class="estado-tags"><span style="color:#4a5568">—</span></div></div>
+        <div>Instituições Financeiras</div>
+        <div>✅ Ativo</div>
+      </div>
+
+      <div class="dup-row mergeable">
+        <div class="nome-empresa">ITAPEVA XI MULTICARTEIRA<span class="tag merge">FUNDIR</span></div>
+        <div class="cnpj-text">30.366.204/0001-01</div>
+        <div class="proc-count">13</div>
+        <div><div class="estado-tags"><span class="estado-tag">SP</span></div></div>
+        <div>Cessão</div>
+        <div>✅ Ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION: TODAS AS EMPRESAS -->
+  <div class="section-title" style="margin-top:40px;">
+    🏢 Todas as Empresas — Ranking por Processos
+    <span class="badge">120 empresas</span>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nome da Empresa</th>
+          <th>CNPJ</th>
+          <th>Categoria</th>
+          <th>Processos</th>
+          <th>Estados</th>
+          <th>Processável</th>
+          <th>Grupo</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">1</td>
+          <td><span style="font-weight:500">BOA VISTA SERVICOS S.A.</span></td>
+          <td class="cnpj-text">11.725.176/0001-27</td>
+          <td><span class="cat-badge cat-or">Órgão Restritivo</span></td>
+          <td>
+            <span class="proc-count">1,632</span>
+            <div class="bar-wrap"><div class="bar" style="width:80px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Boa Vista</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">2</td>
+          <td><span style="font-weight:500">MERCADO PAGO INSTITUICAO DE PAGAMENTO LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">573</span>
+            <div class="bar-wrap"><div class="bar" style="width:28px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">3</td>
+          <td><span style="font-weight:500">NU PAGAMENTOS S.A. - INSTITUICAO DE PAGAMENTO</span></td>
+          <td class="cnpj-text">18.236.120/0001-58</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">457</span>
+            <div class="bar-wrap"><div class="bar" style="width:22px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Nu Pagamentos / Nubank</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">4</td>
+          <td><span style="font-weight:500">BANCO SANTANDER (BRASIL) S.A.</span></td>
+          <td class="cnpj-text">90.400.888/0001-42</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">330</span>
+            <div class="bar-wrap"><div class="bar" style="width:16px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banco Santander</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">5</td>
+          <td><span style="font-weight:500">MERCADOPAGO REPRESENTACOES LTDA</span></td>
+          <td class="cnpj-text">10.573.521/0001-91</td>
+          <td><span class="cat-badge cat-ml">Mercado Livre</span></td>
+          <td>
+            <span class="proc-count">297</span>
+            <div class="bar-wrap"><div class="bar" style="width:14px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">6</td>
+          <td><span style="font-weight:500">RGE SUL DISTRIBUIDORA DE ENERGIA S.A.</span></td>
+          <td class="cnpj-text">02.016.440/0001-62</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">250</span>
+            <div class="bar-wrap"><div class="bar" style="width:12px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">RGE Sul</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">7</td>
+          <td><span style="font-weight:500">BANCO DO BRASIL S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">236</span>
+            <div class="bar-wrap"><div class="bar" style="width:11px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banco do Brasil</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">8</td>
+          <td><span style="font-weight:500">ITAU UNIBANCO S.A.</span></td>
+          <td class="cnpj-text">60.652.503/0001-58</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">227</span>
+            <div class="bar-wrap"><div class="bar" style="width:11px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span><span class="estado-tag">RS</span><span class="estado-tag">SC</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Itaú Unibanco</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">9</td>
+          <td><span style="font-weight:500">BANCO DO ESTADO DO RIO GRANDE DO SUL S.A. - BANRISUL</span></td>
+          <td class="cnpj-text">92.702.067/0001-96</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">215</span>
+            <div class="bar-wrap"><div class="bar" style="width:10px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banrisul</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">10</td>
+          <td><span style="font-weight:500">BOTICARIO PRODUTOS DE BELEZA LTDA</span></td>
+          <td class="cnpj-text">11.137.051/0001-86</td>
+          <td><span class="cat-badge cat-cos">Revendedor Cosméticos</span></td>
+          <td>
+            <span class="proc-count">198</span>
+            <div class="bar-wrap"><div class="bar" style="width:9px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">11</td>
+          <td><span style="font-weight:500">ENEL ELETROPAULO METR ELET SAO PAULO</span></td>
+          <td class="cnpj-text">61.695.227/0001-93</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">191</span>
+            <div class="bar-wrap"><div class="bar" style="width:9px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Eletropaulo / Enel SP</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">12</td>
+          <td><span style="font-weight:500">NU PAGAMENTOS SA</span></td>
+          <td class="cnpj-text">18.236.120/0001-58</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">167</span>
+            <div class="bar-wrap"><div class="bar" style="width:8px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Nu Pagamentos / Nubank</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">13</td>
+          <td><span style="font-weight:500">ELETROPAULO METROPOLITANA ELETRICIDADE DE SAO PAULO S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">124</span>
+            <div class="bar-wrap"><div class="bar" style="width:6px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Eletropaulo / Enel SP</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">14</td>
+          <td><span style="font-weight:500">BANCO BRADESCO S.A.</span></td>
+          <td class="cnpj-text">60.746.948/0001-12</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">117</span>
+            <div class="bar-wrap"><div class="bar" style="width:5px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banco Bradesco</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">15</td>
+          <td><span style="font-weight:500">ATIVOS S.A. SECURITIZADORA DE CREDITOS FINANCEIROS</span></td>
+          <td class="cnpj-text">05.437.257/0001-29</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">110</span>
+            <div class="bar-wrap"><div class="bar" style="width:5px"></div></div>
+          </td>
+          <td><span class="estado-tag">DF</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Ativos S.A.</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">16</td>
+          <td><span style="font-weight:500">CAIXA ECONÔMICA FEDERAL</span></td>
+          <td class="cnpj-text">00.360.305/0001-04</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">110</span>
+            <div class="bar-wrap"><div class="bar" style="width:5px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">17</td>
+          <td><span style="font-weight:500">LEBES FINANCEIRA S.A. - CREDITO, FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">90.453.900/0001-60</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">109</span>
+            <div class="bar-wrap"><div class="bar" style="width:5px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">18</td>
+          <td><span style="font-weight:500">TELEFONICA BRASIL S.A.</span></td>
+          <td class="cnpj-text">02.558.157/0001-62</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td>
+            <span class="proc-count">107</span>
+            <div class="bar-wrap"><div class="bar" style="width:5px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span><span class="estado-tag">SC</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Telefônica Vivo</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">19</td>
+          <td><span style="font-weight:500">RGE SUL DISTRIBUIDORA DE ENERGIA SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">101</span>
+            <div class="bar-wrap"><div class="bar" style="width:4px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">RGE Sul</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">20</td>
+          <td><span style="font-weight:500">EDP SÃO PAULO DISTRIBUIDORA DE ENERGIA SA</span></td>
+          <td class="cnpj-text">02.302.100/0001-06</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">81</span>
+            <div class="bar-wrap"><div class="bar" style="width:3px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">EDP São Paulo</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">21</td>
+          <td><span style="font-weight:500">BANCO DO BRASIL SA</span></td>
+          <td class="cnpj-text">00.000.000/0001-91</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">79</span>
+            <div class="bar-wrap"><div class="bar" style="width:3px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banco do Brasil</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">22</td>
+          <td><span style="font-weight:500">CENTRAIS ELETRICAS DE SANTA CATARINA S.A. - CELESC</span></td>
+          <td class="cnpj-text">08.336.783/0001-90</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">76</span>
+            <div class="bar-wrap"><div class="bar" style="width:3px"></div></div>
+          </td>
+          <td><span class="estado-tag">SC</span></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td><span style="font-size:11px;color:#a0aec0">CELESC</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">23</td>
+          <td><span style="font-weight:500">FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS NAO PADRONIZADOS NPL II</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">75</span>
+            <div class="bar-wrap"><div class="bar" style="width:3px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">24</td>
+          <td><span style="font-weight:500">BANCO SANTANDER SA</span></td>
+          <td class="cnpj-text">90.400.888/0001-42</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">67</span>
+            <div class="bar-wrap"><div class="bar" style="width:3px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banco Santander</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">25</td>
+          <td><span style="font-weight:500">VERO S.A.</span></td>
+          <td class="cnpj-text">31.748.174/0001-60</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">61</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td><span class="estado-tag">SC</span><span class="estado-tag">SP</span><span class="estado-tag">RS</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Vero S.A.</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">26</td>
+          <td><span style="font-weight:500">VERO S/A</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">60</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Vero S.A.</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">27</td>
+          <td><span style="font-weight:500">BANCO COOPERATIVO SICREDI S.A.</span></td>
+          <td class="cnpj-text">01.181.521/0001-55</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">57</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Sicredi</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">28</td>
+          <td><span style="font-weight:500">CIA PAULISTA DE FORÇA E LUZ - CPFL ENERGIA S.A.</span></td>
+          <td class="cnpj-text">02.429.144/0001-93</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">56</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">29</td>
+          <td><span style="font-weight:500">BANCO BRADESCO SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">50</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banco Bradesco</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">30</td>
+          <td><span style="font-weight:500">FIDC MULTISEGMENTOS NPL IPANEMA VI RESPONSABILIDADE LIMITADA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">50</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">31</td>
+          <td><span style="font-weight:500">BANRISUL SA</span></td>
+          <td class="cnpj-text">92.702.067/0001-96</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">47</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Banrisul</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">32</td>
+          <td><span style="font-weight:500">ITAU UNIBANCO SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">44</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Itaú Unibanco</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">33</td>
+          <td><span style="font-weight:500">EDP SAO PAULO DISTRIBUICAO DE ENERGIA S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">44</span>
+            <div class="bar-wrap"><div class="bar" style="width:2px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">EDP São Paulo</span></td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">34</td>
+          <td><span style="font-weight:500">TELEFONICA BRASIL SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td>
+            <span class="proc-count">36</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Telefônica Vivo</span></td>
+        </tr>
+
+        <tr class="is-dup is-principal">
+          <td style="color:#4a5568;font-size:12px">35</td>
+          <td><span style="font-weight:500">ITAPEVA XI MULTICARTEIRA FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS RESPONSABILIDADE LIMITADA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">35</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td><span style="font-size:11px;color:#a0aec0">Itapeva XI</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">36</td>
+          <td><span style="font-weight:500">BANCO PAN S.A.</span></td>
+          <td class="cnpj-text">59.285.411/0001-13</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">35</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">37</td>
+          <td><span style="font-weight:500">LOJAS RIACHUELO SA</span></td>
+          <td class="cnpj-text">33.200.056/0001-49</td>
+          <td><span class="cat-badge cat-loja">Lojas</span></td>
+          <td>
+            <span class="proc-count">33</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">38</td>
+          <td><span style="font-weight:500">REALIZE SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">31</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">39</td>
+          <td><span style="font-weight:500">CELESC - CENTRAIS ELETRICAS DE SANTA CATARINA SA</span></td>
+          <td class="cnpj-text">83.878.892/0001-55</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">30</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td><span class="estado-tag">SC</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">CELESC</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">40</td>
+          <td><span style="font-weight:500">DM INSTITUICAO DE PAGAMENTO S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">26</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">41</td>
+          <td><span style="font-weight:500">CENTRAIS ELETRICAS DE SANTA CATARINA SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">26</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">CELESC</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">42</td>
+          <td><span style="font-weight:500">ANHANGUERA EDUCACIONAL PARTICIPACOES S.A.</span></td>
+          <td class="cnpj-text">04.310.392/0001-46</td>
+          <td><span class="cat-badge cat-ens">Ensino</span></td>
+          <td>
+            <span class="proc-count">25</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">43</td>
+          <td><span style="font-weight:500">BANCO ORIGINAL S.A.</span></td>
+          <td class="cnpj-text">92.894.922/0001-08</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">23</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">44</td>
+          <td><span style="font-weight:500">UNINTER EDUCACIONAL S.A.</span></td>
+          <td class="cnpj-text">02.261.854/0001-57</td>
+          <td><span class="cat-badge cat-ens">Ensino</span></td>
+          <td>
+            <span class="proc-count">23</span>
+            <div class="bar-wrap"><div class="bar" style="width:1px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">45</td>
+          <td><span style="font-weight:500">CIA PIRATININGA DE FORCA E LUZ CPFL</span></td>
+          <td class="cnpj-text">04.172.213/0001-51</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">20</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">46</td>
+          <td><span style="font-weight:500">BANCO COOPERATIVO SICREDI SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">20</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Sicredi</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">47</td>
+          <td><span style="font-weight:500">TABOR FUNDO DE INVEST EM DIREITOS CREDITORIOS NAO PADRONIZADOS</span></td>
+          <td class="cnpj-text">54.029.912/0001-15</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">19</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">48</td>
+          <td><span style="font-weight:500">SHPS TECNOLOGIA E SERVICOS LTDA.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td>
+            <span class="proc-count">19</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">49</td>
+          <td><span style="font-weight:500">BANCO BMG S.A.</span></td>
+          <td class="cnpj-text">61.186.680/0001-74</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">18</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">50</td>
+          <td><span style="font-weight:500">WILL FINANCEIRA S.A. CREDITO, FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">03.222.300/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">17</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">51</td>
+          <td><span style="font-weight:500">PICPAY INSTITUICAO DE PAGAMENTO S.A.</span></td>
+          <td class="cnpj-text">22.896.431/0002-00</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">16</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">52</td>
+          <td><span style="font-weight:500">FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS NAO-PADRONIZADOS NPL I</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">16</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">53</td>
+          <td><span style="font-weight:500">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td>
+          <td class="cnpj-text">05.437.257/0001-29</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td>
+            <span class="proc-count">15</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">DF</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Ativos S.A.</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">54</td>
+          <td><span style="font-weight:500">OMNI S.A. CREDITO FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">92.228.410/0001-02</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">14</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">55</td>
+          <td><span style="font-weight:500">COMPANHIA ESTADUAL DE DISTRIBUICAO DE ENERGIA ELETRICA - CEEE-D</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">14</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">56</td>
+          <td><span style="font-weight:500">BANCO C6 S.A.</span></td>
+          <td class="cnpj-text">31.872.495/0001-72</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">14</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">57</td>
+          <td><span style="font-weight:500">DMCARD CARTOES DE CREDITO SA</span></td>
+          <td class="cnpj-text">16.581.207/0001-37</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">13</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="is-dup">
+          <td style="color:#4a5568;font-size:12px">58</td>
+          <td><span style="font-weight:500">ITAPEVA XI MULTICARTEIRA</span></td>
+          <td class="cnpj-text">30.366.204/0001-01</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td>
+            <span class="proc-count">13</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td><span style="font-size:11px;color:#a0aec0">Itapeva XI</span></td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">59</td>
+          <td><span style="font-weight:500">BANCO ITAUCARD S.A.</span></td>
+          <td class="cnpj-text">17.192.451/0001-70</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">13</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">60</td>
+          <td><span style="font-weight:500">TELEMAR NORTE LESTE S.A.. - EM RECUPERACAO JUDICIAL</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-none">—</span></td>
+          <td>
+            <span class="proc-count">12</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">61</td>
+          <td><span style="font-weight:500">BANCO BRADESCARD SA</span></td>
+          <td class="cnpj-text">04.184.779/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">12</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">62</td>
+          <td><span style="font-weight:500">FIDC IPANEMA IV</span></td>
+          <td class="cnpj-text">26.405.883/0001-03</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td>
+            <span class="proc-count">11</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">63</td>
+          <td><span style="font-weight:500">BANCO BRADESCARD S.A.</span></td>
+          <td class="cnpj-text">04.184.779/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">11</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">64</td>
+          <td><span style="font-weight:500">LIFTCRED SECURITIZADORA DE CREDITOS FINANCEIROS S.A.</span></td>
+          <td class="cnpj-text">33.066.619/0001-93</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">11</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">65</td>
+          <td><span style="font-weight:500">AGAFARMA-ASSOCIACAO GAUCHA DE FARMACIAS E DROGARIAS INDEPENDENTES</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-cos">Revendedor Cosméticos</span></td>
+          <td>
+            <span class="proc-count">11</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">66</td>
+          <td><span style="font-weight:500">NEON FINANCEIRA - CREDITO, FINANCIAMENTO E INVESTIMENTO S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">10</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">67</td>
+          <td><span style="font-weight:500">BANCO DAYCOVAL S.A.</span></td>
+          <td class="cnpj-text">62.232.889/0001-90</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">10</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">68</td>
+          <td><span style="font-weight:500">ITAPEVA IX MULTICARTEIRA FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS NAO - PADRONIZADOS</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td>
+            <span class="proc-count">10</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">69</td>
+          <td><span style="font-weight:500">BANCO PAN SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">9</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">70</td>
+          <td><span style="font-weight:500">FIDC NPL II</span></td>
+          <td class="cnpj-text">29.292.312/0001-06</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td>
+            <span class="proc-count">9</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">71</td>
+          <td><span style="font-weight:500">JEITTO INSTITUICAO DE PAGAMENTO LTDA</span></td>
+          <td class="cnpj-text">20.937.849/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">9</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">72</td>
+          <td><span style="font-weight:500">GRUPO CASAS BAHIA S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-loja">Lojas</span></td>
+          <td>
+            <span class="proc-count">9</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">73</td>
+          <td><span style="font-weight:500">OI S.A. - EM RECUPERACAO JUDICIAL</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">74</td>
+          <td><span style="font-weight:500">RP FINANCEIRA S.A. - SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">75</td>
+          <td><span style="font-weight:500">VUON CARD - CIB CON ADM E PARTICIPACOES SA</span></td>
+          <td class="cnpj-text">07.271.850/0001-73</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">76</td>
+          <td><span style="font-weight:500">TRI TELECOM LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">77</td>
+          <td><span style="font-weight:500">COMPANHIA PIRATININGA DE FORCA E LUZ</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">78</td>
+          <td><span style="font-weight:500">BRASIL CARD INSTITUICAO DE PAGAMENTOS LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">79</td>
+          <td><span style="font-weight:500">CREDITAS SOLUÇÕES FINANCEIRAS LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">80</td>
+          <td><span style="font-weight:500">RECARGAPAY INSTITUICAO DE PAGAMENTO LTDA</span></td>
+          <td class="cnpj-text">11.275.560/0001-75</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">81</td>
+          <td><span style="font-weight:500">A BRUXA COMERCIO DE PERFUMARIAS E COSMETICOS LTDA</span></td>
+          <td class="cnpj-text">91.307.314/0008-63</td>
+          <td><span class="cat-badge cat-cos">Revendedor Cosméticos</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">82</td>
+          <td><span style="font-weight:500">BANCO DAYCOVAL SA</span></td>
+          <td class="cnpj-text">62.232.889/0001-90</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">8</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">83</td>
+          <td><span style="font-weight:500">CREDSYSTEM INSTITUICAO DE PAGAMENTO LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">84</td>
+          <td><span style="font-weight:500">DM FINANCEIRA S.A. - CREDITO, FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">85</td>
+          <td><span style="font-weight:500">BANCO INTER S.A.</span></td>
+          <td class="cnpj-text">00.416.968/0046-03</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">86</td>
+          <td><span style="font-weight:500">CASA BAHIA COMERCIAL LTDA.</span></td>
+          <td class="cnpj-text">33.041.260/0652-90</td>
+          <td><span class="cat-badge cat-loja">Lojas</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">87</td>
+          <td><span style="font-weight:500">TORRA TORRA ADM DE CARTOES DE CREDITO LTDA</span></td>
+          <td class="cnpj-text">28.781.451/0001-22</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">88</td>
+          <td><span style="font-weight:500">BANCO BMG SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">89</td>
+          <td><span style="font-weight:500">CASA BAHIA COMERCIAL LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-loja">Lojas</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">90</td>
+          <td><span style="font-weight:500">FINANCEIRA ITAU CBD S.A. - CREDITO, FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">7</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">91</td>
+          <td><span style="font-weight:500">ELEKTRO REDES S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-none">—</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">92</td>
+          <td><span style="font-weight:500">REALIZE CREDITO, FINANCIAMENTO E INVESTIMENTO SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">93</td>
+          <td><span style="font-weight:500">BANCO DIGIO S.A.</span></td>
+          <td class="cnpj-text">27.098.060/0001-45</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">94</td>
+          <td><span style="font-weight:500">BANCO DIGIMAIS S.A.</span></td>
+          <td class="cnpj-text">92.874.270/0001-40</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">95</td>
+          <td><span style="font-weight:500">CIB CONSULTORIA ADMINISTRACAO E PARTICIPACOES S.A..</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">96</td>
+          <td><span style="font-weight:500">HR EDUCACAO LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ens">Ensino</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">97</td>
+          <td><span style="font-weight:500">TORRA TORRA ADMINISTRADORA DE CARTOES DE CREDITO LTDA.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">98</td>
+          <td><span style="font-weight:500">HIPERCARD BANCO MULTIPLO S.A.</span></td>
+          <td class="cnpj-text">03.012.230/0001-69</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">99</td>
+          <td><span style="font-weight:500">BANCO INVESTCRED UNIBANCO S A</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">100</td>
+          <td><span style="font-weight:500">VOX INSTITUICAO DE PAGAMENTO S.A.</span></td>
+          <td class="cnpj-text">07.314.204/0001-46</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">6</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SC</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">101</td>
+          <td><span style="font-weight:500">COPREL TELECOM LTDA.</span></td>
+          <td class="cnpj-text">12.388.471/0001-06</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">102</td>
+          <td><span style="font-weight:500">PRINCIPIAPAY EDUCACAO TECNOLOGIA E SERVICOS LTDA</span></td>
+          <td class="cnpj-text">32.390.384/0001-92</td>
+          <td><span class="cat-badge cat-ens">Ensino</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">103</td>
+          <td><span style="font-weight:500">M SERVICOS LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">104</td>
+          <td><span style="font-weight:500">KOIN ADMINISTRADORA DE CARTOES E MEIOS DE PAGAMENTO SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">105</td>
+          <td><span style="font-weight:500">SEM PARAR SOCIEDADE DE CREDITO DIRETO S.A.</span></td>
+          <td class="cnpj-text">45.879.000/0001-41</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">106</td>
+          <td><span style="font-weight:500">CENTROCRED PARTICIPACOES & INVESTIMENTOS LTDA.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">107</td>
+          <td><span style="font-weight:500">JEITTO SOLUCOES DIGITAIS LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">108</td>
+          <td><span style="font-weight:500">MERCADO CREDITO SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO S.A.</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">109</td>
+          <td><span style="font-weight:500">DM FINANCEIRA SA CRED FINANC E INV</span></td>
+          <td class="cnpj-text">91.669.747/0001-92</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">110</td>
+          <td><span style="font-weight:500">BANCO AFINZ S.A. BANCO MULTIPLO</span></td>
+          <td class="cnpj-text">04.814.563/0001-74</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">111</td>
+          <td><span style="font-weight:500">COPEL DISTRIBUICAO S.A.</span></td>
+          <td class="cnpj-text">04.368.898/0001-06</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">112</td>
+          <td><span style="font-weight:500">FIDC SEA I SHOPEE</span></td>
+          <td class="cnpj-text">35.635.824/0001-12</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">113</td>
+          <td><span style="font-weight:500">SUL TELECOMUNICACOES DO BRASIL LTDA</span></td>
+          <td class="cnpj-text">32.283.272/0001-32</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">114</td>
+          <td><span style="font-weight:500">CREDZ LTDA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">115</td>
+          <td><span style="font-weight:500">RESTART FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS RESPONSABILIDADE LIMITADA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center"><span style="color:#fc8181">❌</span></td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">116</td>
+          <td><span style="font-weight:500">CREDITAS SOLUCOES FINANCEIRAS LTDA.</span></td>
+          <td class="cnpj-text">17.770.708/0001-24</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">5</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">117</td>
+          <td><span style="font-weight:500">BANCO MERCANTIL DO BRASIL SA</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">4</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">118</td>
+          <td><span style="font-weight:500">L.A.M. FOLINI</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-none">—</span></td>
+          <td>
+            <span class="proc-count">4</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">119</td>
+          <td><span style="font-weight:500">MIDWAY S.A. - SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">4</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+        <tr class="">
+          <td style="color:#4a5568;font-size:12px">120</td>
+          <td><span style="font-weight:500">PEFISA SA CREDITO FINANCIAMENTO E INVESTIMENTO</span></td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td>
+            <span class="proc-count">4</span>
+            <div class="bar-wrap"><div class="bar" style="width:0px"></div></div>
+          </td>
+          <td></td>
+          <td style="text-align:center">✅</td>
+          <td>—</td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <!-- SECTION: PROCESSÁVEIS -->
+  <div class="section-title">
+    ✅ Empresas Processáveis — Lista Completa
+    <span class="badge green">107 empresas · 7,179 processos</span>
+  </div>
+  <div class="processaveis-section">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nome</th>
+          <th>CNPJ</th>
+          <th>Categoria</th>
+          <th>Processos</th>
+          <th>Estados</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">1</td>
+          <td style="font-weight:500">BOA VISTA SERVICOS S.A.</td>
+          <td class="cnpj-text">11.725.176/0001-27</td>
+          <td><span class="cat-badge cat-or">Órgão Restritivo</span></td>
+          <td class="proc-count">1,632</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">2</td>
+          <td style="font-weight:500">MERCADO PAGO INSTITUICAO DE PAGAMENTO LTDA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">573</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">3</td>
+          <td style="font-weight:500">NU PAGAMENTOS S.A. - INSTITUICAO DE PAGAMENTO</td>
+          <td class="cnpj-text">18.236.120/0001-58</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">457</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">4</td>
+          <td style="font-weight:500">BANCO SANTANDER (BRASIL) S.A.</td>
+          <td class="cnpj-text">90.400.888/0001-42</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">330</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">5</td>
+          <td style="font-weight:500">MERCADOPAGO REPRESENTACOES LTDA</td>
+          <td class="cnpj-text">10.573.521/0001-91</td>
+          <td><span class="cat-badge cat-ml">Mercado Livre</span></td>
+          <td class="proc-count">297</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">6</td>
+          <td style="font-weight:500">RGE SUL DISTRIBUIDORA DE ENERGIA S.A.</td>
+          <td class="cnpj-text">02.016.440/0001-62</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">250</td>
+          <td><span class="estado-tag">RS</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">7</td>
+          <td style="font-weight:500">BANCO DO BRASIL S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">236</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">8</td>
+          <td style="font-weight:500">ITAU UNIBANCO S.A.</td>
+          <td class="cnpj-text">60.652.503/0001-58</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">227</td>
+          <td><span class="estado-tag">SP</span><span class="estado-tag">RS</span><span class="estado-tag">SC</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">9</td>
+          <td style="font-weight:500">BANCO DO ESTADO DO RIO GRANDE DO SUL S.A. - BANRISUL</td>
+          <td class="cnpj-text">92.702.067/0001-96</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">215</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">10</td>
+          <td style="font-weight:500">BOTICARIO PRODUTOS DE BELEZA LTDA</td>
+          <td class="cnpj-text">11.137.051/0001-86</td>
+          <td><span class="cat-badge cat-cos">Revendedor Cosméticos</span></td>
+          <td class="proc-count">198</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">11</td>
+          <td style="font-weight:500">ENEL ELETROPAULO METR ELET SAO PAULO</td>
+          <td class="cnpj-text">61.695.227/0001-93</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">191</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">12</td>
+          <td style="font-weight:500">NU PAGAMENTOS SA</td>
+          <td class="cnpj-text">18.236.120/0001-58</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">167</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">13</td>
+          <td style="font-weight:500">ELETROPAULO METROPOLITANA ELETRICIDADE DE SAO PAULO S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">124</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">14</td>
+          <td style="font-weight:500">BANCO BRADESCO S.A.</td>
+          <td class="cnpj-text">60.746.948/0001-12</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">117</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">15</td>
+          <td style="font-weight:500">ATIVOS S.A. SECURITIZADORA DE CREDITOS FINANCEIROS</td>
+          <td class="cnpj-text">05.437.257/0001-29</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">110</td>
+          <td><span class="estado-tag">DF</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">16</td>
+          <td style="font-weight:500">CAIXA ECONÔMICA FEDERAL</td>
+          <td class="cnpj-text">00.360.305/0001-04</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">110</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">17</td>
+          <td style="font-weight:500">LEBES FINANCEIRA S.A. - CREDITO, FINANCIAMENTO E INVESTIMENTO</td>
+          <td class="cnpj-text">90.453.900/0001-60</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">109</td>
+          <td><span class="estado-tag">RS</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">18</td>
+          <td style="font-weight:500">TELEFONICA BRASIL S.A.</td>
+          <td class="cnpj-text">02.558.157/0001-62</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td class="proc-count">107</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span><span class="estado-tag">SC</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">19</td>
+          <td style="font-weight:500">RGE SUL DISTRIBUIDORA DE ENERGIA SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">101</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">20</td>
+          <td style="font-weight:500">EDP SÃO PAULO DISTRIBUIDORA DE ENERGIA SA</td>
+          <td class="cnpj-text">02.302.100/0001-06</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">81</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">21</td>
+          <td style="font-weight:500">BANCO DO BRASIL SA</td>
+          <td class="cnpj-text">00.000.000/0001-91</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">79</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">22</td>
+          <td style="font-weight:500">FUNDO DE INVESTIMENTO EM DIREITOS CREDITORIOS NAO PADRONIZADOS NPL II</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">75</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">23</td>
+          <td style="font-weight:500">BANCO SANTANDER SA</td>
+          <td class="cnpj-text">90.400.888/0001-42</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">67</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">24</td>
+          <td style="font-weight:500">VERO S.A.</td>
+          <td class="cnpj-text">31.748.174/0001-60</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">61</td>
+          <td><span class="estado-tag">SC</span><span class="estado-tag">SP</span><span class="estado-tag">RS</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">25</td>
+          <td style="font-weight:500">VERO S/A</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">60</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">26</td>
+          <td style="font-weight:500">BANCO COOPERATIVO SICREDI S.A.</td>
+          <td class="cnpj-text">01.181.521/0001-55</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">57</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">27</td>
+          <td style="font-weight:500">CIA PAULISTA DE FORÇA E LUZ - CPFL ENERGIA S.A.</td>
+          <td class="cnpj-text">02.429.144/0001-93</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">56</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">28</td>
+          <td style="font-weight:500">BANCO BRADESCO SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">50</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">29</td>
+          <td style="font-weight:500">FIDC MULTISEGMENTOS NPL IPANEMA VI RESPONSABILIDADE LIMITADA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">50</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">30</td>
+          <td style="font-weight:500">BANRISUL SA</td>
+          <td class="cnpj-text">92.702.067/0001-96</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">47</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">31</td>
+          <td style="font-weight:500">ITAU UNIBANCO SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">44</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">32</td>
+          <td style="font-weight:500">EDP SAO PAULO DISTRIBUICAO DE ENERGIA S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">44</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">33</td>
+          <td style="font-weight:500">TELEFONICA BRASIL SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td class="proc-count">36</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">34</td>
+          <td style="font-weight:500">BANCO PAN S.A.</td>
+          <td class="cnpj-text">59.285.411/0001-13</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">35</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">35</td>
+          <td style="font-weight:500">LOJAS RIACHUELO SA</td>
+          <td class="cnpj-text">33.200.056/0001-49</td>
+          <td><span class="cat-badge cat-loja">Lojas</span></td>
+          <td class="proc-count">33</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">36</td>
+          <td style="font-weight:500">REALIZE SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">31</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">37</td>
+          <td style="font-weight:500">CELESC - CENTRAIS ELETRICAS DE SANTA CATARINA SA</td>
+          <td class="cnpj-text">83.878.892/0001-55</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">30</td>
+          <td><span class="estado-tag">SC</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">38</td>
+          <td style="font-weight:500">DM INSTITUICAO DE PAGAMENTO S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">26</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">39</td>
+          <td style="font-weight:500">CENTRAIS ELETRICAS DE SANTA CATARINA SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">26</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">40</td>
+          <td style="font-weight:500">ANHANGUERA EDUCACIONAL PARTICIPACOES S.A.</td>
+          <td class="cnpj-text">04.310.392/0001-46</td>
+          <td><span class="cat-badge cat-ens">Ensino</span></td>
+          <td class="proc-count">25</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">41</td>
+          <td style="font-weight:500">BANCO ORIGINAL S.A.</td>
+          <td class="cnpj-text">92.894.922/0001-08</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">23</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">42</td>
+          <td style="font-weight:500">UNINTER EDUCACIONAL S.A.</td>
+          <td class="cnpj-text">02.261.854/0001-57</td>
+          <td><span class="cat-badge cat-ens">Ensino</span></td>
+          <td class="proc-count">23</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">43</td>
+          <td style="font-weight:500">CIA PIRATININGA DE FORCA E LUZ CPFL</td>
+          <td class="cnpj-text">04.172.213/0001-51</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">20</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">44</td>
+          <td style="font-weight:500">BANCO COOPERATIVO SICREDI SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">20</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">45</td>
+          <td style="font-weight:500">TABOR FUNDO DE INVEST EM DIREITOS CREDITORIOS NAO PADRONIZADOS</td>
+          <td class="cnpj-text">54.029.912/0001-15</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">19</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">46</td>
+          <td style="font-weight:500">BANCO BMG S.A.</td>
+          <td class="cnpj-text">61.186.680/0001-74</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">18</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">47</td>
+          <td style="font-weight:500">WILL FINANCEIRA S.A. CREDITO, FINANCIAMENTO E INVESTIMENTO</td>
+          <td class="cnpj-text">03.222.300/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">17</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">48</td>
+          <td style="font-weight:500">PICPAY INSTITUICAO DE PAGAMENTO S.A.</td>
+          <td class="cnpj-text">22.896.431/0002-00</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">16</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">49</td>
+          <td style="font-weight:500">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</td>
+          <td class="cnpj-text">05.437.257/0001-29</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td class="proc-count">15</td>
+          <td><span class="estado-tag">DF</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">50</td>
+          <td style="font-weight:500">OMNI S.A. CREDITO FINANCIAMENTO E INVESTIMENTO</td>
+          <td class="cnpj-text">92.228.410/0001-02</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">14</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">51</td>
+          <td style="font-weight:500">COMPANHIA ESTADUAL DE DISTRIBUICAO DE ENERGIA ELETRICA - CEEE-D</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">14</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">52</td>
+          <td style="font-weight:500">BANCO C6 S.A.</td>
+          <td class="cnpj-text">31.872.495/0001-72</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">14</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">53</td>
+          <td style="font-weight:500">DMCARD CARTOES DE CREDITO SA</td>
+          <td class="cnpj-text">16.581.207/0001-37</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">13</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">54</td>
+          <td style="font-weight:500">ITAPEVA XI MULTICARTEIRA</td>
+          <td class="cnpj-text">30.366.204/0001-01</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td class="proc-count">13</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">55</td>
+          <td style="font-weight:500">BANCO ITAUCARD S.A.</td>
+          <td class="cnpj-text">17.192.451/0001-70</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">13</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">56</td>
+          <td style="font-weight:500">TELEMAR NORTE LESTE S.A.. - EM RECUPERACAO JUDICIAL</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-none">—</span></td>
+          <td class="proc-count">12</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">57</td>
+          <td style="font-weight:500">BANCO BRADESCARD SA</td>
+          <td class="cnpj-text">04.184.779/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">12</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">58</td>
+          <td style="font-weight:500">FIDC IPANEMA IV</td>
+          <td class="cnpj-text">26.405.883/0001-03</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td class="proc-count">11</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">59</td>
+          <td style="font-weight:500">BANCO BRADESCARD S.A.</td>
+          <td class="cnpj-text">04.184.779/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">11</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">60</td>
+          <td style="font-weight:500">LIFTCRED SECURITIZADORA DE CREDITOS FINANCEIROS S.A.</td>
+          <td class="cnpj-text">33.066.619/0001-93</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">11</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">61</td>
+          <td style="font-weight:500">AGAFARMA-ASSOCIACAO GAUCHA DE FARMACIAS E DROGARIAS INDEPENDENTES</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-cos">Revendedor Cosméticos</span></td>
+          <td class="proc-count">11</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">62</td>
+          <td style="font-weight:500">NEON FINANCEIRA - CREDITO, FINANCIAMENTO E INVESTIMENTO S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">10</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">63</td>
+          <td style="font-weight:500">BANCO DAYCOVAL S.A.</td>
+          <td class="cnpj-text">62.232.889/0001-90</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">10</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">64</td>
+          <td style="font-weight:500">BANCO PAN SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">9</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">65</td>
+          <td style="font-weight:500">FIDC NPL II</td>
+          <td class="cnpj-text">29.292.312/0001-06</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td class="proc-count">9</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">66</td>
+          <td style="font-weight:500">JEITTO INSTITUICAO DE PAGAMENTO LTDA</td>
+          <td class="cnpj-text">20.937.849/0001-01</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">9</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">67</td>
+          <td style="font-weight:500">OI S.A. - EM RECUPERACAO JUDICIAL</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td class="proc-count">8</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">68</td>
+          <td style="font-weight:500">RP FINANCEIRA S.A. - SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">8</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">69</td>
+          <td style="font-weight:500">VUON CARD - CIB CON ADM E PARTICIPACOES SA</td>
+          <td class="cnpj-text">07.271.850/0001-73</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">8</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">70</td>
+          <td style="font-weight:500">COMPANHIA PIRATININGA DE FORCA E LUZ</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">8</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">71</td>
+          <td style="font-weight:500">CREDITAS SOLUÇÕES FINANCEIRAS LTDA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">8</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">72</td>
+          <td style="font-weight:500">RECARGAPAY INSTITUICAO DE PAGAMENTO LTDA</td>
+          <td class="cnpj-text">11.275.560/0001-75</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">8</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">73</td>
+          <td style="font-weight:500">A BRUXA COMERCIO DE PERFUMARIAS E COSMETICOS LTDA</td>
+          <td class="cnpj-text">91.307.314/0008-63</td>
+          <td><span class="cat-badge cat-cos">Revendedor Cosméticos</span></td>
+          <td class="proc-count">8</td>
+          <td><span class="estado-tag">RS</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">74</td>
+          <td style="font-weight:500">BANCO DAYCOVAL SA</td>
+          <td class="cnpj-text">62.232.889/0001-90</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">8</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">75</td>
+          <td style="font-weight:500">CREDSYSTEM INSTITUICAO DE PAGAMENTO LTDA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">7</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">76</td>
+          <td style="font-weight:500">DM FINANCEIRA S.A. - CREDITO, FINANCIAMENTO E INVESTIMENTO</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">7</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">77</td>
+          <td style="font-weight:500">BANCO INTER S.A.</td>
+          <td class="cnpj-text">00.416.968/0046-03</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">7</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">78</td>
+          <td style="font-weight:500">CASA BAHIA COMERCIAL LTDA.</td>
+          <td class="cnpj-text">33.041.260/0652-90</td>
+          <td><span class="cat-badge cat-loja">Lojas</span></td>
+          <td class="proc-count">7</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SC</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">79</td>
+          <td style="font-weight:500">TORRA TORRA ADM DE CARTOES DE CREDITO LTDA</td>
+          <td class="cnpj-text">28.781.451/0001-22</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">7</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">80</td>
+          <td style="font-weight:500">BANCO BMG SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">7</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">81</td>
+          <td style="font-weight:500">CASA BAHIA COMERCIAL LTDA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-loja">Lojas</span></td>
+          <td class="proc-count">7</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">82</td>
+          <td style="font-weight:500">ELEKTRO REDES S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-none">—</span></td>
+          <td class="proc-count">6</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">83</td>
+          <td style="font-weight:500">REALIZE CREDITO, FINANCIAMENTO E INVESTIMENTO SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">6</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">84</td>
+          <td style="font-weight:500">BANCO DIGIO S.A.</td>
+          <td class="cnpj-text">27.098.060/0001-45</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">6</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">85</td>
+          <td style="font-weight:500">BANCO DIGIMAIS S.A.</td>
+          <td class="cnpj-text">92.874.270/0001-40</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">6</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">86</td>
+          <td style="font-weight:500">CIB CONSULTORIA ADMINISTRACAO E PARTICIPACOES S.A..</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td class="proc-count">6</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">87</td>
+          <td style="font-weight:500">TORRA TORRA ADMINISTRADORA DE CARTOES DE CREDITO LTDA.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">6</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">88</td>
+          <td style="font-weight:500">HIPERCARD BANCO MULTIPLO S.A.</td>
+          <td class="cnpj-text">03.012.230/0001-69</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">6</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">89</td>
+          <td style="font-weight:500">BANCO INVESTCRED UNIBANCO S A</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">6</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">90</td>
+          <td style="font-weight:500">VOX INSTITUICAO DE PAGAMENTO S.A.</td>
+          <td class="cnpj-text">07.314.204/0001-46</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">6</td>
+          <td><span class="estado-tag">SC</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">91</td>
+          <td style="font-weight:500">COPREL TELECOM LTDA.</td>
+          <td class="cnpj-text">12.388.471/0001-06</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">RS</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">92</td>
+          <td style="font-weight:500">PRINCIPIAPAY EDUCACAO TECNOLOGIA E SERVICOS LTDA</td>
+          <td class="cnpj-text">32.390.384/0001-92</td>
+          <td><span class="cat-badge cat-ens">Ensino</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">93</td>
+          <td style="font-weight:500">SEM PARAR SOCIEDADE DE CREDITO DIRETO S.A.</td>
+          <td class="cnpj-text">45.879.000/0001-41</td>
+          <td><span class="cat-badge cat-cess">Cessão</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">94</td>
+          <td style="font-weight:500">CENTROCRED PARTICIPACOES & INVESTIMENTOS LTDA.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">5</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">95</td>
+          <td style="font-weight:500">JEITTO SOLUCOES DIGITAIS LTDA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td class="proc-count">5</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">96</td>
+          <td style="font-weight:500">MERCADO CREDITO SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO S.A.</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">5</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">97</td>
+          <td style="font-weight:500">DM FINANCEIRA SA CRED FINANC E INV</td>
+          <td class="cnpj-text">91.669.747/0001-92</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">98</td>
+          <td style="font-weight:500">BANCO AFINZ S.A. BANCO MULTIPLO</td>
+          <td class="cnpj-text">04.814.563/0001-74</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">99</td>
+          <td style="font-weight:500">COPEL DISTRIBUICAO S.A.</td>
+          <td class="cnpj-text">04.368.898/0001-06</td>
+          <td><span class="cat-badge cat-ee">Energia Elétrica</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">RS</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">100</td>
+          <td style="font-weight:500">FIDC SEA I SHOPEE</td>
+          <td class="cnpj-text">35.635.824/0001-12</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">101</td>
+          <td style="font-weight:500">SUL TELECOMUNICACOES DO BRASIL LTDA</td>
+          <td class="cnpj-text">32.283.272/0001-32</td>
+          <td><span class="cat-badge cat-tel">Telefonia e Internet</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">102</td>
+          <td style="font-weight:500">CREDZ LTDA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-serv">Prestação de Serviços</span></td>
+          <td class="proc-count">5</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">103</td>
+          <td style="font-weight:500">CREDITAS SOLUCOES FINANCEIRAS LTDA.</td>
+          <td class="cnpj-text">17.770.708/0001-24</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">5</td>
+          <td><span class="estado-tag">RS</span><span class="estado-tag">SP</span></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">104</td>
+          <td style="font-weight:500">BANCO MERCANTIL DO BRASIL SA</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">4</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">105</td>
+          <td style="font-weight:500">L.A.M. FOLINI</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-none">—</span></td>
+          <td class="proc-count">4</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">106</td>
+          <td style="font-weight:500">MIDWAY S.A. - SOCIEDADE DE CREDITO, FINANCIAMENTO E INVESTIMENTO</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">4</td>
+          <td></td>
+        </tr>
+
+        <tr>
+          <td style="color:#4a5568;font-size:12px">107</td>
+          <td style="font-weight:500">PEFISA SA CREDITO FINANCIAMENTO E INVESTIMENTO</td>
+          <td class="cnpj-text">—</td>
+          <td><span class="cat-badge cat-if">Instituições Financeiras</span></td>
+          <td class="proc-count">4</td>
+          <td></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:40px;padding:20px;background:#1a1f2e;border:1px solid #2d3748;border-radius:12px;font-size:13px;color:#718096;">
+    <strong style="color:#e2e8f0">📋 Próximos passos sugeridos:</strong><br><br>
+    1. Confirmar fusão de cada grupo (enviar áudio com empresas na ordem)<br>
+    2. Definir a "coroa" (empresa principal) por grupo<br>
+    3. JARBAS executa: move processos → transfere dados → desativa duplicatas<br>
+    4. Após Santander: mapear restante dos grupos via áudio
+  </div>
+
+</div>
+</body>
+</html>

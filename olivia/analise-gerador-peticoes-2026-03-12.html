@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Análise Gerador de Petições</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #21263a;
+    --border: #2d3348;
+    --primary: #6366f1;
+    --primary-dim: rgba(99,102,241,0.12);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --yellow: #eab308;
+    --yellow-dim: rgba(234,179,8,0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --font: 'Inter', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
+  
+  .container { max-width: 1100px; margin: 0 auto; padding: 48px 24px; }
+  
+  /* Header */
+  .header { text-align: center; margin-bottom: 48px; }
+  .header .badge { display: inline-flex; align-items: center; gap: 6px; background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,0.3); border-radius: 999px; padding: 4px 12px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
+  .header h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.03em; margin-bottom: 8px; }
+  .header h1 span { color: var(--primary); }
+  .header p { color: var(--muted); font-size: 15px; }
+  .header .meta { display: flex; align-items: center; justify-content: center; gap: 24px; margin-top: 20px; font-size: 12px; color: var(--muted); }
+  .header .meta span { display: flex; align-items: center; gap: 4px; }
+  
+  /* Score banner */
+  .score-banner { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+  .score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; }
+  .score-card .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 8px; }
+  .score-card .value { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+  .score-card .sub { font-size: 11px; color: var(--muted); }
+  .score-card.green .value { color: var(--green); }
+  .score-card.yellow .value { color: var(--yellow); }
+  .score-card.red .value { color: var(--red); }
+  .score-card.blue .value { color: var(--blue); }
+  
+  /* Section */
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 8px; }
+  .section-title .icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  
+  /* Mode cards */
+  .mode-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+  .mode-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+  .mode-card.highlighted { border-color: rgba(99,102,241,0.4); background: linear-gradient(135deg, var(--surface) 0%, rgba(99,102,241,0.05) 100%); }
+  .mode-card.new { border-color: rgba(34,197,94,0.4); background: linear-gradient(135deg, var(--surface) 0%, rgba(34,197,94,0.05) 100%); }
+  .mode-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; }
+  .mode-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .mode-icon.indigo { background: var(--primary-dim); }
+  .mode-icon.yellow { background: var(--yellow-dim); }
+  .mode-icon.green { background: var(--green-dim); }
+  .mode-icon.red { background: var(--red-dim); }
+  .mode-icon.blue { background: var(--blue-dim); }
+  .mode-title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .mode-status { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px; }
+  .mode-status.ok { background: var(--green-dim); color: var(--green); }
+  .mode-status.partial { background: var(--yellow-dim); color: var(--yellow); }
+  .mode-status.broken { background: var(--red-dim); color: var(--red); }
+  .mode-status.new { background: var(--blue-dim); color: var(--blue); }
+  .mode-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+  
+  /* Status items */
+  .status-list { display: flex; flex-direction: column; gap: 8px; }
+  .status-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; }
+  .status-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; display: flex; align-items: center; justify-content: center; font-size: 9px; }
+  .status-dot.green { background: var(--green-dim); color: var(--green); }
+  .status-dot.yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .status-dot.red { background: var(--red-dim); color: var(--red); }
+  .status-item .text { color: var(--muted); }
+  .status-item .text strong { color: var(--text); }
+  
+  /* Bug box */
+  .bug-box { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.3); border-radius: 12px; padding: 16px 20px; margin-top: 12px; }
+  .bug-box .bug-title { font-size: 12px; font-weight: 700; color: var(--red); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .bug-box pre { font-size: 11px; font-family: 'Fira Mono', monospace; color: var(--text); background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; overflow-x: auto; margin-top: 6px; }
+  
+  /* Arch diagram */
+  .arch { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; margin-bottom: 20px; }
+  .arch-title { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 20px; }
+  .arch-flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .arch-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .arch-node.active { border-color: rgba(99,102,241,0.4); color: var(--primary); }
+  .arch-node.broken { border-color: rgba(239,68,68,0.4); color: var(--red); }
+  .arch-node.jarbas { border-color: rgba(34,197,94,0.4); color: var(--green); }
+  .arch-arrow { color: var(--muted); font-size: 16px; }
+  
+  /* Plan section */
+  .plan-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 20px; }
+  .plan-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .plan-header h3 { font-size: 15px; font-weight: 700; }
+  .plan-header .tag { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+  .plan-header .tag.new { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .plan-header .tag.improve { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,0.3); }
+  .plan-steps { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+  .plan-step { display: flex; gap: 16px; }
+  .plan-step-num { width: 28px; height: 28px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--muted); flex-shrink: 0; }
+  .plan-step-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .plan-step-content p { font-size: 13px; color: var(--muted); }
+  .plan-step-content .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .plan-step-content .chip { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+  .plan-step-content .chip.primary { background: var(--primary-dim); border-color: rgba(99,102,241,0.3); color: var(--primary); }
+  .plan-step-content .chip.green { background: var(--green-dim); border-color: rgba(34,197,94,0.3); color: var(--green); }
+  
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); background: var(--surface2); }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+  
+  /* Pill tags */
+  .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .pill.green { background: var(--green-dim); color: var(--green); }
+  .pill.yellow { background: var(--yellow-dim); color: var(--yellow); }
+  .pill.red { background: var(--red-dim); color: var(--red); }
+  .pill.blue { background: var(--blue-dim); color: var(--blue); }
+  .pill.indigo { background: var(--primary-dim); color: var(--primary); }
+  
+  /* Brainstorm ideas */
+  .ideas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .idea-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .idea-card .idea-icon { font-size: 24px; margin-bottom: 10px; }
+  .idea-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .idea-card p { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .idea-card .idea-badge { margin-top: 10px; }
+  
+  /* Cloudflare box */
+  .cf-box { background: linear-gradient(135deg, rgba(249,115,22,0.08), rgba(99,102,241,0.08)); border: 1px solid rgba(249,115,22,0.3); border-radius: 16px; padding: 24px; display: flex; align-items: flex-start; gap: 16px; margin-bottom: 24px; }
+  .cf-icon { font-size: 32px; flex-shrink: 0; }
+  .cf-content h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .cf-content p { font-size: 13px; color: var(--muted); }
+  .cf-content code { font-family: 'Fira Mono', monospace; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #fb923c; }
+  
+  /* Footer */
+  .footer { text-align: center; padding-top: 40px; color: var(--muted); font-size: 12px; }
+  
+  @media (max-width: 768px) {
+    .mode-grid, .ideas-grid { grid-template-columns: 1fr; }
+    .score-banner { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="badge">🤖 JARBAS Analysis · 2026-03-12</div>
+    <h1>OlivIA — <span>Gerador de Petições</span></h1>
+    <p>Análise crítica dos 4 modos · Estado atual · Plano de evolução · Brainstorm Modo JARBAS</p>
+    <div class="meta">
+      <span>📅 12/03/2026 · 01h00 BRT</span>
+      <span>🔍 4 modos auditados</span>
+      <span>🐛 1 bug crítico identificado</span>
+      <span>🌐 Tunnel: jarbas.jarbas-mdlab.com</span>
+    </div>
+  </div>
+
+  <!-- Score Banner -->
+  <div class="score-banner">
+    <div class="score-card yellow">
+      <div class="label">Nota Geral</div>
+      <div class="value">6.5</div>
+      <div class="sub">de 10 · Funcional parcial</div>
+    </div>
+    <div class="score-card green">
+      <div class="label">Smart Blocks</div>
+      <div class="value">8.5</div>
+      <div class="sub">Mais estável</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="label">Modo Agente</div>
+      <div class="value">6.0</div>
+      <div class="sub">UI pronta, motor pendente</div>
+    </div>
+    <div class="score-card red">
+      <div class="label">Express</div>
+      <div class="value">5.0</div>
+      <div class="sub">Bug crítico N8N</div>
+    </div>
+  </div>
+
+  <!-- Cloudflare Tunnel -->
+  <div class="cf-box">
+    <div class="cf-icon">☁️</div>
+    <div class="cf-content">
+      <h3>Cloudflare Named Tunnel — Ativo ✅</h3>
+      <p>Tunnel permanente configurado: <code>https://jarbas.jarbas-mdlab.com</code> → porta 3012 do Mac Mini.<br>
+      Já referenciado em <code>src/lib/jarbas-url.ts</code> como <strong>JARBAS_BASE_URL</strong>. 
+      Usado pelos hooks <code>useVibeLaw</code>, <code>useOliviaJarbas</code>, <code>useRelatorioProcesso</code>, <code>analise-utils</code>.<br>
+      <strong>Impacto:</strong> Modo Agente e VibeLaw agora conseguem se comunicar com o JARBAS diretamente — sem depender do N8N como proxy.</p>
+    </div>
+  </div>
+
+  <!-- Arquitetura Atual -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--primary-dim);">🏗️</div>
+      Arquitetura Atual por Modo
+    </div>
+    
+    <div class="arch">
+      <div class="arch-title">Express / Smart Blocks (via N8N)</div>
+      <div class="arch-flow">
+        <div class="arch-node active">Frontend React</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node active">callWebhook()</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node broken">N8N Webhook</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">Claude/GPT</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">Google Doc</div>
+      </div>
+    </div>
+    
+    <div class="arch">
+      <div class="arch-title">Modo Agente / VibeLaw (via JARBAS direto)</div>
+      <div class="arch-flow">
+        <div class="arch-node active">Frontend React</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node jarbas">jarbas.jarbas-mdlab.com</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">jarbas_tarefas</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node jarbas">JARBAS Mac Mini</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-node">Petição Pronta</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4 Modos Auditados -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--blue-dim);">📋</div>
+      Auditoria dos 4 Modos
+    </div>
+    
+    <div class="mode-grid">
+      <!-- Smart Blocks -->
+      <div class="mode-card">
+        <div class="mode-header">
+          <div>
+            <div class="mode-title">📝 Smart Blocks</div>
+            <div class="mode-status ok">✓ Funcional</div>
+          </div>
+          <div class="mode-icon indigo">📝</div>
+        </div>
+        <div class="mode-desc">Modo manual: usuário seleciona processo → modelo → blocos de texto → jurisprudências → gera documento Google. 4 steps: Identificação, Conteúdo, Revisão, Conclusão.</div>
+        <div class="status-list">
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>UI completa</strong> — 4 steps funcionando com WizardStepper</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>N8N webhook</strong> olivia/gerar-manual ativo</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot yellow">⚠</div>
+            <div class="text"><strong>Sem preview</strong> do documento antes de gerar — só retorna Google Doc URL</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot yellow">⚠</div>
+            <div class="text"><strong>Sem upload de provas</strong> — usuário não pode anexar documentos neste modo</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Express -->
+      <div class="mode-card">
+        <div class="mode-header">
+          <div>
+            <div class="mode-title">⚡ Express</div>
+            <div class="mode-status broken">✕ Bug Crítico</div>
+          </div>
+          <div class="mode-icon yellow">⚡</div>
+        </div>
+        <div class="mode-desc">Modo IA-assistida: triagem automática com perguntas, estrutura sugerida por IA, revisão, geração. 5 steps: Identificação, Triagem, Estrutura, Revisão, Conclusão.</div>
+        <div class="status-list">
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>UI completa</strong> — 5 steps com triagem de perguntas</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>Rate limit</strong> proteção ativa (max por hora)</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot red">✕</div>
+            <div class="text"><strong>Bug crítico</strong> — workflow 5H7icedAtJIia23i, node "OlivIA → Petição"</div>
+          </div>
+        </div>
+        <div class="bug-box">
+          <div class="bug-title">🐛 Bug — Destructuring Array</div>
+          <pre>// ATUAL (quebrado):
+const [tarefa] = await supaReq('/jarbas_tarefas', payload, 'POST');
+
+// FIX:
+const _r = await supaReq('/jarbas_tarefas', payload, 'POST');
+const tarefa = Array.isArray(_r) ? _r[0] : _r;</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">Não editar via Management API (erro "must NOT have additional properties"). Usar N8N UI diretamente.</p>
+        </div>
+      </div>
+
+      <!-- Modo Agente -->
+      <div class="mode-card highlighted">
+        <div class="mode-header">
+          <div>
+            <div class="mode-title">🤖 Modo Agente (JARBAS)</div>
+            <div class="mode-status partial">◐ UI pronta, motor parcial</div>
+          </div>
+          <div class="mode-icon green">🤖</div>
+        </div>
+        <div class="mode-desc">Motor: JARBAS via Cloudflare Tunnel + jarbas_tarefas. Verifica instância online (max 2min de inatividade), faz fallback para N8N se JARBAS offline.</div>
+        <div class="status-list">
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>UI wizard</strong> — Steps Identificação + Triagem + Conclusão</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>Tunnel ativo</strong> — jarbas.jarbas-mdlab.com resolvido</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>useOliviaJarbas</strong> — polling via jarbas_tarefas com 5min timeout</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot yellow">⚠</div>
+            <div class="text"><strong>Skill olivia_gerar_peticao</strong> — precisa verificar se está registrada e funcionando</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot yellow">⚠</div>
+            <div class="text"><strong>Sem step de Estrutura/Outline</strong> — pula direto para conclusão</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot yellow">⚠</div>
+            <div class="text"><strong>Sem upload de provas</strong> neste modo</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VibeLaw -->
+      <div class="mode-card">
+        <div class="mode-header">
+          <div>
+            <div class="mode-title">⚖️ VibeLaw Studio</div>
+            <div class="mode-status partial">◐ Parcial — UX fraca</div>
+          </div>
+          <div class="mode-icon blue">⚖️</div>
+        </div>
+        <div class="mode-desc">Editor split-view: chat IA à esquerda + preview da petição à direita. Interface generativa com action cards (patches aplicáveis, sugestões de jurisprudência).</div>
+        <div class="status-list">
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>Split-view</strong> funcional (resizable panels)</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>Action cards</strong> PATCH, JURIS_TERMS, NEWS_RESEARCH</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot green">✓</div>
+            <div class="text"><strong>Sugestões rápidas</strong> — chips clicáveis</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot red">✕</div>
+            <div class="text"><strong>Primeira tela fraca</strong> — não pede processo, tipo, nem modelo antes de abrir o studio</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot red">✕</div>
+            <div class="text"><strong>Sem upload de provas</strong> — usuário não pode enviar documentos</div>
+          </div>
+          <div class="status-item">
+            <div class="status-dot yellow">⚠</div>
+            <div class="text"><strong>Sem documento inicial</strong> — começa em branco, deveria chegar com petição pré-gerada</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Avaliação Crítica -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--yellow-dim);">⚡</div>
+      Avaliação Crítica — Positivos e Negativos
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Aspecto</th>
+            <th>Positivo ✅</th>
+            <th>Negativo ❌</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Arquitetura</strong></td>
+            <td>Dual-engine (JARBAS + N8N fallback) é robusto. Tunnel permanente resolve instabilidade de ngrok.</td>
+            <td>2 engines = 2 codebase de lógica para manter. Risco de divergência de comportamento.</td>
+          </tr>
+          <tr>
+            <td><strong>UX Geral</strong></td>
+            <td>Landing com 4 KPIs (30d), recovery tabs para rascunhos em andamento, animações com Framer Motion.</td>
+            <td>4 modos com nomes abstratos. Usuário não sabe qual escolher. Falta diferenciação clara de resultado esperado.</td>
+          </tr>
+          <tr>
+            <td><strong>Smart Blocks</strong></td>
+            <td>Mais estável. Dá controle total ao usuário. Bom para advogados que preferem compor manualmente.</td>
+            <td>Manual demais — sem sugestão de blocos por IA. Não usa o corpus jurídico do escritório.</td>
+          </tr>
+          <tr>
+            <td><strong>Express</strong></td>
+            <td>Triagem com perguntas pré-respondidas por IA (com confidence score) é excelente UX.</td>
+            <td>Bug crítico parado a feature. N8N como motor primário = latência alta (~15-30s) + frágil.</td>
+          </tr>
+          <tr>
+            <td><strong>Modo Agente</strong></td>
+            <td>JARBAS como motor = acesso direto ao RAG, blocos, jurisprudências, playbooks internos.</td>
+            <td>Steps insuficientes. Sem estrutura/outline antes de gerar. Sem feedback rico durante geração.</td>
+          </tr>
+          <tr>
+            <td><strong>VibeLaw</strong></td>
+            <td>Editor generativo com patches aplicáveis é diferencial competitivo real. Split-view elegante.</td>
+            <td>Começa vazio. Deveria chegar com petição pronta. Primeira tela não coleta contexto suficiente.</td>
+          </tr>
+          <tr>
+            <td><strong>Infra</strong></td>
+            <td>Rate limit ativo. Recovery de rascunhos automático. jarbas_instances com heartbeat.</td>
+            <td>Sem métricas de qualidade das petições geradas. Sem A/B entre JARBAS e N8N.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Brainstorm: Novo Modo JARBAS -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--green-dim);">🧠</div>
+      Brainstorm — Novo Modo JARBAS (O Modo Principal)
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;margin-bottom:20px;">
+      <h3 style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--primary);">🎯 Conceito</h3>
+      <p style="font-size:14px;color:var(--muted);line-height:1.6;">
+        O <strong style="color:var(--text);">Modo JARBAS</strong> é a fusão de Express + Modo Agente + VibeLaw num único fluxo premium. 
+        É o modo mais avançado — usa N8N como <em>referência de cenários</em> mas executa tudo internamente no JARBAS.
+        A petição <strong style="color:var(--text);">chega pronta</strong> no editor, não em branco.
+        O usuário pode refinar via chat generativo, mas o trabalho pesado já foi feito.
+      </p>
+    </div>
+
+    <div class="ideas-grid">
+      <div class="idea-card">
+        <div class="idea-icon">📋</div>
+        <h4>Step 1 — Identificação Completa</h4>
+        <p>Processo + tipo de petição + <strong>modelo base</strong> (selecionável da biblioteca) + advogado responsável. Diferencial: usuário vê preview do modelo antes de selecionar.</p>
+        <div class="idea-badge"><span class="pill green">Novo</span></div>
+      </div>
+      <div class="idea-card">
+        <div class="idea-icon">📤</div>
+        <h4>Step 2 — Upload de Provas</h4>
+        <p>Upload de documentos (comprovantes, negativações, contratos). JARBAS lê e extrai dados relevantes automaticamente. Integrado com os documentos já existentes no processo.</p>
+        <div class="idea-badge"><span class="pill green">Novo</span></div>
+      </div>
+      <div class="idea-card">
+        <div class="idea-icon">🎯</div>
+        <h4>Step 3 — Triagem Aprimorada</h4>
+        <p>Igual ao Express, mas com mais perguntas e contexto. JARBAS usa os documentos do Step 2 para pré-responder automaticamente. Jurimetria integrada (taxa de sucesso + réu típico).</p>
+        <div class="idea-badge"><span class="pill indigo">Melhorado</span></div>
+      </div>
+      <div class="idea-card">
+        <div class="idea-icon">🗂️</div>
+        <h4>Step 4 — Outline / Estrutura</h4>
+        <p>JARBAS propõe estrutura da petição: seções, blocos de texto candidatos, jurisprudências relevantes. Usuário pode reorganizar antes de gerar. Visual drag-and-drop.</p>
+        <div class="idea-badge"><span class="pill green">Novo</span></div>
+      </div>
+      <div class="idea-card">
+        <div class="idea-icon">⚙️</div>
+        <h4>Step 5 — Geração com RAG</h4>
+        <p>JARBAS gera internamente usando: corpus do escritório + blocos curados + jurisprudências + provas enviadas + style guide. Score de qualidade exibido em tempo real. Target: 9+/10.</p>
+        <div class="idea-badge"><span class="pill indigo">Core</span></div>
+      </div>
+      <div class="idea-card">
+        <div class="idea-icon">✏️</div>
+        <h4>Step 6 — VibeLaw Editor</h4>
+        <p>Petição já pronta abre no VibeLaw. Chat IA para refinamentos. Patches aplicáveis. Preview real-time. Exporta para Google Doc / PDF quando aprovado.</p>
+        <div class="idea-badge"><span class="pill indigo">Integrado</span></div>
+      </div>
+    </div>
+
+    <!-- Flow do Modo JARBAS -->
+    <div style="background:var(--surface);border:1px solid rgba(99,102,241,0.3);border-radius:16px;padding:24px;margin-top:20px;">
+      <h3 style="font-size:14px;font-weight:700;margin-bottom:16px;text-transform:uppercase;letter-spacing:0.05em;color:var(--primary);">Flow Técnico Proposto</h3>
+      <div style="display:flex;flex-direction:column;gap:12px;font-size:13px;">
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--primary-dim);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">1</div>
+          <div><strong>Frontend</strong> → POST <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;font-size:11px;">jarbas.jarbas-mdlab.com/olivia/gerar-modo-jarbas</code> com { processo_id, modelo_id, documentos, respostas_triagem, outline }</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--primary-dim);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">2</div>
+          <div><strong>JARBAS</strong> cria tarefa na <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;font-size:11px;">jarbas_tarefas</code> (tipo: OLIVIA_MODO_JARBAS) + retorna task_id imediatamente</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--primary-dim);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">3</div>
+          <div><strong>skill_olivia_modo_jarbas.mjs</strong> executa: lê processo + documentos → RAG blocos → RAG jurisprudências → Claude gera rascunho → aplica style guide → score de qualidade</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--primary-dim);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">4</div>
+          <div><strong>Frontend</strong> faz polling via <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;font-size:11px;">jarbas_tarefas</code> com Supabase Realtime → transições de estado em tempo real</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:12px;">
+          <div style="width:24px;height:24px;border-radius:6px;background:var(--green-dim);color:var(--green);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;">✓</div>
+          <div><strong>Resultado</strong> → petição salva em <code style="background:rgba(0,0,0,0.3);padding:1px 5px;border-radius:4px;font-size:11px;">olivia_historico</code> + abre VibeLaw com documento pré-carregado + score visível</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plano VibeLaw Melhorado -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--blue-dim);">⚖️</div>
+      Plano VibeLaw 2.0 — Melhorias
+    </div>
+    <div class="plan-box">
+      <div class="plan-header">
+        <h3>VibeLaw — Redesign da Primeira Tela</h3>
+        <span class="tag improve">Melhoria</span>
+      </div>
+      <div class="plan-steps">
+        <div class="plan-step">
+          <div class="plan-step-num">1</div>
+          <div class="plan-step-content">
+            <h4>Seleção de Processo + Tipo</h4>
+            <p>Busca por CNJ ou nome do cliente. Após selecionar, exibe resumo: réu, comarca, valor, última movimentação. Seleção do tipo de petição (lista com ícones).</p>
+            <div class="chips">
+              <span class="chip primary">Já existe ProcessoSelector</span>
+              <span class="chip">Adicionar tipo de petição</span>
+            </div>
+          </div>
+        </div>
+        <div class="plan-step">
+          <div class="plan-step-num">2</div>
+          <div class="plan-step-content">
+            <h4>Seleção de Modelo Base (Opcional)</h4>
+            <p>Grid de modelos disponíveis filtrados por tipo de petição. Preview do modelo ao hover. Opção "sem modelo" para VibeLaw criar do zero com base no processo.</p>
+            <div class="chips">
+              <span class="chip green">Novo</span>
+              <span class="chip">329 modelos disponíveis</span>
+            </div>
+          </div>
+        </div>
+        <div class="plan-step">
+          <div class="plan-step-num">3</div>
+          <div class="plan-step-content">
+            <h4>Upload de Provas</h4>
+            <p>Drag-and-drop de documentos (PDFs, imagens). Integração com documentos já existentes no Supabase Storage do processo. IA extrai dados relevantes automaticamente.</p>
+            <div class="chips">
+              <span class="chip green">Novo — UploadProvasInline.tsx existe</span>
+            </div>
+          </div>
+        </div>
+        <div class="plan-step">
+          <div class="plan-step-num">4</div>
+          <div class="plan-step-content">
+            <h4>VibeLaw Studio com Documento Pré-Gerado</h4>
+            <p>Antes de abrir o editor, JARBAS gera um primeiro rascunho baseado no processo + modelo + documentos. Editor abre com texto já pronto — usuário refina via chat.</p>
+            <div class="chips">
+              <span class="chip green">Key Improvement</span>
+              <span class="chip">Usa JARBAS_BASE_URL</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plano de Execução -->
+  <div class="section">
+    <div class="section-title">
+      <div class="icon" style="background:var(--green-dim);">🚀</div>
+      Plano de Execução — Prioridade
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Prioridade</th>
+            <th>Tarefa</th>
+            <th>Esforço</th>
+            <th>Impacto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="pill red">P0 · BUG</span></td>
+            <td><strong>Corrigir Express</strong> — fix destructuring no N8N UI</td>
+            <td>~15min</td>
+            <td>Express volta a funcionar</td>
+          </tr>
+          <tr>
+            <td><span class="pill yellow">P1</span></td>
+            <td><strong>Verificar skill olivia_gerar_peticao</strong> — está registrada? Retorna corretamente?</td>
+            <td>~30min</td>
+            <td>Modo Agente funcional</td>
+          </tr>
+          <tr>
+            <td><span class="pill yellow">P1</span></td>
+            <td><strong>VibeLaw — primeira tela</strong> com processo + tipo + modelo + upload provas</td>
+            <td>~2h</td>
+            <td>VibeLaw utilizável</td>
+          </tr>
+          <tr>
+            <td><span class="pill indigo">P2</span></td>
+            <td><strong>Modo JARBAS — skill_olivia_modo_jarbas.mjs</strong> + endpoint + polling</td>
+            <td>~3h</td>
+            <td>Modo principal funcionando</td>
+          </tr>
+          <tr>
+            <td><span class="pill indigo">P2</span></td>
+            <td><strong>Modo JARBAS — UI</strong> com 6 steps (ID + Provas + Triagem + Outline + Geração + VibeLaw)</td>
+            <td>~3h</td>
+            <td>UX premium completo</td>
+          </tr>
+          <tr>
+            <td><span class="pill blue">P3</span></td>
+            <td><strong>Smart Blocks</strong> + sugestão de blocos por IA com base no processo</td>
+            <td>~2h</td>
+            <td>Manual vira semi-auto</td>
+          </tr>
+          <tr>
+            <td><span class="pill blue">P3</span></td>
+            <td><strong>Landing redesign</strong> — diferenciação clara dos 4 modos + qual usar quando</td>
+            <td>~1h</td>
+            <td>Menor fricção no início</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <p>JARBAS · MdLab · Análise gerada em 2026-03-12 · <a href="https://jarbas.jarbas-mdlab.com" style="color:var(--primary);">jarbas.jarbas-mdlab.com</a></p>
+  </div>
+
+</div>
+</body>
+</html>

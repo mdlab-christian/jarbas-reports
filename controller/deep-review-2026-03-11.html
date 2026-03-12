@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Review — Controller + JARBAS | 2026-03-11</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --border: #1e1e2e;
+    --border2: #2a2a3e;
+    --text: #e2e2f0;
+    --muted: #888;
+    --primary: #7c6af5;
+    --primary-dim: #3d3570;
+    --success: #3fcf8e;
+    --warning: #f59e0b;
+    --danger: #f43f5e;
+    --info: #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Header */
+  .hero { background: linear-gradient(135deg, #1a1730 0%, #0f0f1a 50%, #0d1a2e 100%); border: 1px solid var(--border2); border-radius: 16px; padding: 40px; margin-bottom: 32px; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -50px; right: -50px; width: 200px; height: 200px; background: radial-gradient(circle, rgba(124,106,245,0.15), transparent 70%); }
+  .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(124,106,245,0.15); border: 1px solid rgba(124,106,245,0.3); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--primary); font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 16px; }
+  .hero h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; margin-bottom: 8px; }
+  .hero h1 span { color: var(--primary); }
+  .hero .subtitle { color: var(--muted); font-size: 15px; max-width: 600px; }
+  .hero-meta { display: flex; gap: 24px; margin-top: 24px; flex-wrap: wrap; }
+  .hero-meta .m { font-size: 12px; color: var(--muted); }
+  .hero-meta .m strong { color: var(--text); display: block; font-size: 14px; }
+
+  /* Stat cards */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat .value { font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+  .stat .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+  .stat.green .value { color: var(--success); }
+  .stat.blue .value { color: var(--info); }
+  .stat.purple .value { color: var(--primary); }
+  .stat.yellow .value { color: var(--warning); }
+
+  /* Sections */
+  .section { margin-bottom: 40px; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .section-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .icon-purple { background: rgba(124,106,245,0.15); }
+  .icon-green { background: rgba(63,207,142,0.15); }
+  .icon-blue { background: rgba(56,189,248,0.15); }
+  .icon-yellow { background: rgba(245,158,11,0.15); }
+  .icon-red { background: rgba(244,63,94,0.15); }
+  .section-header h2 { font-size: 20px; font-weight: 700; }
+  .section-header .sec-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(124,106,245,0.1); color: var(--primary); border: 1px solid rgba(124,106,245,0.2); }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+  .card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card p { color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .card.highlight { border-color: var(--primary-dim); background: linear-gradient(135deg, rgba(124,106,245,0.05), var(--surface)); }
+  .card.success { border-color: rgba(63,207,142,0.3); background: rgba(63,207,142,0.03); }
+  .card.warning { border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.03); }
+  .card.danger { border-color: rgba(244,63,94,0.3); background: rgba(244,63,94,0.03); }
+
+  /* Grid */
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(63,207,142,0.15); color: var(--success); border: 1px solid rgba(63,207,142,0.3); }
+  .badge-red { background: rgba(244,63,94,0.15); color: var(--danger); border: 1px solid rgba(244,63,94,0.3); }
+  .badge-yellow { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-blue { background: rgba(56,189,248,0.15); color: var(--info); border: 1px solid rgba(56,189,248,0.3); }
+  .badge-purple { background: rgba(124,106,245,0.15); color: var(--primary); border: 1px solid rgba(124,106,245,0.3); }
+  .badge-gray { background: rgba(136,136,136,0.1); color: var(--muted); border: 1px solid rgba(136,136,136,0.2); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 10px 14px; background: #0d0d14; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* Lists */
+  ul { list-style: none; }
+  ul li { padding: 6px 0; padding-left: 18px; position: relative; color: var(--muted); font-size: 13px; }
+  ul li::before { content: '›'; position: absolute; left: 0; color: var(--primary); }
+  ul.checks li::before { content: '✓'; color: var(--success); }
+  ul.crosses li::before { content: '✗'; color: var(--danger); }
+  ul.dots li::before { content: '•'; color: var(--muted); }
+
+  /* Flow */
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .flow-step { background: rgba(124,106,245,0.1); border: 1px solid rgba(124,106,245,0.25); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 600; color: var(--primary); white-space: nowrap; }
+  .flow-arrow { color: var(--muted); font-size: 14px; }
+
+  /* Code */
+  code { background: #1a1a2e; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: 'Cascadia Code', monospace; font-size: 12px; color: #a5b4fc; }
+  .code-block { background: #0d0d14; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'Cascadia Code', monospace; font-size: 12px; color: #c4b5fd; line-height: 1.7; overflow-x: auto; margin: 12px 0; }
+
+  /* Gap status */
+  .gap-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .gap-item:last-child { border-bottom: none; }
+  .gap-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+  .gap-ok { background: rgba(63,207,142,0.15); }
+  .gap-warn { background: rgba(245,158,11,0.15); }
+  .gap-bad { background: rgba(244,63,94,0.15); }
+  .gap-title { font-size: 13px; font-weight: 600; color: var(--text); }
+  .gap-desc { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* TOC */
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 32px; }
+  .toc h4 { font-size: 12px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.5px; margin-bottom: 12px; }
+  .toc ol { list-style: none; counter-reset: toc; }
+  .toc ol li { counter-increment: toc; padding: 4px 0; font-size: 13px; }
+  .toc ol li::before { content: counter(toc) '. '; color: var(--primary); font-weight: 700; }
+  .toc ol li a { color: var(--text); text-decoration: none; opacity: 0.8; }
+  .toc ol li a:hover { opacity: 1; color: var(--primary); }
+
+  /* Tabs UI doc */
+  .tab-doc { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+  .tab-doc-header { background: #0d0d14; padding: 10px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); }
+  .tab-doc-header .tab-name { font-size: 12px; font-weight: 700; color: var(--primary); }
+  .tab-doc-header .tab-desc { font-size: 11px; color: var(--muted); }
+  .tab-doc-body { padding: 14px 16px; font-size: 13px; color: var(--muted); }
+  .tab-doc-body strong { color: var(--text); }
+
+  /* Score ring */
+  .score-ring { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; font-size: 16px; font-weight: 800; margin-right: 12px; }
+  .score-good { border: 3px solid var(--success); color: var(--success); }
+  .score-ok { border: 3px solid var(--warning); color: var(--warning); }
+  .score-bad { border: 3px solid var(--danger); color: var(--danger); }
+
+  @media (max-width: 640px) {
+    .hero h1 { font-size: 22px; }
+    .hero { padding: 24px; }
+    .stats { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- HERO -->
+  <div class="hero">
+    <div class="hero-badge">🔍 Deep Review — 2026-03-11</div>
+    <h1>Controller + <span>JARBAS</span><br>O Que Funciona Hoje</h1>
+    <p class="subtitle">Review completo da página /controller, do Agente Controller, e das skills de monitoramento e análise de processos. Estado real do sistema em 11/03/2026.</p>
+    <div class="hero-meta">
+      <div class="m"><strong>Escritório</strong>MP Advocacia</div>
+      <div class="m"><strong>Volume</strong>~5.800 processos</div>
+      <div class="m"><strong>Tribunais</strong>TJRS · TJSC · TJSP · JFRS</div>
+      <div class="m"><strong>OABs</strong>5 ativas</div>
+      <div class="m"><strong>Versão Controller</strong>V3 (hoje em prod)</div>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc">
+    <h4>Índice</h4>
+    <ol>
+      <li><a href="#pagina">Página /controller — Visão Geral</a></li>
+      <li><a href="#tabs">Abas do Drawer de Intimação</a></li>
+      <li><a href="#v3features">Features V3 Implementadas Hoje</a></li>
+      <li><a href="#agente">Agente Controller (Claude)</a></li>
+      <li><a href="#skills">Skills JARBAS de Monitoramento</a></li>
+      <li><a href="#pipeline">Pipeline Completo: EPROC → Ação</a></li>
+      <li><a href="#gaps">Gaps e Pendências</a></li>
+      <li><a href="#score">Score Geral do Sistema</a></li>
+    </ol>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat green">
+      <div class="label">Tribunais suportados</div>
+      <div class="value">4</div>
+      <div class="sub">TJRS · TJSC · TJSP · JFRS</div>
+    </div>
+    <div class="stat blue">
+      <div class="label">Skills de análise</div>
+      <div class="value">12</div>
+      <div class="sub">captura, análise, monitoramento</div>
+    </div>
+    <div class="stat purple">
+      <div class="label">Tabs no Drawer</div>
+      <div class="value">8</div>
+      <div class="sub">Resumo · Processo · Histórico · Ações · Financeiro · Docs · Chat · Notas</div>
+    </div>
+    <div class="stat yellow">
+      <div class="label">Bugs corrigidos hoje</div>
+      <div class="value">11</div>
+      <div class="sub">7 commits em 11/03/2026</div>
+    </div>
+  </div>
+
+  <!-- 1. PÁGINA CONTROLLER -->
+  <div class="section" id="pagina">
+    <div class="section-header">
+      <div class="section-icon icon-purple">⚡</div>
+      <h2>Página /controller — Visão Geral</h2>
+      <span class="sec-badge">V3</span>
+    </div>
+
+    <div class="card highlight">
+      <h3>🎯 O que é o Controller</h3>
+      <p>É o painel central de triagem de intimações judiciais do escritório Midas. Recebe intimações capturadas automaticamente do EPROC (RS/SC/SP), processa via IA (OlivIA), e apresenta uma fila de trabalho onde os advogados tomam ações — classificar, delegar, concluir, gerar petição.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>🗂️ Abas principais da página</h3>
+        <ul>
+          <li><strong>Intimações</strong> — fila principal com filtros, busca, bulk actions</li>
+          <li><strong>Monitoramento</strong> — processos sendo monitorados pelo JARBAS no EPROC</li>
+          <li><strong>Documentos</strong> — docs pendentes do escritório</li>
+          <li><strong>Equipe</strong> — distribuição por advogado</li>
+          <li><strong>Atividades</strong> — atividades geradas pelo controller</li>
+          <li><strong>Dashboard</strong> — KPIs e gráficos</li>
+          <li><strong>Arquivados</strong> — intimações concluídas/ignoradas</li>
+          <li><strong>Playbooks</strong> — guias de triagem por tipo de intimação</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🔍 Filtros disponíveis (V3)</h3>
+        <ul>
+          <li><strong>Status</strong> — nova, lida, processada, ignorada</li>
+          <li><strong>IA Status</strong> — pendente, processando, concluído, erro</li>
+          <li><strong>Urgente / Importante</strong> — flags</li>
+          <li><strong>Advogado responsável</strong></li>
+          <li><strong>Prazo</strong> — vencendo hoje, vencido</li>
+          <li><strong>Busca livre</strong> — título, CNJ, cliente, resumo</li>
+          <li><strong>Ocultar DJEN</strong> — filtra publicações DJE (padrão: ativo)</li>
+          <li><strong>Ocultar Pauta Julgamento</strong></li>
+          <li><strong>Mostrar Duplicadas</strong></li>
+          <li><strong>Paginação</strong> — 200 / 400 / 800 / 1200 por página</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>⚡ KPIs do topo (V3)</h3>
+        <ul>
+          <li>Total de intimações novas</li>
+          <li>Prazos vencendo hoje (banner de alerta vermelho)</li>
+          <li>Prazos críticos (≤5 dias)</li>
+          <li>Aguardando análise IA</li>
+          <li>Intimações urgentes</li>
+          <li>Processadas hoje</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🎹 Keyboard Shortcuts</h3>
+        <ul>
+          <li><code>ESC</code> — fechar drawer</li>
+          <li><code>A</code> — criar atividade (drawer aberto)</li>
+          <li><code>P</code> — processar intimação</li>
+          <li><code>I</code> — ignorar intimação</li>
+          <li><code>⌘K</code> — Command Palette</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📋 Bulk Actions (seleção múltipla)</h3>
+      <p>Selecionar N intimações → barra de ações aparece no rodapé:</p>
+      <div class="flow" style="margin-top: 10px;">
+        <div class="flow-step">Marcar Processada</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Ignorar</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Reprocessar IA</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Criar Atividades (lote)</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Transferir Atividades</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Exportar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. TABS DO DRAWER -->
+  <div class="section" id="tabs">
+    <div class="section-header">
+      <div class="section-icon icon-blue">📋</div>
+      <h2>Abas do Drawer de Intimação</h2>
+      <span class="sec-badge">8 abas</span>
+    </div>
+
+    <p style="color: var(--muted); margin-bottom: 16px; font-size: 13px;">Ao clicar em qualquer intimação, um painel lateral desliza com 8 abas de contexto completo:</p>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name">📄 Resumo</div>
+        <div class="tab-desc">Principal — análise IA + quick actions</div>
+      </div>
+      <div class="tab-doc-body">
+        <strong>Quick Actions</strong> (novo hoje): Criar Atividade · Copiar Resumo · Abrir no EPROC<br>
+        <strong>Prazo Dinâmico</strong> (novo hoje): calcula data-limite por tipo_ação (úteis/corridos) com cor de urgência<br>
+        <strong>Resumo OlivIA</strong>: análise IA da intimação<br>
+        <strong>Ação Recomendada</strong>: o que fazer (gerado pela IA)<br>
+        <strong>Próximos Passos</strong>: lista priorizada<br>
+        <strong>Flags</strong>: Ciência c/ Renúncia · Depósito Judicial<br>
+        <strong>Texto completo</strong>: expansível com contagem de chars<br>
+        <strong>Observação do Controller</strong>: campo livre, auto-salva
+      </div>
+    </div>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name">🏛️ Processo</div>
+        <div class="tab-desc">Dados do processo no banco</div>
+      </div>
+      <div class="tab-doc-body">
+        <strong>Dados básicos</strong>: CNJ, cliente, empresa ré, distribuição, fase, advogado<br>
+        <strong>Valores</strong>: valor da causa, condenação<br>
+        <strong>Jurimetria</strong>: chance de sucesso (%), última decisão<br>
+        <strong>Previsão</strong>: prazo estimado + valor estimado recuperável<br>
+        <strong>Movimentações recentes</strong>: últimas 15, com filtro de DJEN, texto <strong>expandível</strong> (novo hoje)
+      </div>
+    </div>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name">📅 Histórico</div>
+        <div class="tab-desc">Histórico de ações na intimação</div>
+      </div>
+      <div class="tab-doc-body">
+        Timeline de ações realizadas na intimação (status changes, leituras, atividades criadas)
+      </div>
+    </div>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name">⚡ Ações</div>
+        <div class="tab-desc">Criar atividade, solicitar doc, navegar para OlivIA</div>
+      </div>
+      <div class="tab-doc-body">
+        Formulário de criação de atividade com título pré-preenchido · Solicitar Documento Pendente · Navegar para OlivIA com contexto
+      </div>
+    </div>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name" style="color: var(--success);">💰 Financeiro</div>
+        <div class="tab-desc">NOVO HOJE — dados financeiros da intimação</div>
+      </div>
+      <div class="tab-doc-body">
+        <strong>Valor do acordo proposto</strong> (R$)<br>
+        <strong>Dano moral estimado</strong> (R$)<br>
+        <strong>Honorários</strong> (%) + cálculo automático do valor<br>
+        <strong>Custas processuais</strong> (R$)<br>
+        <strong>Observações financeiras</strong> (texto livre)<br>
+        Salva automaticamente em <code>metadata.financeiro</code> da tabela intimacoes
+      </div>
+    </div>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name">📎 Documentos</div>
+        <div class="tab-desc">Docs vinculados ao processo</div>
+      </div>
+      <div class="tab-doc-body">
+        Documentos pendentes do processo (com status e prazo) · Upload direto (Supabase Storage) · Docs do bucket controller-documentos e processos · Link para EPROC quando vazio
+      </div>
+    </div>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name">💬 Chat OlivIA</div>
+        <div class="tab-desc">Conversa com IA no contexto do processo</div>
+      </div>
+      <div class="tab-doc-body">
+        Chat contextualizado com a intimação — perguntar sobre prazos, estratégia, gerar minutas
+      </div>
+    </div>
+
+    <div class="tab-doc">
+      <div class="tab-doc-header">
+        <div class="tab-name">📝 Notas</div>
+        <div class="tab-desc">Notas internas vinculadas ao processo</div>
+      </div>
+      <div class="tab-doc-body">
+        Notas colaborativas por processo/intimação — visíveis para toda a equipe
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <h3>🔧 Footer do Drawer (ações rápidas)</h3>
+      <div class="flow">
+        <div class="flow-step">Criar Atividade</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Solicitar Documento</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Ciência c/ Renúncia</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Marcar como Lida</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Gerar Petição (OlivIA)</div>
+        <div class="flow-arrow">·</div>
+        <div class="flow-step">Concluir</div>
+      </div>
+      <p style="margin-top: 8px;">Badge de tribunal colorido (🔵TJRS · 🟢TJSC · 🟠TJSP) + botão "Abrir no EPROC" com deep link direto ao processo.</p>
+    </div>
+  </div>
+
+  <!-- 3. FEATURES V3 HOJE -->
+  <div class="section" id="v3features">
+    <div class="section-header">
+      <div class="section-icon icon-green">✅</div>
+      <h2>Features V3 — Implementadas Hoje (11/03)</h2>
+      <span class="sec-badge">7 commits</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>O que foi feito</th>
+          <th>Arquivo</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Bug #3</strong></td>
+          <td>Olho (👁) marca como 'lida' — não 'processada'</td>
+          <td><code>V3IntimacaoRow</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #4</strong></td>
+          <td>Coluna de flags com largura fixa 20px — sem deslocar texto</td>
+          <td><code>V3IntimacaoRow</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #5</strong></td>
+          <td>Ícone ★ Importante visível mesmo quando urgente=true</td>
+          <td><code>V3IntimacaoRow</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #6</strong></td>
+          <td>Dropdown "Processar" usa onSelect+preventDefault (Radix) — não abre drawer</td>
+          <td><code>V3IntimacaoRow</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #7</strong></td>
+          <td>Botões "Ver Ciências" / "Ver Depósitos" com label explicitando que são filtros</td>
+          <td><code>V3FilterBar</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #8</strong></td>
+          <td>Paginação flexível: 200 / 400 / 800 / 1200 por página</td>
+          <td><code>V3Intimacoes</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #10</strong></td>
+          <td>Tab Processo filtra movimentações DJEN/publicações do histórico</td>
+          <td><code>V3DrawerTabProcesso</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #11</strong></td>
+          <td>OAB do advogado exibida no header do drawer</td>
+          <td><code>V3DrawerHeader</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #12</strong></td>
+          <td>Tooltip explicando "Ocultar Pauta Julgamento"</td>
+          <td><code>V3FilterBar</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #14</strong></td>
+          <td>18 tipos de atividade padronizados no modal</td>
+          <td><code>SheetAtividade</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #16</strong></td>
+          <td>Filtro DJEN ativo por padrão (oculta publicações poluentes)</td>
+          <td><code>V3FilterBar</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Feature — Badge Tribunal</strong></td>
+          <td>Badge colorido TJRS/TJSC/TJSP no header + botão "Abrir no EPROC" com deep link</td>
+          <td><code>V3DrawerHeader</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #2</strong></td>
+          <td>Fallback "Ré não identificada" quando empresa_nome é null</td>
+          <td><code>V3IntimacaoRow</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #9</strong></td>
+          <td>Ícone Copy na coluna flags para intimações duplicadas</td>
+          <td><code>V3IntimacaoRow</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #13</strong></td>
+          <td>Movimentações expandíveis no TabProcesso (Ver mais / Ver menos)</td>
+          <td><code>V3DrawerTabProcesso</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Feature 1</strong></td>
+          <td>Prazo dinâmico calculado por tipo_ação com cor de urgência (úteis/corridos)</td>
+          <td><code>V3DrawerTabResumo</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Feature 2</strong></td>
+          <td>Nova aba Financeiro — acordo, dano moral, honorários, custas</td>
+          <td><code>V3DrawerTabFinanceiro</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Feature 3</strong></td>
+          <td>Quick Actions: Criar Atividade · Copiar Resumo · Abrir EPROC</td>
+          <td><code>V3DrawerTabResumo</code></td>
+          <td><span class="badge badge-green">✓ OK</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #1</strong></td>
+          <td>Checkbox com data-no-row-click — não abre drawer</td>
+          <td><code>V3IntimacaoRow</code></td>
+          <td><span class="badge badge-green">✓ Já estava correto</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #15</strong></td>
+          <td>Aba Documentos com docs pendentes, upload e link EPROC</td>
+          <td><code>V3DrawerTabDocumentos</code></td>
+          <td><span class="badge badge-green">✓ Já estava correto</span></td>
+        </tr>
+        <tr>
+          <td><strong>Bug #17</strong></td>
+          <td>Performance / lentidão de comandos</td>
+          <td>—</td>
+          <td><span class="badge badge-yellow">⚠ Pendente</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 4. AGENTE CONTROLLER -->
+  <div class="section" id="agente">
+    <div class="section-header">
+      <div class="section-icon icon-purple">🤖</div>
+      <h2>Agente Controller (Claude)</h2>
+      <span class="sec-badge">olivia-controller</span>
+    </div>
+
+    <div class="card highlight">
+      <h3>🧠 O que é o Agente Controller</h3>
+      <p>É um agente Claude especializado em triagem jurídica que o JARBAS pode invocar via <code>cc: [tarefa]</code> ou skill. Ele conhece todos os playbooks do escritório, as regras do EPROC (RS/SC/SP) e a árvore de decisão de intimações.</p>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>✅ Age autonomamente (sem escalar)</h3>
+        <ul class="checks">
+          <li>Ciência com Renúncia ao Prazo (intimações informativas)</li>
+          <li>Registrar audiências novas no sistema</li>
+          <li>Solicitar documentos AJG ao cliente</li>
+          <li>Lançar atividade de Réplica</li>
+          <li>Lançar Contrarrazões quando apelação do réu identificada</li>
+          <li>Marcar intimação como lida/processada</li>
+          <li>Identificar prazo (úteis vs corridos) por tipo</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🛑 SEMPRE escala para humano</h3>
+        <ul class="crosses">
+          <li>Sentença/acórdão de mérito → Dra. Eloísa</li>
+          <li>Valor de dano moral inconsistente</li>
+          <li>Decisão ambígua sobre custas</li>
+          <li>Sem regra clara no playbook</li>
+          <li>Embargos à execução</li>
+          <li>Impugnação ao cumprimento</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🗺️ Roteamento por empresa ré</h3>
+      <table>
+        <thead><tr><th>Tipo de empresa</th><th>Responsável</th></tr></thead>
+        <tbody>
+          <tr><td>Banco, financeira, banco digital, fundo de crédito</td><td><strong>Stephanie</strong></td></tr>
+          <tr><td>Boa Vista, Mercado Pago, fintech de score/bureau</td><td><strong>Leonardo</strong></td></tr>
+          <tr><td>Loja, varejo, telecom, energia, distribuidora</td><td><strong>Marcelo / Yuri</strong></td></tr>
+          <tr><td>Decisão favorável, acórdão, 2º grau</td><td><strong>Dra. Eloísa</strong></td></tr>
+          <tr><td>Tipo não identificado</td><td><strong>null → João decide</strong></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>📏 Tabela de prazos que o agente conhece</h3>
+      <div class="grid3">
+        <div><span class="badge badge-red">5d úteis</span><br><small style="color:var(--muted)">Embargos de Declaração</small></div>
+        <div><span class="badge badge-yellow">15d úteis</span><br><small style="color:var(--muted)">Réplica · AI · Apelação · Contrarrazões · Contestação</small></div>
+        <div><span class="badge badge-blue">15d corridos</span><br><small style="color:var(--muted)">Pagamento em cumprimento</small></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🏗️ Particularidades por estado que o agente conhece</h3>
+      <div class="grid3">
+        <div style="padding: 12px; background: rgba(56,189,248,0.05); border: 1px solid rgba(56,189,248,0.15); border-radius: 8px;">
+          <div style="color: var(--info); font-weight: 700; font-size: 13px; margin-bottom: 8px;">TJRS</div>
+          <ul class="dots">
+            <li>2x clique em data = ordenar decrescente</li>
+            <li>ACOR3 = acórdão principal</li>
+            <li>Agravo Interno Desprovido → ciência + aguardar trânsito</li>
+          </ul>
+        </div>
+        <div style="padding: 12px; background: rgba(63,207,142,0.05); border: 1px solid rgba(63,207,142,0.15); border-radius: 8px;">
+          <div style="color: var(--success); font-weight: 700; font-size: 13px; margin-bottom: 8px;">TJSC</div>
+          <ul class="dots">
+            <li>Interface azul/branco, menu lateral</li>
+            <li>Ato Ordinatório ≠ ciência com renúncia</li>
+            <li>Súmula 362 STJ (correção)</li>
+          </ul>
+        </div>
+        <div style="padding: 12px; background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.15); border-radius: 8px;">
+          <div style="color: var(--warning); font-weight: 700; font-size: 13px; margin-bottom: 8px;">TJSP</div>
+          <ul class="dots">
+            <li>Cancelamento COM custas → Apelação</li>
+            <li>AJG indefere → AI ou Apelação (depende do contexto)</li>
+            <li>5ª Vara Cível Canoas: regra especial</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. SKILLS JARBAS -->
+  <div class="section" id="skills">
+    <div class="section-header">
+      <div class="section-icon icon-yellow">⚙️</div>
+      <h2>Skills JARBAS de Monitoramento e Análise</h2>
+      <span class="sec-badge">12 skills</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Skill</th>
+          <th>O que faz</th>
+          <th>Ativação</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>skill_monitorar.mjs</code></td>
+          <td>Navega EPROC, captura movimentações recentes, detecta sessão expirada, reautentifica</td>
+          <td>task queue / cron</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_monitorar_cron.mjs</code></td>
+          <td>Versão agendada — dispara o monitoramento em horários fixos</td>
+          <td>cron</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_captura_intimacoes.mjs</code></td>
+          <td>Extrai intimações novas do EPROC, detecta keywords de urgência, grava com dedup (sha256)</td>
+          <td>task queue / cron</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_analise_intimacoes_bulk.mjs</code></td>
+          <td>Processa intimações pendentes via Claude Haiku (OLIVIA_INTIMACAO_MODAL), grava analise_ia</td>
+          <td>task queue</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_analise_juridica_processo.mjs</code></td>
+          <td>Análise profunda de um processo: estratégia, chance de sucesso, próximos passos</td>
+          <td>task queue / inline</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_importar_processo.mjs</code></td>
+          <td>Importa processo do EPROC para o MdFlow — extrai dados, vincula cliente/empresa</td>
+          <td>task queue / inline</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_enriquecer_processo.mjs</code></td>
+          <td>Enriquece processo existente com dados faltantes (empresa ré, valor, advogado)</td>
+          <td>task queue</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_consulta_processo.mjs</code></td>
+          <td>Consulta processo por CNJ no Supabase — retorna dados e movimentações</td>
+          <td>inline</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_listar_processos_eproc.mjs</code></td>
+          <td>Lista processos do painel EPROC (relação de processos) com filtros</td>
+          <td>task queue</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_contexto_monitor.mjs</code></td>
+          <td>Lê estado atual do monitor (última execução, erros, sessão)</td>
+          <td>inline / heartbeat</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_gerar_relatorio_processo.mjs</code></td>
+          <td>Gera relatório HTML de um processo — linha do tempo, decisões, valores</td>
+          <td>task queue / inline</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+        <tr>
+          <td><code>skill_monitor_n8n.mjs</code></td>
+          <td>Verifica 7 workflows críticos do n8n — alerta se workflow cair</td>
+          <td>heartbeat / cron</td>
+          <td><span class="badge badge-green">✓ Prod</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 6. PIPELINE COMPLETO -->
+  <div class="section" id="pipeline">
+    <div class="section-header">
+      <div class="section-icon icon-green">🔄</div>
+      <h2>Pipeline Completo: EPROC → Ação</h2>
+    </div>
+
+    <div class="card highlight">
+      <h3>🏗️ Fluxo completo de uma intimação</h3>
+      <div class="flow" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+          <div class="flow-step" style="background: rgba(56,189,248,0.1); color: var(--info); border-color: rgba(56,189,248,0.3);">① EPROC RS/SC/SP</div>
+          <div class="flow-arrow">→</div>
+          <span style="color: var(--muted); font-size: 12px;">skill_monitorar detecta evento novo</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+          <div class="flow-step">② skill_captura_intimacoes</div>
+          <div class="flow-arrow">→</div>
+          <span style="color: var(--muted); font-size: 12px;">extrai texto, grava na tabela <code>intimacoes</code> com sha256 dedup, status='nova'</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+          <div class="flow-step">③ skill_analise_bulk</div>
+          <div class="flow-arrow">→</div>
+          <span style="color: var(--muted); font-size: 12px;">Claude Haiku analisa, grava <code>analise_ia</code> (resumo, ação, flags, prazo)</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+          <div class="flow-step" style="background: rgba(124,106,245,0.1); color: var(--primary); border-color: rgba(124,106,245,0.3);">④ /controller (V3)</div>
+          <div class="flow-arrow">→</div>
+          <span style="color: var(--muted); font-size: 12px;">aparece na fila com badge IA ✓, resumo, flags, prazo</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+          <div class="flow-step" style="background: rgba(63,207,142,0.1); color: var(--success); border-color: rgba(63,207,142,0.3);">⑤ Advogado/JARBAS age</div>
+          <div class="flow-arrow">→</div>
+          <span style="color: var(--muted); font-size: 12px;">cria atividade, delega, processa ou ignora</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div class="card">
+        <h3>🔍 O que a IA extrai de cada intimação</h3>
+        <ul>
+          <li><code>resumo_controller</code> — frase de 80 chars para o card</li>
+          <li><code>acao_recomendada</code> — o que fazer</li>
+          <li><code>proximos_passos</code> — lista priorizada</li>
+          <li><code>flag_ciencia_renuncia</code> — true/false</li>
+          <li><code>flag_deposito_judicial</code> — true/false</li>
+          <li><code>tipo_intimacao</code> — classificação</li>
+          <li><code>nivel_urgencia</code> — normal/alto/crítico</li>
+          <li><code>fase_processual</code> — em que fase está</li>
+          <li><code>responsavel_sugerido_nome</code> — quem deve agir</li>
+          <li><code>resultado_decisao</code> — favorável/desfavorável/parcial</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>📊 Dados pré-calculados na view SQL</h3>
+        <ul>
+          <li><code>dias_ate_prazo</code> — dias até vencer</li>
+          <li><code>status_prazo</code> — sem_prazo/hoje/crítico/vencido</li>
+          <li><code>is_duplicada</code> — intimação duplicada de outra</li>
+          <li><code>decisao_resultado</code> — join com tabela decisões</li>
+          <li><code>ciencia_renuncia_status</code> — pendente/executada</li>
+          <li><code>advogado_oab</code> + <code>advogado_oab_uf</code></li>
+          <li><code>empresa_nome</code> — join com empresas</li>
+          <li><code>auto_cadastro_pendente</code> — cliente não cadastrado</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. GAPS E PENDÊNCIAS -->
+  <div class="section" id="gaps">
+    <div class="section-header">
+      <div class="section-icon icon-red">⚠️</div>
+      <h2>Gaps e Pendências</h2>
+    </div>
+
+    <div class="card">
+      <div class="gap-item">
+        <div class="gap-icon gap-bad">🔴</div>
+        <div>
+          <div class="gap-title">Bug #17 — Lentidão na execução de comandos</div>
+          <div class="gap-desc">Interface percebida como lenta em ações (processar, ignorar, bulk). Causa provável: invalidateQueries muito amplo ou latência do webhook. Precisa profiling.</div>
+        </div>
+      </div>
+      <div class="gap-item">
+        <div class="gap-icon gap-bad">🔴</div>
+        <div>
+          <div class="gap-title">Ciência c/ Renúncia — STUB (aguardando vídeo João)</div>
+          <div class="gap-desc">A skill <code>ciencia_renuncia</code> está como STUB. Delega para JARBAS via WH-CTRL-09 mas não executa peticionamento real no EPROC. Precisa do vídeo do João com o fluxo completo.</div>
+        </div>
+      </div>
+      <div class="gap-item">
+        <div class="gap-icon gap-warn">🟡</div>
+        <div>
+          <div class="gap-title">Duplicatas — sem agrupamento real</div>
+          <div class="gap-desc">Bug #9 foi parcialmente resolvido (ícone de duplicata na row). Mas não há agrupamento visual "N intimações para o mesmo processo" com colapso/expansão. Seria necessário refatorar V3IntimacaoGroup.</div>
+        </div>
+      </div>
+      <div class="gap-item">
+        <div class="gap-icon gap-warn">🟡</div>
+        <div>
+          <div class="gap-title">Aba Financeiro — sem tabela dedicada</div>
+          <div class="gap-desc">Feature 2 (Financeiro) salva em <code>metadata.financeiro</code> como JSONB. Funciona bem para MVP mas dificulta queries analíticas. Criar tabela <code>financeiro_intimacoes</code> no futuro.</div>
+        </div>
+      </div>
+      <div class="gap-item">
+        <div class="gap-icon gap-warn">🟡</div>
+        <div>
+          <div class="gap-title">Prazo dinâmico — apenas para tipos mapeados</div>
+          <div class="gap-desc">Feature 1 calcula prazo para ~12 tipos de ação. Intimações com tipo não mapeado não mostram prazo dinâmico (depende do prazo calculado pelo DB). Expandir o PRAZO_MAP conforme surgem novos tipos.</div>
+        </div>
+      </div>
+      <div class="gap-item">
+        <div class="gap-icon gap-warn">🟡</div>
+        <div>
+          <div class="gap-title">RAG ChromaDB não populado</div>
+          <div class="gap-desc">A base vetorial <code>processos_jarbas</code> / <code>intimacoes_jarbas</code> ainda não foi indexada. O skill <code>rag_mdflow</code> não funciona sem ela. Rodar: <code>python3 ~/jarbas/src/rag/indexar-mdflow.py</code></div>
+        </div>
+      </div>
+      <div class="gap-item">
+        <div class="gap-icon gap-ok">🟢</div>
+        <div>
+          <div class="gap-title">Monitor N8N — funcional</div>
+          <div class="gap-desc">7 workflows críticos sendo monitorados. JARBAS alerta via Telegram se qualquer um cair. Heartbeat verifica a cada hora.</div>
+        </div>
+      </div>
+      <div class="gap-item">
+        <div class="gap-icon gap-ok">🟢</div>
+        <div>
+          <div class="gap-title">Realtime Supabase — ativo</div>
+          <div class="gap-desc"><code>useControllerRealtime</code> hook ativo — quando nova intimação chega no Supabase, a fila atualiza automaticamente sem refresh.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. SCORE GERAL -->
+  <div class="section" id="score">
+    <div class="section-header">
+      <div class="section-icon icon-purple">📊</div>
+      <h2>Score Geral do Sistema</h2>
+    </div>
+
+    <div class="grid2">
+      <div class="card success">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <div class="score-ring score-good">9</div>
+          Página /controller
+        </h3>
+        <p>Interface V3 completa, 8 abas funcionais, filtros robustos, bulk actions, keyboard shortcuts, realtime. Todos os bugs críticos do g9 corrigidos. Prazo dinâmico, aba financeiro e quick actions entregues hoje.</p>
+      </div>
+      <div class="card success">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <div class="score-ring score-good">8</div>
+          Agente Controller
+        </h3>
+        <p>Playbook completo RS/SC/SP, regras de triagem precisas, roteamento por empresa ré, árvore de decisão. Ponto fraco: ciência com renúncia ainda é STUB (precisa do vídeo João).</p>
+      </div>
+      <div class="card success">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <div class="score-ring score-good">8</div>
+          Skills de Monitoramento
+        </h3>
+        <p>12 skills ativas cobrindo captura, análise bulk, importação, enriquecimento e monitoramento. Pipeline EPROC → Supabase funcionando. Ponto fraco: RAG não populado.</p>
+      </div>
+      <div class="card warning">
+        <h3 style="display: flex; align-items: center; gap: 8px;">
+          <div class="score-ring score-ok">6</div>
+          Ciência c/ Renúncia
+        </h3>
+        <p>Identificação pela IA: ✅ excelente. Execução automática no EPROC: ❌ STUB. Precisa do vídeo do João para finalizar o fluxo de peticionamento.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px; text-align: center; padding: 28px;">
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 8px;">Score Geral do Sistema Controller + JARBAS</p>
+      <div style="font-size: 48px; font-weight: 900; color: var(--success); letter-spacing: -2px;">8.3 / 10</div>
+      <p style="color: var(--muted); font-size: 12px; margin-top: 8px;">Sistema funcional e em produção. Principais gaps: ciência c/ renúncia STUB, RAG não populado, performance.</p>
+    </div>
+  </div>
+
+  <div style="text-align: center; padding: 40px 0 20px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 16px;">
+    Deep Review gerado por JARBAS em 11/03/2026 · MP Advocacia · MdLab
+  </div>
+</div>
+</body>
+</html>

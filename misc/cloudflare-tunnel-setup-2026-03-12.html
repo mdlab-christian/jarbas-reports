@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cloudflare Named Tunnel — Setup JARBAS</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #222536;
+      --border: #2e3148;
+      --primary: #f6821f;
+      --primary-soft: rgba(246,130,31,0.12);
+      --green: #22c55e;
+      --green-soft: rgba(34,197,94,0.12);
+      --blue: #60a5fa;
+      --blue-soft: rgba(96,165,250,0.10);
+      --yellow: #fbbf24;
+      --yellow-soft: rgba(251,191,36,0.10);
+      --red: #f87171;
+      --red-soft: rgba(248,113,113,0.10);
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, #f6821f22 0%, #0f111700 60%);
+      border-bottom: 1px solid var(--border);
+      padding: 40px 48px 32px;
+    }
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 12px;
+    }
+    .cf-logo {
+      width: 40px;
+      height: 40px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    .header h1 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .header p {
+      color: var(--muted);
+      font-size: 13px;
+      max-width: 560px;
+    }
+    .badges {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .badge {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      border: 1px solid;
+    }
+    .badge-orange { background: var(--primary-soft); border-color: var(--primary); color: var(--primary); }
+    .badge-green  { background: var(--green-soft);   border-color: var(--green);   color: var(--green); }
+    .badge-blue   { background: var(--blue-soft);    border-color: var(--blue);    color: var(--blue); }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 24px 80px;
+    }
+
+    /* ── Timeline ── */
+    .timeline {
+      position: relative;
+      padding-left: 32px;
+    }
+    .timeline::before {
+      content: '';
+      position: absolute;
+      left: 11px;
+      top: 8px;
+      bottom: 0;
+      width: 2px;
+      background: var(--border);
+    }
+    .step {
+      position: relative;
+      margin-bottom: 36px;
+    }
+    .step-dot {
+      position: absolute;
+      left: -32px;
+      top: 4px;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--surface2);
+      border: 2px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--primary);
+      z-index: 1;
+    }
+    .step-dot.done { background: var(--green); border-color: var(--green); color: #000; }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .step-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .step-where {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+    .step-body {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .step-body p {
+      color: #cbd5e1;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .step-body p:last-child { margin-bottom: 0; }
+
+    /* ── Code blocks ── */
+    .code-block {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin: 10px 0;
+      position: relative;
+      overflow-x: auto;
+    }
+    .code-block pre {
+      font-family: var(--mono);
+      font-size: 12.5px;
+      color: #e2e8f0;
+      white-space: pre;
+    }
+    .code-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .hl-orange { color: var(--primary); }
+    .hl-green  { color: var(--green); }
+    .hl-blue   { color: var(--blue); }
+    .hl-yellow { color: var(--yellow); }
+    .hl-muted  { color: var(--muted); }
+
+    /* ── Info boxes ── */
+    .info-box {
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin: 12px 0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      font-size: 13px;
+    }
+    .info-box .icon { font-size: 16px; line-height: 1.4; flex-shrink: 0; }
+    .info-blue   { background: var(--blue-soft);   border: 1px solid rgba(96,165,250,0.25);   color: #93c5fd; }
+    .info-yellow { background: var(--yellow-soft); border: 1px solid rgba(251,191,36,0.25);   color: #fde68a; }
+    .info-green  { background: var(--green-soft);  border: 1px solid rgba(34,197,94,0.25);    color: #86efac; }
+    .info-red    { background: var(--red-soft);    border: 1px solid rgba(248,113,113,0.25);  color: #fca5a5; }
+
+    /* ── Sub-steps ── */
+    .substeps {
+      list-style: none;
+      margin: 10px 0;
+    }
+    .substeps li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      color: #cbd5e1;
+    }
+    .substeps li:last-child { border-bottom: none; }
+    .substeps .num {
+      width: 20px;
+      height: 20px;
+      background: var(--primary-soft);
+      border: 1px solid var(--primary);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--primary);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ── Result box ── */
+    .result-box {
+      background: var(--green-soft);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-top: 40px;
+      text-align: center;
+    }
+    .result-box .title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--green);
+      margin-bottom: 8px;
+    }
+    .result-box .url {
+      font-family: var(--mono);
+      font-size: 15px;
+      color: #fff;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 16px;
+      display: inline-block;
+      margin: 8px 0;
+    }
+    .result-box p {
+      font-size: 13px;
+      color: #86efac;
+    }
+
+    /* ── Section divider ── */
+    .section-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 8px;
+      margin: 36px 0 24px;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="cf-logo">🌩️</div>
+    <div>
+      <h1>Cloudflare Named Tunnel — Setup JARBAS</h1>
+    </div>
+  </div>
+  <p>URL fixa permanente para o Mac Mini M4. Nunca mais atualizar o .env quando o tunnel cair.</p>
+  <div class="badges">
+    <span class="badge badge-orange">Cloudflare Zero Trust</span>
+    <span class="badge badge-green">URL Permanente</span>
+    <span class="badge badge-blue">~20 min</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="info-box info-yellow">
+    <span class="icon">⚠️</span>
+    <div>
+      <strong>Pré-requisito:</strong> Precisa de um domínio gerenciado pelo Cloudflare (ex: <code>mdlab.com.br</code>). 
+      Se o domínio ainda não está no Cloudflare, transfira o DNS primeiro — é grátis.
+    </div>
+  </div>
+
+  <!-- PARTE 1 — CLOUDFLARE -->
+  <p class="section-title">Parte 1 — No painel do Cloudflare (browser)</p>
+
+  <div class="timeline">
+
+    <!-- Step 1 -->
+    <div class="step">
+      <div class="step-dot">1</div>
+      <div class="step-header">
+        <span class="step-title">Criar conta no Zero Trust</span>
+        <span class="step-where">🌐 dash.cloudflare.com</span>
+      </div>
+      <div class="step-body">
+        <p>No painel principal do Cloudflare, clique no menu lateral em <strong>Zero Trust</strong>. Se for a primeira vez, ele vai criar um "team name" — pode colocar <code>mdlab</code> ou qualquer slug.</p>
+        <div class="info-box info-green">
+          <span class="icon">✅</span>
+          <div>Plano <strong>Free</strong> suporta até 50 usuários e tunnels ilimitados. Não precisa pagar nada.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <div class="step-dot">2</div>
+      <div class="step-header">
+        <span class="step-title">Criar o Tunnel</span>
+        <span class="step-where">🌐 Zero Trust → Networks → Tunnels</span>
+      </div>
+      <div class="step-body">
+        <ul class="substeps">
+          <li><span class="num">1</span> Clique em <strong>Create a tunnel</strong></li>
+          <li><span class="num">2</span> Escolha <strong>Cloudflared</strong> (não WARP Connector)</li>
+          <li><span class="num">3</span> Nome do tunnel: <code>jarbas-mac-mini</code></li>
+          <li><span class="num">4</span> Clique em <strong>Save tunnel</strong></li>
+          <li><span class="num">5</span> Na tela seguinte, o Cloudflare vai mostrar um comando de instalação — <strong>copie o token</strong> (a parte depois de <code>--token</code>)</li>
+        </ul>
+        <div class="info-box info-blue">
+          <span class="icon">💡</span>
+          <div>O token tem este formato: <code style="font-family:monospace;font-size:11px">eyJhIjoiXX...LONGA_STRING...XX</code> — salve em algum lugar seguro.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+      <div class="step-dot">3</div>
+      <div class="step-header">
+        <span class="step-title">Configurar o hostname público</span>
+        <span class="step-where">🌐 Zero Trust → Networks → Tunnels → seu tunnel → Edit</span>
+      </div>
+      <div class="step-body">
+        <p>Na aba <strong>Public Hostname</strong>, clique em <strong>Add a public hostname</strong>:</p>
+        <ul class="substeps">
+          <li><span class="num">1</span> <strong>Subdomain:</strong> <code>jarbas</code></li>
+          <li><span class="num">2</span> <strong>Domain:</strong> selecione seu domínio (ex: <code>mdlab.com.br</code>)</li>
+          <li><span class="num">3</span> <strong>Type:</strong> <code>HTTP</code></li>
+          <li><span class="num">4</span> <strong>URL:</strong> <code>localhost:3012</code></li>
+          <li><span class="num">5</span> Clique em <strong>Save hostname</strong></li>
+        </ul>
+        <div class="info-box info-green">
+          <span class="icon">✅</span>
+          <div>Resultado: <strong>https://jarbas.mdlab.com.br</strong> → Mac Mini porta 3012. O Cloudflare cria o registro DNS automaticamente.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PARTE 2 — MAC MINI -->
+  <p class="section-title">Parte 2 — No Mac Mini (Terminal / JARBAS)</p>
+
+  <div class="timeline">
+
+    <!-- Step 4 -->
+    <div class="step">
+      <div class="step-dot">4</div>
+      <div class="step-header">
+        <span class="step-title">Autenticar o cloudflared com o token</span>
+        <span class="step-where">💻 Terminal no Mac Mini</span>
+      </div>
+      <div class="step-body">
+        <p>Execute no terminal (substitua o token pelo que copiou no passo 2):</p>
+        <div class="code-block">
+          <div class="code-label">Terminal</div>
+          <pre><span class="hl-green">cloudflared</span> service install <span class="hl-yellow">eyJhIjoiXX...SEU_TOKEN_AQUI...XX</span></pre>
+        </div>
+        <div class="info-box info-blue">
+          <span class="icon">💡</span>
+          <div>Este comando instala o tunnel como <strong>serviço do macOS (launchd)</strong> — vai subir automaticamente no boot, mesmo sem login.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step">
+      <div class="step-dot">5</div>
+      <div class="step-header">
+        <span class="step-title">Iniciar o serviço</span>
+        <span class="step-where">💻 Terminal no Mac Mini</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label">Terminal</div>
+          <pre><span class="hl-orange">sudo</span> launchctl start com.cloudflare.cloudflared</pre>
+        </div>
+        <p>Verificar se está rodando:</p>
+        <div class="code-block">
+          <div class="code-label">Terminal — deve mostrar "healthy"</div>
+          <pre><span class="hl-green">cloudflared</span> tunnel info jarbas-mac-mini</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step">
+      <div class="step-dot">6</div>
+      <div class="step-header">
+        <span class="step-title">Atualizar o .env do MdFlow</span>
+        <span class="step-where">💻 Terminal — ou manda "jarbas, atualiza o tunnel" no Telegram</span>
+      </div>
+      <div class="step-body">
+        <p>Atualizar o arquivo <code>~/beta-mdflow/.env.local</code>:</p>
+        <div class="code-block">
+          <div class="code-label">.env.local</div>
+          <pre>VITE_JARBAS_WEBHOOK_URL=<span class="hl-green">"https://jarbas.mdlab.com.br"</span></pre>
+        </div>
+        <p>E fazer rebuild do frontend:</p>
+        <div class="code-block">
+          <div class="code-label">Terminal</div>
+          <pre><span class="hl-blue">cd</span> ~/beta-mdflow
+<span class="hl-green">git</span> add .env.local
+<span class="hl-green">git</span> commit -m "fix: URL permanente do JARBAS tunnel"
+<span class="hl-green">git</span> push</pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 7 -->
+    <div class="step">
+      <div class="step-dot">7</div>
+      <div class="step-header">
+        <span class="step-title">Testar o endpoint</span>
+        <span class="step-where">💻 Terminal</span>
+      </div>
+      <div class="step-body">
+        <div class="code-block">
+          <div class="code-label">Terminal — deve retornar JSON com ok: true</div>
+          <pre><span class="hl-green">curl</span> https://jarbas.mdlab.com.br/health</pre>
+        </div>
+        <div class="code-block">
+          <div class="code-label">Resposta esperada</div>
+          <pre>{<span class="hl-green">"ok"</span>: true, <span class="hl-green">"service"</span>: <span class="hl-yellow">"jarbas-webhook"</span>, <span class="hl-green">"ts"</span>: 1773...</pre>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RESULTADO FINAL -->
+  <div class="result-box">
+    <div class="title">✅ Resultado Final</div>
+    <div class="url">https://jarbas.mdlab.com.br</div>
+    <p>URL permanente · Sobe automaticamente no boot · TLS grátis pelo Cloudflare · Zero configuração de firewall</p>
+  </div>
+
+  <!-- PARTE 3 — PÓS SETUP -->
+  <p class="section-title">Depois do setup — JARBAS cuida do resto</p>
+
+  <div class="info-box info-blue">
+    <span class="icon">🤖</span>
+    <div>
+      Quando você terminar o passo 3 (criar o hostname no painel do Cloudflare) e me mandar o token pelo Telegram,
+      eu executo os passos 4 a 7 automaticamente — instalo o serviço, atualizo o .env e testo o endpoint.
+    </div>
+  </div>
+
+  <div class="info-box info-yellow">
+    <span class="icon">⚠️</span>
+    <div>
+      <strong>Não tem domínio no Cloudflare ainda?</strong> Me avisa que te passo o passo a passo para adicionar o domínio ao Cloudflare (é só trocar os nameservers no registrador — Locaweb, Registro.br, GoDaddy, etc.).
+    </div>
+  </div>
+
+  <div class="footer">
+    Gerado por JARBAS · Mac Mini M4 · MdLab · 2026-03-12
+  </div>
+
+</div>
+</body>
+</html>

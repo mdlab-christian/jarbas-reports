@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controller — Análise Completa | 12/03/2026</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3352;
+    --accent: #6366f1;
+    --accent2: #818cf8;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --orange: #f97316;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --cyan: #06b6d4;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --muted2: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+  
+  .hero {
+    background: linear-gradient(135deg, #1e1b4b 0%, #0f1117 50%, #1a1d27 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 40px 36px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; right: -40px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .hero-badge { display: inline-flex; align-items: center; gap: 6px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--accent2); margin-bottom: 16px; }
+  .hero h1 { font-size: 32px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .hero p { color: var(--muted2); font-size: 15px; max-width: 600px; }
+  .hero-meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+  .hero-meta-item { display: flex; align-items: center; gap: 8px; color: var(--muted2); font-size: 13px; }
+  .hero-meta-item span { color: var(--text); font-weight: 500; }
+  
+  .nota-badge {
+    position: absolute; top: 40px; right: 40px;
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white; border-radius: 50%;
+    width: 80px; height: 80px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 24px; box-shadow: 0 8px 24px rgba(34,197,94,0.3);
+  }
+  .nota-badge small { font-size: 10px; font-weight: 500; opacity: 0.8; }
+  
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+  
+  .section { margin: 36px 0; }
+  .section-title {
+    font-size: 18px; font-weight: 700; color: #fff;
+    border-left: 3px solid var(--accent); padding-left: 12px;
+    margin-bottom: 20px;
+  }
+  
+  /* Scorecard */
+  .scorecard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .score-card .title { font-size: 12px; color: var(--muted); font-weight: 500; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .score-card .nota { font-size: 28px; font-weight: 800; }
+  .score-card .bar { height: 4px; background: var(--surface2); border-radius: 2px; margin-top: 8px; }
+  .score-card .bar-fill { height: 4px; border-radius: 2px; transition: width 0.5s; }
+  .nota-green { color: var(--green); }
+  .nota-yellow { color: var(--yellow); }
+  .nota-orange { color: var(--orange); }
+  .nota-red { color: var(--red); }
+  .fill-green { background: var(--green); }
+  .fill-yellow { background: var(--yellow); }
+  .fill-orange { background: var(--orange); }
+  .fill-red { background: var(--red); }
+  
+  /* Pipeline */
+  .pipeline { display: flex; align-items: stretch; gap: 0; margin: 20px 0; flex-wrap: nowrap; overflow-x: auto; }
+  .pipe-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    min-width: 160px;
+    flex: 1;
+    position: relative;
+  }
+  .pipe-step + .pipe-step { margin-left: 12px; }
+  .pipe-step::before {
+    content: '→';
+    position: absolute; left: -17px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted); font-size: 18px;
+    z-index: 1;
+  }
+  .pipe-step:first-child::before { display: none; }
+  .pipe-step .step-num { font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+  .pipe-step .step-title { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .pipe-step .step-desc { font-size: 11px; color: var(--muted2); line-height: 1.5; }
+  .pipe-step .step-status { margin-top: 8px; font-size: 11px; font-weight: 600; }
+  .ok { color: var(--green); }
+  .warn { color: var(--yellow); }
+  .error { color: var(--red); }
+  .info { color: var(--blue); }
+  .stub { color: var(--orange); }
+  
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card.warn-border { border-color: rgba(234,179,8,0.4); }
+  .card.error-border { border-color: rgba(239,68,68,0.3); }
+  .card.ok-border { border-color: rgba(34,197,94,0.3); }
+  .card.info-border { border-color: rgba(59,130,246,0.3); }
+  .card h3 { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card ul { list-style: none; }
+  .card ul li { font-size: 13px; color: var(--muted2); padding: 4px 0; border-bottom: 1px solid var(--surface2); }
+  .card ul li:last-child { border-bottom: none; }
+  .card ul li strong { color: var(--text); }
+  
+  /* Check list */
+  .checklist { list-style: none; }
+  .checklist li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--surface2); font-size: 13px; color: var(--muted2); }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist .icon { flex-shrink: 0; margin-top: 1px; }
+  .checklist .label { color: var(--text); font-weight: 500; }
+  .checklist .note { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  
+  /* Code */
+  .code-block {
+    background: #0a0c14;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    color: #a5f3fc;
+    overflow-x: auto;
+    margin: 12px 0;
+    line-height: 1.8;
+  }
+  .code-block .comment { color: var(--muted); }
+  .code-block .key { color: #c084fc; }
+  .code-block .val { color: #86efac; }
+  .code-block .str { color: #fde68a; }
+  
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--surface2); color: var(--muted2); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; font-weight: 600; }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--surface2); color: var(--muted2); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-orange { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+  .badge-purple { background: rgba(99,102,241,0.15); color: var(--accent2); border: 1px solid rgba(99,102,241,0.3); }
+  
+  /* Alert box */
+  .alert {
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin: 12px 0;
+    font-size: 13px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .alert-yellow { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.3); color: #fde68a; }
+  .alert-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+  .alert-green { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+  .alert-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+  
+  .divider { height: 1px; background: var(--border); margin: 32px 0; }
+  
+  /* Priority items */
+  .priority { display: flex; flex-direction: column; gap: 10px; }
+  .priority-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .priority-item.p0 { border-left: 3px solid var(--red); }
+  .priority-item.p1 { border-left: 3px solid var(--orange); }
+  .priority-item.p2 { border-left: 3px solid var(--yellow); }
+  .priority-item.p3 { border-left: 3px solid var(--blue); }
+  .priority-label { font-size: 10px; font-weight: 800; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; margin-top: 2px; }
+  .p0-label { background: rgba(239,68,68,0.2); color: var(--red); }
+  .p1-label { background: rgba(249,115,22,0.2); color: var(--orange); }
+  .p2-label { background: rgba(234,179,8,0.2); color: var(--yellow); }
+  .p3-label { background: rgba(59,130,246,0.2); color: var(--blue); }
+  .priority-content h4 { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .priority-content p { font-size: 12px; color: var(--muted2); line-height: 1.5; }
+  .priority-content code { font-family: monospace; background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-size: 11px; color: #c084fc; }
+  
+  /* Tabs navigation */
+  .toc { display: flex; gap: 8px; flex-wrap: wrap; padding: 20px 0 0; }
+  .toc a { 
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px; font-size: 12px; color: var(--muted2);
+    text-decoration: none; transition: all 0.2s;
+  }
+  .toc a:hover { background: var(--surface2); color: var(--text); border-color: var(--accent); }
+  
+  h2.anchor { scroll-margin-top: 24px; }
+  
+  .flow-diagram {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    font-family: monospace;
+    font-size: 12px;
+    line-height: 2;
+    color: var(--muted2);
+  }
+  .flow-diagram .node { color: #c084fc; }
+  .flow-diagram .arrow { color: var(--muted); }
+  .flow-diagram .label { color: #86efac; }
+  .flow-diagram .warn-node { color: var(--yellow); }
+  .flow-diagram .ok-node { color: var(--green); }
+  .flow-diagram .stub-node { color: var(--orange); }
+  
+  @media (max-width: 768px) {
+    .hero { padding: 32px 20px 24px; }
+    .nota-badge { top: 20px; right: 20px; width: 64px; height: 64px; font-size: 20px; }
+    .pipeline { flex-direction: column; }
+    .pipe-step::before { display: none; }
+    .container { padding: 0 16px 40px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="nota-badge">8.2<small>/10</small></div>
+  <div class="hero-badge">🦞 JARBAS · Análise Crítica</div>
+  <h1>Controller de Intimações</h1>
+  <p>Revisão completa do pipeline de captação, análise IA, frontend, skills JARBAS e ciência com renúncia.</p>
+  <div class="hero-meta">
+    <div class="hero-meta-item">📅 <span>12/03/2026</span></div>
+    <div class="hero-meta-item">🔍 <span>Escopo total</span></div>
+    <div class="hero-meta-item">📊 <span>Frontend + Backend + Skills JARBAS</span></div>
+    <div class="hero-meta-item">⚠️ <span>5 pontos críticos identificados</span></div>
+  </div>
+  
+  <nav class="toc">
+    <a href="#pipeline">Pipeline IA</a>
+    <a href="#filtro">Filtro de Relevância</a>
+    <a href="#frontend">Frontend V3</a>
+    <a href="#skills">Skills JARBAS</a>
+    <a href="#ciencia">Ciência c/ Renúncia</a>
+    <a href="#prompt">Prompt OLIVIA</a>
+    <a href="#melhorias">Melhorias</a>
+    <a href="#scorecard">Scorecard</a>
+  </nav>
+</div>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 1: PIPELINE COMPLETO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="pipeline">
+  <div class="section-title">1. Pipeline de Análise de Intimações — Visão Geral</div>
+  
+  <div style="overflow-x:auto">
+  <div class="pipeline">
+    <div class="pipe-step">
+      <div class="step-num">Etapa 1</div>
+      <div class="step-title">🕸️ Captura EPROC</div>
+      <div class="step-desc">JARBAS navega no EPROC via Playwright. Identifica linhas com keywords de intimação na listagem "Relatório de Processos".</div>
+      <div class="step-status warn">⚠️ Filtro parcial</div>
+    </div>
+    <div class="pipe-step">
+      <div class="step-num">Etapa 2</div>
+      <div class="step-title">📄 Extração Texto</div>
+      <div class="step-desc">Navega ao processo individual. Extrai texto do evento mais recente que seja despacho/decisão/intimação.</div>
+      <div class="step-status ok">✅ Funcional</div>
+    </div>
+    <div class="pipe-step">
+      <div class="step-num">Etapa 3</div>
+      <div class="step-title">💾 Gravação DB</div>
+      <div class="step-desc">Grava em <code>intimacoes</code> com signature_hash para dedup. Status inicial: <code>nova</code> + <code>ia_status: pendente</code>.</div>
+      <div class="step-status ok">✅ Funcional</div>
+    </div>
+    <div class="pipe-step">
+      <div class="step-num">Etapa 4</div>
+      <div class="step-title">🤖 Análise OLIVIA</div>
+      <div class="step-desc">Haiku analisa conteúdo via prompt OLIVIA_INTIMACAO_MODAL. Classifica, detecta prazo, define ação sugerida.</div>
+      <div class="step-status ok">✅ Funcional</div>
+    </div>
+    <div class="pipe-step">
+      <div class="step-num">Etapa 5</div>
+      <div class="step-title">🖥️ Controller UI</div>
+      <div class="step-desc">Frontend V3 exibe intimações agrupadas. Advogado revisa, cria atividade, delega ação ou dá ciência.</div>
+      <div class="step-status ok">✅ Funcional</div>
+    </div>
+    <div class="pipe-step">
+      <div class="step-num">Etapa 6</div>
+      <div class="step-title">✍️ Ciência + Renúncia</div>
+      <div class="step-desc">JARBAS executa ciência no EPROC com renúncia ao prazo via webhook. Confirma protocolo.</div>
+      <div class="step-status stub">🟠 STUB</div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 2: FILTRO DE RELEVÂNCIA — O CORE DA PERGUNTA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="filtro">
+  <div class="section-title">2. Filtro de Relevância — Como Funciona Agora</div>
+  
+  <div class="alert alert-blue">
+    💡 <div><strong>Resposta direta à sua pergunta:</strong> o filtro de "só intimações com despacho, decisão ou prazo em aberto para a parte representada" está implementado em <strong>duas camadas</strong> — captura por keywords e análise IA. Mas tem lacunas.</div>
+  </div>
+  
+  <div class="cards" style="margin-top:20px">
+    <div class="card ok-border">
+      <h3>✅ Camada 1 — Keywords na Captura</h3>
+      <ul>
+        <li>Keywords que <strong>incluem</strong>: INTIMAÇÃO, CITAÇÃO, NOTIFICAÇÃO</li>
+        <li>Keywords que <strong>excluem</strong>: CONCLUSOS PARA DESPACHO, JUNTADA DE PETIÇÃO, CERTIFICO QUE NÃO EXISTEM, REMETIDOS OS AUTOS</li>
+        <li>Verifica cor do EPROC: vermelho = não lida, amarelo = lida</li>
+        <li><strong>Captura palavras DESPACHO e DECISÃO</strong> ao extrair texto do documento individual</li>
+      </ul>
+    </div>
+    <div class="card ok-border">
+      <h3>✅ Camada 2 — Filtro IA (OLIVIA)</h3>
+      <ul>
+        <li>Retorna <code>relevante: false</code> para certidões, juntadas informativas, citações eletrônicas sem prazo</li>
+        <li>Retorna <code>relevante: true</code> quando exige petição, recurso, resposta, manifestação</li>
+        <li>Identifica <strong>polo ativo = consumidor</strong> (o escritório representa EXCLUSIVAMENTE autores)</li>
+        <li>Extrai prazo, tipo de ação, urgência, flag_ciencia_renuncia</li>
+      </ul>
+    </div>
+    <div class="card warn-border">
+      <h3>⚠️ Lacuna — Polo Processual na Captura</h3>
+      <ul>
+        <li><strong>Não há verificação de polo na captura EPROC</strong> — captura pela keyword sem checar se a intimação é para o advogado do autor ou da empresa</li>
+        <li>Ex: se um processo estiver no EPROC com nosso OAB mas a intimação for para citar a empresa ré, pode ser capturada erroneamente</li>
+        <li>A OLIVIA corrige isso na análise IA, mas o dado entra no banco primeiro</li>
+      </ul>
+    </div>
+    <div class="card warn-border">
+      <h3>⚠️ Lacuna — Despacho vs Decisão vs Prazo Aberto</h3>
+      <ul>
+        <li>A keyword DESPACHO <strong>não está na lista INTIMACAO_KEYWORDS</strong> da captura da listagem</li>
+        <li>Despachos puros (sem texto "intimação") podem ser perdidos na Etapa 1</li>
+        <li>Só são capturados se o texto do evento tiver "INTIMAÇÃO" + "DESPACHO" juntos</li>
+        <li><strong>Recomendação:</strong> adicionar DESPACHO e DECISÃO às keywords de captura primária</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top: 24px">
+  <div class="section-title" style="font-size:15px">Fluxo Lógico — O que é captado</div>
+  <div class="flow-diagram">
+    <span class="arrow">EPROC Listagem de Processos</span><br>
+    &nbsp;&nbsp;<span class="arrow">↓</span><br>
+    &nbsp;&nbsp;<span class="node">keyword_match(INTIMAÇÃO | CITAÇÃO | NOTIFICAÇÃO)</span><br>
+    &nbsp;&nbsp;<span class="arrow">↓ filtra IGNORE_KEYWORDS</span><br>
+    &nbsp;&nbsp;<span class="ok-node">→ capturado → extrai texto do documento</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">↓</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="node">busca no texto: DESPACHO | DECISÃO | INTIMAÇÃO</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">↓</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok-node">grava intimacoes (ia_status='pendente')</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">↓</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="node">OLIVIA analisa → relevante? polo? prazo? ação?</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">↓</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok-node">→ analise_ia salva | ia_status='concluido'</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="warn-node">→ relevante=false → aparece na aba mas marcada para ignorar</span>
+  </div>
+  </div>
+  
+  <div class="alert alert-yellow" style="margin-top:16px">
+    ⚠️ <div><strong>Gap principal identificado:</strong> despachos simples (sem a palavra "intimação") podem não ser capturados na Etapa 1. O EPROC frequentemente posta "Despacho" como tipo de evento sem usar a palavra "intimação" no texto da listagem. Isso significa que prazos em despachos simples podem escapar da captura.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 3: FRONTEND V3 -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="frontend">
+  <div class="section-title">3. Frontend Controller V3 — Estado Atual</div>
+  
+  <table>
+    <thead>
+      <tr>
+        <th>Componente</th>
+        <th>Status</th>
+        <th>Observação</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>ControllerV3Intimacoes</strong></td>
+        <td><span class="badge badge-green">✅ OK</span></td>
+        <td>Paginação server-side implementada (PAGE_SIZE 200/400/800/1200), filtros completos, contagem exata</td>
+      </tr>
+      <tr>
+        <td><strong>ControllerV3FilterBar</strong></td>
+        <td><span class="badge badge-green">✅ OK</span></td>
+        <td>Filtros: status, ia_status, urgente, importante, advogado, CNJ, search, data, empresa, status_prazo, flag_ciencia, flag_deposito</td>
+      </tr>
+      <tr>
+        <td><strong>ControllerV3IntimacaoRow</strong></td>
+        <td><span class="badge badge-green">✅ OK</span></td>
+        <td>8 colunas, badge urgência, prazo, IA status, ações inline</td>
+      </tr>
+      <tr>
+        <td><strong>ControllerV3KPIs</strong></td>
+        <td><span class="badge badge-green">✅ OK</span></td>
+        <td>Cards clicáveis com contagens</td>
+      </tr>
+      <tr>
+        <td><strong>ControllerV3BulkBar</strong></td>
+        <td><span class="badge badge-yellow">⚠️ Parcial</span></td>
+        <td>Falta "Transferir" na barra de ações em lote (RPC existe, falta botão)</td>
+      </tr>
+      <tr>
+        <td><strong>Modal — Tab Resumo</strong></td>
+        <td><span class="badge badge-green">✅ OK</span></td>
+        <td>Resumo IA, classificação, confiança, risco, prazo, ações sugeridas, feedback IA</td>
+      </tr>
+      <tr>
+        <td><strong>Modal — Tab Histórico</strong></td>
+        <td><span class="badge badge-orange">🟠 Placeholder</span></td>
+        <td>"Timeline — em construção". Dados disponíveis na view mas não renderizados</td>
+      </tr>
+      <tr>
+        <td><strong>Modal — Tab Ações</strong></td>
+        <td><span class="badge badge-yellow">⚠️ Parcial</span></td>
+        <td>Criar Atividade ✅, Solicitar Doc ✅, Gerar Petição ✅. Falta: Baixar Autos, Reprocessar IA dedicado</td>
+      </tr>
+      <tr>
+        <td><strong>Modal — Tab Anexos</strong></td>
+        <td><span class="badge badge-orange">🟠 Placeholder</span></td>
+        <td>"Anexos — em construção"</td>
+      </tr>
+      <tr>
+        <td><strong>Modal — Tab Chat OlivIA</strong></td>
+        <td><span class="badge badge-orange">🟠 Placeholder</span></td>
+        <td>"Chat OlivIA — em construção"</td>
+      </tr>
+      <tr>
+        <td><strong>Modal — Footer</strong></td>
+        <td><span class="badge badge-yellow">⚠️ Parcial</span></td>
+        <td>Falta botões "Ignorar" e "Arquivar" no footer do modal</td>
+      </tr>
+      <tr>
+        <td><strong>Filtros: excluir_pauta_julgamento / excluir_djen</strong></td>
+        <td><span class="badge badge-green">✅ OK</span></td>
+        <td>Filtros client-side para remover pautas de julgamento e DJEN da listagem</td>
+      </tr>
+      <tr>
+        <td><strong>v_controller_intimacoes_completa</strong></td>
+        <td><span class="badge badge-green">✅ OK</span></td>
+        <td>View completa com dados de processo, cliente, empresa, advogado, decisão, ciência status</td>
+      </tr>
+    </tbody>
+  </table>
+  
+  <div class="alert alert-blue" style="margin-top:16px">
+    💡 <div><strong>Evolução desde a revisão de 27/02:</strong> paginação server-side foi implementada (era o único ❌ crítico). O sistema saiu de 7.5 para ~8.2. Os 3 placeholders do modal são os principais gaps restantes.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 4: SKILLS JARBAS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="skills">
+  <div class="section-title">4. Skills JARBAS — Revisão</div>
+  
+  <div class="cards">
+    <div class="card ok-border">
+      <h3>✅ skill_captura_intimacoes.mjs</h3>
+      <ul>
+        <li><strong>378 linhas</strong> — captura Playwright completa</li>
+        <li>INTIMACAO_KEYWORDS ✅ | IGNORE_KEYWORDS ✅ | URGENTE_KEYWORDS ✅</li>
+        <li>Dedup por signature_hash (cnj+data+texto) ✅</li>
+        <li>Parse de data DD/MM/YYYY → ISO ✅</li>
+        <li><span class="warn">⚠️ DESPACHO não está nas keywords primárias de listagem</span></li>
+        <li><span class="warn">⚠️ Não verifica polo processual na captura</span></li>
+      </ul>
+    </div>
+    <div class="card ok-border">
+      <h3>✅ skill_analise_intimacoes_bulk.mjs</h3>
+      <ul>
+        <li>Batch de 20 por execução, API only (sem browser)</li>
+        <li>Usa OLIVIA_INTIMACAO_MODAL (Haiku) para análise</li>
+        <li>Few-shot learning via skill_controller_feedback ✅</li>
+        <li>Pre-filter de títulos irrelevantes antes de chamar IA ✅</li>
+        <li>Post-processing: deposito, alvará, audiência, liminar ✅</li>
+      </ul>
+    </div>
+    <div class="card ok-border">
+      <h3>✅ skill_controller_feedback.mjs</h3>
+      <ul>
+        <li>Sistema de feedback (Acertou/Errou) para melhorar IA</li>
+        <li>Few-shot examples são injetados no próximo batch de análise</li>
+        <li>Mecanismo de aprendizado contínuo ativo</li>
+      </ul>
+    </div>
+    <div class="card error-border">
+      <h3>🔴 skill_ciencia_renuncia — STUB</h3>
+      <ul>
+        <li>Hook frontend existe e delega via webhook ✅</li>
+        <li>JARBAS recebe a tarefa ✅</li>
+        <li><strong>Execução no EPROC: NÃO IMPLEMENTADA</strong></li>
+        <li>Aguardando: vídeo do João mostrando o fluxo do EPROC</li>
+        <li>Sem o vídeo: risco de executar ciência no local errado</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 5: CIÊNCIA COM RENÚNCIA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="ciencia">
+  <div class="section-title">5. Ciência com Renúncia ao Prazo — Estado Detalhado</div>
+  
+  <div class="alert alert-red">
+    🔴 <div><strong>Status: STUB — Frontend OK, Execução JARBAS PENDENTE.</strong> O botão existe na UI e delega corretamente ao JARBAS via webhook, mas o JARBAS não sabe executar no EPROC ainda.</div>
+  </div>
+  
+  <div class="cards" style="margin-top:16px">
+    <div class="card ok-border">
+      <h3>✅ O que está funcionando</h3>
+      <ul>
+        <li>Hook <code>use_controller_ciencia_renuncia.ts</code> implementado</li>
+        <li>Envia: intimacao_id, processo_id, cnj, oab_numero, oab_estado, tribunal</li>
+        <li>Toast de confirmação ao usuário ✅</li>
+        <li>Invalida queries do Controller após execução ✅</li>
+        <li>Campo <code>ciencia_renuncia_status</code> na tabela intimacoes ✅</li>
+        <li>Campos <code>ciencia_renuncia_executada_em</code> e <code>numero_protocolo</code> ✅</li>
+        <li>Filtro <code>flag_ciencia</code> na FilterBar (mostra pendentes) ✅</li>
+      </ul>
+    </div>
+    <div class="card error-border">
+      <h3>🔴 O que falta</h3>
+      <ul>
+        <li><strong>skill_ciencia_renuncia.mjs</strong> — não implementada</li>
+        <li>Navegação no EPROC até o documento da intimação</li>
+        <li>Localizar botão "Ciência" ou "Ciente/Renúncia"</li>
+        <li>Confirmar a ação e capturar número do protocolo</li>
+        <li>Atualizar status no Supabase após execução</li>
+        <li>Notificar Christian no Telegram com protocolo</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div style="margin-top:16px">
+  <div class="section-title" style="font-size:14px">Fluxo esperado (a implementar)</div>
+  <div class="flow-diagram">
+    <span class="node">Frontend: botão "Ciência c/ Renúncia"</span><br>
+    &nbsp;&nbsp;<span class="arrow">↓ callWebhook('controller/ciencia_renuncia', {...})</span><br>
+    &nbsp;&nbsp;<span class="ok-node">JARBAS recebe → cria jarbas_tarefa tipo='ciencia_renuncia'</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">↓</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="stub-node">[STUB] skill_ciencia_renuncia.mjs</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">↓ abre EPROC via Playwright</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="stub-node">→ navega ao processo pelo CNJ</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="stub-node">→ localiza evento de intimação</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="stub-node">→ clica "Ciente/Renúncia ao prazo"</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="stub-node">→ confirma + captura protocolo</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="arrow">↓</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok-node">UPDATE intimacoes SET ciencia_renuncia_status='executada'</span><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="ok-node">Telegram: "✅ Ciência executada — CNJ XXXXX — Protocolo: YYYYY"</span>
+  </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 6: PROMPT OLIVIA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="prompt">
+  <div class="section-title">6. Prompt OLIVIA_INTIMACAO_MODAL — Avaliação</div>
+  
+  <div class="cards">
+    <div class="card ok-border">
+      <h3>✅ Pontos Fortes</h3>
+      <ul>
+        <li><strong>Filtro de relevância bem definido</strong> — inclui 6+ categorias de irrelevantes</li>
+        <li><strong>Árvore de decisão completa</strong>: fase inicial, defesa, saneador, julgamento, desistência</li>
+        <li><strong>Roteamento por advogado</strong>: Stephanie (bancos), Leonardo (Boa Vista/Mercado Pago), Marcelo/Yuri (lojas)</li>
+        <li><strong>Flag ciencia_renuncia</strong>: lista exaustiva dos casos que não precisam de ação</li>
+        <li><strong>Few-shot learning</strong> ativo via skill_controller_feedback</li>
+        <li><strong>Temperatura 0.1</strong> — determinístico, previsível</li>
+      </ul>
+    </div>
+    <div class="card warn-border">
+      <h3>⚠️ Pontos de Melhoria</h3>
+      <ul>
+        <li><strong>Prazo em dias úteis vs corridos</strong> não explicitado — TJRS usa dias úteis, TJSP mistura</li>
+        <li><strong>Processamento de ofícios em aberto</strong> — quando o ofício exige comprovante de cumprimento, não está na árvore</li>
+        <li><strong>Intimações por DJEN</strong> (Diário da Justiça Eletrônico Nacional) — tratamento diferenciado para prazos não está explícito</li>
+        <li><strong>Ação "Cobrar acordo"</strong> — pós-decisão favorável com valor definido, não está mapeada</li>
+        <li><strong>Context window</strong>: Haiku tem 200k tokens mas o conteúdo da intimação pode ser truncado se muito longo</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 7: MELHORIAS RECOMENDADAS -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="melhorias">
+  <div class="section-title">7. Melhorias Recomendadas — Prioridade</div>
+  
+  <div class="priority">
+    <div class="priority-item p0">
+      <span class="priority-label p0-label">P0</span>
+      <div class="priority-content">
+        <h4>Implementar skill_ciencia_renuncia.mjs</h4>
+        <p>Bloqueador operacional. O botão existe, o JARBAS recebe a tarefa, mas não executa. Precisa do vídeo do João para mapear o fluxo do EPROC. Enquanto isso, o advogado tem que fazer manualmente — nulifica o valor da funcionalidade.</p>
+        <p><code>Bloqueador: vídeo João → mapeamento fluxo EPROC → implementar skill</code></p>
+      </div>
+    </div>
+    
+    <div class="priority-item p1">
+      <span class="priority-label p1-label">P1</span>
+      <div class="priority-content">
+        <h4>Adicionar DESPACHO e DECISÃO às keywords primárias de captura</h4>
+        <p>Em <code>skill_captura_intimacoes.mjs</code>, a lista <code>INTIMACAO_KEYWORDS</code> não inclui DESPACHO nem DECISÃO. No EPROC, muitos eventos são classificados como "Despacho" ou "Decisão" sem a palavra "intimação" no texto da listagem. Isso pode causar perda de prazos importantes.</p>
+        <p><code>Adicionar: 'DESPACHO', 'DECISÃO', 'DECISAO', 'SENTENÇA', 'SENTENCA', 'ACÓRDÃO', 'ACORDAO'</code></p>
+      </div>
+    </div>
+    
+    <div class="priority-item p1">
+      <span class="priority-label p1-label">P1</span>
+      <div class="priority-content">
+        <h4>Implementar Tab Histórico do Modal (Timeline)</h4>
+        <p>A view <code>v_controller_intimacoes_completa</code> já tem todos os dados necessários. A tab está marcada como "em construção" mas é crucial para o advogado ver o contexto do processo sem sair do Controller. Estimativa: 2h de desenvolvimento.</p>
+        <p><code>Componente: ControllerV3DrawerTabProcesso.tsx já existe como referência</code></p>
+      </div>
+    </div>
+    
+    <div class="priority-item p2">
+      <span class="priority-label p2-label">P2</span>
+      <div class="priority-content">
+        <h4>Verificação de polo na captura</h4>
+        <p>A captura não verifica se a intimação é direcionada ao advogado do autor (nosso lado) ou à empresa ré. O EPROC mostra as partes em colunas separadas. Adicionar lógica para identificar qual OAB está sendo intimado antes de gravar.</p>
+        <p><code>Usar: OAB do advogado cadastrado no processo + comparar com intimado no texto</code></p>
+      </div>
+    </div>
+    
+    <div class="priority-item p2">
+      <span class="priority-label p2-label">P2</span>
+      <div class="priority-content">
+        <h4>Botão "Transferir" na barra de ações em lote</h4>
+        <p>A RPC <code>rpc_controller_transferir_lote</code> existe e funciona. Falta apenas o botão na <code>ControllerV3BulkBar</code>. Útil quando João precisa redistribuir intimações entre advogados.</p>
+      </div>
+    </div>
+    
+    <div class="priority-item p2">
+      <span class="priority-label p2-label">P2</span>
+      <div class="priority-content">
+        <h4>Melhorar prompt: prazo em dias úteis vs corridos por tribunal</h4>
+        <p>O prompt não especifica a distinção TJRS/TJSC/TJSP para contagem de prazo. TJRS usa dias úteis para a maioria dos atos; TJSP usa dias corridos em alguns casos. Isso impacta diretamente o cálculo do <code>data_prazo</code>.</p>
+      </div>
+    </div>
+    
+    <div class="priority-item p3">
+      <span class="priority-label p3-label">P3</span>
+      <div class="priority-content">
+        <h4>Tab Anexos — listar documentos do processo</h4>
+        <p>Mostraria a lista de peças juntadas ao processo (petições, contestações, decisões anteriores). Requer buscar na tabela de documentos do processo. Útil mas não bloqueante.</p>
+      </div>
+    </div>
+    
+    <div class="priority-item p3">
+      <span class="priority-label p3-label">P3</span>
+      <div class="priority-content">
+        <h4>Tab Chat OlivIA — conversa contextual sobre a intimação</h4>
+        <p>Permitiria perguntar à OlivIA detalhes sobre a intimação em linguagem natural. Alto valor de UX mas requer infraestrutura de chat com contexto. Complexidade alta vs impacto.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- SEÇÃO 8: SCORECARD FINAL -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section" id="scorecard">
+  <div class="section-title">8. Scorecard — Nota Final 8.2/10</div>
+  
+  <div class="scorecard">
+    <div class="score-card">
+      <div class="title">Captação EPROC</div>
+      <div class="nota nota-yellow">7.5</div>
+      <div class="bar"><div class="bar-fill fill-yellow" style="width:75%"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="title">Análise IA (OLIVIA)</div>
+      <div class="nota nota-green">9.0</div>
+      <div class="bar"><div class="bar-fill fill-green" style="width:90%"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="title">Frontend V3</div>
+      <div class="nota nota-yellow">8.0</div>
+      <div class="bar"><div class="bar-fill fill-yellow" style="width:80%"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="title">Skills JARBAS</div>
+      <div class="nota nota-yellow">7.5</div>
+      <div class="bar"><div class="bar-fill fill-yellow" style="width:75%"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="title">Ciência c/ Renúncia</div>
+      <div class="nota nota-orange">4.0</div>
+      <div class="bar"><div class="bar-fill fill-orange" style="width:40%"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="title">Prompt OLIVIA</div>
+      <div class="nota nota-green">8.5</div>
+      <div class="bar"><div class="bar-fill fill-green" style="width:85%"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="title">Backend / DB</div>
+      <div class="nota nota-green">9.0</div>
+      <div class="bar"><div class="bar-fill fill-green" style="width:90%"></div></div>
+    </div>
+    <div class="score-card">
+      <div class="title">NOTA FINAL</div>
+      <div class="nota nota-green" style="font-size:36px">8.2</div>
+      <div class="bar"><div class="bar-fill fill-green" style="width:82%"></div></div>
+    </div>
+  </div>
+  
+  <div class="cards" style="margin-top:24px">
+    <div class="card ok-border">
+      <h3>✅ O que está funcionando bem</h3>
+      <ul>
+        <li>Pipeline end-to-end funcional (captura → IA → UI)</li>
+        <li>Dedup robusto por signature_hash</li>
+        <li>Prompt OLIVIA com árvore de decisão completa</li>
+        <li>Frontend V3 com paginação, filtros, agrupamento</li>
+        <li>Backend sólido: tabelas, views, RPCs, triggers</li>
+        <li>Sistema de feedback para melhoria contínua da IA</li>
+        <li>Filtros avançados: excluir DJEN, pauta de julgamento</li>
+        <li>KPIs clicáveis e filtros deep-linked via URL</li>
+      </ul>
+    </div>
+    <div class="card error-border">
+      <h3>🔴 O que bloqueia a lapidação final</h3>
+      <ul>
+        <li><strong>Ciência com renúncia</strong> não executa — bloqueador P0</li>
+        <li><strong>DESPACHO/DECISÃO</strong> faltando nas keywords de captura — risco de perder prazos</li>
+        <li><strong>3 tabs do modal</strong> em placeholder (Histórico, Anexos, Chat OlivIA)</li>
+        <li>Polo processual não verificado na captura</li>
+      </ul>
+    </div>
+  </div>
+  
+  <div class="alert alert-green" style="margin-top:20px">
+    🦞 <div><strong>Veredicto JARBAS:</strong> O Controller está operacionalmente maduro. A estrutura de dados, a análise IA e o frontend V3 são sólidos. Com P0 (ciência) + P1 (keywords + histórico) resolvidos, chega em 9.2+. A lapidação final deve focar nesses 3 pontos antes de trabalhar nas tabs de baixa prioridade.</div>
+  </div>
+</div>
+
+<div class="divider"></div>
+<div style="text-align:center; color: var(--muted); font-size: 12px; padding-bottom: 20px;">
+  🦞 JARBAS · Análise gerada em 12/03/2026 01:00 BRT · Controller v3 · MdLab
+</div>
+
+</div><!-- /container -->
+</body>
+</html>

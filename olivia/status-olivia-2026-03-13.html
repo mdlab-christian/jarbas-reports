@@ -496,6 +496,149 @@ await supaReq(`/olivia_historico?id=eq.${historico_id}`, {
     </div>
   </div>
 
+  <!-- ─── BUG EXPRESS ─── -->
+  <div class="bug-card" style="border-color:#f59e0b55">
+    <div class="bug-header" style="background:#1a1500">
+      <div class="bug-num" style="background:#78350f;color:#f59e0b;font-size:18px">⚡</div>
+      <div class="bug-info">
+        <div class="bug-title" style="color:#fbbf24">⚡ MODO EXPRESS — Diagnóstico Completo (4 bugs)</div>
+        <div class="bug-loc">
+          <span class="badge b-p0">P0</span>&nbsp;
+          <code>OliviaGeradorIA.tsx</code> · <code>useWizardTabs.ts</code> · <code>useGerarPeticao.ts</code> · N8N
+        </div>
+      </div>
+    </div>
+    <div class="bug-body">
+
+      <div class="bug-section">
+        <div class="bug-section-title">🗺️ Fluxo completo do Express (5 steps)</div>
+        <div class="bug-text">
+          <strong>Step 0 — Identificação:</strong> processo + tipo + modelo_grupo_id + advogado + upload provas<br>
+          <strong>Step 0→1:</strong> <code>createHistoricoRecord()</code> cria <code>olivia_historico</code> + dispara análise em background<br>
+          <strong>Step 1 — Triagem:</strong> JARBAS <code>/olivia/triagem-questions</code> → gera perguntas<br>
+          <strong>Step 2 — Estrutura:</strong> outline + botão "Gerar Petição" → <code>callWebhook('mdflow/olivia/gerar-doc')</code><br>
+          <strong>Step 3 — Revisão:</strong> polling <code>olivia_historico.status</code> a cada 3s + exibe texto gerado<br>
+          <strong>Step 4 — Conclusão:</strong> download / Google Doc
+        </div>
+      </div>
+
+      <!-- BUG EXPRESS A -->
+      <div class="bug-section">
+        <div class="bug-section-title">🔴 BUG EXPRESS-A — versao_id → tabela olivia_versoes está VAZIA</div>
+        <div class="bug-text">
+          <strong>Causa raiz confirmada:</strong> <code>olivia_versoes</code> tem <strong>0 registros</strong>. O <code>createHistoricoRecord()</code> em <code>useWizardTabs.ts</code> passa <code>versao_id: ws.versao_id</code>. Se <code>ws.versao_id</code> for não-nulo (qualquer UUID), a FK <code>olivia_historico_versao_id_fkey → olivia_versoes</code> viola → historico NÃO é criado → <code>historicoId = null</code> → botão "Gerar Petição" fica <strong>desabilitado sem mensagem de erro</strong>.
+        </div>
+        <div class="codeblock">
+<span class="c-gray">// useWizardTabs.ts linha 295 — PROBLEMA</span>
+<span class="c-red">versao_id: ws.versao_id,  // olivia_versoes está vazia → FK violation se não-null</span>
+
+<span class="c-gray">// Confirmado: SELECT count(*) FROM olivia_versoes → 0 rows</span>
+        </div>
+        <div class="fix-box">
+          <div class="fix-title">✅ Fix — 1 linha</div>
+          <div class="fix-body">
+            <div class="codeblock">
+<span class="c-green">versao_id: null,  // olivia_versoes vazia — não usar até ser populada</span>
+            </div>
+            Arquivo: <code>useWizardTabs.ts</code> linha ~295. <strong>Fix imediato, sem risco.</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUG EXPRESS B -->
+      <div class="bug-section">
+        <div class="bug-section-title">🔴 BUG EXPRESS-B — olivia/analise-provas → webhook NÃO EXISTE no N8N</div>
+        <div class="bug-text">
+          <strong>Causa raiz:</strong> Ao avançar do Step 0 para Step 1, o <code>dispararAnaliseProvas()</code> em <code>useWizardTabs.ts</code> chama <code>callWebhook('<strong>olivia/analise-provas</strong>')</code>. Este path <strong>não existe em nenhum workflow N8N</strong>. O único workflow de análise ativo é <code>N8N-OLIVIA-ANALISE-V2</code> (lwYPIoWAuw0l7SmS) que usa path <code>olivia/<strong>analise-decisao</strong></code> — diferente.
+          <br><br>
+          Resultado: análise de provas <strong>nunca é executada</strong> → triagem fica sem contexto → perguntas sempre genéricas.
+        </div>
+        <div class="codeblock">
+<span class="c-gray">// useWizardTabs.ts — dispararAnaliseProvas() — PROBLEMA</span>
+<span class="c-red">callWebhook('olivia/analise-provas', {...})  // path não existe no N8N</span>
+
+<span class="c-gray">// N8N-OLIVIA-ANALISE-V2 (lwYPIoWAuw0l7SmS) — ATIVO mas usa:</span>
+<span class="c-yellow">path: 'olivia/analise-decisao'  // ← nome diferente</span>
+        </div>
+        <div class="dec-box">
+          <div class="dec-title">⚠️ Decisão: qual workflow usar para análise de provas?</div>
+          <div class="dec-option">
+            <div class="opt-id">OPÇÃO A — Reusar N8N-OLIVIA-ANALISE-V2 mudando o path do frontend</div>
+            <div class="opt-body">Mudar <code>callWebhook('olivia/analise-provas')</code> para <code>callWebhook('olivia/analise-decisao')</code> e verificar se o workflow suporta análise de provas (não só decisões). Mais rápido.</div>
+          </div>
+          <div class="dec-option recommended">
+            <div class="opt-id">OPÇÃO B — Criar N8N workflow específico para análise de provas <span class="rec-tag">RECOMENDO</span></div>
+            <div class="opt-body">Criar workflow "N8N-OLIVIA-ANALISE-PROVAS" com path <code>olivia/analise-provas</code>, especializado em analisar documentos enviados como provas (PDFs, imagens) e extrair pontos relevantes para a triagem. Mais correto semanticamente.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUG EXPRESS C -->
+      <div class="bug-section">
+        <div class="bug-section-title">🟡 BUG EXPRESS-C — Gate hasDocuments bloqueia Step 0 sem provas</div>
+        <div class="bug-text">
+          <strong>Comportamento atual:</strong> <code>isStep1Complete</code> exige <code>hasDocuments = provas_urls.length > 0 || !!analise_id</code>. Sem upload de documentos, botão "Avançar" fica <strong>desabilitado</strong>. O sistema mostra um aviso "<em>⚠️ Envie documentos ou selecione um processo com arquivos JARBAS</em>" mas não é claro.
+        </div>
+        <div class="dec-box">
+          <div class="dec-title">⚠️ Decisão: documentos obrigatórios no Express?</div>
+          <div class="dec-option">
+            <div class="opt-id">OPÇÃO A — Manter obrigatório (comportamento atual)</div>
+            <div class="opt-body">Documentos são essenciais para triagem contextual. Sem eles, a triagem é genérica de qualquer forma. Mas precisa melhorar o feedback visual para o usuário entender o bloqueio.</div>
+          </div>
+          <div class="dec-option recommended">
+            <div class="opt-id">OPÇÃO B — Tornar opcional com aviso <span class="rec-tag">RECOMENDO</span></div>
+            <div class="opt-body">Permitir avançar sem provas, mas mostrar banner "Triagem será genérica — envie provas para perguntas personalizadas". Permite testar o fluxo completo e usuários sem provas ainda conseguem gerar petição.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUG EXPRESS D -->
+      <div class="bug-section">
+        <div class="bug-section-title">🟡 BUG EXPRESS-D — StepRevisao: polling certo, mas N8N não atualiza status</div>
+        <div class="bug-text">
+          <strong>Bom:</strong> <code>StepRevisao.tsx</code> faz polling de <code>olivia_historico.status</code> a cada 3s (<code>refetchInterval: 3000</code>) e para quando status = SUCESSO/ERRO. Tem steps de progresso fake mapeados: <code>buscando_contexto (15%) → montando_prompt (30%) → gerando_texto (55%) → revisando (80%) → concluido (100%)</code>.
+          <br><br>
+          <strong>Problema:</strong> O N8N (<code>5H7icedAtJIia23i</code>) não atualiza <code>olivia_historico.meta</code> com o progresso atual durante a execução → a UI trava sempre no step inicial (5%). O status só muda para SUCESSO/ERRO ao final.
+        </div>
+        <div class="fix-box">
+          <div class="fix-title">✅ Fix mínimo (30 min) — atualizar status em 2 momentos chave no N8N</div>
+          <div class="fix-body">
+            No workflow <code>5H7icedAtJIia23i</code>, adicionar PATCH ao <code>olivia_historico</code> em 2 nós:<br>
+            <div class="codeblock">
+<span class="c-gray">// Nó após "Buscar Processo" — sinalizar início:</span>
+<span class="c-green">PATCH /olivia_historico?id=eq.${historico_id}
+{ "meta": { "progresso_key": "buscando_contexto" } }</span>
+
+<span class="c-gray">// Nó após "OlivIA → Petição" — sinalizar geração:</span>
+<span class="c-green">PATCH /olivia_historico?id=eq.${historico_id}
+{ "meta": { "progresso_key": "gerando_texto" } }</span>
+            </div>
+            O frontend lê <code>meta.progresso_key</code> e mapeia para % — a barra vai passar de 5% para 15% e 55%, dando feedback real ao usuário.
+          </div>
+        </div>
+      </div>
+
+      <div class="obox">
+        <div class="box-t">✅ O que está correto no Express</div>
+        • <code>olivia_historico.modelo_id</code> FK → <code>olivia_modelos_grupo</code> ✅ (confirmado via FK query — passar grupo_id é CORRETO)<br>
+        • <code>callWebhook('mdflow/olivia/gerar-doc')</code> → N8N 5H7icedAtJIia23i ativo ✅<br>
+        • StepRevisao polling a cada 3s ✅<br>
+        • <code>useGerarPeticao</code> passa <code>modelo_grupo_id</code> + <code>processo_context</code> + <code>triagem_respostas</code> ✅<br>
+        • Timeout de 180s no callWebhook para aguardar resposta assíncrona ✅
+      </div>
+
+      <div class="dbox">
+        <div class="box-t">🎯 Para o Express funcionar end-to-end — checklist</div>
+        <span class="badge b-danger">1</span> Fix versao_id → null (1 linha em useWizardTabs.ts)<br>
+        <span class="badge b-danger">2</span> Fix webhook path analise-provas → decisão sobre qual workflow usar<br>
+        <span class="badge b-warn">3</span> Tornar documentos opcionais no Step 0 (ou melhorar feedback)<br>
+        <span class="badge b-warn">4</span> N8N: 2 PATCH de progresso para a barra não ficar em 5%<br>
+        <span class="badge b-ok">5</span> RPC jarbas_tarefas (BUG 2) — mesma correção vale para Express
+      </div>
+
+    </div>
+  </div>
+
   <!-- ─── BUG 6 — Fila ─── -->
   <div class="bug-card">
     <div class="bug-header">

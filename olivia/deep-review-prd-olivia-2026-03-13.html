@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Review PRD vs Implementado — OlivIA + Playbooks</title>
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #263042; --border: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --primary: #6366f1; --primary-light: #818cf8;
+    --green: #22c55e; --yellow: #eab308; --red: #ef4444; --orange: #f97316; --cyan: #06b6d4;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, 'Inter', sans-serif; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  .header { text-align: center; padding: 48px 0 40px; border-bottom: 1px solid var(--border); margin-bottom: 48px; }
+  .header h1 { font-size: 30px; font-weight: 700; margin-bottom: 8px; }
+  .header .sub { color: var(--muted); font-size: 15px; }
+  .header .meta { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 20px; }
+  .header .meta span { font-size: 12px; color: var(--muted); background: var(--surface); padding: 4px 12px; border-radius: 6px; border: 1px solid var(--border); }
+
+  .score-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .score-card .num { font-size: 36px; font-weight: 700; }
+  .score-card .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .num-red { color: var(--red); } .num-yellow { color: var(--yellow); } .num-green { color: var(--green); } .num-blue { color: var(--primary-light); }
+
+  section { margin-bottom: 48px; }
+  .section-title { font-size: 18px; font-weight: 700; padding-bottom: 10px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+
+  /* CHECKLIST TABLE */
+  .cl-table { width: 100%; border-collapse: collapse; border-radius: 12px; overflow: hidden; }
+  .cl-table th { background: var(--surface2); color: var(--muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: left; }
+  .cl-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: top; }
+  .cl-table tr:last-child td { border-bottom: none; }
+  .cl-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+
+  .status { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+  .s-ok    { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .s-warn  { background: rgba(234,179,8,0.15);  color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .s-no    { background: rgba(239,68,68,0.15);  color: var(--red);   border: 1px solid rgba(239,68,68,0.3); }
+  .s-drift { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+  .s-bug   { background: rgba(99,102,241,0.15); color: var(--primary-light); border: 1px solid rgba(99,102,241,0.3); }
+
+  .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); margin-right: 4px; }
+
+  .rec-list { display: flex; flex-direction: column; gap: 12px; }
+  .rec { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; display: flex; gap: 14px; }
+  .rec-num { background: var(--primary); color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .rec h4 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .rec p { font-size: 13px; color: var(--muted); }
+  .effort { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; margin-top: 8px; display: inline-block; }
+  .e-low { background: rgba(34,197,94,0.12); color: var(--green); }
+  .e-mid { background: rgba(234,179,8,0.12); color: var(--yellow); }
+  .e-high { background: rgba(239,68,68,0.12); color: var(--red); }
+
+  .drift-card { background: rgba(249,115,22,0.07); border: 1px solid rgba(249,115,22,0.25); border-radius: 10px; padding: 16px 18px; margin-bottom: 12px; }
+  .drift-card h4 { font-size: 13px; font-weight: 600; color: var(--orange); margin-bottom: 6px; }
+  .drift-card p { font-size: 13px; color: var(--muted); }
+
+  .bug-card { background: rgba(99,102,241,0.06); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; }
+  .bug-card .bug-title { font-size: 13px; font-weight: 600; color: var(--primary-light); margin-bottom: 4px; }
+  .code { font-family: monospace; font-size: 12px; background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; color: #a5f3fc; }
+
+  .footer { text-align: center; padding: 32px 0; border-top: 1px solid var(--border); margin-top: 48px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>🔍 Deep Review — PRD vs Implementado</h1>
+    <p class="sub">OlivIA + Playbooks · Comparação item por item contra o SPEC/PRD de referência</p>
+    <div class="meta">
+      <span>📅 13/03/2026</span>
+      <span>📄 PRD: spec-prd-olivia-2026-03-13 (Parte 3/4)</span>
+      <span>🔴 3 Não implementados</span>
+      <span>🟡 4 Parciais / Drifts</span>
+      <span>🐛 2 Bugs ativos</span>
+    </div>
+  </div>
+
+  <!-- SCORES -->
+  <div class="score-row">
+    <div class="score-card"><div class="num num-red">3</div><div class="lbl">Não implementados (❌)</div></div>
+    <div class="score-card"><div class="num num-yellow">4</div><div class="lbl">Parciais / Drift (⚠️)</div></div>
+    <div class="score-card"><div class="num num-blue">2</div><div class="lbl">Bugs ativos no código</div></div>
+    <div class="score-card"><div class="num num-green">5</div><div class="lbl">Implementados corretamente (✅)</div></div>
+  </div>
+
+  <!-- CHECKLIST SMART BLOCKS -->
+  <section>
+    <div class="section-title">🧱 SEÇÃO 4 — Smart Blocks (Edge Function + Apps Script)</div>
+    <table class="cl-table">
+      <thead><tr><th>Item do PRD</th><th>Status</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Edge Function <span class="code">olivia-smart-blocks</span></strong><br><span style="font-size:12px;color:var(--muted)">supabase/functions/olivia-smart-blocks/index.ts</span></td>
+          <td><span class="status s-no">❌ Não existe</span></td>
+          <td>Apenas 4 edge functions existem: <span class="code">audio-transcribe</span>, <span class="code">encrypt-credentials</span>, <span class="code">invite-user</span>, <span class="code">olivia-chat</span>. Smart-blocks não foi criada.</td>
+        </tr>
+        <tr>
+          <td><strong>Hook <span class="code">useSmartBlocks.ts</span></strong><br><span style="font-size:12px;color:var(--muted)">src/hooks/olivia/useSmartBlocks.ts</span></td>
+          <td><span class="status s-no">❌ Não existe</span></td>
+          <td>Arquivo não existe. Nenhum hook chamando <span class="code">supabase.functions.invoke('olivia-smart-blocks')</span>.</td>
+        </tr>
+        <tr>
+          <td><strong>Componente <span class="code">ManualStep4Conclusao.tsx</span></strong><br><span style="font-size:12px;color:var(--muted)">src/components/olivia/ManualStep4Conclusao.tsx</span></td>
+          <td><span class="status s-no">❌ Não existe</span></td>
+          <td>Componente não existe. A integração de Smart Blocks no step de conclusão manual nunca foi implementada.</td>
+        </tr>
+        <tr>
+          <td><strong>Apps Script: Document Generator</strong><br><span style="font-size:12px;color:var(--muted)">Script ID: 1korRdpdAn2y7kr-RRZQy...</span></td>
+          <td><span class="status s-warn">⚠️ Não verificável</span></td>
+          <td>O Apps Script pode existir no Google Drive, mas sem a Edge Function que o chama, está inativo. Google Doc já funciona via n8n para o fluxo Express/Agente — este seria um canal alternativo (manual blocks).</td>
+        </tr>
+        <tr>
+          <td><strong>Placeholder replacement</strong><br><span style="font-size:12px;color:var(--muted)">{{CLIENTE_NOME}}, {{EMPRESA_RE}}, etc.</span></td>
+          <td><span class="status s-no">❌ Não implementado</span></td>
+          <td>Sem a Edge Function, os placeholders nunca são substituídos. Blocos de texto em <span class="code">olivia_blocos_texto</span> podem ter placeholders "crus" se exportados manualmente.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- CHECKLIST EXPRESS BUGS -->
+  <section>
+    <div class="section-title">⚡ SEÇÃO 5 — Express Bug Fixes (Bugs A, B, C, D)</div>
+    <table class="cl-table">
+      <thead><tr><th>Bug PRD</th><th>Status</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>
+            <strong>🔴 BUG A — versao_id null → historicoId null → botão Gerar desabilitado silenciosamente</strong><br>
+            <span style="font-size:12px;color:var(--muted)">useWizardTabs.ts ~linha 295</span>
+          </td>
+          <td><span class="status s-warn">⚠️ Parcial</span></td>
+          <td>O <span class="code">auto-resolve versao_id</span> foi implementado em useWizardTabs (~linha 291). Porém o <span class="code">toast.warning('Análise não encontrada')</span> e o <span class="code">setCanGenerate(!!historico?.id)</span> explícito NÃO estão implementados — falha ainda é silenciosa.</td>
+        </tr>
+        <tr>
+          <td>
+            <strong>🔴 BUG B — Webhook path errado: <span class="code">olivia/analise-provas</span> → deveria ser <span class="code">mdflow/olivia/analise-provas</span></strong><br>
+            <span style="font-size:12px;color:var(--muted)">useWizardTabs.ts linha 369</span>
+          </td>
+          <td><span class="status s-bug">🐛 BUG ATIVO</span></td>
+          <td>Confirmado: <span class="code">useWizardTabs.ts:369</span> ainda usa <span class="code">'olivia/analise-provas'</span>. O PRD especifica <span class="code">'mdflow/olivia/analise-provas'</span> para o n8n v3. <strong>Este bug faz a análise de provas falhar silenciosamente.</strong></td>
+        </tr>
+        <tr>
+          <td>
+            <strong>🟡 BUG C — hasDocuments gate bloqueia processos válidos sem documentos</strong><br>
+            <span style="font-size:12px;color:var(--muted)">OliviaGeradorIA.tsx: modeloRequiresDocuments</span>
+          </td>
+          <td><span class="status s-warn">⚠️ Parcial</span></td>
+          <td><span class="code">hasDocuments</span> existe mas a lógica <span class="code">modeloRequiresDocuments</span> e o Alert de aviso NÃO foram implementados. Atualmente apenas exibe um aviso visual no Step 0 mas não bloqueia ativamente. Comportamento diferente do spec.</td>
+        </tr>
+        <tr>
+          <td>
+            <strong>🟡 BUG D — N8N não atualiza <span class="code">meta.progresso_key</span> no olivia_historico</strong><br>
+            <span style="font-size:12px;color:var(--muted)">Fix no lado n8n (workflow olivia-analise-v3)</span>
+          </td>
+          <td><span class="status s-warn">⚠️ Frontend OK / N8N ?</span></td>
+          <td>Frontend já lê <span class="code">progresso_percent</span> corretamente (OliviaAnaliseProcesso.tsx). O fix era no N8N para <em>enviar</em> esse campo — não verificável pelo código frontend. Se a barra de progresso fica em 0%, o N8N ainda não foi atualizado.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- CHECKLIST VIBELAW 2.0 -->
+  <section>
+    <div class="section-title">🔷 SEÇÃO 7 — VibeLaw 2.0 (Chat SSE + Studio)</div>
+    <table class="cl-table">
+      <thead><tr><th>Item do PRD</th><th>Status</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Arquivo de tipos <span class="code">vibelaw.types.ts</span></strong><br><span style="font-size:12px;color:var(--muted)">VibeLawState, OliviaThread, OliviaMessage, QualityScore, SSEEvent types</span></td>
+          <td><span class="status s-warn">⚠️ Drift</span></td>
+          <td>Tipos estão embutidos em <span class="code">useVibeLaw.ts</span> (exports inline), não em arquivo separado. Funcionalmente equivalente mas quebra a organização do spec e dificulta reuso.</td>
+        </tr>
+        <tr>
+          <td><strong>Hook <span class="code">useVibeLawSSE</span> separado</strong><br><span style="font-size:12px;color:var(--muted)">Responsável pelo streaming SSE</span></td>
+          <td><span class="status s-warn">⚠️ Drift</span></td>
+          <td>SSE está implementado dentro do <span class="code">useVibeLaw</span> (~linha 402). O hook <span class="code">useVibeLawSSE</span> isolado não existe. Dificulta teste e reuso do streaming independente do estado do chat.</td>
+        </tr>
+        <tr>
+          <td><strong>Componentes VL* isolados</strong><br><span style="font-size:12px;color:var(--muted)">VLHeader, VLThreadList, VLChatArea, VLPetitionPreview, VLQualityPanel</span></td>
+          <td><span class="status s-drift">⚠️ Arquitetura diferente</span></td>
+          <td>Implementado com: <span class="code">VibeLawChat</span>, <span class="code">VibeLawPreview</span>, <span class="code">VibeLawComposer</span>, <span class="code">VibeLawActionCard</span>, <span class="code">GenerativeComponents</span>. Funcionalidade similar mas nomes e estrutura divergiram do spec. <strong>VLQualityPanel não existe.</strong></td>
+        </tr>
+        <tr>
+          <td><strong>OliviaVibelawStudio com 3 painéis</strong><br><span style="font-size:12px;color:var(--muted)">Sidebar threads | Center chat | Right preview</span></td>
+          <td><span class="status s-warn">⚠️ Parcial</span></td>
+          <td><span class="code">OliviaVibelawStudio.tsx</span> existe (814 linhas) e usa <span class="code">ResizablePanelGroup</span>. Layout de 3 painéis presente, mas segue arquitetura própria (3 fases: Onboarding → Gerando → Studio), diferente do spec que mostra layout direto.</td>
+        </tr>
+        <tr>
+          <td><strong>VLQualityPanel — painel de score de qualidade</strong><br><span style="font-size:12px;color:var(--muted)">Análise de qualidade por seção com severidade</span></td>
+          <td><span class="status s-no">❌ Não existe</span></td>
+          <td>Nenhum componente de painel de qualidade separado foi implementado. O score de qualidade é exibido apenas como número no resultado, sem o painel detalhado por seção especificado no PRD.</td>
+        </tr>
+        <tr>
+          <td><strong>useOliviaThreads + useOliviaMessages hooks</strong><br><span style="font-size:12px;color:var(--muted)">Gestão de threads e mensagens separada</span></td>
+          <td><span class="status s-warn">⚠️ Drift</span></td>
+          <td>Lógica de threads e mensagens está embutida em <span class="code">useVibeLaw.ts</span> e <span class="code">OliviaVibelawStudio.tsx</span>. Hooks separados do spec não existem. Funciona mas não segue a separação de responsabilidades definida.</td>
+        </tr>
+        <tr>
+          <td><strong>Auto-criar thread se não existir</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>Lógica de auto-criação de thread presente no OliviaVibelawStudio.</td>
+        </tr>
+        <tr>
+          <td><strong>SSE streaming com acumulação de tokens</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>useVibeLaw.ts linha ~430: SSE com acumulação de tokens implementado.</td>
+        </tr>
+        <tr>
+          <td><strong>Operações: generate / patch / review</strong></td>
+          <td><span class="status s-warn">⚠️ Parcial</span></td>
+          <td><span class="code">generate</span> e <span class="code">patch</span> implementados. <span class="code">review</span> (VLQualityPanel) não implementado como endpoint isolado.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- CHECKLIST OLIVIA LANDING -->
+  <section>
+    <div class="section-title">🏠 OliviaGeradorLanding — Problemas Identificados</div>
+    <table class="cl-table">
+      <thead><tr><th>Item</th><th>Status</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Search box / busca de processos na landing</strong></td>
+          <td><span class="status s-no">❌ Não implementado</span></td>
+          <td>A landing (<span class="code">OliviaGeradorLanding.tsx</span>) não tem campo de busca de processos. A busca existe dentro do wizard (StepIdentificacao), mas não na tela inicial de seleção de modo. Usuário não consegue filtrar rascunhos por processo na landing.</td>
+        </tr>
+        <tr>
+          <td><strong>Tabs de rascunhos em andamento</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>PeticaoTabBar com recovery runs funcionando.</td>
+        </tr>
+        <tr>
+          <td><strong>Cards de modo (Express / Agente / VibeLaw)</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>3 cards de modo presentes com navegação correta.</td>
+        </tr>
+        <tr>
+          <td><strong>Rate limit visível na landing</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>useRateLimit presente na landing.</td>
+        </tr>
+        <tr>
+          <td><strong>Detalhes visuais pendentes (mencionados por Christian)</strong></td>
+          <td><span class="status s-warn">⚠️ A levantar</span></td>
+          <td>Christian mencionou "vários detalhes que não foram aplicados" — necessário PRD partes 1/2/4 para listar exatamente.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- PLAYBOOKS PAGE -->
+  <section>
+    <div class="section-title">📚 Playbooks Page — Estado Atual</div>
+    <table class="cl-table">
+      <thead><tr><th>Item</th><th>Status</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Estrutura de tabs</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>9 tabs: Tipos, Modelos, Tags, Blocos, Juris, Playbooks, Agentes IA, Gerador IA, Aprovações.</td>
+        </tr>
+        <tr>
+          <td><strong>KPICards no topo</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>Presente (oculto na tab Agentes).</td>
+        </tr>
+        <tr>
+          <td><strong>Proteção por perfil (admin/juridico)</strong></td>
+          <td><span class="status s-ok">✅ Implementado</span></td>
+          <td>Check de perfil com EmptyState para não-admins.</td>
+        </tr>
+        <tr>
+          <td><strong>UI/UX refinada conforme discutido</strong></td>
+          <td><span class="status s-warn">⚠️ A reconstruir</span></td>
+          <td>Estrutura funcional mas UX básica — Christian quer reconstruir com UI/UX aprimorada. 127 linhas, baixo risco.</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- BUGS ATIVOS -->
+  <section>
+    <div class="section-title">🐛 Bugs Ativos para Corrigir Agora</div>
+    <div class="bug-card">
+      <div class="bug-title">🐛 BUG B — Webhook path errado na análise de provas</div>
+      <p><strong>Arquivo:</strong> <span class="code">useWizardTabs.ts:369</span></p>
+      <p style="margin-top:6px;font-size:13px;color:var(--muted)">Linha atual: <span class="code">callWebhook('olivia/analise-provas', ...)</span></p>
+      <p style="font-size:13px;color:var(--muted)">Deve ser: <span class="code">callWebhook('mdflow/olivia/analise-provas', ...)</span></p>
+      <p style="margin-top:8px;font-size:13px;color:var(--red)">⚠️ Este bug faz a análise de provas do n8n v3 falhar — afeta o Express inteiro quando há documentos.</p>
+    </div>
+    <div class="bug-card">
+      <div class="bug-title">🐛 BUG A — Falha silenciosa quando historicoId é null</div>
+      <p><strong>Arquivo:</strong> <span class="code">useWizardTabs.ts ~linha 295</span></p>
+      <p style="margin-top:6px;font-size:13px;color:var(--muted)">Auto-resolve de versao_id presente mas sem feedback visual ao usuário quando historico não é encontrado. Botão "Gerar" some silenciosamente.</p>
+    </div>
+  </section>
+
+  <!-- DRIFTS -->
+  <section>
+    <div class="section-title">🌀 Drifts — O que divergiu do PRD</div>
+    <div class="drift-card">
+      <h4>VibeLaw: Arquitetura de componentes divergiu</h4>
+      <p>PRD define <span class="code">VLHeader</span>, <span class="code">VLThreadList</span>, <span class="code">VLChatArea</span>, <span class="code">VLPetitionPreview</span>, <span class="code">VLQualityPanel</span>. Implementado com nomes e estrutura diferentes (<span class="code">VibeLawChat</span>, <span class="code">VibeLawPreview</span>, <span class="code">VibeLawComposer</span>). Funciona, mas divergiu. Reconstrução seguirá o spec.</p>
+    </div>
+    <div class="drift-card">
+      <h4>VibeLaw: useVibeLawSSE não separado</h4>
+      <p>SSE está dentro de <span class="code">useVibeLaw</span>. O spec define hook isolado para facilitar teste e reuso. Menor problema mas é dívida técnica.</p>
+    </div>
+    <div class="drift-card">
+      <h4>Smart Blocks: Feature completa não implementada</h4>
+      <p>Edge function + hook + componente ManualStep4Conclusao = 3 arquivos especificados no PRD que nunca foram criados. Este é o maior gap — bloqueia o fluxo de geração manual com blocos selecionados.</p>
+    </div>
+    <div class="drift-card">
+      <h4>OlivIA Landing: Search box ausente</h4>
+      <p>A busca de processos na landing foi mencionada por Christian como item que não foi aplicado. O campo de busca existe apenas dentro do wizard (Step 1), não na tela inicial onde o usuário seleciona o modo e vê os rascunhos.</p>
+    </div>
+  </section>
+
+  <!-- PLANO DE AÇÃO -->
+  <section>
+    <div class="section-title">🚀 Plano de Ação — Priorizado</div>
+    <div class="rec-list">
+      <div class="rec">
+        <div class="rec-num">1</div>
+        <div>
+          <h4>Corrigir Bug B — Webhook path análise de provas</h4>
+          <p>1 linha de código. Impacto imediato no fluxo Express com documentos. Corrigir agora, antes de qualquer reconstrução.</p>
+          <span class="effort e-low">⚡ 2 min</span>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-num">2</div>
+        <div>
+          <h4>Reconstruir OlivIA Landing + fixes restantes da landing</h4>
+          <p>Search box, detalhes visuais pendentes (aguardar partes 1/2/4 do PRD para lista completa). Base atual de 438 linhas — reconstrução guiada com melhorias de UX.</p>
+          <span class="effort e-mid">📋 Aguardar PRD completo</span>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-num">3</div>
+        <div>
+          <h4>Implementar Smart Blocks completo</h4>
+          <p>3 arquivos: edge function <span class="code">olivia-smart-blocks</span>, hook <span class="code">useSmartBlocks</span>, componente <span class="code">ManualStep4Conclusao</span>. Habilita fluxo de geração manual com blocos selecionados + Google Doc.</p>
+          <span class="effort e-high">🔨 Alto esforço — feature nova completa</span>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-num">4</div>
+        <div>
+          <h4>Reconstruir Playbooks Page com UX aprimorada</h4>
+          <p>127 linhas → reconstrução rápida de baixo risco. Definir com Christian o layout e UX desejados, implementar do zero.</p>
+          <span class="effort e-mid">⏱️ 30–60 min</span>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-num">5</div>
+        <div>
+          <h4>Refatorar VibeLaw para seguir arquitetura do PRD</h4>
+          <p>Separar useVibeLawSSE, criar tipos em arquivo isolado, implementar VLQualityPanel. Menor urgência — VibeLaw atual funciona, é refatoração de qualidade.</p>
+          <span class="effort e-mid">⏱️ Médio esforço — refatoração</span>
+        </div>
+      </div>
+      <div class="rec">
+        <div class="rec-num">6</div>
+        <div>
+          <h4>Finalizar fix Bug A com feedback visual</h4>
+          <p>Adicionar <span class="code">toast.warning</span> quando historico não é encontrado e <span class="code">setCanGenerate(!!historico?.id)</span> explícito. Evita usuário ficar olhando para botão desabilitado sem saber o motivo.</p>
+          <span class="effort e-low">⚡ 15 min</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footer">
+    <p>Deep Review PRD vs Implementado — OlivIA + Playbooks &nbsp;|&nbsp; JARBAS 13/03/2026 &nbsp;|&nbsp; MdLab LegalTech</p>
+    <p style="margin-top:6px">Baseado em: spec-prd-olivia-2026-03-13 (Parte 3/4) — <strong>aguardar partes 1/2/4 para checklist completo</strong></p>
+  </div>
+
+</div>
+</body>
+</html>

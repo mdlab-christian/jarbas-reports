@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano: IA Direto nas Movimentações — Fallback Strategy</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#e2e8f0;padding:24px;max-width:900px;margin:0 auto}
+  h1{font-size:1.5rem;font-weight:700;color:#f1f5f9;margin-bottom:4px}
+  .subtitle{color:#64748b;font-size:.85rem;margin-bottom:28px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:28px}
+  .card{background:#1e2330;border:1px solid #2d3748;border-radius:12px;padding:18px}
+  .card .label{font-size:.72rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+  .card .value{font-size:1.9rem;font-weight:700}
+  .card .sub{font-size:.78rem;color:#94a3b8;margin-top:4px}
+  .ok{color:#22c55e}.warn{color:#f59e0b}.err{color:#ef4444}.blue{color:#60a5fa}.purple{color:#a78bfa}.teal{color:#2dd4bf}
+  section{margin-bottom:28px}
+  section h2{font-size:.95rem;font-weight:600;color:#94a3b8;margin-bottom:12px;border-bottom:1px solid #2d3748;padding-bottom:8px}
+  table{width:100%;border-collapse:collapse;font-size:.875rem}
+  th{text-align:left;padding:9px 12px;background:#1a1f2e;color:#64748b;font-weight:500;font-size:.72rem;text-transform:uppercase}
+  td{padding:9px 12px;border-bottom:1px solid #1a1f2e}
+  tr:hover td{background:#1a1f2e}
+  .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:600}
+  .badge-ok{background:#14532d;color:#4ade80}
+  .badge-warn{background:#451a03;color:#fbbf24}
+  .badge-new{background:#1e3a5f;color:#60a5fa}
+  .badge-purple{background:#2e1065;color:#c4b5fd}
+  .alert{background:#1e2330;border:1px solid #2d3748;border-left:3px solid #60a5fa;border-radius:8px;padding:14px 16px;margin-bottom:12px;font-size:.875rem}
+  .alert-ok{border-left-color:#22c55e}
+  .alert-warn{border-left-color:#f59e0b}
+  .alert .title{font-weight:600;margin-bottom:4px}
+  .alert .desc{color:#94a3b8;font-size:.82rem;line-height:1.5}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+  .compare-box{background:#1e2330;border:1px solid #2d3748;border-radius:10px;padding:16px}
+  .compare-box h3{font-size:.85rem;font-weight:600;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #2d3748}
+  .compare-box ul{list-style:none;font-size:.82rem;color:#94a3b8;line-height:1.8}
+  .compare-box ul li::before{content:'• ';color:#4b5563}
+  .tier{background:#1e2330;border:1px solid #2d3748;border-radius:10px;padding:16px;margin-bottom:12px}
+  .tier-header{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .tier-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0}
+  .tier-title{font-weight:600;font-size:.95rem}
+  .tier-sub{font-size:.8rem;color:#64748b;margin-top:2px}
+  .tier-body{font-size:.82rem;color:#94a3b8;line-height:1.6;margin-left:38px}
+  .impact-list{list-style:none;margin-top:8px}
+  .impact-list li{padding:3px 0;font-size:.82rem;color:#94a3b8}
+  .impact-list li::before{margin-right:6px}
+  .impact-list li.pos::before{content:'✅'}
+  .impact-list li.neg::before{content:'⚠️'}
+  .code{background:#1a1f2e;border:1px solid #2d3748;border-radius:6px;padding:12px 16px;font-family:monospace;font-size:.8rem;color:#a5f3fc;margin:10px 0;overflow-x:auto}
+</style>
+</head>
+<body>
+
+<h1>🧠 Plano: IA Direto nas Movimentações</h1>
+<p class="subtitle">Proposta de Christian — 14/03/2026 06:49 BRT &nbsp;|&nbsp; Análise de impacto por JARBAS</p>
+
+<!-- CONTEXTO / O QUE VOCÊ PEDIU -->
+<section>
+  <h2>🎯 A proposta em uma linha</h2>
+  <div class="alert">
+    <div class="title" style="color:#60a5fa">Em vez de baixar PDFs → analisar o texto das movimentações já no banco (decisões, despachos, sentenças) com IA e preencher as páginas do MdFlow diretamente.</div>
+    <div class="desc" style="margin-top:8px">
+      Rota de fallback: quando download falha → IA lê o texto da movimentação → extrai tudo → salva em <code>ia_resumo</code>, <code>processos_decisoes</code>, <code>jurimetria</code>.<br>
+      Para acordos: em vez de abrir o processo, analisa o texto da movimentação de homologação.
+    </div>
+  </div>
+</section>
+
+<!-- DADOS QUE JÁ TEMOS -->
+<div class="grid">
+  <div class="card">
+    <div class="label">Movimentações no banco</div>
+    <div class="value blue">263.800</div>
+    <div class="sub">5.868 processos cobertos</div>
+  </div>
+  <div class="card">
+    <div class="label">Decisões</div>
+    <div class="value ok">10.704</div>
+    <div class="sub">texto extraído do EPROC</div>
+  </div>
+  <div class="card">
+    <div class="label">Despachos</div>
+    <div class="value ok">9.810</div>
+    <div class="sub">texto já disponível</div>
+  </div>
+  <div class="card">
+    <div class="label">Sentenças</div>
+    <div class="value purple">1.985</div>
+    <div class="sub">as mais importantes</div>
+  </div>
+  <div class="card">
+    <div class="label">Acórdãos</div>
+    <div class="value teal">529</div>
+    <div class="sub">2ª instância</div>
+  </div>
+  <div class="card">
+    <div class="label">Cobertura imediata</div>
+    <div class="value warn">0h</div>
+    <div class="sub">dados já estão no banco</div>
+  </div>
+</div>
+
+<!-- COMPARATIVO: ATUAL vs PROPOSTA -->
+<section>
+  <h2>📊 Comparativo: como está vs como ficaria</h2>
+  <div class="compare">
+    <div class="compare-box">
+      <h3 style="color:#f87171">❌ Hoje (download-first)</h3>
+      <ul>
+        <li>Baixa PDF do EPROC via Playwright</li>
+        <li>Depende de browser estável (crashes)</li>
+        <li>VISOR_IMPRESSAO instável (bug corrigido hoje)</li>
+        <li>412 downloads na fila → 35–40h</li>
+        <li>Falha em ~8% (EPROC offline, timeout)</li>
+        <li>Só analisa DEPOIS de baixar</li>
+        <li>JF (TRF3/4): sem EPROC estadual = 0%</li>
+        <li>Textos de decisão: presos no PDF</li>
+      </ul>
+    </div>
+    <div class="compare-box">
+      <h3 style="color:#4ade80">✅ Proposta (analysis-first)</h3>
+      <ul>
+        <li>Lê texto da movimentação do banco direto</li>
+        <li>Zero dependência de browser/Playwright</li>
+        <li>Funciona para todos os 7.959 processos</li>
+        <li>263.800 movimentações disponíveis agora</li>
+        <li>Falha próxima de 0% (banco já tem dados)</li>
+        <li>Download como upgrade opcional posterior</li>
+        <li>JF (TRF3/4): também funciona (movs no banco)</li>
+        <li>Textos de decisão: extraídos e estruturados</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- O QUE ISSO PREENCHE -->
+<section>
+  <h2>📄 Páginas do MdFlow que seriam alimentadas</h2>
+  <table>
+    <tr><th>Página</th><th>Fonte de dados</th><th>O que extrai</th><th>Cobertura esperada</th></tr>
+    <tr>
+      <td><strong>/decisoes</strong></td>
+      <td>tipo=decisao + sentenca (12.689 movs)</td>
+      <td>resultado, motivo, fundamentação, valor arbitrado</td>
+      <td><span class="badge badge-ok">~95%</span></td>
+    </tr>
+    <tr>
+      <td><strong>/jurimetria</strong></td>
+      <td>sentencas + acordaos (2.514 movs)</td>
+      <td>favorável/desfavorável, taxa por empresa/juiz</td>
+      <td><span class="badge badge-ok">~90%</span></td>
+    </tr>
+    <tr>
+      <td><strong>/acordos</strong></td>
+      <td>tipo=outro com texto de homologação</td>
+      <td>valor, condições, partes, data</td>
+      <td><span class="badge badge-warn">~70%</span></td>
+    </tr>
+    <tr>
+      <td><strong>/execucoes</strong></td>
+      <td>tipo=despacho + intimacao (47.479 movs)</td>
+      <td>fase, valores cobrados, penhora, bloqueio</td>
+      <td><span class="badge badge-warn">~75%</span></td>
+    </tr>
+    <tr>
+      <td><strong>/processos (resumo IA)</strong></td>
+      <td>últimas 10–15 movimentações por processo</td>
+      <td>status atual, chance de sucesso, próximo passo</td>
+      <td><span class="badge badge-ok">~98%</span></td>
+    </tr>
+  </table>
+</section>
+
+<!-- AS 3 ROTAS -->
+<section>
+  <h2>🗺️ As 3 rotas de execução</h2>
+
+  <div class="tier">
+    <div class="tier-header">
+      <div class="tier-num" style="background:#14532d;color:#4ade80">1</div>
+      <div>
+        <div class="tier-title ok">Análise das movimentações já no banco (zero custo de download)</div>
+        <div class="tier-sub">Rota principal — funciona agora, sem Playwright</div>
+      </div>
+    </div>
+    <div class="tier-body">
+      <strong>Como funciona:</strong> Para cada processo → pega as últimas N movimentações com texto (decisão, despacho, sentença) → manda para Claude Sonnet → extrai resultado, motivo, valor, fase → salva em <code>ia_resumo</code>, <code>processos_decisoes</code>.<br><br>
+      <strong>Custo estimado:</strong> ~0.3–0.5s por processo · ~R$0,002/processo · 7.959 processos = <strong>~R$16 total</strong><br>
+      <strong>Tempo:</strong> ~6–8h para todos os processos (rate limit API)<br>
+      <strong>Implementação:</strong> Nova skill <code>skill_analisar_movimentacoes.mjs</code> — ~200 linhas
+    </div>
+  </div>
+
+  <div class="tier">
+    <div class="tier-header">
+      <div class="tier-num" style="background:#1e3a5f;color:#60a5fa">2</div>
+      <div>
+        <div class="tier-title blue">Extração ao vivo do EPROC (quando movimentação não tem texto suficiente)</div>
+        <div class="tier-sub">Rota de enriquecimento — abre EPROC e copia texto da decisão</div>
+      </div>
+    </div>
+    <div class="tier-body">
+      <strong>Como funciona:</strong> Para processos onde o texto da movimentação é curto (&lt;200 chars) → abre EPROC → navega até a movimentação → extrai o HTML/texto completo → analisa com IA.<br><br>
+      <strong>Vantagem sobre download:</strong> Não baixa PDF — só lê o HTML da página. Playwright mais estável nesse modo.<br>
+      <strong>Já existe:</strong> o <code>skill_analisar_ia_documentos.mjs</code> faz isso. Só precisa passar texto extraído em vez de PDF.
+    </div>
+  </div>
+
+  <div class="tier">
+    <div class="tier-header">
+      <div class="tier-num" style="background:#2e1065;color:#c4b5fd">3</div>
+      <div>
+        <div class="tier-title purple">Download de PDF (apenas quando necessário)</div>
+        <div class="tier-sub">Rota premium — para contestações, provas, laudos</div>
+      </div>
+    </div>
+    <div class="tier-body">
+      <strong>Quando usar:</strong> Provas específicas (CTPS, RG, comprovante renda), contestação da ré, laudos periciais. Não para decisões e despachos.<br>
+      <strong>Status atual:</strong> Funcionando (fix aplicado hoje). Continua rodando em background.
+    </div>
+  </div>
+</section>
+
+<!-- O QUE ISSO MUDA -->
+<section>
+  <h2>⚡ Impacto real: o que muda imediatamente</h2>
+  <ul class="impact-list">
+    <li class="pos">Jurimetria funciona com dados reais: taxa de favorabilidade por empresa/juiz/comarca</li>
+    <li class="pos">Página /decisoes alimentada para ~10.700 processos com decisão</li>
+    <li class="pos">Resumo IA para todos os 7.959 processos (não só 1.308 TJRS)</li>
+    <li class="pos">JF (TRF3/4) também cobertos — 2.041 processos que hoje têm 0% de análise</li>
+    <li class="pos">Acordos: extrai valor, condições, empresa a partir do texto de homologação</li>
+    <li class="pos">Execuções: detecta bloqueio, penhora, valor cobrado nas movimentações</li>
+    <li class="pos">Download passa a ser upgrade, não bloqueador</li>
+    <li class="neg">Textos curtos de movimentação podem ter análise menos precisa que o PDF completo</li>
+    <li class="neg">Provas (CTPS, RG, documentos físicos) ainda precisam do download</li>
+  </ul>
+</section>
+
+<!-- PLANO DE IMPLEMENTAÇÃO -->
+<section>
+  <h2>🔧 O que precisa ser implementado</h2>
+  <table>
+    <tr><th>Item</th><th>Esforço</th><th>Prioridade</th></tr>
+    <tr>
+      <td><code>skill_analisar_movimentacoes.mjs</code> — lê movimentações do banco + analisa com IA</td>
+      <td>~3–4h de implementação</td>
+      <td><span class="badge badge-ok">P0</span></td>
+    </tr>
+    <tr>
+      <td>Prompt especializado por tipo (sentença/decisão/despacho/acordo/execução)</td>
+      <td>~1–2h</td>
+      <td><span class="badge badge-ok">P0</span></td>
+    </tr>
+    <tr>
+      <td>Tabela <code>processos_decisoes</code> (se não existir) — salvar resultado estruturado</td>
+      <td>~30min migration</td>
+      <td><span class="badge badge-ok">P0</span></td>
+    </tr>
+    <tr>
+      <td>Integração com /jurimetria — taxa favorabilidade por empresa/juiz</td>
+      <td>~2h</td>
+      <td><span class="badge badge-new">P1</span></td>
+    </tr>
+    <tr>
+      <td>Integração com /acordos — extrair valor/condições de homologações</td>
+      <td>~2h</td>
+      <td><span class="badge badge-new">P1</span></td>
+    </tr>
+    <tr>
+      <td>Integração com /execucoes — detectar fase/bloqueio/valor</td>
+      <td>~2h</td>
+      <td><span class="badge badge-new">P1</span></td>
+    </tr>
+  </table>
+</section>
+
+<!-- RECOMENDAÇÃO JARBAS -->
+<section>
+  <h2>💡 Recomendação JARBAS</h2>
+  <div class="alert alert-ok">
+    <div class="title" style="color:#22c55e">✅ Aprovo totalmente — implementar já</div>
+    <div class="desc">
+      Com 263.800 movimentações no banco (incluindo 22.000+ decisões/despachos/sentenças), temos dados suficientes para análise de altíssima qualidade <strong>sem depender de download</strong>.<br><br>
+      A Rota 1 (movimentações do banco) resolve 95% do que precisamos. O download continua rodando em background como upgrade.<br><br>
+      <strong>Proposta:</strong> Implemento a <code>skill_analisar_movimentacoes.mjs</code> agora e rodo uma análise teste em 10 processos para validar qualidade. Se aprovar, disparo para todos os 7.959. Tempo total: ~1 dia de implementação + 6–8h de análise.
+    </div>
+  </div>
+</section>
+
+<div style="text-align:center;color:#334155;font-size:.72rem;margin-top:36px;padding-top:14px;border-top:1px solid #1e2330">
+  JARBAS v3.0 &nbsp;·&nbsp; MdLab &nbsp;·&nbsp; 14/03/2026 06:53 BRT
+</div>
+</body>
+</html>

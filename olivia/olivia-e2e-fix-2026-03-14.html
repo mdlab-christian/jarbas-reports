@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — E2E Fix Report · 2026-03-14</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  .header {
+    background: linear-gradient(135deg, #1a1f2e 0%, #0f1117 100%);
+    border-bottom: 1px solid #2d3748;
+    padding: 32px 48px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .header-left h1 { font-size: 22px; font-weight: 700; color: #fff; }
+  .header-left p { font-size: 13px; color: #718096; margin-top: 4px; }
+  .badge { background: #22543d; color: #68d391; padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; border: 1px solid #276749; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+  .stat-card {
+    background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px;
+    padding: 20px; text-align: center;
+  }
+  .stat-card .value { font-size: 32px; font-weight: 800; color: #fff; }
+  .stat-card .label { font-size: 11px; color: #718096; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card.green .value { color: #68d391; }
+  .stat-card.red .value { color: #fc8181; }
+  .stat-card.yellow .value { color: #f6e05e; }
+  .stat-card.blue .value { color: #63b3ed; }
+
+  .section { margin-bottom: 36px; }
+  .section-title {
+    font-size: 14px; font-weight: 700; color: #a0aec0;
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 16px; padding-bottom: 8px;
+    border-bottom: 1px solid #2d3748;
+  }
+
+  .bug-card {
+    background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px;
+    padding: 20px 24px; margin-bottom: 12px;
+    display: flex; gap: 16px; align-items: flex-start;
+  }
+  .bug-number {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; flex-shrink: 0; margin-top: 2px;
+  }
+  .bug-number.fixed { background: #22543d; color: #68d391; border: 1.5px solid #276749; }
+  .bug-content h3 { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+  .bug-content p { font-size: 13px; color: #a0aec0; line-height: 1.6; }
+  .bug-content .fix { margin-top: 8px; font-size: 12px; color: #68d391; background: #1c3030; padding: 6px 10px; border-radius: 6px; border-left: 3px solid #68d391; }
+  .code { font-family: 'Fira Code', 'Courier New', monospace; font-size: 11px; background: #0d1117; padding: 2px 6px; border-radius: 4px; color: #63b3ed; }
+
+  .flow-steps { display: flex; flex-direction: column; gap: 0; }
+  .flow-step {
+    display: flex; align-items: flex-start; gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid #1e2535;
+    position: relative;
+  }
+  .flow-step:last-child { border-bottom: none; }
+  .step-icon {
+    width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+  .step-icon.ok { background: #22543d; }
+  .step-icon.fixed { background: #2a4365; }
+  .step-info { flex: 1; }
+  .step-info h4 { font-size: 14px; font-weight: 600; color: #e2e8f0; }
+  .step-info p { font-size: 12px; color: #718096; margin-top: 3px; }
+  .step-status { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 10px; flex-shrink: 0; margin-top: 4px; }
+  .step-status.success { background: #22543d; color: #68d391; }
+  .step-status.fixed { background: #2a4365; color: #63b3ed; }
+
+  .spec-item {
+    background: #1a1f2e; border: 1px solid #2d3748; border-radius: 8px;
+    padding: 14px 18px; margin-bottom: 10px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .spec-icon { font-size: 18px; flex-shrink: 0; }
+  .spec-content h4 { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .spec-content p { font-size: 12px; color: #a0aec0; }
+  .spec-content .rule { font-size: 12px; color: #f6e05e; margin-top: 4px; font-family: monospace; }
+
+  .arch-box {
+    background: #0d1117; border: 1px solid #2d3748; border-radius: 10px;
+    padding: 20px 24px; font-family: 'Fira Code', monospace; font-size: 12px;
+    color: #a0aec0; line-height: 2;
+  }
+  .arch-box .hl { color: #68d391; }
+  .arch-box .hl2 { color: #63b3ed; }
+  .arch-box .hl3 { color: #f6e05e; }
+
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item { display: flex; gap: 16px; padding: 10px 0; border-bottom: 1px solid #1e2535; }
+  .tl-item:last-child { border-bottom: none; }
+  .tl-time { font-size: 11px; color: #4a5568; font-family: monospace; width: 50px; flex-shrink: 0; padding-top: 2px; }
+  .tl-dot { width: 8px; height: 8px; border-radius: 50%; background: #4a5568; flex-shrink: 0; margin-top: 5px; }
+  .tl-dot.green { background: #68d391; }
+  .tl-dot.red { background: #fc8181; }
+  .tl-dot.blue { background: #63b3ed; }
+  .tl-text { font-size: 13px; color: #a0aec0; }
+  .tl-text strong { color: #e2e8f0; }
+
+  .footer { text-align: center; padding: 32px; color: #4a5568; font-size: 12px; border-top: 1px solid #1e2535; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>⚖️ OlivIA — Relatório E2E Fix</h1>
+    <p>Investigação e correção do cenário de automação N8N · 14 de março de 2026 · 08:06–08:35</p>
+  </div>
+  <span class="badge">✅ E2E RESOLVIDO</span>
+</div>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="summary-grid">
+    <div class="stat-card red"><div class="value">4</div><div class="label">Bugs encontrados</div></div>
+    <div class="stat-card green"><div class="value">4</div><div class="label">Bugs corrigidos</div></div>
+    <div class="stat-card yellow"><div class="value">29min</div><div class="label">Tempo de resolução</div></div>
+    <div class="stat-card blue"><div class="value">100%</div><div class="label">E2E funcional</div></div>
+  </div>
+
+  <!-- Bugs Corrigidos -->
+  <div class="section">
+    <div class="section-title">🐛 Bugs encontrados e corrigidos</div>
+
+    <div class="bug-card">
+      <div class="bug-number fixed">1</div>
+      <div class="bug-content">
+        <h3>Porta 3012 instável — <span class="code">start.mjs</span> matava <span class="code">webhook-main.mjs</span></h3>
+        <p>O JARBAS principal (<code>start.mjs</code>) rodava <code>kill -9 $(lsof -ti:3012)</code> a cada restart via heartbeat SIGTERM. Isso matava o <code>webhook-main.mjs</code> (servidor dedicado), criando um gap onde n8n recebia <code>ECONNREFUSED</code>. Foram 30+ registros de "Porta 3012 ainda em uso" nos logs.</p>
+        <div class="fix">✅ Fix: <code>webhook-server.mjs</code> agora detecta se <code>webhook-main.mjs</code> está na porta e pula o kill. Commit: <code>fix: webhook-server não mata webhook-main.mjs no restart</code></div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-number fixed">2</div>
+      <div class="bug-content">
+        <h3>N8N sem header de autenticação no nó DOCX Converter</h3>
+        <p>O nó <code>HTTP: DOCX Converter</code> no workflow <code>WH-OLIVIA-GERAR-DOC-V3</code> não enviava o header <code>mdflow: MdL1501@</code> exigido pelo webhook-server. Resultado: HTTP 401 Unauthorized quando o servidor estava ativo.</p>
+        <div class="fix">✅ Fix: Header <code>mdflow: MdL1501@</code> adicionado ao nó via PUT na API do N8N. Workflow atualizado em 11:15 UTC.</div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-number fixed">3</div>
+      <div class="bug-content">
+        <h3>FK violation — <span class="code">olivia_historico.modelo_id</span> ≠ <span class="code">olivia_modelos_peticao</span></h3>
+        <p>O nó <code>Salvar Histórico</code> enviava o ID de <code>olivia_modelos_peticao</code> como <code>modelo_id</code>, mas a FK em <code>olivia_historico</code> aponta para <code>olivia_modelos_grupo</code>. INSERT silenciosamente retornava null, deixando <code>historico_id</code> nulo e quebrando o fluxo.</p>
+        <div class="fix">✅ Fix: <code>modelo_id</code> só incluído no INSERT quando <code>data.modelo_grupo_id</code> (grupo válido) está presente. Log de erro adicionado para falhas futuras.</div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-number fixed">4</div>
+      <div class="bug-content">
+        <h3>N8N (Railway) não consegue acessar <span class="code">localhost:3012</span> (Mac Mini)</h3>
+        <p>Root cause principal do HTTP 500. N8N roda no Railway (cloud) — <code>localhost</code> resolve para o servidor Railway, não para o Mac Mini. Toda chamada a <code>http://localhost:3012</code> resultava em <code>ECONNREFUSED ::1:3012</code>.</p>
+        <div class="fix">✅ Fix: Tunnel Cloudflare permanente configurado em <code>jarbas.jarbas-mdlab.com</code> (ID: 4ae4db5d). N8N atualizado para usar a URL pública. URL não muda mais a cada restart.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- E2E Flow -->
+  <div class="section">
+    <div class="section-title">🔄 Fluxo E2E validado</div>
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-icon ok">🌐</div>
+        <div class="step-info">
+          <h4>Webhook Trigger</h4>
+          <p>POST <code>/webhook/mdflow/olivia/gerar-doc</code> · Header <code>mdflow: MdL1501@</code></p>
+        </div>
+        <span class="step-status success">✅ OK</span>
+      </div>
+      <div class="flow-step">
+        <div class="step-icon ok">🔐</div>
+        <div class="step-info">
+          <h4>Validar Auth</h4>
+          <p>Verifica header <code>mdflow</code> == <code>MdL1501@</code></p>
+        </div>
+        <span class="step-status success">✅ OK</span>
+      </div>
+      <div class="flow-step">
+        <div class="step-icon ok">📋</div>
+        <div class="step-info">
+          <h4>Buscar Modelo</h4>
+          <p>Resolve <code>modelo_id</code> → busca template em <code>olivia_modelos_peticao</code> + system_prompt do agente</p>
+        </div>
+        <span class="step-status success">✅ OK</span>
+      </div>
+      <div class="flow-step">
+        <div class="step-icon ok">📝</div>
+        <div class="step-info">
+          <h4>Montar Prompt + Claude Gerar Petição</h4>
+          <p>Model: <code>claude-sonnet-4-6</code> · ~5.000 tokens · ~R$0,20/petição</p>
+        </div>
+        <span class="step-status success">✅ OK</span>
+      </div>
+      <div class="flow-step">
+        <div class="step-icon fixed">💾</div>
+        <div class="step-info">
+          <h4>Salvar Histórico</h4>
+          <p>INSERT em <code>olivia_historico</code> · status <code>EM_PROGRESSO</code> · sem FK inválido</p>
+        </div>
+        <span class="step-status fixed">🔧 CORRIGIDO</span>
+      </div>
+      <div class="flow-step">
+        <div class="step-icon fixed">📄</div>
+        <div class="step-info">
+          <h4>HTTP: DOCX Converter</h4>
+          <p><code>https://jarbas.jarbas-mdlab.com/olivia/docx-converter</code> · Pandoc HTML→DOCX · Storage Supabase</p>
+        </div>
+        <span class="step-status fixed">🔧 CORRIGIDO</span>
+      </div>
+      <div class="flow-step">
+        <div class="step-icon ok">✅</div>
+        <div class="step-info">
+          <h4>Responder Sucesso</h4>
+          <p>Retorna <code>pdf_url</code> assinada do Storage · DOCX disponível para download</p>
+        </div>
+        <span class="step-status success">✅ OK</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arquitetura -->
+  <div class="section">
+    <div class="section-title">🏗️ Arquitetura atualizada</div>
+    <div class="arch-box">
+      <span class="hl">Frontend</span> (mdflow.app)<br>
+      &nbsp;&nbsp;↓ POST /webhook/mdflow/olivia/gerar-doc <span class="hl3">[header: mdflow: MdL1501@]</span><br>
+      <span class="hl">N8N Railway</span><br>
+      &nbsp;&nbsp;↓ Claude API (anthropic.com) → <span class="hl2">petição gerada</span><br>
+      &nbsp;&nbsp;↓ Supabase REST → <span class="hl2">historico salvo</span><br>
+      &nbsp;&nbsp;↓ POST /olivia/docx-converter <span class="hl3">[header: mdflow: MdL1501@]</span><br>
+      &nbsp;&nbsp;↓ <span class="hl">https://jarbas.jarbas-mdlab.com</span> ← <span class="hl3">Cloudflare Tunnel (fixo, permanente)</span><br>
+      <span class="hl">Mac Mini M4</span> — webhook-main.mjs porta 3012<br>
+      &nbsp;&nbsp;↓ Pandoc (HTML → DOCX)<br>
+      &nbsp;&nbsp;↓ <span class="hl2">Supabase Storage bucket: peticoes</span><br>
+      &nbsp;&nbsp;↓ Retorna URL assinada (1h)
+    </div>
+  </div>
+
+  <!-- Spec gerada -->
+  <div class="section">
+    <div class="section-title">📜 Spec documentada — SPEC-N8N-AUTOMACAO.md</div>
+
+    <div class="spec-item">
+      <div class="spec-icon">🚫</div>
+      <div class="spec-content">
+        <h4>Regra #1 — Nunca usar localhost em nós HTTP do N8N</h4>
+        <p>N8N roda no Railway. localhost = servidor Railway, não Mac Mini.</p>
+        <div class="rule">✅ https://jarbas.jarbas-mdlab.com/rota&nbsp;&nbsp;&nbsp;❌ http://localhost:3012/rota</div>
+      </div>
+    </div>
+
+    <div class="spec-item">
+      <div class="spec-icon">🔑</div>
+      <div class="spec-content">
+        <h4>Regra #2 — Header mdflow obrigatório em todo nó que chama o webhook</h4>
+        <div class="rule">Header: mdflow: MdL1501@ (env: N8N_WEBHOOK_SECRET)</div>
+      </div>
+    </div>
+
+    <div class="spec-item">
+      <div class="spec-icon">🗄️</div>
+      <div class="spec-content">
+        <h4>Regra #3 — olivia_historico.modelo_id → FK para olivia_modelos_grupo</h4>
+        <p>Não usar ID de olivia_modelos_peticao como modelo_id no INSERT.</p>
+        <div class="rule">if (modelo_grupo_id) histPayload.modelo_id = modelo_grupo_id;</div>
+      </div>
+    </div>
+
+    <div class="spec-item">
+      <div class="spec-icon">🔌</div>
+      <div class="spec-content">
+        <h4>Regra #4 — Porta 3012 exclusiva do webhook-main.mjs</h4>
+        <p>webhook-server.mjs detecta webhook-main.mjs na porta e pula o kill. Não criar serviços concorrentes na 3012.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="section">
+    <div class="section-title">⏱️ Timeline da investigação</div>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-time">08:06</div><div class="tl-dot red"></div><div class="tl-text"><strong>Alerta recebido:</strong> Exec failed (marine-t, SIGTERM) + HTTP 500</div></div>
+      <div class="tl-item"><div class="tl-time">08:08</div><div class="tl-dot blue"></div><div class="tl-text"><strong>Identificado:</strong> Workflow WH-OLIVIA-GERAR-DOC-V3 com ECONNREFUSED na porta 3012</div></div>
+      <div class="tl-item"><div class="tl-time">08:10</div><div class="tl-dot blue"></div><div class="tl-text"><strong>Bug #1 corrigido:</strong> webhook-server.mjs não mais mata webhook-main.mjs</div></div>
+      <div class="tl-item"><div class="tl-time">08:13</div><div class="tl-dot blue"></div><div class="tl-text"><strong>Bug #2 corrigido:</strong> Header mdflow adicionado ao nó DOCX Converter no N8N</div></div>
+      <div class="tl-item"><div class="tl-time">08:18</div><div class="tl-dot blue"></div><div class="tl-text"><strong>E2E iniciado:</strong> Descoberto auth + template + FK issues em cascata</div></div>
+      <div class="tl-item"><div class="tl-time">08:22</div><div class="tl-dot blue"></div><div class="tl-text"><strong>Bug #3 corrigido:</strong> FK violation em Salvar Histórico (olivia_modelos_grupo vs peticao)</div></div>
+      <div class="tl-item"><div class="tl-time">08:26</div><div class="tl-dot blue"></div><div class="tl-text"><strong>Bug #4 identificado:</strong> localhost:3012 inacessível do Railway — root cause real</div></div>
+      <div class="tl-item"><div class="tl-time">08:27</div><div class="tl-dot blue"></div><div class="tl-text"><strong>Tunnel temporário:</strong> trycloudflare ativo, E2E passa pela primeira vez ✅</div></div>
+      <div class="tl-item"><div class="tl-time">08:31</div><div class="tl-dot blue"></div><div class="tl-text"><strong>Hostname fixo:</strong> Christian configura jarbas.jarbas-mdlab.com no Cloudflare Dashboard</div></div>
+      <div class="tl-item"><div class="tl-time">08:32</div><div class="tl-dot green"></div><div class="tl-text"><strong>Produção estável:</strong> N8N atualizado, tunnel permanente, E2E 100% ✅</div></div>
+      <div class="tl-item"><div class="tl-time">08:35</div><div class="tl-dot green"></div><div class="tl-text"><strong>Spec publicada:</strong> SPEC-N8N-AUTOMACAO.md commitada no repositório</div></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  JARBAS v3.0 · MdLab · Relatório gerado em 14/03/2026 às 08:35 · Workflow: WH-OLIVIA-GERAR-DOC-V3
+</div>
+
+</body>
+</html>

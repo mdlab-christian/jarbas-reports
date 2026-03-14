@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline de Análise de Processos — Diagnóstico & Plano</title>
+<style>
+:root {
+  --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+  --border: #2e3248; --accent: #6c63ff; --green: #22c55e;
+  --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6;
+  --orange: #f97316; --text: #e2e8f0; --muted: #8892a4;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; padding: 2rem; line-height: 1.6; }
+.wrap { max-width: 1000px; margin: 0 auto; }
+h1 { font-size: 1.7rem; font-weight: 800; color: #fff; }
+h2 { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-bottom: 1rem; }
+.sub { color: var(--muted); font-size: 0.85rem; margin-top: 0.3rem; }
+.section { margin-bottom: 2.5rem; }
+.section-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; }
+.section-label::after { content:''; flex:1; height:1px; background: var(--border); }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+.card + .card { margin-top: 0.75rem; }
+.grid { display: grid; gap: 0.75rem; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+.metric { text-align: center; padding: 1rem; }
+.metric .num { font-size: 2rem; font-weight: 800; line-height: 1.1; }
+.metric .lbl { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.25rem; }
+.metric .hint { font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+.green { color: var(--green); } .red { color: var(--red); } .yellow { color: var(--yellow); } .blue { color: var(--blue); } .orange { color: var(--orange); } .muted { color: var(--muted); }
+.tag { display:inline-block; padding: 0.15rem 0.55rem; border-radius: 4px; font-size: 0.72rem; font-weight: 700; }
+.tag-green { background:#16532220; color: var(--green); border:1px solid #22c55e30; }
+.tag-red { background:#7f1d1d20; color: var(--red); border:1px solid #ef444430; }
+.tag-yellow { background:#78350f20; color: var(--yellow); border:1px solid #f59e0b30; }
+.tag-blue { background:#1e3a5f20; color: var(--blue); border:1px solid #3b82f630; }
+.tag-orange { background:#7c2d1220; color: var(--orange); border:1px solid #f9731630; }
+.tag-purple { background:#3b0764; color: var(--accent); border:1px solid #6c63ff30; }
+.alert { border-radius: 10px; padding: 1rem 1.25rem; display: flex; gap: 0.75rem; align-items: flex-start; margin-bottom: 0.75rem; }
+.alert-red { background: #7f1d1d15; border: 1px solid #ef444430; }
+.alert-yellow { background: #78350f15; border: 1px solid #f59e0b30; }
+.alert-green { background: #16532215; border: 1px solid #22c55e30; }
+.alert-blue { background: #1e3a5f15; border: 1px solid #3b82f630; }
+.alert-icon { font-size: 1.2rem; flex-shrink:0; }
+.alert-body .title { font-weight: 700; font-size: 0.9rem; }
+.alert-body .detail { font-size: 0.82rem; color: var(--muted); margin-top: 0.2rem; }
+code { background: var(--surface2); border: 1px solid var(--border); padding: 0.1rem 0.4rem; border-radius: 4px; font-size: 0.8rem; font-family: monospace; }
+.flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; margin: 0.75rem 0; }
+.flow-step { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+.flow-step.ok { border-color: #22c55e40; background: #16532215; }
+.flow-step.broken { border-color: #ef444440; background: #7f1d1d15; color: var(--red); }
+.flow-step.partial { border-color: #f59e0b40; background: #78350f15; color: var(--yellow); }
+.arrow { color: var(--muted); font-size: 0.9rem; }
+ul.plain { list-style: none; }
+ul.plain li { padding: 0.45rem 0; border-bottom: 1px solid var(--border); font-size: 0.87rem; display: flex; align-items: flex-start; gap: 0.6rem; }
+ul.plain li:last-child { border-bottom: none; }
+.li-icon { flex-shrink:0; width:18px; height:18px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.65rem; font-weight:700; }
+.li-ok { background:#16532230; color:var(--green); }
+.li-warn { background:#78350f30; color:var(--yellow); }
+.li-err { background:#7f1d1d30; color:var(--red); }
+.li-info { background:#1e3a5f30; color:var(--blue); }
+.li-idea { background:#3b076430; color:var(--accent); }
+.scale-row { display:flex; align-items:center; gap:0.75rem; margin-bottom:0.5rem; }
+.scale-label { min-width: 140px; font-size:0.82rem; }
+.scale-bar { flex:1; height:8px; background:var(--surface2); border-radius:4px; overflow:hidden; }
+.scale-fill { height:100%; border-radius:4px; }
+.scale-val { font-size:0.82rem; min-width:80px; text-align:right; }
+table { width:100%; border-collapse:collapse; font-size:0.83rem; }
+th { color:var(--muted); font-size:0.72rem; text-transform:uppercase; letter-spacing:0.05em; padding:0.5rem 0.75rem; border-bottom:1px solid var(--border); text-align:left; }
+td { padding:0.5rem 0.75rem; border-bottom:1px solid var(--border); }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:var(--surface2); }
+.verdict-box { background: linear-gradient(135deg, #22c55e10, #6c63ff10); border:1px solid #6c63ff40; border-radius:14px; padding:1.5rem; text-align:center; margin-bottom:2rem; }
+.verdict-box h2 { font-size:1.4rem; color:#fff; }
+.verdict-box p { color:var(--muted); font-size:0.88rem; margin-top:0.4rem; }
+@media(max-width:700px) { .g2,.g3,.g4{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<!-- HEADER -->
+<div style="margin-bottom:2rem;">
+  <div style="font-size:0.75rem; color:var(--muted); text-transform:uppercase; letter-spacing:0.1em; margin-bottom:0.5rem;">JARBAS · MdLab · 14/03/2026 03:08 BRT</div>
+  <h1>🔬 Pipeline de Download &amp; Análise de Processos</h1>
+  <div class="sub">Diagnóstico honesto do estado atual + Plano para escalar para os 7.976 processos</div>
+</div>
+
+<!-- VEREDICTO -->
+<div class="verdict-box">
+  <div style="font-size:2rem;margin-bottom:0.5rem;">⚡</div>
+  <h2>Importação validada. Downloads com bug crítico. Análise IA parcialmente funcionando.</h2>
+  <p>O teste que fizemos validou extração de movimentações. Os downloads de documentos têm um problema real que precisa ser investigado antes de escalar.</p>
+</div>
+
+<!-- ESTADO ATUAL — HONESTO -->
+<div class="section">
+  <div class="section-label">O que realmente aconteceu no teste</div>
+
+  <div class="alert alert-green">
+    <div class="alert-icon">✅</div>
+    <div class="alert-body">
+      <div class="title">Extração de movimentações: FUNCIONANDO</div>
+      <div class="detail">17.967 movimentações importadas de 412 processos em ~90 minutos. Média de 43 movimentações por processo. Dados: tipo, descricao, data_movimentacao, metadata.</div>
+    </div>
+  </div>
+
+  <div class="alert alert-red">
+    <div class="alert-icon">🚨</div>
+    <div class="alert-body">
+      <div class="title">Downloads de documentos: NÃO FUNCIONARAM</div>
+      <div class="detail">Os 55 tasks de download_documentos concluídas retornaram <code>"Nenhum documento encontrado mesmo após Vision"</code> — ou seja, o browser abre o processo, mas não está conseguindo extrair os links dos documentos. O bucket <code>olivia-provas</code> continua vazio para esses processos.</div>
+    </div>
+  </div>
+
+  <div class="alert alert-yellow">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-body">
+      <div class="title">Análise IA: parcialmente funcionando</div>
+      <div class="detail">2.060 processos já têm análise IA (de 7.976 totais = 26%). Os últimos lotes do skill analisar_ia_documentos retornaram <code>ok:0, erro:20</code> para o TJSP — provavelmente problema de sessão ou seletor CSS desatualizado.</div>
+    </div>
+  </div>
+
+  <div class="alert alert-blue">
+    <div class="alert-icon">ℹ️</div>
+    <div class="alert-body">
+      <div class="title">Os "54 downloads enfileirados" eram tarefas, não arquivos baixados</div>
+      <div class="detail">Cada lote de importação enfileira 1 task download por CNJ. O número no relatório anterior se referia a tarefas criadas — não a documentos salvos no Storage. Essa distinção é importante.</div>
+    </div>
+  </div>
+</div>
+
+<!-- FLUXO ATUAL -->
+<div class="section">
+  <div class="section-label">Fluxo atual do pipeline</div>
+  <div class="card">
+    <h2>O que acontece hoje quando um processo é importado</h2>
+    <div class="flow">
+      <div class="flow-step ok">1. importar_processo</div>
+      <div class="arrow">→</div>
+      <div class="flow-step ok">2. extrair movimentações</div>
+      <div class="arrow">→</div>
+      <div class="flow-step ok">3. salvar no Supabase</div>
+      <div class="arrow">→</div>
+      <div class="flow-step partial">4. enfileirar download_documentos</div>
+      <div class="arrow">→</div>
+      <div class="flow-step broken">5. download_documentos (BUG)</div>
+      <div class="arrow">→</div>
+      <div class="flow-step broken">6. analisar_ia_documentos (erro TJSP)</div>
+    </div>
+
+    <table style="margin-top:1rem;">
+      <thead><tr><th>Etapa</th><th>Status</th><th>O que faz</th><th>Problema</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>importar_processo</td>
+          <td><span class="tag tag-green">✅ OK</span></td>
+          <td>Navega EPROC, extrai header + movimentações</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>movimentações → Supabase</td>
+          <td><span class="tag tag-green">✅ OK</span></td>
+          <td>Salva tipo, descricao, data, metadata</td>
+          <td>resumo_ia vazio na maioria</td>
+        </tr>
+        <tr>
+          <td>download_documentos</td>
+          <td><span class="tag tag-red">🚨 BUG</span></td>
+          <td>Tenta extrair links de documentos do EPROC</td>
+          <td>"Nenhum documento encontrado" em 100% dos casos testados</td>
+        </tr>
+        <tr>
+          <td>analisar_ia_documentos</td>
+          <td><span class="tag tag-yellow">⚠️ PARCIAL</span></td>
+          <td>Claude analisa doc → chance_sucesso, resumo, fundamentação</td>
+          <td>Erro TJSP (seletor ou sessão). TJRS funcionava antes.</td>
+        </tr>
+        <tr>
+          <td>jurimetria</td>
+          <td><span class="tag tag-blue">🔷 FUTURO</span></td>
+          <td>Não implementado ainda como pipeline automático</td>
+          <td>Skill existe mas não é disparada automaticamente</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TRIAGEM DE DOCUMENTOS -->
+<div class="section">
+  <div class="section-label">Como funciona a triagem de documentos (quando funcionar)</div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>Prioridade P1 — baixar sempre</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-ok">1</div><div><strong>SENT / SENTENÇA</strong> — decisão final do juiz</div></li>
+        <li><div class="li-icon li-ok">2</div><div><strong>ACORD / ACORDO</strong> — homologação de acordo</div></li>
+        <li><div class="li-icon li-ok">3</div><div><strong>DESPADEC / Despacho-Decisão</strong> — tutelas, liminares</div></li>
+        <li><div class="li-icon li-ok">4</div><div><strong>DEC / DECISÃO</strong> — decisões interlocutórias</div></li>
+        <li><div class="li-icon li-ok">5</div><div><strong>DEPOS / GUIA / ALVAR</strong> — depósitos, guias, alvarás</div></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>3 tipos de download no EPROC</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-blue">T1</div><div><strong>ZIP</strong> — evento com múltiplos arquivos (download_zip, todos)</div></li>
+        <li><div class="li-icon li-blue">T2</div><div><strong>PDF_NAVEGADOR</strong> — INC1, PET1, CONT1, REPLICA1 — PDF direto nova aba</div></li>
+        <li><div class="li-icon li-blue">T3</div><div><strong>VISOR_IMPRESSAO</strong> — DESPADEC1, SENT1, ATORD1 — page.pdf() via CDP (impressão)</div></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- O QUE A IA EXTRAI -->
+<div class="section">
+  <div class="section-label">O que a análise IA extrai de cada processo</div>
+  <div class="card">
+    <div class="grid g2" style="margin-bottom:1rem;">
+      <div>
+        <h2>Da análise de documentos (analisar_ia_documentos)</h2>
+        <ul class="plain">
+          <li><div class="li-icon li-ok">✓</div><div><strong>resumo</strong> — síntese do caso em 2-3 parágrafos</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>fundamentacao</strong> — base jurídica identificada</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>chance_sucesso</strong> — 0 a 100% (salvo como score 1/2/3)</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>probabilidade_acordo</strong> — 0 a 100%</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>prazo_dias</strong> — estimativa de duração</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>parte_representada</strong> — autor/réu</div></li>
+        </ul>
+      </div>
+      <div>
+        <h2>Das movimentações (já funcionando)</h2>
+        <ul class="plain">
+          <li><div class="li-icon li-ok">✓</div><div><strong>tipo</strong> — código do evento EPROC (SENT1, PET1...)</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>descricao</strong> — texto da movimentação</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>data_movimentacao</strong> — data ISO</div></li>
+          <li><div class="li-icon li-ok">✓</div><div><strong>metadata</strong> — JSON com dados extras (juiz, partes...)</div></li>
+          <li><div class="li-icon li-warn">~</div><div><strong>resumo_ia</strong> — campo existe mas vazio na maioria</div></li>
+        </ul>
+      </div>
+    </div>
+    <div style="background:var(--surface2); border-radius:8px; padding:1rem; font-size:0.82rem;">
+      <strong>Modelo usado:</strong> Haiku para docs curtos (&lt;15k chars) · Sonnet para docs complexos (≥15k chars). Prompt especializado em: MP Advocacia · restrição de crédito · polo AUTOR.
+    </div>
+  </div>
+</div>
+
+<!-- NÚMEROS ATUAIS -->
+<div class="section">
+  <div class="section-label">Estado atual do banco — processos</div>
+  <div class="grid g4">
+    <div class="card metric">
+      <div class="num blue">7.976</div>
+      <div class="lbl">Processos ativos</div>
+    </div>
+    <div class="card metric">
+      <div class="num green">2.060</div>
+      <div class="lbl">Com análise IA</div>
+      <div class="hint">26% do total</div>
+    </div>
+    <div class="card metric">
+      <div class="num yellow">5.916</div>
+      <div class="lbl">Sem análise IA</div>
+      <div class="hint">74% a fazer</div>
+    </div>
+    <div class="card metric">
+      <div class="num red">0</div>
+      <div class="lbl">Docs no Storage</div>
+      <div class="hint">download com bug</div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:0.75rem;">
+    <h2>Por status</h2>
+    <div style="margin-top:0.75rem;">
+      <div class="scale-row"><div class="scale-label">Ativo</div><div class="scale-bar"><div class="scale-fill" style="width:71.8%; background:var(--blue);"></div></div><div class="scale-val blue">5.724</div></div>
+      <div class="scale-row"><div class="scale-label">Em recurso</div><div class="scale-bar"><div class="scale-fill" style="width:12.5%; background:var(--yellow);"></div></div><div class="scale-val yellow">996</div></div>
+      <div class="scale-row"><div class="scale-label">Tutela concedida</div><div class="scale-bar"><div class="scale-fill" style="width:4.8%; background:var(--green);"></div></div><div class="scale-val green">382</div></div>
+      <div class="scale-row"><div class="scale-label">Transitado julgado</div><div class="scale-bar"><div class="scale-fill" style="width:3.9%; background:var(--green);"></div></div><div class="scale-val green">310</div></div>
+      <div class="scale-row"><div class="scale-label">Tutela negada</div><div class="scale-bar"><div class="scale-fill" style="width:3.3%; background:var(--orange);"></div></div><div class="scale-val orange">267</div></div>
+      <div class="scale-row"><div class="scale-label">Sent. desfavorável</div><div class="scale-bar"><div class="scale-fill" style="width:2.8%; background:var(--red);"></div></div><div class="scale-val red">223</div></div>
+      <div class="scale-row"><div class="scale-label">Sent. favorável</div><div class="scale-bar"><div class="scale-fill" style="width:0.9%; background:var(--green);"></div></div><div class="scale-val green">68</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MATEMÁTICA DO ESCALONAMENTO -->
+<div class="section">
+  <div class="section-label">Matemática: escalar para todos os 7.976 processos</div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>📥 Importar movimentações</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-ok">→</div><div>30 CNJs por lote · ~4 min por lote</div></li>
+        <li><div class="li-icon li-ok">→</div><div>8 lotes em paralelo = 240 CNJs/ciclo</div></li>
+        <li><div class="li-icon li-ok">→</div><div>7.976 ÷ 240 = ~33 ciclos de 4 min</div></li>
+        <li><div class="li-icon li-ok">→</div>
+          <div><strong class="green">~2-3 horas para os 7.976 processos</strong><br>
+          <span class="muted" style="font-size:0.78rem;">Considerando delays anti-bot + micro-pausas</span></div>
+        </li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>📄 Baixar documentos (quando bug for corrigido)</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-warn">→</div><div>1 task download por processo</div></li>
+        <li><div class="li-icon li-warn">→</div><div>Estimativa: 2-5 min por processo (3 tipos de download)</div></li>
+        <li><div class="li-icon li-warn">→</div><div>Sequencial (não dá pra paralelizar muito — EPROC detecta)</div></li>
+        <li><div class="li-icon li-warn">→</div>
+          <div><strong class="yellow">~7-14 dias em modo noturno (3h/noite)</strong><br>
+          <span class="muted" style="font-size:0.78rem;">Ou 3-5 dias rodando contínuo moderado</span></div>
+        </li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>🧠 Análise IA (analisar_ia_documentos)</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-info">→</div><div>5.916 processos sem análise</div></li>
+        <li><div class="li-icon li-info">→</div><div>~20 processos/lote · lotes sequenciais</div></li>
+        <li><div class="li-icon li-info">→</div><div>Haiku: rápido e barato · Sonnet: para docs complexos</div></li>
+        <li><div class="li-icon li-info">→</div>
+          <div><strong class="blue">Custo estimado: R$ 80–200 para os 5.916</strong><br>
+          <span class="muted" style="font-size:0.78rem;">Haiku: R$0.02/processo · Sonnet: R$0.20/processo (mix)</span></div>
+        </li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>⚖️ Jurimetria em escala</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-idea">→</div><div>Skill existe mas não é disparada automaticamente</div></li>
+        <li><div class="li-icon li-idea">→</div><div>Precisa ser integrada ao pipeline como etapa pós-análise</div></li>
+        <li><div class="li-icon li-idea">→</div><div>Usa dados das movimentações + insights já salvos</div></li>
+        <li><div class="li-icon li-idea">→</div>
+          <div><strong class="accent" style="color:var(--accent);">Pode rodar em batch — sem precisar do EPROC</strong><br>
+          <span class="muted" style="font-size:0.78rem;">Só banco de dados — muito mais rápido e barato</span></div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- BUG DO DOWNLOAD — DIAGNÓSTICO -->
+<div class="section">
+  <div class="section-label">🔴 Bug do download — o que provavelmente está acontecendo</div>
+  <div class="card">
+    <div class="grid g2">
+      <div>
+        <h2>Hipóteses prováveis</h2>
+        <ul class="plain">
+          <li><div class="li-icon li-err">1</div>
+            <div><strong>Sessão não está logada quando o download é disparado</strong><br>
+            <span class="muted" style="font-size:0.78rem;">O download é enfileirado pelo importar_processo (que está logado), mas quando o task-consumer pega a task de download, ele abre um browser sem sessão. Precisa de relogin.</span></div>
+          </li>
+          <li><div class="li-icon li-err">2</div>
+            <div><strong>Seletor CSS #tblEventos desatualizado</strong><br>
+            <span class="muted" style="font-size:0.78rem;">O EPROC pode ter mudado a estrutura HTML da tabela de eventos — o skill não encontra mais os links.</span></div>
+          </li>
+          <li><div class="li-icon li-warn">3</div>
+            <div><strong>Processo sem documentos (só movimentações textuais)</strong><br>
+            <span class="muted" style="font-size:0.78rem;">Processos novos podem ainda não ter peças anexadas. Mas a taxa de 100% "sem doc" é suspeita.</span></div>
+          </li>
+          <li><div class="li-icon li-warn">4</div>
+            <div><strong>Payload sem processo_id</strong><br>
+            <span class="muted" style="font-size:0.78rem;">A task de download tem só {cnj, oab, tribunal} — sem processo_id. O skill precisa fazer query extra no banco para relacionar o arquivo ao processo.</span></div>
+          </li>
+        </ul>
+      </div>
+      <div>
+        <h2>Correção recomendada antes de escalar</h2>
+        <ul class="plain">
+          <li><div class="li-icon li-info">1</div>
+            <div><strong>Testar manualmente 1 processo com logs detalhados</strong><br>
+            <code>--skill download_documentos --cnj 5000001-00.2024.8.21.0001</code><br>
+            <span class="muted" style="font-size:0.78rem;">Ver exatamente o que o browser vê na página</span></div>
+          </li>
+          <li><div class="li-icon li-info">2</div>
+            <div><strong>Garantir relogin no início da skill</strong><br>
+            <span class="muted" style="font-size:0.78rem;">Usar o mesmo padrão da skill_importar_processo.mjs — verificar sessão e fazer login se necessário</span></div>
+          </li>
+          <li><div class="li-icon li-info">3</div>
+            <div><strong>Adicionar processo_id no payload do enfileiramento</strong><br>
+            <span class="muted" style="font-size:0.78rem;">Salvar diretamente a FK para evitar query dupla</span></div>
+          </li>
+          <li><div class="li-icon li-info">4</div>
+            <div><strong>Screenshot na falha para debug visual</strong><br>
+            <span class="muted" style="font-size:0.78rem;">Salvar print da página quando "nenhum doc encontrado" para validar o que o browser está vendo</span></div>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PLANO DE ESCALONAMENTO -->
+<div class="section">
+  <div class="section-label">Plano para escalar — fases recomendadas</div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Fase</th><th>O que fazer</th><th>Pré-requisito</th><th>Estimativa</th><th>Resultado</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-green">FASE 1</span></td>
+          <td>Reativar importação completa (movimentações)<br><code style="font-size:0.72rem;">importacao_pausada = false</code></td>
+          <td>Nenhum — pronto agora</td>
+          <td class="green">2-3h</td>
+          <td>7.976 processos com movimentações atualizadas</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-yellow">FASE 2</span></td>
+          <td>Corrigir bug do download_documentos<br>Testar 10 processos com log detalhado</td>
+          <td>Debug manual do seletor + relogin</td>
+          <td class="yellow">1-2h dev</td>
+          <td>Skill de download funcional e validada</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-blue">FASE 3</span></td>
+          <td>Baixar documentos P1 de todos os processos<br>(sentença, acordo, decisão, tutela)</td>
+          <td>Fase 2 concluída</td>
+          <td class="blue">3-5 dias</td>
+          <td>~30k-80k documentos no bucket olivia-provas</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-orange">FASE 4</span></td>
+          <td>Análise IA de todos os 5.916 sem análise<br>(Haiku para docs curtos, Sonnet para complexos)</td>
+          <td>Corrigir erro TJSP + Fase 3</td>
+          <td class="orange">R$ 80-200</td>
+          <td>7.976 processos com chance_sucesso, resumo, fundamentação</td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-purple">FASE 5</span></td>
+          <td>Jurimetria automática em batch<br>(sem EPROC — só banco de dados)</td>
+          <td>Fase 4 concluída</td>
+          <td style="color:var(--accent);">1 dia dev</td>
+          <td>Painel de jurimetria com dados reais do seu corpus</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- MELHORIAS IDENTIFICADAS -->
+<div class="section">
+  <div class="section-label">Melhorias identificadas no fluxo</div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>🐛 Bugs a corrigir</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-err">!</div><div>download_documentos retorna 0 docs em 100% dos casos — provavelmente sessão ou seletor</div></li>
+        <li><div class="li-icon li-err">!</div><div>analisar_ia_documentos com erro em TJSP — precisa debug de seletor ou sessão</div></li>
+        <li><div class="li-icon li-warn">!</div><div>Payload download não inclui processo_id — query extra desnecessária</div></li>
+        <li><div class="li-icon li-warn">!</div><div>resumo_ia nas movimentações vazio — skill poderia gerar resumo por movimentação relevante</div></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h2>💡 Melhorias de arquitetura</h2>
+      <ul class="plain">
+        <li><div class="li-icon li-idea">→</div><div><strong>Pipeline unificado:</strong> importar → download → analisar como etapas encadeadas, não tarefas separadas</div></li>
+        <li><div class="li-icon li-idea">→</div><div><strong>Priorização inteligente:</strong> processos com tutela/sentença recente têm prioridade no download</div></li>
+        <li><div class="li-icon li-idea">→</div><div><strong>Cache de sessão compartilhado:</strong> importar e download poderiam usar o mesmo browser em sequência</div></li>
+        <li><div class="li-icon li-idea">→</div><div><strong>Screenshot automático no erro:</strong> debug visual sem intervenção manual</div></li>
+        <li><div class="li-icon li-idea">→</div><div><strong>Jurimetria como job batch:</strong> rodar diariamente às 04h com os dados novos — sem abrir EPROC</div></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- CONCLUSÃO -->
+<div class="section">
+  <div class="section-label">Resumo executivo — o que fazer agora</div>
+  <div class="card">
+    <ul class="plain">
+      <li><div class="li-icon li-ok">1</div>
+        <div><strong>Reativar importação de movimentações agora</strong> — funciona perfeitamente, 2-3h para todos os 7.976 processos</div>
+      </li>
+      <li><div class="li-icon li-warn">2</div>
+        <div><strong>Não escalar downloads ainda</strong> — corrigir o bug primeiro com 1 processo de teste + logs detalhados</div>
+      </li>
+      <li><div class="li-icon li-info">3</div>
+        <div><strong>Corrigir erro TJSP na análise IA</strong> — provavelmente 1h de debug para restaurar os 2k processos/dia</div>
+      </li>
+      <li><div class="li-icon li-idea">4</div>
+        <div><strong>Implementar jurimetria batch</strong> — não depende dos downloads, pode começar com os dados de movimentações já coletados</div>
+      </li>
+    </ul>
+  </div>
+</div>
+
+<div style="text-align:center; color:var(--muted); font-size:0.75rem; padding-top:1.5rem; border-top:1px solid var(--border); margin-top:2rem;">
+  JARBAS v2.6.0 · MdLab · 14/03/2026 · Supabase qdivfairxhdihaqqypgb
+</div>
+
+</div>
+</body>
+</html>

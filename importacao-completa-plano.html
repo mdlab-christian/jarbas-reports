@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Importação Completa — JARBAS</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --card: #21253a;
+    --border: #2e3350; --accent: #6366f1; --green: #22c55e;
+    --yellow: #f59e0b; --red: #ef4444; --blue: #3b82f6;
+    --purple: #a855f7; --cyan: #06b6d4; --orange: #f97316;
+    --text: #e2e8f0; --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; padding: 2rem; }
+  h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: .5rem; }
+  h2 { font-size: 1.2rem; font-weight: 600; color: var(--accent); margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: .5rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin-bottom: .5rem; }
+  .subtitle { color: var(--muted); font-size: .9rem; margin-bottom: 2rem; }
+  .grid { display: grid; gap: 1.5rem; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+  .pipeline { display: flex; gap: 0; margin: 2rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 140px; padding: 1rem; position: relative; }
+  .step::after { content: '→'; position: absolute; right: -10px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 1.2rem; z-index: 1; }
+  .step:last-child::after { display: none; }
+  .step-box { background: var(--card); border: 2px solid var(--border); border-radius: 10px; padding: 1rem; text-align: center; height: 100%; }
+  .step-box.active { border-color: var(--accent); }
+  .step-box.done { border-color: var(--green); }
+  .step-box.pending { border-color: var(--yellow); opacity: .7; }
+  .step-num { font-size: .7rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+  .step-icon { font-size: 1.5rem; margin: .3rem 0; }
+  .step-title { font-size: .85rem; font-weight: 600; }
+  .step-sub { font-size: .75rem; color: var(--muted); margin-top: .2rem; }
+  .doc-list { list-style: none; display: flex; flex-direction: column; gap: .4rem; }
+  .doc-item { display: flex; align-items: flex-start; gap: .6rem; padding: .5rem .75rem; border-radius: 8px; border: 1px solid var(--border); font-size: .85rem; }
+  .doc-item .tag { font-size: .7rem; font-weight: 700; padding: .1rem .4rem; border-radius: 4px; white-space: nowrap; flex-shrink: 0; }
+  .tag-p1 { background: rgba(239,68,68,.2); color: var(--red); }
+  .tag-p2 { background: rgba(245,158,11,.2); color: var(--yellow); }
+  .tag-p3 { background: rgba(99,102,241,.2); color: var(--accent); }
+  .tag-p4 { background: rgba(100,116,139,.2); color: var(--muted); }
+  .analysis-card { border-left: 3px solid; padding: 1rem 1.25rem; border-radius: 0 8px 8px 0; margin-bottom: .75rem; background: rgba(255,255,255,.02); }
+  .ac-decisao { border-color: var(--red); }
+  .ac-acordo { border-color: var(--green); }
+  .ac-deposito { border-color: var(--blue); }
+  .ac-alvara { border-color: var(--purple); }
+  .ac-jurimetria { border-color: var(--cyan); }
+  .ac-header { display: flex; align-items: center; gap: .5rem; margin-bottom: .4rem; font-weight: 600; font-size: .9rem; }
+  .ac-items { color: var(--muted); font-size: .82rem; line-height: 1.6; }
+  .badge { font-size: .7rem; padding: .1rem .5rem; border-radius: 4px; font-weight: 600; }
+  .badge-ia { background: rgba(168,85,247,.2); color: var(--purple); }
+  .badge-rule { background: rgba(6,182,212,.2); color: var(--cyan); }
+  .badge-new { background: rgba(34,197,94,.2); color: var(--green); }
+  .metric-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .metric { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: .75rem 1.25rem; min-width: 120px; }
+  .metric-val { font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+  .metric-lbl { font-size: .75rem; color: var(--muted); }
+  .status-ok { color: var(--green); }
+  .status-warn { color: var(--yellow); }
+  .status-err { color: var(--red); }
+  .issue-list { list-style: none; display: flex; flex-direction: column; gap: .5rem; }
+  .issue { padding: .6rem .9rem; border-radius: 8px; font-size: .85rem; display: flex; gap: .6rem; align-items: flex-start; }
+  .issue.bug { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.2); }
+  .issue.improve { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.2); }
+  .issue.feature { background: rgba(99,102,241,.08); border: 1px solid rgba(99,102,241,.2); }
+  code { background: rgba(255,255,255,.07); padding: .15rem .35rem; border-radius: 4px; font-size: .8rem; font-family: monospace; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .pipeline { flex-direction: column; } .step::after { display: none; } }
+</style>
+</head>
+<body>
+
+<h1>🚀 Pipeline Importação Completa — JARBAS</h1>
+<p class="subtitle">Brainstorm &amp; Plano de Lapidação | Gerado em 2026-03-13</p>
+
+<!-- STATUS ATUAL -->
+<div class="metric-row">
+  <div class="metric"><div class="metric-val status-ok">✅</div><div class="metric-lbl">Movimentações importando</div></div>
+  <div class="metric"><div class="metric-val status-ok">✅</div><div class="metric-lbl">Download docs ativo</div></div>
+  <div class="metric"><div class="metric-val status-warn">🔄</div><div class="metric-lbl">Análises IA pendentes</div></div>
+  <div class="metric"><div class="metric-val">~17s</div><div class="metric-lbl">Tempo/processo (sem docs)</div></div>
+  <div class="metric"><div class="metric-val">~5min</div><div class="metric-lbl">Tempo/processo (com docs)</div></div>
+  <div class="metric"><div class="metric-val">5.865</div><div class="metric-lbl">Processos cadastrados</div></div>
+</div>
+
+<!-- PIPELINE VISUAL -->
+<div class="card" style="margin-bottom: 2rem;">
+  <h2>🔄 Pipeline Completo de Importação</h2>
+  <div class="pipeline">
+    <div class="step">
+      <div class="step-box done">
+        <div class="step-num">Etapa 1</div>
+        <div class="step-icon">🔐</div>
+        <div class="step-title">Login EPROC</div>
+        <div class="step-sub">OAB + TOTP<br>TJRS / TJSC / TJSP</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-box done">
+        <div class="step-num">Etapa 2</div>
+        <div class="step-icon">📋</div>
+        <div class="step-title">Header + Movimentações</div>
+        <div class="step-sub">Partes, juiz, vara, comarca<br>Todas as movimentações</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-box active">
+        <div class="step-num">Etapa 3</div>
+        <div class="step-icon">📥</div>
+        <div class="step-title">Download Documentos</div>
+        <div class="step-sub">PDFs priorizados<br>Storage Supabase</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-box pending">
+        <div class="step-num">Etapa 4</div>
+        <div class="step-icon">🤖</div>
+        <div class="step-title">Análise IA</div>
+        <div class="step-sub">Decisões, acordos<br>depósitos, alvarás</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-box pending">
+        <div class="step-num">Etapa 5</div>
+        <div class="step-icon">⚖️</div>
+        <div class="step-title">Jurimetria</div>
+        <div class="step-sub">Score, chance sucesso<br>Valor estimado</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-box pending">
+        <div class="step-num">Etapa 6</div>
+        <div class="step-icon">📊</div>
+        <div class="step-title">Enriquecimento</div>
+        <div class="step-sub">Salvar no MdFlow<br>Notificar mudanças</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+
+<!-- DOCUMENTOS A BAIXAR -->
+<div class="card">
+  <h2>📥 Documentos — Prioridade de Download</h2>
+  <ul class="doc-list">
+    <li class="doc-item"><span class="tag tag-p1">P1</span><div><strong>SENT1, SENT2...</strong> — Sentenças (resultado final do processo)</div></li>
+    <li class="doc-item"><span class="tag tag-p1">P1</span><div><strong>ACORD1</strong> — Acordos homologados</div></li>
+    <li class="doc-item"><span class="tag tag-p1">P1</span><div><strong>DESPADEC1, DEC1</strong> — Decisões interlocutórias</div></li>
+    <li class="doc-item"><span class="tag tag-p1">P1</span><div><strong>DEPOS1, GUIA1</strong> — Depósitos judiciais e guias</div></li>
+    <li class="doc-item"><span class="tag tag-p1">P1</span><div><strong>ALVAR1</strong> — Alvarás de levantamento</div></li>
+    <li class="doc-item"><span class="tag tag-p2">P2</span><div><strong>INC1, PET1</strong> — Petição inicial / incidente</div></li>
+    <li class="doc-item"><span class="tag tag-p2">P2</span><div><strong>CONT1</strong> — Contestação do réu</div></li>
+    <li class="doc-item"><span class="tag tag-p2">P2</span><div><strong>SERASA1, SPC1, BOA1</strong> — Documentos de negativação (prova)</div></li>
+    <li class="doc-item"><span class="tag tag-p2">P2</span><div><strong>INTIM1, CITA1</strong> — Intimações e citações relevantes</div></li>
+    <li class="doc-item"><span class="tag tag-p3">P3</span><div><strong>ATOORD1, OFIC1</strong> — Atos ordinatórios e ofícios</div></li>
+    <li class="doc-item"><span class="tag tag-p3">P3</span><div><strong>EMAIL1</strong> — E-mails trocados no processo</div></li>
+    <li class="doc-item"><span class="tag tag-p3">P3</span><div><strong>REPLICA1</strong> — Réplica do autor</div></li>
+    <li class="doc-item"><span class="tag tag-p4">P4</span><div><strong>Demais</strong> — Baixar até MAX_DOCS (atualmente 15)</div></li>
+  </ul>
+
+  <hr class="divider">
+  <h3>⚠️ Problemas Atuais</h3>
+  <ul class="issue-list" style="margin-top:.5rem">
+    <li class="issue bug">🐛 <div><code>MAX_DOCS=15</code> — cortar em 15 pode perder sentença em processo longo</div></li>
+    <li class="issue bug">🐛 <div>Documentos sem prioridade — SENT pode ser baixado depois de EMAIL</div></li>
+    <li class="issue improve">💡 <div>Implementar <code>TIPOS_PRIORITARIOS</code> — baixar P1 primeiro, sempre</div></li>
+    <li class="issue improve">💡 <div>Aumentar <code>MAX_DOCS</code> para P1: ilimitado / P2: 10 / P3: 5</div></li>
+  </ul>
+</div>
+
+<!-- ANÁLISES IA -->
+<div class="card">
+  <h2>🤖 Análises IA — O que extrair de cada processo</h2>
+
+  <div class="analysis-card ac-decisao">
+    <div class="ac-header">⚖️ Análise de Decisões <span class="badge badge-ia">IA</span></div>
+    <div class="ac-items">
+      • Resultado: procedente / improcedente / parcialmente procedente<br>
+      • Valor condenado (R$)<br>
+      • Fundamento jurídico usado<br>
+      • Data do trânsito em julgado<br>
+      • Se teve recurso / acórdão
+    </div>
+  </div>
+
+  <div class="analysis-card ac-acordo">
+    <div class="ac-header">🤝 Análise de Acordos <span class="badge badge-ia">IA</span> <span class="badge badge-rule">Regra</span></div>
+    <div class="ac-items">
+      • Valor acordado vs. valor pedido (% recuperação)<br>
+      • Forma de pagamento (à vista / parcelado)<br>
+      • Data de homologação<br>
+      • Status do cumprimento<br>
+      • Score de acordo (bom/neutro/ruim para o cliente)
+    </div>
+  </div>
+
+  <div class="analysis-card ac-deposito">
+    <div class="ac-header">💰 Análise de Depósitos Judiciais <span class="badge badge-rule">Regra</span> <span class="badge badge-ia">IA</span></div>
+    <div class="ac-items">
+      • Valor depositado<br>
+      • Data do depósito<br>
+      • Banco depositante<br>
+      • Se já tem alvará emitido<br>
+      • Alerta se depósito há mais de 30 dias sem alvará
+    </div>
+  </div>
+
+  <div class="analysis-card ac-alvara">
+    <div class="ac-header">📜 Análise de Alvarás <span class="badge badge-rule">Regra</span></div>
+    <div class="ac-items">
+      • Número do alvará<br>
+      • Valor autorizado<br>
+      • Data de expedição<br>
+      • Banco de destino<br>
+      • Status do levantamento (levantado / pendente)
+    </div>
+  </div>
+
+  <div class="analysis-card ac-jurimetria">
+    <div class="ac-header">📊 Jurimetria <span class="badge badge-ia">IA</span> <span class="badge badge-new">Novo</span></div>
+    <div class="ac-items">
+      • Chance de sucesso estimada (%)<br>
+      • Prazo médio para resolução (dias)<br>
+      • Valor estimado recuperável (R$)<br>
+      • Histórico do juiz nesse tipo de causa<br>
+      • Benchmarking com processos similares já encerrados
+    </div>
+  </div>
+</div>
+
+</div>
+
+<hr class="divider">
+
+<!-- LAPIDAÇÕES NECESSÁRIAS -->
+<div class="card" style="margin-bottom: 2rem;">
+  <h2>🔧 Lapidações Necessárias na Skill</h2>
+  <div class="grid grid-3">
+    <div>
+      <h3 style="color:var(--red); margin-bottom:.75rem">🐛 Bugs a Corrigir</h3>
+      <ul class="issue-list">
+        <li class="issue bug">🐛 <div>Docs duplicados no storage (mesmo CNJ reimportado não verifica se já existe)</div></li>
+        <li class="issue bug">🐛 <div>TJSC downloads podem falhar — fluxo não testado ainda</div></li>
+        <li class="issue bug">🐛 <div>Timeout muito longo para docs que não existem (30s por doc)</div></li>
+        <li class="issue bug">🐛 <div>Download em lote enfileira tarefas separadas mas o skill <code>download_documentos</code> precisa de validação</div></li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:var(--yellow); margin-bottom:.75rem">💡 Melhorias</h3>
+      <ul class="issue-list">
+        <li class="issue improve">💡 <div>Priorizar P1 antes de P2/P3 (sentença > email)</div></li>
+        <li class="issue improve">💡 <div>Verificar se doc já está no storage antes de baixar (dedup)</div></li>
+        <li class="issue improve">💡 <div>Após download P1, enfileirar análise IA automaticamente</div></li>
+        <li class="issue improve">💡 <div>Salvar <code>processo_documentos</code> com metadados ricos (tipo_analise, conteúdo OCR)</div></li>
+        <li class="issue improve">💡 <div>Progresso em tempo real via Telegram durante lote grande</div></li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:var(--accent); margin-bottom:.75rem">✨ Features Novas</h3>
+      <ul class="issue-list">
+        <li class="issue feature">✨ <div>Após importação, detectar fase do processo e aplicar análise adequada</div></li>
+        <li class="issue feature">✨ <div>OCR automático nos PDFs → texto indexável no ChromaDB (RAG)</div></li>
+        <li class="issue feature">✨ <div>Extração automática de valores de depósito / alvará via regex + IA</div></li>
+        <li class="issue feature">✨ <div>Fila de análise IA separada por tipo (decisão vs. acordo vs. depósito)</div></li>
+        <li class="issue feature">✨ <div>Dashboard de completude: % processos com docs P1 baixados</div></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ESTRATÉGIA DE ROLLOUT -->
+<div class="card">
+  <h2>🗺️ Estratégia de Rollout — Analisar 5.865 Processos</h2>
+  <div class="grid grid-3">
+    <div>
+      <h3 style="color:var(--green); margin-bottom:.5rem">Fase 1 — Validar (hoje)</h3>
+      <ul style="font-size:.85rem; color:var(--muted); line-height:1.8; list-style:none;">
+        <li>✅ 10 processos com import + download</li>
+        <li>🔄 Lapidação dos bugs identificados</li>
+        <li>⬜ 50 processos — smoke test completo</li>
+        <li>⬜ Confirmar docs salvos corretos</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:var(--yellow); margin-bottom:.5rem">Fase 2 — Análise IA (próx. dias)</h3>
+      <ul style="font-size:.85rem; color:var(--muted); line-height:1.8; list-style:none;">
+        <li>⬜ Ativar análise de decisões nos P1</li>
+        <li>⬜ Ativar detecção de depósitos + alvarás</li>
+        <li>⬜ Ativar jurimetria nos processos com sentença</li>
+        <li>⬜ Testar em 200 processos</li>
+      </ul>
+    </div>
+    <div>
+      <h3 style="color:var(--red); margin-bottom:.5rem">Fase 3 — Rollout Total</h3>
+      <ul style="font-size:.85rem; color:var(--muted); line-height:1.8; list-style:none;">
+        <li>⬜ Queue noturna: 5.865 processos</li>
+        <li>⬜ ~100 processos/hora (com docs)</li>
+        <li>⬜ ~58 horas estimadas (3 noites)</li>
+        <li>⬜ Monitor de progresso em tempo real</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+  <p style="font-size:.85rem; color:var(--muted);">
+    ⏱️ Estimativa de tempo: com 5.865 processos × ~5min/processo (import+download) = <strong style="color:var(--text);">~490 horas</strong> single-thread.<br>
+    Com 3 OABs paralelas (RS116571 + RS131163 + SP535101) = <strong style="color:var(--accent);">~163 horas (~7 dias)</strong>.<br>
+    Recomendação: rodar em janelas noturnas (22h–6h) por 2-3 semanas, priorizando processos com movimentações recentes.
+  </p>
+</div>
+
+<p style="text-align:center; color:var(--muted); font-size:.8rem; margin-top:2rem;">
+  JARBAS v3.1 — MdLab | 2026-03-13 | Pipeline Importação Completa
+</p>
+
+</body>
+</html>

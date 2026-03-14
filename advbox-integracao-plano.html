@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano de Integração Advbox → MdFlow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; line-height: 1.6; }
+  .hero { background: linear-gradient(135deg, #1a1f2e 0%, #0f1117 50%, #1a2332 100%); padding: 60px 40px; text-align: center; border-bottom: 1px solid #2d3748; position: relative; overflow: hidden; }
+  .hero::before { content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%; background: radial-gradient(ellipse at center, rgba(99,179,237,0.05) 0%, transparent 60%); }
+  .hero h1 { font-size: 2.5rem; font-weight: 700; color: #63b3ed; margin-bottom: 12px; position: relative; }
+  .hero p { font-size: 1.1rem; color: #a0aec0; max-width: 700px; margin: 0 auto; position: relative; }
+  .badge { display: inline-block; background: #2d3748; border: 1px solid #4a5568; padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: #68d391; margin: 8px 4px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  .section { margin-bottom: 48px; }
+  .section-title { font-size: 1.4rem; font-weight: 700; color: #63b3ed; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; padding-bottom: 12px; border-bottom: 1px solid #2d3748; }
+  .card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .card:hover { border-color: #4a5568; transition: border-color 0.2s; }
+  .card-title { font-size: 1rem; font-weight: 600; color: #f7fafc; margin-bottom: 8px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+  .stat-card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 20px; text-align: center; }
+  .stat-num { font-size: 2rem; font-weight: 700; color: #68d391; }
+  .stat-label { font-size: 0.85rem; color: #a0aec0; margin-top: 4px; }
+  .endpoint { background: #141820; border: 1px solid #2d3748; border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+  .method { padding: 3px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.5px; }
+  .get { background: #22543d; color: #68d391; }
+  .post { background: #2a4365; color: #63b3ed; }
+  .put { background: #44337a; color: #b794f4; }
+  .endpoint-path { font-family: monospace; font-size: 0.9rem; color: #e2e8f0; }
+  .endpoint-desc { font-size: 0.8rem; color: #718096; margin-left: auto; }
+  .mapping-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .mapping-table th { background: #2d3748; color: #a0aec0; padding: 10px 14px; text-align: left; font-weight: 600; border: 1px solid #4a5568; }
+  .mapping-table td { padding: 9px 14px; border: 1px solid #2d3748; vertical-align: top; }
+  .mapping-table tr:nth-child(even) td { background: #1a1f2e; }
+  .mapping-table tr:hover td { background: #2d3748; }
+  code { background: #2d3748; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.85rem; color: #f6e05e; }
+  pre { background: #141820; border: 1px solid #2d3748; border-radius: 8px; padding: 20px; overflow-x: auto; font-family: monospace; font-size: 0.82rem; line-height: 1.7; color: #e2e8f0; }
+  .phase { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 24px; margin-bottom: 20px; position: relative; }
+  .phase-num { position: absolute; top: -14px; left: 24px; background: #63b3ed; color: #0f1117; padding: 4px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 700; }
+  .phase-title { font-size: 1.1rem; font-weight: 700; color: #f7fafc; margin-bottom: 8px; margin-top: 8px; }
+  .phase-time { color: #68d391; font-size: 0.85rem; margin-bottom: 12px; }
+  .check-list { list-style: none; }
+  .check-list li { padding: 5px 0; color: #cbd5e0; display: flex; align-items: flex-start; gap: 8px; }
+  .check-list li::before { content: '✓'; color: #68d391; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .warn { background: #2d2010; border: 1px solid #744210; border-radius: 8px; padding: 14px 18px; color: #f6ad55; margin-bottom: 16px; }
+  .warn strong { display: block; margin-bottom: 4px; }
+  .ok { background: #1c3a27; border: 1px solid #276749; border-radius: 8px; padding: 14px 18px; color: #68d391; margin-bottom: 16px; }
+  .ok strong { display: block; margin-bottom: 4px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 600; }
+  .tag-green { background: #276749; color: #68d391; }
+  .tag-blue { background: #2a4365; color: #63b3ed; }
+  .tag-yellow { background: #744210; color: #f6ad55; }
+  .tag-red { background: #742a2a; color: #fc8181; }
+  .tag-purple { background: #44337a; color: #b794f4; }
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; }
+  .flow-step { background: #2d3748; border-radius: 8px; padding: 6px 14px; font-size: 0.82rem; color: #e2e8f0; }
+  .flow-arrow { color: #4a5568; font-size: 1.2rem; }
+  .highlight { color: #63b3ed; font-weight: 600; }
+  .toc { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 24px; margin-bottom: 40px; }
+  .toc h3 { color: #63b3ed; margin-bottom: 16px; font-size: 1rem; }
+  .toc ol { padding-left: 20px; }
+  .toc li { padding: 4px 0; color: #a0aec0; }
+  .toc a { color: #63b3ed; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  footer { background: #1a1f2e; border-top: 1px solid #2d3748; padding: 24px 40px; text-align: center; color: #4a5568; font-size: 0.8rem; margin-top: 60px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div style="font-size:3rem;margin-bottom:16px">📦→🧠</div>
+  <h1>Plano de Integração Advbox → MdFlow</h1>
+  <p>Extrair tudo que tem valor na Advbox, enriquecer o backend do MdFlow e cancelar o plano com segurança.</p>
+  <div style="margin-top:20px">
+    <span class="badge">🔌 API v1.0.0 (Fev 2026)</span>
+    <span class="badge">📍 19 endpoints mapeados</span>
+    <span class="badge">⚡ Rate: 30 GET/min</span>
+    <span class="badge">🎯 Meta: cancelar plano Advbox</span>
+  </div>
+  <p style="margin-top:16px;font-size:0.8rem;color:#4a5568">Gerado por JARBAS · MP Advocacia · 14/03/2026</p>
+</div>
+
+<div class="container">
+
+  <div class="toc">
+    <h3>📋 Índice</h3>
+    <ol>
+      <li><a href="#api-overview">Visão Geral da API Advbox</a></li>
+      <li><a href="#endpoints">Mapa de Endpoints (19)</a></li>
+      <li><a href="#data-mapping">Mapeamento de Dados → MdFlow</a></li>
+      <li><a href="#documentos">Sobre Documentos (Cloud)</a></li>
+      <li><a href="#dedup">Estratégia de Deduplicação</a></li>
+      <li><a href="#fases">Fases de Execução</a></li>
+      <li><a href="#rate-limits">Rate Limits &amp; Estratégia de Extração</a></li>
+      <li><a href="#skill">Skill a Implementar</a></li>
+      <li><a href="#cancelamento">Checklist para Cancelar o Plano</a></li>
+    </ol>
+  </div>
+
+  <!-- SECTION 1: API OVERVIEW -->
+  <div class="section" id="api-overview">
+    <div class="section-title">🌐 1. Visão Geral da API Advbox</div>
+
+    <div class="grid-3" style="margin-bottom:24px">
+      <div class="stat-card">
+        <div class="stat-num">19</div>
+        <div class="stat-label">Endpoints documentados</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">30/min</div>
+        <div class="stat-label">Limite GET (rate limit)</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">500/dia</div>
+        <div class="stat-label">Limite POST/PUT por rota</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Detalhes técnicos</div>
+      <div class="flow">
+        <div class="flow-step">Base URL: <code>https://app.advbox.com.br/api/v1</code></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Auth: <code>Authorization: Bearer TOKEN</code></div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Token: Configurações → API Token</div>
+      </div>
+      <div style="margin-top:12px;color:#a0aec0;font-size:0.9rem">
+        Documentação: <code>https://api.softwareadvbox.com.br/docs</code><br>
+        Acesso: exclusivo para parceiros aprovados — Christian já tem acesso ou vai liberar.
+      </div>
+    </div>
+
+    <div class="ok">
+      <strong>✅ O que temos para extrair</strong>
+      Clientes completos (CPF/CNPJ, dados pessoais, contato, origem) · Processos judiciais com fase e tipo · Movimentações processuais (TRIBUNAL + MANUAL) · Publicações do Diário da Justiça · Histórico de tarefas por processo · Transações financeiras (honorários, custas)
+    </div>
+
+    <div class="warn">
+      <strong>⚠️ O que NÃO conseguimos pela API documentada</strong>
+      Download de arquivos/documentos armazenados no Cloud Advbox — o campo <code>folder</code> nos processos é um campo de texto (label), não um caminho de arquivo. Não há endpoint de download de documentos nos 19 endpoints públicos. Isso precisa ser investigado ao receber o token real (pode haver endpoints não documentados).
+    </div>
+  </div>
+
+  <!-- SECTION 2: ENDPOINTS -->
+  <div class="section" id="endpoints">
+    <div class="section-title">🗺️ 2. Mapa Completo de Endpoints (19)</div>
+
+    <div class="grid-2">
+      <div>
+        <div style="color:#a0aec0;font-size:0.85rem;margin-bottom:10px;font-weight:600">👤 CUSTOMERS (Contatos/Clientes) — 4 endpoints</div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/customers</span><span class="endpoint-desc">Lista com filtros (CPF, email, cidade, etc)</span></div>
+        <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/customers</span><span class="endpoint-desc">Criar contato</span></div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/customers/{id}</span><span class="endpoint-desc">Buscar por ID</span></div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/customers/birthdays</span><span class="endpoint-desc">Aniversariantes do mês</span></div>
+      </div>
+
+      <div>
+        <div style="color:#a0aec0;font-size:0.85rem;margin-bottom:10px;font-weight:600">⚖️ LAWSUITS (Processos) — 8 endpoints</div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/lawsuits</span><span class="endpoint-desc">Lista com filtros avançados</span></div>
+        <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/lawsuits</span><span class="endpoint-desc">Criar processo</span></div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/lawsuits/{id}</span><span class="endpoint-desc">Dados completos do processo</span></div>
+        <div class="endpoint"><span class="method put">PUT</span><span class="endpoint-path">/lawsuits/{id}</span><span class="endpoint-desc">Atualizar processo</span></div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/history/{lawsuit_id}</span><span class="endpoint-desc">Histórico de tarefas</span></div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/movements/{lawsuit_id}</span><span class="endpoint-desc">Movimentações (TRIBUNAL/MANUAL)</span></div>
+        <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/movements/{lawsuit_id}</span><span class="endpoint-desc">Criar movimentação manual</span></div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/last_movements</span><span class="endpoint-desc">Últimas movimentações (todos os proc.)</span></div>
+      </div>
+
+      <div>
+        <div style="color:#a0aec0;font-size:0.85rem;margin-bottom:10px;font-weight:600">📋 TASKS/POSTS (Tarefas) — 2 endpoints</div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/posts</span><span class="endpoint-desc">Lista de tarefas/anotações</span></div>
+        <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/posts</span><span class="endpoint-desc">Criar tarefa/anotação</span></div>
+      </div>
+
+      <div>
+        <div style="color:#a0aec0;font-size:0.85rem;margin-bottom:10px;font-weight:600">🗞️ PUBLICATIONS (Publicações DJ) — 1 endpoint</div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/publications</span><span class="endpoint-desc">Publicações Diário da Justiça vinculadas</span></div>
+        <div style="color:#a0aec0;font-size:0.85rem;margin-top:16px;margin-bottom:10px;font-weight:600">💰 TRANSACTIONS (Financeiro) — 3 endpoints</div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/transactions</span><span class="endpoint-desc">Lista de transações com filtros</span></div>
+        <div class="endpoint"><span class="method post">POST</span><span class="endpoint-path">/transactions</span><span class="endpoint-desc">Criar transação</span></div>
+        <div class="endpoint"><span class="method put">PUT</span><span class="endpoint-path">/transactions/{id}</span><span class="endpoint-desc">Atualizar transação</span></div>
+        <div style="color:#a0aec0;font-size:0.85rem;margin-top:16px;margin-bottom:10px;font-weight:600">⚙️ SETTINGS (Configurações) — 1 endpoint</div>
+        <div class="endpoint"><span class="method get">GET</span><span class="endpoint-path">/settings</span><span class="endpoint-desc">⭐ IDs de usuários, origens, fases, tipos</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: DATA MAPPING -->
+  <div class="section" id="data-mapping">
+    <div class="section-title">🔄 3. Mapeamento de Dados: Advbox → MdFlow</div>
+
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-title">📁 Tabela <code>clientes</code> — Campos mapeados da Advbox</div>
+      <div style="overflow-x:auto;margin-top:16px">
+        <table class="mapping-table">
+          <thead>
+            <tr>
+              <th>Campo Advbox</th>
+              <th>Campo MdFlow (clientes)</th>
+              <th>Prioridade</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>name</code></td><td><code>nome</code></td><td><span class="tag tag-green">P0 obrigatório</span></td><td>—</td></tr>
+            <tr><td><code>identification</code> (CPF/CNPJ)</td><td><code>cpf_cnpj</code></td><td><span class="tag tag-green">P0 chave de dedup</span></td><td>Chave primária de matching</td></tr>
+            <tr><td><code>email</code></td><td><code>email</code></td><td><span class="tag tag-green">P0 obrigatório</span></td><td>—</td></tr>
+            <tr><td><code>phone</code></td><td><code>telefone</code></td><td><span class="tag tag-green">P0</span></td><td>—</td></tr>
+            <tr><td><code>cellphone</code></td><td><code>whatsapp</code> ou <code>telefone2</code></td><td><span class="tag tag-green">P0</span></td><td>Preferir WhatsApp se disponível</td></tr>
+            <tr><td><code>birthdate</code></td><td><code>data_nascimento</code></td><td><span class="tag tag-blue">P1</span></td><td>Formato YYYY-MM-DD — compatível</td></tr>
+            <tr><td><code>occupation</code></td><td><code>profissao</code></td><td><span class="tag tag-blue">P1</span></td><td>—</td></tr>
+            <tr><td><code>city</code></td><td><code>cidade</code></td><td><span class="tag tag-blue">P1</span></td><td>—</td></tr>
+            <tr><td><code>state</code></td><td><code>endereco_uf</code></td><td><span class="tag tag-blue">P1</span></td><td>Sigla 2 letras</td></tr>
+            <tr><td><code>postalcode</code></td><td><code>cep</code></td><td><span class="tag tag-blue">P1</span></td><td>Formato 99999-999</td></tr>
+            <tr><td><code>notes</code></td><td><code>observacoes</code></td><td><span class="tag tag-yellow">P2</span></td><td>Concatenar se já existir</td></tr>
+            <tr><td><code>customers_origins_id</code> (label)</td><td><code>origem</code></td><td><span class="tag tag-yellow">P2</span></td><td>Mapear ID → nome da origem</td></tr>
+            <tr><td><code>id</code> (Advbox)</td><td><code>detalhes.advbox_id</code></td><td><span class="tag tag-blue">P1 controle</span></td><td>Salvar no JSONB para rastreabilidade</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:12px;color:#718096;font-size:0.82rem">
+        ⚡ <strong>Estratégia:</strong> Apenas enriquecer clientes já existentes (match por CPF/CNPJ). Não criar clientes novos na Advbox — o MdFlow é a fonte de verdade daqui pra frente.
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:24px">
+      <div class="card-title">⚖️ Tabela <code>processos</code> — Campos mapeados da Advbox</div>
+      <div style="overflow-x:auto;margin-top:16px">
+        <table class="mapping-table">
+          <thead>
+            <tr>
+              <th>Campo Advbox</th>
+              <th>Campo MdFlow (processos)</th>
+              <th>Prioridade</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td><code>process_number</code></td><td><code>numero_processo</code> / <code>numero_cnj</code></td><td><span class="tag tag-green">P0 chave de dedup</span></td><td>Número CNJ — chave de matching</td></tr>
+            <tr><td><code>protocol_number</code></td><td><code>detalhes.protocolo_advbox</code></td><td><span class="tag tag-blue">P1</span></td><td>—</td></tr>
+            <tr><td><code>folder</code></td><td><code>detalhes.pasta_advbox</code></td><td><span class="tag tag-yellow">P2</span></td><td>Label textual (ex: "Pasta 001")</td></tr>
+            <tr><td><code>name</code> (processo)</td><td><code>objeto</code> ou <code>detalhes.nome_advbox</code></td><td><span class="tag tag-blue">P1</span></td><td>Nome/título do processo na Advbox</td></tr>
+            <tr><td><code>type</code> (tipo processo)</td><td><code>detalhes.tipo_advbox</code></td><td><span class="tag tag-blue">P1</span></td><td>Cível, Trabalhista, etc.</td></tr>
+            <tr><td><code>group</code></td><td><code>detalhes.grupo_advbox</code></td><td><span class="tag tag-yellow">P2</span></td><td>Agrupamento do escritório</td></tr>
+            <tr><td><code>stage</code> (fase processual)</td><td><code>detalhes.fase_advbox</code></td><td><span class="tag tag-blue">P1</span></td><td>Planejamento, Produção, Andamento...</td></tr>
+            <tr><td><code>step</code> (etapa)</td><td><code>detalhes.etapa_advbox</code></td><td><span class="tag tag-yellow">P2</span></td><td>—</td></tr>
+            <tr><td><code>process_date</code></td><td><code>data_distribuicao</code> ou <code>data_cadastro</code></td><td><span class="tag tag-blue">P1</span></td><td>Data início do processo</td></tr>
+            <tr><td><code>responsible</code> (user)</td><td><code>advogado_id</code></td><td><span class="tag tag-blue">P1</span></td><td>Mapear usuário Advbox → usuário MdFlow</td></tr>
+            <tr><td><code>customers[]</code> (array)</td><td><code>cliente_id</code></td><td><span class="tag tag-green">P0</span></td><td>Match pelo CPF/CNPJ do cliente</td></tr>
+            <tr><td><code>financial.expected_fees</code></td><td><code>valor_causa</code> ou <code>detalhes.honorarios_advbox</code></td><td><span class="tag tag-yellow">P2</span></td><td>Honorários esperados</td></tr>
+            <tr><td><code>financial.contingency</code></td><td><code>detalhes.contingencia_advbox</code></td><td><span class="tag tag-yellow">P2</span></td><td>Valor de contingência</td></tr>
+            <tr><td><code>status_closure</code></td><td><code>status</code> (encerrado)</td><td><span class="tag tag-blue">P1</span></td><td>Se tem data, marcar como encerrado</td></tr>
+            <tr><td><code>id</code> (Advbox)</td><td><code>detalhes.advbox_id</code></td><td><span class="tag tag-blue">P1 controle</span></td><td>Indispensável para buscar movimentações</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">🔄 Movimentações Processuais</div>
+        <p style="color:#a0aec0;font-size:0.85rem;margin-bottom:12px">Endpoint: <code>GET /movements/{lawsuit_id}</code></p>
+        <ul class="check-list">
+          <li>Extrair todas as movimentações TRIBUNAL e MANUAL</li>
+          <li>Salvar em tabela <code>movimentacoes</code> ou no campo <code>detalhes</code> jsonb</li>
+          <li>Verificar se já existem movimentações do EPROC — evitar duplicar</li>
+          <li>Dedup por: data + tipo + texto (hash SHA1)</li>
+          <li>Endpoint <code>/last_movements</code> dá visão geral sem iterar processo a processo</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">🗞️ Publicações (Diário da Justiça)</div>
+        <p style="color:#a0aec0;font-size:0.85rem;margin-bottom:12px">Endpoint: <code>GET /publications</code></p>
+        <ul class="check-list">
+          <li>Intimações capturadas automaticamente pela Advbox</li>
+          <li>Pode complementar o que o EPROC já captura</li>
+          <li>Salvar em tabela <code>publicacoes</code> ou <code>intimacoes</code></li>
+          <li>Dedup por número do processo + data + texto</li>
+          <li><span class="tag tag-yellow">P2</span> — fazer após processos e clientes</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Histórico de Tarefas por Processo</div>
+        <p style="color:#a0aec0;font-size:0.85rem;margin-bottom:12px">Endpoint: <code>GET /history/{lawsuit_id}</code></p>
+        <ul class="check-list">
+          <li>Retorna todas as tarefas (pending + completed)</li>
+          <li>Valor histórico — registros de o que foi feito em cada processo</li>
+          <li>Salvar em <code>detalhes.tarefas_advbox</code> ou tabela separada</li>
+          <li><strong>Atenção:</strong> não suporta paginação — retorna tudo de uma vez</li>
+          <li><span class="tag tag-yellow">P2</span> — baixa prioridade</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">💰 Transações Financeiras</div>
+        <p style="color:#a0aec0;font-size:0.85rem;margin-bottom:12px">Endpoint: <code>GET /transactions</code></p>
+        <ul class="check-list">
+          <li>Honorários recebidos, custas, despesas</li>
+          <li>Pode enriquecer relatórios financeiros históricos</li>
+          <li>Mapear para tabela financeira do MdFlow</li>
+          <li><span class="tag tag-yellow">P2</span> — fazer por último</li>
+          <li>Pode ser dispensável se financeiro já está no MdFlow</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: DOCUMENTOS -->
+  <div class="section" id="documentos">
+    <div class="section-title">📂 4. Sobre Documentos (Cloud Advbox)</div>
+
+    <div class="warn">
+      <strong>⚠️ Situação atual: não há endpoint documentado para download de arquivos</strong>
+      Os 19 endpoints documentados na API pública não incluem nenhum endpoint de arquivo/documento. O campo <code>folder</code> nos processos é um campo de texto livre (ex: "Pasta Maria Silva 2023"), não um path de arquivo.
+    </div>
+
+    <div class="card">
+      <div class="card-title">🔍 O que investigar ao receber o token</div>
+      <ul class="check-list">
+        <li>Testar <code>GET /files</code>, <code>GET /documents</code>, <code>GET /cloud</code> — endpoints não documentados que podem existir</li>
+        <li>Verificar se o campo <code>folder</code> de cada processo tem um ID numérico — pode ser a chave para buscar arquivos</li>
+        <li>Checar se a Advbox tem API de Cloud/Storage separada (pode ser S3 com URL pré-assinada)</li>
+        <li>Contatar suporte Advbox perguntando sobre endpoint de download de documentos</li>
+        <li>Verificar package npm <code>n8n-nodes-advbox</code> — pode ter mais endpoints implementados lá</li>
+      </ul>
+    </div>
+
+    <div class="card" style="border-color:#276749">
+      <div class="card-title" style="color:#68d391">🟢 Plano B: se não tiver API de documentos</div>
+      <ul class="check-list">
+        <li>Baixar documentos manualmente via interface web antes de cancelar</li>
+        <li>Usar Playwright para automatizar o download da interface web (bulk download)</li>
+        <li>Priorizar documentos dos processos ativos — históricos podem ser dispensáveis</li>
+        <li>Os documentos críticos (petições, contestações) já devem estar no EPROC via download de peças</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SECTION 5: DEDUP -->
+  <div class="section" id="dedup">
+    <div class="section-title">🔗 5. Estratégia de Deduplicação</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">👤 Clientes — Chave de matching</div>
+        <div class="flow" style="flex-direction:column;align-items:flex-start">
+          <div style="color:#a0aec0;font-size:0.85rem;margin-bottom:8px"><strong>Ordem de prioridade:</strong></div>
+          <div class="flow"><span class="flow-step">1º CPF/CNPJ</span><span class="flow-arrow">→</span><span style="color:#68d391;font-size:0.85rem">Match exato — chave confiável</span></div>
+          <div class="flow"><span class="flow-step">2º Email</span><span class="flow-arrow">→</span><span style="color:#f6ad55;font-size:0.85rem">Match secundário se CPF vazio</span></div>
+          <div class="flow"><span class="flow-step">3º Nome + telefone</span><span class="flow-arrow">→</span><span style="color:#fc8181;font-size:0.85rem">Fuzzy match — revisar manual</span></div>
+        </div>
+        <pre style="margin-top:12px">-- Query de matching
+SELECT id FROM clientes
+WHERE cpf_cnpj = $advbox_cpf
+  AND organizacao_id = $org_id
+LIMIT 1;</pre>
+      </div>
+      <div class="card">
+        <div class="card-title">⚖️ Processos — Chave de matching</div>
+        <div class="flow" style="flex-direction:column;align-items:flex-start">
+          <div style="color:#a0aec0;font-size:0.85rem;margin-bottom:8px"><strong>Ordem de prioridade:</strong></div>
+          <div class="flow"><span class="flow-step">1º Número CNJ</span><span class="flow-arrow">→</span><span style="color:#68d391;font-size:0.85rem">Chave universal — padrão NNNNNNN-DD.AAAA.J.TT.OOOO</span></div>
+          <div class="flow"><span class="flow-step">2º Protocol number</span><span class="flow-arrow">→</span><span style="color:#f6ad55;font-size:0.85rem">Se CNJ não bater</span></div>
+        </div>
+        <pre style="margin-top:12px">-- Query de matching
+SELECT id FROM processos
+WHERE numero_cnj = $advbox_process_number
+   OR numero_processo = $advbox_process_number
+  AND organizacao_id = $org_id
+LIMIT 1;</pre>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">🧠 Lógica de Enriquecimento (update apenas, sem criar duplicatas)</div>
+      <pre>// Para cada registro da Advbox:
+const match = await matchMdFlow(advboxRecord);
+
+if (match.found) {
+  // Enriquecer apenas campos VAZIOS no MdFlow (não sobrescrever o que já tem)
+  const updates = buildEnrichment(advboxRecord, match.current);
+  if (Object.keys(updates).length > 0) {
+    await supabase.from('clientes').update(updates).eq('id', match.id);
+    enriched++;
+  }
+} else {
+  // NÃO criar automaticamente — logar para revisão manual
+  unmatched.push({ advbox_id: advboxRecord.id, name: advboxRecord.name, cpf: advboxRecord.identification });
+}</pre>
+    </div>
+  </div>
+
+  <!-- SECTION 6: FASES -->
+  <div class="section" id="fases">
+    <div class="section-title">🚀 6. Fases de Execução</div>
+
+    <div class="phase">
+      <div class="phase-num">FASE 0</div>
+      <div class="phase-title">Autenticação &amp; Mapeamento de IDs</div>
+      <div class="phase-time">⏱️ ~30 minutos · Pré-requisito para tudo</div>
+      <ul class="check-list">
+        <li>Christian gera o token na Advbox: Configurações → API Token</li>
+        <li>Salvar token em <code>~/jarbas/.env</code> como <code>ADVBOX_API_TOKEN</code></li>
+        <li>Executar <code>GET /settings</code> — salvar todos os IDs de referência (users, origins, stages, types)</li>
+        <li>Testar <code>GET /customers?limit=1</code> para validar o token</li>
+        <li>Contar registros: <code>GET /customers</code> (totalCount) + <code>GET /lawsuits</code> (totalCount)</li>
+        <li>Investigar se existem endpoints de documentos não documentados</li>
+      </ul>
+      <pre style="margin-top:16px">source ~/jarbas/.env
+curl -s "https://app.advbox.com.br/api/v1/settings" \
+  -H "Authorization: Bearer $ADVBOX_API_TOKEN" | python3 -m json.tool</pre>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">FASE 1</div>
+      <div class="phase-title">Extração Completa de Clientes</div>
+      <div class="phase-time">⏱️ ~2-4 horas (dependendo do volume) · Paralelo ao EPROC</div>
+      <ul class="check-list">
+        <li>Pull completo de <code>GET /customers</code> com paginação (limit=100, offset incremental)</li>
+        <li>Salvar dump raw em <code>~/jarbas/advbox-data/customers-raw.json</code></li>
+        <li>Para cada cliente: match por CPF/CNPJ no Supabase</li>
+        <li>Enriquecer clientes existentes (telefone, cidade, CEP, profissão, nascimento)</li>
+        <li>Logar não-encontrados em <code>~/jarbas/advbox-data/customers-unmatched.json</code></li>
+        <li>Relatório final: X enriquecidos / Y não encontrados / Z já completos</li>
+      </ul>
+      <div style="margin-top:12px">
+        <span class="tag tag-green">Campos prioritários:</span> <code>telefone</code> · <code>whatsapp</code> · <code>data_nascimento</code> · <code>cidade</code> · <code>cep</code> · <code>profissao</code> · <code>email</code>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">FASE 2</div>
+      <div class="phase-title">Extração Completa de Processos</div>
+      <div class="phase-time">⏱️ ~4-8 horas · ~5.800 processos para processar</div>
+      <ul class="check-list">
+        <li>Pull completo de <code>GET /lawsuits</code> com paginação</li>
+        <li>Para cada processo: match pelo número CNJ no MdFlow</li>
+        <li>Enriquecer <code>processos.detalhes</code> com dados da Advbox (fase, tipo, grupo, responsável)</li>
+        <li>Salvar <code>advbox_id</code> no jsonb para poder buscar movimentações depois</li>
+        <li>Identificar processos na Advbox que NÃO estão no MdFlow (possíveis lacunas)</li>
+        <li>Logar processos com campos financeiros preenchidos (honorários esperados)</li>
+      </ul>
+      <div style="margin-top:12px;color:#f6ad55;font-size:0.85rem">
+        ⚠️ <strong>Rate limit:</strong> 30 GET/min = 1.800/hora. Com 5.800 processos em bulk = ~3 minutos só para listar. Movimentações por processo = adicionar 1-2 seg de delay entre chamadas.
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">FASE 3</div>
+      <div class="phase-title">Extração de Movimentações por Processo</div>
+      <div class="phase-time">⏱️ ~6-12 horas · Maior volume — requer delay estratégico</div>
+      <ul class="check-list">
+        <li>Para cada processo que tem <code>advbox_id</code> salvo: buscar <code>GET /movements/{id}</code></li>
+        <li>Extrair movimentações TRIBUNAL e MANUAL</li>
+        <li>Deduplicar contra movimentações já existentes (do EPROC) por data + texto</li>
+        <li>Salvar movimentações novas na tabela <code>movimentacoes</code> ou <code>detalhes</code></li>
+        <li>Alternativa mais eficiente: usar <code>GET /last_movements</code> com paginação (sem iterar por processo)</li>
+        <li>Processar em lotes de 100 processos com rate limiter de 2s entre requests</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">FASE 4</div>
+      <div class="phase-title">Publicações (Diário da Justiça)</div>
+      <div class="phase-time">⏱️ ~1-2 horas · Baixa prioridade</div>
+      <ul class="check-list">
+        <li>Pull de <code>GET /publications</code> com filtros de data</li>
+        <li>Comparar com intimações já cadastradas no MdFlow</li>
+        <li>Importar apenas as que não existem ainda</li>
+        <li>Pode identificar intimações perdidas que o EPROC não capturou</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-num">FASE 5</div>
+      <div class="phase-title">Financeiro + Histórico de Tarefas</div>
+      <div class="phase-time">⏱️ ~2-4 horas · Opcional — avaliar ROI</div>
+      <ul class="check-list">
+        <li>Extrair transações financeiras históricas (<code>GET /transactions</code>)</li>
+        <li>Importar para relatórios financeiros do MdFlow</li>
+        <li>Histórico de tarefas por processo (<code>GET /history/{id}</code>) — valor histórico/auditoria</li>
+        <li>Avaliar se vale o esforço antes de executar</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SECTION 7: RATE LIMITS -->
+  <div class="section" id="rate-limits">
+    <div class="section-title">⚡ 7. Rate Limits &amp; Estratégia de Extração</div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">📊 Cálculo de tempo estimado</div>
+        <table class="mapping-table">
+          <thead><tr><th>Operação</th><th>Volume</th><th>Tempo estimado</th></tr></thead>
+          <tbody>
+            <tr><td>Listar todos os clientes</td><td>~3.000 clientes</td><td>~2 min (paginado)</td></tr>
+            <tr><td>Enriquecer clientes</td><td>~3.000 updates Supabase</td><td>~10 min</td></tr>
+            <tr><td>Listar todos os processos</td><td>~5.800 processos</td><td>~5 min (paginado)</td></tr>
+            <tr><td>Movimentações (todos)</td><td>~5.800 requests</td><td>~3-5 horas c/ delay</td></tr>
+            <tr><td>Publicações (bulk)</td><td>~100 pages</td><td>~20 min</td></tr>
+            <tr><td><strong>Total (Fase 1-4)</strong></td><td>—</td><td><strong>~8-12 horas</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="card-title">🎛️ Configuração do Rate Limiter</div>
+        <pre>// rate-limiter.mjs
+const REQUESTS_PER_MINUTE = 25; // abaixo do limite de 30
+const DELAY_MS = Math.ceil(60000 / REQUESTS_PER_MINUTE);
+
+async function advboxGet(endpoint) {
+  await sleep(DELAY_MS); // 2.4 segundos
+  const res = await fetch(
+    `https://app.advbox.com.br/api/v1${endpoint}`,
+    { headers: { Authorization: `Bearer ${ADVBOX_TOKEN}` } }
+  );
+  if (res.status === 429) {
+    await sleep(60000); // retry após 1 minuto
+    return advboxGet(endpoint);
+  }
+  return res.json();
+}</pre>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">🌙 Estratégia: Rodar extração de madrugada</div>
+      <ul class="check-list">
+        <li>Criar skill <code>skill_advbox_extractor.mjs</code> que roda em background</li>
+        <li>Agendar via cron: <code>0 2 * * * /run advbox-extract</code> (2h da manhã, uma vez só)</li>
+        <li>Progress checkpoint: salvar último offset processado para retomar se travar</li>
+        <li>Notificar Christian no Telegram ao concluir cada fase</li>
+        <li>Relatório HTML ao final com estatísticas completas</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- SECTION 8: SKILL -->
+  <div class="section" id="skill">
+    <div class="section-title">🛠️ 8. Skill a Implementar: <code>skill_advbox_extractor.mjs</code></div>
+
+    <div class="card">
+      <div class="card-title">Estrutura da skill</div>
+      <pre>// ~/jarbas/src/skills/skill_advbox_extractor.mjs
+// Trigger: /advbox [fase|all] ou via jarbas_tarefas
+
+export async function run({ fase = 'all', desde = null }) {
+  const ctx = await loadContext(); // carrega settings + token
+  
+  const phases = {
+    'settings': runPhase0,
+    'clientes':  runPhase1Customers,
+    'processos': runPhase2Lawsuits,
+    'movs':      runPhase3Movements,
+    'pubs':      runPhase4Publications,
+    'financeiro':runPhase5Financial,
+    'all':       runAllPhases
+  };
+  
+  await notify(`🔄 Iniciando extração Advbox — fase: ${fase}`);
+  const result = await phases[fase](ctx);
+  await notify(`✅ Advbox ${fase} concluído — ${result.summary}`);
+  await publishReport(result);
+}</pre>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card">
+        <div class="card-title">📁 Arquivos de saída</div>
+        <ul class="check-list">
+          <li><code>~/jarbas/advbox-data/settings.json</code> — IDs de referência</li>
+          <li><code>~/jarbas/advbox-data/customers-raw.json</code> — dump bruto</li>
+          <li><code>~/jarbas/advbox-data/lawsuits-raw.json</code> — dump bruto</li>
+          <li><code>~/jarbas/advbox-data/enrichment-report.json</code> — estatísticas</li>
+          <li><code>~/jarbas/advbox-data/unmatched-*.json</code> — para revisão</li>
+          <li><code>~/jarbas/advbox-data/progress.json</code> — checkpoint de retomada</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">🔔 Notificações no Telegram</div>
+        <ul class="check-list">
+          <li>Início de cada fase</li>
+          <li>A cada 500 registros processados</li>
+          <li>Conclusão de cada fase com resumo</li>
+          <li>Erros ou rate limit hits</li>
+          <li>Link para relatório HTML final</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 9: CANCELAMENTO -->
+  <div class="section" id="cancelamento">
+    <div class="section-title">🏁 9. Checklist para Cancelar o Plano Advbox</div>
+
+    <div class="card" style="border-color:#276749">
+      <div class="card-title" style="color:#68d391">✅ Condições para cancelamento seguro</div>
+      <ul class="check-list" style="margin-top:12px">
+        <li><strong>Clientes extraídos:</strong> todos os clientes com CPF/CNPJ enriquecidos no MdFlow</li>
+        <li><strong>Processos mapeados:</strong> todos os processos com advbox_id salvo + dados enriquecidos</li>
+        <li><strong>Movimentações extraídas:</strong> histórico completo salvo no MdFlow ou arquivo</li>
+        <li><strong>Publicações exportadas:</strong> intimações históricas preservadas</li>
+        <li><strong>Documentos resolvidos:</strong> API de docs investigada + download manual feito se necessário</li>
+        <li><strong>Financeiro exportado:</strong> transações históricas salvas (se relevante)</li>
+        <li><strong>Backup completo:</strong> dump JSON de tudo em <code>~/jarbas/advbox-data/</code> + git push</li>
+        <li><strong>Validação:</strong> spot check de 50 processos aleatórios — dados baterram entre sistemas</li>
+      </ul>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">📅 Timeline estimada</div>
+      <table class="mapping-table">
+        <thead><tr><th>Marco</th><th>Quando</th><th>Ação</th></tr></thead>
+        <tbody>
+          <tr><td>Token configurado</td><td>Dia 0 (hoje)</td><td>Christian libera access → JARBAS testa</td></tr>
+          <tr><td>Fase 0 — Settings</td><td>Dia 0</td><td>~30 min — mapeamento de IDs</td></tr>
+          <tr><td>Fases 1-2 — Clientes + Processos</td><td>Dia 0-1</td><td>~4-8h — enriquecimento bulk</td></tr>
+          <tr><td>Fase 3 — Movimentações</td><td>Dia 1-2</td><td>~8-12h — roda de madrugada</td></tr>
+          <tr><td>Fases 4-5 — Pubs + Financeiro</td><td>Dia 2-3</td><td>~4h — finalização</td></tr>
+          <tr><td>Validação + Backup</td><td>Dia 3-4</td><td>Spot check + git push</td></tr>
+          <tr><td><strong>Cancelamento seguro</strong></td><td><strong>Dia 4-7</strong></td><td>Cancelar plano Advbox</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="ok" style="margin-top:16px">
+      <strong>🎯 Meta final</strong>
+      Com tudo extraído: MdFlow tem dados completos de clientes + processos + histórico + movimentações. O EPROC cuida do monitoramento em tempo real. Dependência zero da Advbox. Economia do plano (~R$ 280-500/mês) · Dados todos no seu backend · Controle total.
+    </div>
+  </div>
+
+  <!-- NEXT STEPS -->
+  <div class="section">
+    <div class="section-title">⚡ Próximo Passo Imediato</div>
+    <div class="card" style="border-color:#4299e1;background:linear-gradient(135deg,#1a2332,#1a1f2e)">
+      <div style="font-size:1.1rem;font-weight:700;color:#63b3ed;margin-bottom:12px">Christian → JARBAS: libera o token</div>
+      <div class="flow">
+        <div class="flow-step">Advbox → Configurações</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">API → Gerar Token</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">Mandar o token no Telegram</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step">JARBAS executa Fase 0 imediatamente</div>
+      </div>
+      <p style="margin-top:12px;color:#a0aec0;font-size:0.9rem">
+        Com o token em mãos, JARBAS executa a Fase 0 em minutos, monta o relatório de volume real de dados, e agenda as fases seguintes para rodar de madrugada sem impactar o uso do dia.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Gerado por JARBAS · MP Advocacia · 14/03/2026<br>
+  API Advbox v1.0.0 · Documentação: api.softwareadvbox.com.br/docs · Deep Research: Christian Paz
+</footer>
+
+</body>
+</html>

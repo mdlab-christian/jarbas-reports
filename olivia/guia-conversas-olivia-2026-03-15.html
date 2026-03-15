@@ -407,8 +407,9 @@ TAREFA 2: prod-olivia-express
 - B1-Validate: adicionar todos os campos novos (spec §25) — CRÍTICO: modelo_grupo_id
 - B3-MontarPrompt: adicionar instrucoes_ia + estrutura[] + chat_historico ao prompt (spec §27)
 - Adicionar B9-AppsScript + B10-UpdateGoogleDocUrl após B8-Salvar (spec §26):
-  B9: POST https://script.google.com/macros/s/AKfycbyNw1hVqL0VfSodWSDWSW3Tl8btsIrsnLQl5nrVkPPZJBfHolxnA-gpjeN5mmq7wVuZIg/exec
-      Body: { titulo, html: texto_gerado, google_folder_id: "1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ" }
+  B9: POST https://script.google.com/macros/s/AKfycbwyYnMysvS8fVlsoyCoy0O-e7vLrQrUfkTD38GK9p3XtN7f4BBYN4FJpcm28FB_tj1BSw/exec
+      Body (script v3.1): { titulo_documento, google_folder_id, secoes: [{id, titulo, conteudo, tipo, ordem}], tags_substituicao: {}, config: {} }
+      Retorno: { success, google_doc_url, google_doc_id } — NÃO .url
       Continue on error: TRUE, timeout: 30s
   B10: PATCH olivia_historico com google_doc_url + google_doc_id, continue on error: TRUE
 - Ativar + testar com payload completo de processo real
@@ -576,7 +577,7 @@ Regras obrigatórias:
 - Ao final: pedir ao agente mdflow-code-reviewer para revisar
 - Commit descritivo ao finalizar
 
-Apps Script URL: https://script.google.com/macros/s/AKfycbyNw1hVqL0VfSodWSDWSW3Tl8btsIrsnLQl5nrVkPPZJBfHolxnA-gpjeN5mmq7wVuZIg/exec
+Apps Script URL: https://script.google.com/macros/s/AKfycbwyYnMysvS8fVlsoyCoy0O-e7vLrQrUfkTD38GK9p3XtN7f4BBYN4FJpcm28FB_tj1BSw/exec
 Google Folder: 1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ
 
 TAREFAS:
@@ -586,12 +587,27 @@ TAREFAS:
      method: 'POST',
      headers: { 'Content-Type': 'application/json' },
      body: JSON.stringify({
-       titulo: `Petição - ${processo.numero_cnj}`,
-       blocos: blocosSelecionados.map(b => b.conteudo),
-       cabecalho_escritorio: advogado.cabecalho_escritorio || null,
-       google_folder_id: '1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ'
+       titulo_documento: `Petição - ${processo.numero_cnj}`,
+       google_folder_id: '1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ',
+       secoes: blocosSelecionados.map((b, i) => ({
+         id: b.id,
+         titulo: b.titulo_secao || b.tag_nome || '',
+         conteudo: b.conteudo,
+         tipo: i === 0 ? 'header' : 'body',
+         ordem: i
+       })),
+       tags_substituicao: {
+         cliente_nome: processo.cliente?.nome || '',
+         numero_cnj: processo.numero_cnj || '',
+         reu_nome: processo.reu_nome || '',
+       },
+       config: {
+         cabecalho_escritorio: advogado?.cabecalho_escritorio || '',
+       }
      })
    });
+   // Retorno: { success, google_doc_url, google_doc_id, estatisticas }
+   // CAMPO CORRETO: appsScriptResponse.google_doc_url (NÃO .url — era script antigo)
 
 2. Remover rate limit:
    L36: remover import useRateLimit
@@ -602,7 +618,7 @@ TAREFAS:
 
 4. Após geração bem-sucedida: INSERT olivia_historico com:
    { modo: 'SMART_BLOCKS', motor: 'smart-blocks', status: 'SUCESSO',
-     google_doc_url: appsScriptResponse.url,
+     google_doc_url: appsScriptResponse.google_doc_url,  // script v3.1 — NÃO .url
      meta: { google_folder_id: '1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ', modelo_grupo_id } }
    ⚠️ olivia_historico NÃO tem coluna google_folder_id — usar meta JSONB
 
@@ -881,7 +897,7 @@ Missão desta conversa: C3 — Modo Agente
 JARBAS: /Users/jarbas/jarbas/src/
 Arquivo principal: skills/skill_olivia_gerar_peticao.mjs
 
-Apps Script URL: https://script.google.com/macros/s/AKfycbyNw1hVqL0VfSodWSDWSW3Tl8btsIrsnLQl5nrVkPPZJBfHolxnA-gpjeN5mmq7wVuZIg/exec
+Apps Script URL: https://script.google.com/macros/s/AKfycbwyYnMysvS8fVlsoyCoy0O-e7vLrQrUfkTD38GK9p3XtN7f4BBYN4FJpcm28FB_tj1BSw/exec
 Google Folder: 1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ
 
 TAREFAS (spec §29):
@@ -910,7 +926,14 @@ TAREFAS (spec §29):
    await fetch(APPS_SCRIPT_URL, {
      method: 'POST',
      headers: { 'Content-Type': 'application/json' },
-     body: JSON.stringify({ titulo, html: peticaoHtml, google_folder_id: '1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ' })
+     body: JSON.stringify({
+       titulo_documento: titulo,
+       google_folder_id: '1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ',
+       secoes: [{ id: 'main', titulo: '', conteudo: peticaoHtml, tipo: 'body', ordem: 0 }],
+       tags_substituicao: {},
+       config: { cabecalho_escritorio: advogado?.cabecalho_escritorio || '' }
+     })
+     // Retorno: appsScriptResponse.google_doc_url (NÃO .url)
    });
 
 6. DOCX via /olivia/docx-converter (já existe em webhook-main.mjs:504):

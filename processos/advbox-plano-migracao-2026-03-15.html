@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano de Migração Advbox → MdFlow | Análise Completa</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: #080c14; color: #e2e8f0; }
+.header { background: linear-gradient(135deg, #0f2744, #0a1628); padding: 48px 48px 36px; border-bottom: 1px solid #1e3a5f; }
+.header .pre { font-size: 11px; font-weight: 700; letter-spacing: .12em; color: #3b82f6; text-transform: uppercase; margin-bottom: 10px; }
+.header h1 { font-size: 28px; font-weight: 800; color: #fff; margin-bottom: 8px; }
+.header .sub { font-size: 13px; color: #64748b; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 44px 40px; }
+
+/* verdict */
+.verdict { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 36px; }
+.vcard { border-radius: 12px; padding: 22px; border: 1px solid; }
+.vcard .vico { font-size: 28px; margin-bottom: 10px; }
+.vcard .vtitle { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+.vcard .vdesc { font-size: 12px; line-height: 1.6; opacity: .75; }
+.vcard.yes { background: #052e16; border-color: #065f46; }
+.vcard.yes .vtitle { color: #34d399; }
+.vcard.ok { background: #0c1a2e; border-color: #1e3a5f; }
+.vcard.ok .vtitle { color: #60a5fa; }
+.vcard.warn { background: #1c1408; border-color: #92400e; }
+.vcard.warn .vtitle { color: #fbbf24; }
+.vcard.no { background: #1c0a0a; border-color: #7f1d1d; }
+.vcard.no .vtitle { color: #f87171; }
+
+/* section */
+.s { background: #0f1a2e; border: 1px solid #1e3a5f; border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; }
+.s h2 { font-size: 15px; font-weight: 700; color: #e2e8f0; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+.s h2 .n { background: #1e3a5f; color: #60a5fa; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+.s h3 { font-size: 13px; font-weight: 600; color: #94a3b8; margin: 20px 0 12px; border-top: 1px solid #1e293b; padding-top: 16px; }
+
+/* two-col */
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+
+/* table */
+table { width: 100%; border-collapse: collapse; }
+th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #475569; padding: 10px 14px; border-bottom: 1px solid #1e293b; text-align: left; }
+td { font-size: 13px; color: #94a3b8; padding: 11px 14px; border-bottom: 1px solid #0f1a2e; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #131f35; }
+td strong { color: #e2e8f0; }
+.right { text-align: right; }
+.code { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 11px; color: #60a5fa; background: #0a1424; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+.tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; }
+.g { background: #052e16; color: #34d399; }
+.b { background: #0c1a2e; color: #60a5fa; }
+.y { background: #1c1408; color: #fbbf24; }
+.r { background: #1c0a0a; color: #f87171; }
+.gr { background: #1e293b; color: #64748b; }
+
+/* mapping */
+.map-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #0f1a2e; }
+.map-row:last-child { border-bottom: none; }
+.map-src { font-family: monospace; font-size: 12px; color: #64748b; background: #080c14; padding: 3px 8px; border-radius: 4px; min-width: 180px; }
+.map-arrow { color: #1e3a5f; font-size: 16px; }
+.map-dst { font-family: monospace; font-size: 12px; color: #34d399; background: #052e16; padding: 3px 8px; border-radius: 4px; }
+.map-note { font-size: 11px; color: #4b5563; flex: 1; }
+
+/* fase card */
+.fase { border: 1px solid #1e3a5f; border-radius: 10px; padding: 20px; }
+.fase .fnum { font-size: 11px; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.fase .ftitle { font-size: 14px; font-weight: 700; color: #e2e8f0; margin-bottom: 8px; }
+.fase .fdesc { font-size: 12px; color: #64748b; line-height: 1.6; margin-bottom: 12px; }
+.fase .fmeta { display: flex; gap: 10px; }
+.fmeta span { font-size: 11px; background: #080c14; border: 1px solid #1e293b; border-radius: 6px; padding: 3px 10px; color: #94a3b8; }
+
+/* timeline horizontal */
+.tl-h { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+
+/* info box */
+.info { background: #0c1a2e; border: 1px solid #1e3a5f; border-left: 3px solid #3b82f6; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; font-size: 13px; color: #94a3b8; line-height: 1.7; }
+.info strong { color: #e2e8f0; }
+.warn-box { background: #1c1408; border: 1px solid #92400e; border-left: 3px solid #d97706; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; font-size: 13px; color: #fbbf24; line-height: 1.7; }
+
+/* SQL block */
+.sql { background: #030609; border: 1px solid #1e293b; border-radius: 8px; padding: 16px 20px; font-family: 'SF Mono', monospace; font-size: 12px; color: #94a3b8; overflow-x: auto; line-height: 1.7; margin: 12px 0; }
+.sql .kw { color: #60a5fa; }
+.sql .fn { color: #a78bfa; }
+.sql .str { color: #34d399; }
+.sql .cm { color: #374151; }
+
+.footer { text-align: center; padding: 40px; color: #1e293b; font-size: 12px; }
+
+.big-verdict { background: linear-gradient(135deg, #052e16, #0f2744); border: 1px solid #065f46; border-radius: 14px; padding: 32px; text-align: center; margin-bottom: 36px; }
+.big-verdict .bv-title { font-size: 13px; font-weight: 700; color: #34d399; margin-bottom: 8px; }
+.big-verdict .bv-main { font-size: 28px; font-weight: 900; color: #fff; margin-bottom: 10px; }
+.big-verdict .bv-sub { font-size: 14px; color: #94a3b8; line-height: 1.7; max-width: 650px; margin: 0 auto; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="pre">Análise & Plano de Ação</div>
+  <h1>Migração Advbox → Tabelas Nativas MdFlow</h1>
+  <div class="sub">Análise de viabilidade · Mapeamento de campos · Plano de execução · Riscos · 15/03/2026</div>
+</div>
+
+<div class="container">
+
+  <!-- Veredicto rápido -->
+  <div class="big-verdict">
+    <div class="bv-title">VEREDICTO JARBAS</div>
+    <div class="bv-main">✅ Sim, é viável. E muito vale a pena.</div>
+    <div class="bv-sub">É seguro, não é difícil e agrega muito. O trabalho pesado já foi feito — os dados estão nos staging tables. Agora é só migrar com cuidado. Estimativa: 2–4h de execução de scripts. Sem risco de perda de dados originais (tabelas raw continuam existindo).</div>
+  </div>
+
+  <!-- 4 dimensões -->
+  <div class="verdict">
+    <div class="vcard yes">
+      <div class="vico">⚡</div>
+      <div class="vtitle">Viabilidade: ALTA</div>
+      <div class="vdesc">Dados já estão extraídos e mapeados. Scripts de migração são diretos. Estrutura do MdFlow suporta tudo.</div>
+    </div>
+    <div class="vcard ok">
+      <div class="vico">🔒</div>
+      <div class="vtitle">Segurança: ALTA</div>
+      <div class="vdesc">Tabelas raw continuam existindo como backup. Migration é não-destrutiva — apenas adiciona/atualiza campos. Rollback trivial.</div>
+    </div>
+    <div class="vcard ok">
+      <div class="vico">⏱️</div>
+      <div class="vtitle">Esforço: BAIXO</div>
+      <div class="vdesc">2–4h de execução. Scripts de migração prontos em ~1h de desenvolvimento. Sem downtime necessário.</div>
+    </div>
+    <div class="vcard warn">
+      <div class="vico">⚠️</div>
+      <div class="vtitle">Atenção: DUPLICATAS</div>
+      <div class="vdesc">processos_movimentacoes já tem 264k registros do EPROC. Precisa de deduplicação por hash para não duplicar movimentações que já existem.</div>
+    </div>
+  </div>
+
+  <!-- O que você pediu - 3 iniciativas -->
+  <div class="s">
+    <h2><span class="n">A</span> Expandir tabelas staging com colunas explícitas (extrair do JSONB)</h2>
+    <div class="info">
+      <strong>Situação atual:</strong> <span class="code">advbox_processos_raw.data</span> e <span class="code">advbox_clientes_raw.data</span> armazenam tudo num único campo JSONB. Funciona, mas é difícil de consultar, indexar e visualizar no Supabase Studio.<br><br>
+      <strong>O que fazer:</strong> Adicionar colunas tipadas extraindo os valores do JSON. Os dados permanecem no JSONB também (não removemos) — adicionamos as colunas em paralelo.
+    </div>
+
+    <h3>advbox_processos_raw → colunas a adicionar</h3>
+    <table>
+      <thead><tr><th>Campo JSON</th><th>Coluna nova</th><th>Tipo</th><th>Exemplo</th></tr></thead>
+      <tbody>
+        <tr><td class="code">process_number</td><td class="code">numero_cnj</td><td>text</td><td style="color:#4b5563">5048484-53.2020.8.21.7000</td></tr>
+        <tr><td class="code">stage</td><td class="code">fase_advbox</td><td>text</td><td style="color:#4b5563">AÇÃO PROTOCOLADA/INICIADA</td></tr>
+        <tr><td class="code">step</td><td class="code">etapa_advbox</td><td>text</td><td style="color:#4b5563">JUDICIAL</td></tr>
+        <tr><td class="code">group</td><td class="code">grupo_advbox</td><td>text</td><td style="color:#4b5563">CHRISTIAN RS116571</td></tr>
+        <tr><td class="code">type</td><td class="code">tipo_causa</td><td>text</td><td style="color:#4b5563">RESPONSABILIDADE CIVIL</td></tr>
+        <tr><td class="code">responsible</td><td class="code">responsavel</td><td>text</td><td style="color:#4b5563">ÉDISON VLADIMIR...</td></tr>
+        <tr><td class="code">fees_money</td><td class="code">honorarios</td><td>numeric</td><td style="color:#4b5563">18000.00</td></tr>
+        <tr><td class="code">folder</td><td class="code">pasta_numero</td><td>text</td><td style="color:#4b5563">26</td></tr>
+        <tr><td class="code">protocol_number</td><td class="code">numero_protocolo</td><td>text</td><td style="color:#4b5563">—</td></tr>
+        <tr><td class="code">process_date</td><td class="code">data_processo</td><td>date</td><td style="color:#4b5563">—</td></tr>
+        <tr><td class="code">created_at</td><td class="code">data_cadastro_advbox</td><td>date</td><td style="color:#4b5563">2022-04-06</td></tr>
+        <tr><td class="code">customers[0].name</td><td class="code">cliente_nome</td><td>text</td><td style="color:#4b5563">MARCIA REGINA...</td></tr>
+        <tr><td class="code">customers[0].identification</td><td class="code">cliente_cpf</td><td>text</td><td style="color:#4b5563">570.735.890-00</td></tr>
+      </tbody>
+    </table>
+
+    <h3>advbox_clientes_raw → colunas a adicionar</h3>
+    <table>
+      <thead><tr><th>Campo JSON</th><th>Coluna nova</th><th>Tipo</th></tr></thead>
+      <tbody>
+        <tr><td class="code">name</td><td class="code">nome</td><td>text</td></tr>
+        <tr><td class="code">identification</td><td class="code">cpf_cnpj</td><td>text</td></tr>
+        <tr><td class="code">email</td><td class="code">email</td><td>text</td></tr>
+        <tr><td class="code">phone</td><td class="code">telefone</td><td>text</td></tr>
+        <tr><td class="code">cellphone</td><td class="code">celular</td><td>text</td></tr>
+        <tr><td class="code">birthdate</td><td class="code">data_nascimento</td><td>date</td></tr>
+        <tr><td class="code">city</td><td class="code">cidade</td><td>text</td></tr>
+        <tr><td class="code">state</td><td class="code">estado</td><td>text</td></tr>
+        <tr><td class="code">postalcode</td><td class="code">cep</td><td>text</td></tr>
+        <tr><td class="code">street + region</td><td class="code">endereco</td><td>text</td></tr>
+        <tr><td class="code">occupation</td><td class="code">profissao</td><td>text</td></tr>
+        <tr><td class="code">civil_status</td><td class="code">estado_civil</td><td>text</td></tr>
+        <tr><td class="code">gender</td><td class="code">genero</td><td>text</td></tr>
+        <tr><td class="code">number_ctps</td><td class="code">ctps</td><td>text</td></tr>
+        <tr><td class="code">number_pis</td><td class="code">pis</td><td>text</td></tr>
+        <tr><td class="code">origin</td><td class="code">origem_advbox</td><td>text</td></tr>
+        <tr><td class="code">notes</td><td class="code">observacoes</td><td>text</td></tr>
+        <tr><td class="code">lawsuits (array)</td><td class="code">total_processos_advbox</td><td>integer</td></tr>
+      </tbody>
+    </table>
+
+    <div class="sql">
+      <span class="cm">-- Exemplo de migration SQL (segura, não-destrutiva)</span><br>
+      <span class="kw">ALTER TABLE</span> advbox_processos_raw<br>
+      &nbsp;&nbsp;<span class="kw">ADD COLUMN IF NOT EXISTS</span> numero_cnj text <span class="kw">GENERATED ALWAYS AS</span> (data->><span class="str">'process_number'</span>) <span class="kw">STORED</span>,<br>
+      &nbsp;&nbsp;<span class="kw">ADD COLUMN IF NOT EXISTS</span> fase_advbox text <span class="kw">GENERATED ALWAYS AS</span> (data->><span class="str">'stage'</span>) <span class="kw">STORED</span>,<br>
+      &nbsp;&nbsp;<span class="kw">ADD COLUMN IF NOT EXISTS</span> responsavel text <span class="kw">GENERATED ALWAYS AS</span> (data->><span class="str">'responsible'</span>) <span class="kw">STORED</span>;<br>
+      <br>
+      <span class="cm">-- Colunas geradas: sempre sincronizadas com o JSONB. Zero custo de manutenção.</span>
+    </div>
+  </div>
+
+  <!-- B - Enriquecer clientes -->
+  <div class="s">
+    <h2><span class="n">B</span> Enriquecer tabela <span class="code" style="font-size:14px">clientes</span> com dados do Advbox</h2>
+
+    <div class="info">
+      <strong>O que já foi feito:</strong> Na Fase 1 da extração, 2.030 clientes foram enriquecidos (email, telefone, WhatsApp, cidade, CEP, nascimento) e 1.783 foram criados novos. <strong>Já está feito para os campos principais.</strong><br><br>
+      <strong>O que falta:</strong> Campos que não foram migrados na Fase 1 — estado civil, gênero, endereço completo, CTPS, PIS, total de processos no Advbox. Esses estão no JSONB <span class="code">documentos</span> mas poderiam ter colunas próprias no futuro.
+    </div>
+
+    <table>
+      <thead><tr><th>Campo</th><th>Status atual</th><th>Ação necessária</th><th>Impacto</th></tr></thead>
+      <tbody>
+        <tr><td><strong>email, telefone, WhatsApp</strong></td><td><span class="tag g">✅ Migrado</span></td><td>Nada</td><td style="color:#4b5563">Contato direto disponível</td></tr>
+        <tr><td><strong>data_nascimento, cidade, CEP</strong></td><td><span class="tag g">✅ Migrado</span></td><td>Nada</td><td style="color:#4b5563">Perfil demográfico completo</td></tr>
+        <tr><td><strong>profissão</strong></td><td><span class="tag g">✅ Migrado</span></td><td>Nada</td><td style="color:#4b5563">Contexto do cliente</td></tr>
+        <tr><td><strong>endereço (rua, número)</strong></td><td><span class="tag y">⚠️ No JSONB</span></td><td>Extrair para <span class="code">endereco</span></td><td style="color:#4b5563">Cartas, intimações por correio</td></tr>
+        <tr><td><strong>estado civil</strong></td><td><span class="tag y">⚠️ No JSONB</span></td><td>Extrair para coluna</td><td style="color:#4b5563">Relevante para ações de família</td></tr>
+        <tr><td><strong>CTPS, PIS</strong></td><td><span class="tag y">⚠️ No JSONB</span></td><td>Extrair para coluna</td><td style="color:#4b5563">Ações trabalhistas</td></tr>
+        <tr><td><strong>gênero</strong></td><td><span class="tag y">⚠️ No JSONB</span></td><td>Extrair para coluna</td><td style="color:#4b5563">Personalização de comunicação</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- C - Movimentações -->
+  <div class="s">
+    <h2><span class="n">C</span> Migrar movimentações para <span class="code" style="font-size:14px">processos_movimentacoes</span></h2>
+
+    <div class="info">
+      <strong>Situação:</strong> <span class="code">processos_movimentacoes</span> tem <strong>264.882 registros</strong> do EPROC/JusBrasil. <span class="code">advbox_movimentacoes</span> tem <strong>61.969 registros</strong> relevantes do Advbox (já filtrados).<br><br>
+      <strong>Desafio:</strong> Algumas movimentações podem ser duplicatas (processo que estava no EPROC E no Advbox tem a mesma movimentação dos dois lados). Precisa de deduplicação por hash (título + data + processo_id).
+    </div>
+
+    <h3>Mapeamento de campos</h3>
+    <div class="map-row"><span class="map-src">raw->>'title'</span><span class="map-arrow">→</span><span class="map-dst">texto_completo</span><span class="map-note">Título da movimentação</span></div>
+    <div class="map-row"><span class="map-src">raw->>'header'</span><span class="map-arrow">→</span><span class="map-dst">metadata.tribunal</span><span class="map-note">Ex: TJRS - Tribunal de Justiça...</span></div>
+    <div class="map-row"><span class="map-src">raw->>'date'</span><span class="map-arrow">→</span><span class="map-dst">data_movimentacao</span><span class="map-note">Data da movimentação (atenção: datas "9999" são placeholders)</span></div>
+    <div class="map-row"><span class="map-src">processo_id</span><span class="map-arrow">→</span><span class="map-dst">processo_id</span><span class="map-note">Já mapeado nas staging tables</span></div>
+    <div class="map-row"><span class="map-src">'advbox'</span><span class="map-arrow">→</span><span class="map-dst">fonte</span><span class="map-note">Identificador da origem</span></div>
+    <div class="map-row"><span class="map-src">raw->>'customers'</span><span class="map-arrow">→</span><span class="map-dst">metadata.partes</span><span class="map-note">Partes envolvidas na movimentação</span></div>
+
+    <div class="warn-box" style="margin-top:16px;">
+      <strong>⚠️ Atenção: datas inválidas</strong><br>
+      Muitas movimentações têm datas como "9999-09-02" ou "8000-02-18" — são placeholders do Advbox para movimentações sem data definida. Precisa normalizar para NULL antes de inserir em <span class="code">processos_movimentacoes</span>.
+    </div>
+
+    <table style="margin-top:16px;">
+      <thead><tr><th>Dado</th><th>Volume</th><th>Obs.</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Movimentações a migrar</strong></td><td>61.969</td><td style="color:#4b5563">Já filtradas (apenas relevantes)</td></tr>
+        <tr><td><strong>Com processo_id mapeado</strong></td><td>~45.000 est.</td><td style="color:#4b5563">Processos que foram encontrados no MdFlow</td></tr>
+        <tr><td><strong>Sem processo_id</strong></td><td>~17.000 est.</td><td style="color:#4b5563">Processos só no Advbox — precisam de cadastro primeiro</td></tr>
+        <tr><td><strong>Risco de duplicata</strong></td><td>Baixo (~5%)</td><td style="color:#4b5563">Advbox não monitora EPROC em tempo real — histórico diferente</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- D - Tarefas -->
+  <div class="s">
+    <h2><span class="n">D</span> Migrar tarefas para <span class="code" style="font-size:14px">processos</span> / histórico</h2>
+
+    <div class="info">
+      <strong>Situação:</strong> <span class="code">advbox_tarefas</span> tem <strong>0 registros</strong> — a Fase 5 do extrator não rodou (token expirou). Mas os dados estão disponíveis na API do Advbox quando renovarmos o token.<br><br>
+      <strong>Estrutura das tarefas Advbox:</strong> título da tarefa (ex: "JULGADO PROCEDENTE"), data, responsável, processo vinculado. Podem ir para <span class="code">processos_movimentacoes</span> com fonte='advbox_tarefa' ou numa tabela separada de histórico interno.
+    </div>
+
+    <table>
+      <thead><tr><th>Tipo de tarefa Advbox</th><th>Onde vai no MdFlow</th></tr></thead>
+      <tbody>
+        <tr><td>Tarefas judiciais (JULGADO, RECURSO, AUDIÊNCIA)</td><td><span class="code">processos_movimentacoes</span> com fonte='advbox_tarefa'</td></tr>
+        <tr><td>Tarefas internas (CONFERIR DOCUMENTOS, CÁLCULO)</td><td>Campo <span class="code">historico</span> JSONB do processo ou tabela futura</td></tr>
+        <tr><td>Prazos e vencimentos</td><td>Notificações / calendar — fora do escopo atual</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Plano de execução -->
+  <div class="s">
+    <h2><span class="n">📋</span> Plano de execução — 4 fases</h2>
+    <div class="tl-h">
+      <div class="fase">
+        <div class="fnum">Fase 1 · ~30min</div>
+        <div class="ftitle">Colunas geradas nas staging tables</div>
+        <div class="fdesc">ALTER TABLE adicionando colunas GENERATED ALWAYS AS extraídas do JSONB. Zero risco — não toca em dados existentes.</div>
+        <div class="fmeta"><span>🟢 Sem risco</span><span>SQL puro</span></div>
+      </div>
+      <div class="fase">
+        <div class="fnum">Fase 2 · ~1h</div>
+        <div class="ftitle">Enriquecer clientes (campos faltantes)</div>
+        <div class="fdesc">UPDATE na tabela clientes extraindo endereço, estado civil, gênero, CTPS, PIS do JSONB documentos para colunas reais.</div>
+        <div class="fmeta"><span>🟢 Sem risco</span><span>Script Node.js</span></div>
+      </div>
+      <div class="fase">
+        <div class="fnum">Fase 3 · ~2h</div>
+        <div class="ftitle">Migrar movimentações</div>
+        <div class="fdesc">INSERT em processos_movimentacoes com deduplicação por hash (title+date+processo_id). Normalizar datas inválidas para NULL.</div>
+        <div class="fmeta"><span>🟡 Atenção datas</span><span>Script Node.js</span></div>
+      </div>
+      <div class="fase">
+        <div class="fnum">Fase 4 · ~1h</div>
+        <div class="ftitle">Renovar token + tarefas</div>
+        <div class="fdesc">Renovar ADVBOX_API_TOKEN, rodar Fase 5 do extrator (123 tarefas), migrar para processos_movimentacoes.</div>
+        <div class="fmeta"><span>🟡 Token manual</span><span>Christian precisa logar</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- O que isso agrega -->
+  <div class="s">
+    <h2><span class="n">💡</span> O que isso agrega na prática</h2>
+    <table>
+      <thead><tr><th>Funcionalidade</th><th>Antes</th><th>Depois</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Busca de clientes</strong></td>
+          <td style="color:#f87171">Só por nome ou CPF</td>
+          <td style="color:#34d399">Por cidade, estado civil, profissão, gênero, endereço — campos indexáveis</td>
+        </tr>
+        <tr>
+          <td><strong>Histórico judicial completo</strong></td>
+          <td style="color:#f87171">Só movimentações EPROC recentes</td>
+          <td style="color:#34d399">EPROC + histórico Advbox desde a abertura do processo</td>
+        </tr>
+        <tr>
+          <td><strong>Jurimetria por advogado</strong></td>
+          <td style="color:#f87171">Sem dados de quem foi responsável</td>
+          <td style="color:#34d399">Grupo/advogado vinculado a cada processo → análise de performance</td>
+        </tr>
+        <tr>
+          <td><strong>Análise de IA</strong></td>
+          <td style="color:#f87171">Movimentações armazenadas em texto genérico</td>
+          <td style="color:#34d399">Colunas tipadas + deduplicação → análise mais precisa e eficiente</td>
+        </tr>
+        <tr>
+          <td><strong>Consultas SQL no Supabase</strong></td>
+          <td style="color:#f87171">data->>'field' em toda query — lento, não indexável</td>
+          <td style="color:#34d399">Colunas diretas, indexáveis, tipo correto — queries 10x mais rápidas</td>
+        </tr>
+        <tr>
+          <td><strong>Dashboard do escritório</strong></td>
+          <td style="color:#f87171">Dados fragmentados entre Advbox e MdFlow</td>
+          <td style="color:#34d399">Visão unificada: honorários, responsáveis, fase, histórico — tudo junto</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Resumo executivo -->
+  <div style="background:linear-gradient(135deg,#052e16,#0f2744);border:1px solid #065f46;border-radius:14px;padding:32px;text-align:center;">
+    <div style="font-size:13px;font-weight:700;color:#34d399;margin-bottom:8px;">RECOMENDAÇÃO FINAL</div>
+    <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:14px;">Implementar em 2 etapas</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:700px;margin:0 auto;text-align:left;">
+      <div style="background:#080c14;border:1px solid #1e3a5f;border-radius:10px;padding:16px;">
+        <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;">AGORA (baixo risco, alto ganho)</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.6;">① Colunas geradas nas staging tables<br>② Migrar movimentações para processos_movimentacoes<br>③ Enriquecer campos faltantes em clientes</div>
+      </div>
+      <div style="background:#080c14;border:1px solid #1e3a5f;border-radius:10px;padding:16px;">
+        <div style="font-size:11px;font-weight:700;color:#3b82f6;margin-bottom:6px;">DEPOIS (requer token novo)</div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.6;">④ Renovar token Advbox<br>⑤ Extrair tarefas (Fase 5)<br>⑥ Migrar tarefas para histórico de processos</div>
+      </div>
+    </div>
+    <div style="font-size:13px;color:#64748b;margin-top:20px;">Fala "pode executar" que eu faço tudo agora — scripts prontos em ~30min, execução ~3h em background.</div>
+  </div>
+
+</div>
+
+<div class="footer">Gerado por JARBAS v3.0 · 15/03/2026 03:55 BRT · MdLab LegalTech</div>
+</body>
+</html>

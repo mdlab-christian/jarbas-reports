@@ -466,6 +466,157 @@ alias mini="ssh jarbas@100.78.173.81"</pre>
   <tr><td colspan="3"><strong>Total completo</strong></td><td>~8h</td></tr>
 </table>
 
+<!-- SUGESTÕES EXTRAS -->
+<h2>💡 Sugestões Adicionais</h2>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S1</div>
+    <div><strong>Prioridade urgente na fila</strong> — "urgente: lapida /olivia" <span class="tag p2">P2 · 30min</span></div>
+  </div>
+  <div class="step-b">
+    <p>Você manda "urgente: [comando]" e a tarefa vai para o topo da fila, na frente de tudo que está esperando. Útil quando tem prazo.</p>
+    <pre>// Detectar palavra "urgente" no router:
+if (mensagem.startsWith('urgente:')) {
+  prioridade = 10; // maior prioridade possível
+  preferred_host = 'any';
+}</pre>
+    <div class="note">O campo <code>prioridade</code> já existe na jarbas_tarefas. É só usar.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S2</div>
+    <div><strong>Circuit breaker por skill</strong> — Para automaticamente se falhar 3x <span class="tag p2">P2 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Se uma skill falha 3 vezes seguidas (ex: EPROC fora do ar), para de tentar e te notifica em vez de lotar a fila com retrys que vão falhar mesmo.</p>
+    <pre>// No task-consumer — circuit breaker por tipo de skill:
+if (falhas_consecutivas[tarefa.tipo] >= 3) {
+  await notify(chatId, `⚡ Circuit breaker: ${tarefa.tipo} pausado após 3 falhas. Verificar manualmente.`);
+  return; // não re-enfileira
+}</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S3</div>
+    <div><strong>Estimativa de tempo ao enfileirar</strong> <span class="tag p3">P3 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Quando enfileirar, mostrar estimativa baseada no histórico:</p>
+    <pre>"✅ Enfileirado — posição 3 na fila · estimativa: ~12 min (baseado nas últimas execuções)"</pre>
+    <div class="note">Calcular média das últimas 5 execuções da mesma skill para estimar.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S4</div>
+    <div><strong>Notificação de conclusão com resumo real</strong> <span class="tag p2">P2 · 30min</span></div>
+  </div>
+  <div class="step-b">
+    <p>Hoje o JARBAS notifica "concluído" mas sem contexto. Adicionar resumo do que foi feito:</p>
+    <pre>"✅ lapidar /olivia concluído em 18min (🌸 Mini)
+→ 4 layers reconstruídos
+→ Nota final: 9.2/10
+→ 3 bugs corrigidos
+🌐 https://mdlab-christian.github.io/..."</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S5</div>
+    <div><strong>Wake-on-LAN para o MacBook Air</strong> <span class="tag p3">P3 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Se o Mini estiver com fila cheia e o Air estiver dormindo (não desligado), JARBAS acorda o Air remotamente via Tailscale para pegar mais tarefas.</p>
+    <pre># Acorda o Air via SSH se estiver em sleep:
+ssh jarbas@100.101.208.82 "caffeinate -u -t 1" 2>/dev/null || \
+  networksetup -setwakeonlan ... # wake on lan via rede local</pre>
+    <div class="note">Útil para processar filas grandes à noite sem precisar deixar o Air acordado manualmente.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S6</div>
+    <div><strong>Rollback automático de lapidação</strong> <span class="tag p2">P2 · 30min</span></div>
+  </div>
+  <div class="step-b">
+    <p>Antes de lapidação, JARBAS cria um commit de "checkpoint" no beta-mdflow. Se a nota final for ruim ou você pedir rollback, volta exatamente para o estado anterior.</p>
+    <pre># Antes de lapidação:
+git -C ~/beta-mdflow stash push -m "pre-lapidacao-/olivia-$(date +%Y%m%d%H%M)"
+
+# Se precisar voltar:
+git -C ~/beta-mdflow stash pop</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S7</div>
+    <div><strong>Git hook: sync automático de skills</strong> <span class="tag p2">P2 · 30min</span></div>
+  </div>
+  <div class="step-b">
+    <p>Toda vez que você commitar uma skill nova ou editada no Mini, o Air puxa automaticamente. Sem rsync manual.</p>
+    <pre># ~/jarbas/.git/hooks/post-commit no Mini:
+#!/bin/bash
+ssh jarbas@100.101.208.82 "cd ~/jarbas && git pull origin main" &
+echo "🔄 Sync Air iniciado em background"</pre>
+    <div class="note">Funciona nos dois sentidos: commit no Air → Mini puxa também.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S8</div>
+    <div><strong>Histórico de tarefas por grupo Telegram</strong> <span class="tag p3">P3 · 2h</span></div>
+  </div>
+  <div class="step-b">
+    <p>No Mission Control, filtrar tarefas por chat_id. Você abre a aba do grupo /olivia e vê todo o histórico de tarefas executadas naquele grupo — lapidações, análises, erros.</p>
+    <pre>// jarbas_tarefas já tem chat_id no payload
+// Só precisa expor no Mission Control como filtro</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S9</div>
+    <div><strong>Limite de custo por tarefa</strong> <span class="tag p2">P2 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Definir custo máximo por tipo de tarefa. Se uma lapidação estourar R$50, para e notifica em vez de continuar gastando silenciosamente.</p>
+    <pre>const CUSTO_MAXIMO = {
+  lapidar_pagina: 50,      // R$50 max por lapidação
+  olivia_gerar_peticao: 30,
+  analise_juridica: 20,
+  default: 100
+};</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">S10</div>
+    <div><strong>Dashboard de saúde semanal automático</strong> <span class="tag p3">P3 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Todo domingo às 20h, JARBAS manda um HTML com métricas da semana:</p>
+    <ul>
+      <li>Tarefas executadas por tipo e por máquina</li>
+      <li>Custo total (Mini vs Air vs total)</li>
+      <li>Skills mais usadas</li>
+      <li>Erros e circuit breakers acionados</li>
+      <li>Uptime de cada máquina</li>
+    </ul>
+    <div class="note">Dados já existem no Supabase. É só gerar o HTML e publicar no GitHub Pages.</div>
+  </div>
+</div>
+
 <div class="verdict">
   <h3>🎯 Veredicto Final</h3>
   <p style="color:var(--muted);font-size:14px;max-width:700px;margin:0 auto;">

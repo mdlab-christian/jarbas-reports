@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jana OS — Arquitetura Dual Machine</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3352;
+    --accent: #6c63ff;
+    --jana: #f472b6;
+    --green: #22c55e;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --code-bg: #131720;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Pro Text', -apple-system, sans-serif; font-size: 15px; line-height: 1.6; padding: 24px; }
+  .container { max-width: 900px; margin: 0 auto; }
+
+  .header { text-align: center; padding: 44px 0 36px; border-bottom: 1px solid var(--border); margin-bottom: 36px; }
+  .header h1 { font-size: 32px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--jana)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header .sub { color: var(--muted); margin-top: 10px; font-size: 14px; }
+
+  h2 { font-size: 20px; font-weight: 700; color: #fff; margin: 36px 0 12px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 15px; font-weight: 700; color: var(--text); margin: 16px 0 8px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 12px 0; }
+  .card.accent { border-color: var(--accent); }
+  .card.jana { border-color: var(--jana); }
+  .card.green { border-color: var(--green); }
+  .card.yellow { border-color: var(--yellow); }
+  .card.red { border-color: var(--red); }
+
+  .warning { background: #2d1b00; border: 1px solid var(--yellow); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .warning h4 { color: var(--yellow); margin-bottom: 6px; }
+  .warning p, .warning li { font-size: 13px; color: #fcd34d; line-height: 1.6; }
+
+  .info { background: #0d1f3c; border: 1px solid var(--blue); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .info h4 { color: var(--blue); margin-bottom: 6px; }
+  .info p, .info li { font-size: 13px; color: #93c5fd; line-height: 1.6; }
+
+  .success { background: #052e16; border: 1px solid var(--green); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+  .success h4 { color: var(--green); margin-bottom: 6px; }
+  .success p, .success li { font-size: 13px; color: #86efac; line-height: 1.6; }
+
+  /* Arch diagram */
+  .arch { display: grid; grid-template-columns: 1fr 80px 1fr; gap: 0; margin: 24px 0; align-items: start; }
+  .arch-node { border-radius: 12px; padding: 20px; }
+  .arch-node.jarbas { background: #1a1535; border: 2px solid var(--accent); }
+  .arch-node.jana { background: #1f1225; border: 2px solid var(--jana); }
+  .arch-arrow { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding-top: 20px; color: var(--muted); font-size: 11px; }
+  .arch-arrow .arr { font-size: 24px; }
+  .arch-row { display: flex; justify-content: space-between; font-size: 13px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  .arch-row:last-child { border-bottom: none; }
+  .arch-row span { color: var(--muted); }
+  .arch-row strong { color: var(--text); }
+  .tag { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-left: 4px; }
+  .tag.a { background: var(--accent); color: #fff; }
+  .tag.j { background: var(--jana); color: #fff; }
+  .tag.g { background: var(--green); color: #000; }
+
+  /* Flow diagram */
+  .flow { display: flex; align-items: center; gap: 0; margin: 16px 0; overflow-x: auto; padding-bottom: 8px; }
+  .flow-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+  .flow-box.you { border-color: var(--yellow); color: var(--yellow); }
+  .flow-box.jarbas { border-color: var(--accent); color: #a78bfa; }
+  .flow-box.jana { border-color: var(--jana); color: #f9a8d4; }
+  .flow-box.done { border-color: var(--green); color: var(--green); }
+  .flow-arrow { color: var(--muted); font-size: 18px; padding: 0 6px; flex-shrink: 0; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-size: 12px; overflow-x: auto; margin: 10px 0; color: #a5f3fc; line-height: 1.6; font-family: 'SF Mono', monospace; }
+  code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #a5f3fc; font-family: 'SF Mono', monospace; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 12px 0; }
+  th { background: var(--surface2); color: var(--muted); font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .yes { color: var(--green); font-weight: 600; }
+  .no { color: var(--red); }
+  .partial { color: var(--yellow); }
+
+  /* Steps */
+  .step { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin: 10px 0; }
+  .step-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: var(--surface2); border-radius: 10px 10px 0 0; }
+  .step-num { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .step-num.p1 { background: var(--red); color: #fff; }
+  .step-num.p2 { background: var(--yellow); color: #000; }
+  .step-num.p3 { background: var(--blue); color: #fff; }
+  .step-body { padding: 16px 18px; }
+  .step-body p { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .note { font-size: 12px; color: var(--muted); background: var(--surface2); border-left: 3px solid var(--accent); padding: 8px 12px; border-radius: 0 6px 6px 0; margin: 8px 0; }
+
+  ul, ol { padding-left: 20px; }
+  li { margin: 4px 0; font-size: 13px; color: var(--muted); }
+  li strong { color: var(--text); }
+
+  .footer { text-align: center; padding: 32px 0 16px; border-top: 1px solid var(--border); margin-top: 40px; color: var(--muted); font-size: 12px; }
+
+  .verdict { background: linear-gradient(135deg, #1a1535, #1f1225); border: 1px solid var(--accent); border-radius: 12px; padding: 24px; margin: 20px 0; text-align: center; }
+  .verdict h3 { font-size: 20px; background: linear-gradient(135deg, var(--accent), var(--jana)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>Jana OS — Arquitetura Dual Machine</h1>
+    <div class="sub">JARBAS (MacBook Air) + JANA (Mac Mini) · Brainstorming + Plano de Execução · 15 Mar 2026</div>
+  </div>
+
+  <!-- DIAGNÓSTICO -->
+  <h2>🔍 Diagnóstico: O Problema Real</h2>
+
+  <p style="color:var(--muted); font-size:14px; margin-bottom:16px;">Antes de propor solução, entender o problema com precisão.</p>
+
+  <div class="warning">
+    <h4>⚠️ O Telegram não trava — o JARBAS trava</h4>
+    <p>O Telegram pode receber e entregar mensagens de múltiplos grupos simultaneamente sem problema. O gargalo é o <strong>JARBAS processando tarefas pesadas inline</strong> — quando ele está lapidando a /olivia, o thread principal fica ocupado e as mensagens dos outros grupos ficam na fila esperando. Com dois computadores, a solução não é duplicar o receptor de mensagens — é <strong>separar quem recebe de quem executa</strong>.</p>
+  </div>
+
+  <div class="info">
+    <h4>💡 O que já existe no Mac Mini que resolve isso</h4>
+    <p>O JARBAS já tem <code>task-consumer.mjs</code> + tabela <code>jarbas_tarefas</code> no Supabase. A infraestrutura de fila já existe. O problema é que tarefas como lapidação ainda rodam inline em vez de serem enfileiradas. O Mac Mini precisa virar o <strong>executor da fila</strong> — e o JARBAS no Air precisa ser o <strong>enfileirador</strong>.</p>
+  </div>
+
+  <!-- ARQUITETURA PROPOSTA -->
+  <h2>🏗️ Arquitetura Proposta: JARBAS + JANA</h2>
+
+  <div class="arch">
+    <div class="arch-node jarbas">
+      <h3 style="color:#a78bfa; margin-top:0;">🦞 JARBAS<br><small style="font-weight:400;color:var(--muted);">MacBook Air M4 · PRIMARY</small></h3>
+      <div class="arch-row"><span>Papel</span><strong>Orquestrador + Interface</strong></div>
+      <div class="arch-row"><span>Telegram</span><strong>Recebe TODAS as msgs ✅</strong></div>
+      <div class="arch-row"><span>Executa</span><strong>Tarefas rápidas (&lt;30s)</strong></div>
+      <div class="arch-row"><span>Delega</span><strong>Tarefas pesadas → JANA</strong></div>
+      <div class="arch-row"><span>Reporta</span><strong>Resultados de volta pra você</strong></div>
+      <div class="arch-row"><span>Quando</span><strong>Quando Air ligado</strong></div>
+    </div>
+    <div class="arch-arrow">
+      <div class="arr">⇄</div>
+      <div>Tailscale</div>
+      <div>SSH / Supabase</div>
+    </div>
+    <div class="arch-node jana">
+      <h3 style="color:#f9a8d4; margin-top:0;">🌸 JANA<br><small style="font-weight:400;color:var(--muted);">Mac Mini M4 · EXECUTOR</small></h3>
+      <div class="arch-row"><span>Papel</span><strong>Worker + Servidor 24/7</strong></div>
+      <div class="arch-row"><span>Telegram</span><strong>Não responde você</strong></div>
+      <div class="arch-row"><span>Executa</span><strong>Tarefas pesadas da fila</strong></div>
+      <div class="arch-row"><span>Crons</span><strong>Todos os jobs noturnos ✅</strong></div>
+      <div class="arch-row"><span>Gustavo</span><strong>Pode usar via SSH ✅</strong></div>
+      <div class="arch-row"><span>Quando</span><strong>Sempre ligado 24/7</strong></div>
+    </div>
+  </div>
+
+  <!-- FLUXO DE UMA TAREFA -->
+  <h2>🔄 Como Funciona na Prática</h2>
+
+  <h3>Cenário: você pede lapidação de página</h3>
+  <div class="flow">
+    <div class="flow-box you">Você<br>Telegram</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box jarbas">JARBAS<br>recebe msg</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box jarbas">JARBAS<br>enfileira no<br>Supabase</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box jarbas">JARBAS<br>já responde<br>"enfileirado ✅"</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box jana">JANA<br>pega da fila<br>executa</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box done">JANA notifica<br>JARBAS →<br>você recebe</div>
+  </div>
+
+  <h3>Cenário: você envia duas tarefas ao mesmo tempo</h3>
+  <div class="flow">
+    <div class="flow-box you">lapida /olivia</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box jarbas">JARBAS<br>enfileira #1</div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-box you">lapida /controller</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box jarbas">JARBAS<br>enfileira #2</div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box jana">JANA executa<br>#1 e #2<br>em paralelo</div>
+  </div>
+
+  <div class="success">
+    <h4>✅ Resultado: JARBAS nunca trava</h4>
+    <p>Como JARBAS só enfileira (operação de &lt;1 segundo), ele sempre está livre para receber a próxima mensagem. Todos os grupos respondidos, nenhum travado. JANA processa em background e notifica quando termina.</p>
+  </div>
+
+  <!-- SOBRE RENOMEAR PARA JANA -->
+  <h2>🏷️ Renomear Mac Mini para JANA — Vale a Pena?</h2>
+
+  <div class="warning">
+    <h4>⚠️ Risco Real: Renomear quebra coisas</h4>
+    <p>O Mac Mini tem 54 skills, paths hardcoded, usuário <code>jarbas</code>, variáveis de ambiente com <code>JARBAS_</code>, nome do serviço OpenClaw, nome no SOUL.md, nome no Supabase. Renomear tudo é uma migração de 2-4 horas com risco de quebrar coisas em produção — EPROC, crons, n8n webhooks, paths de arquivo.</p>
+  </div>
+
+  <div class="success">
+    <h4>✅ Solução: Jana é uma identidade lógica, não física</h4>
+    <p>O Mac Mini continua se chamando JARBAS nos arquivos, usuário, serviços. A "JANA" é apenas como você e o JARBAS se referem a ele logicamente. Um arquivo <code>JANA.md</code> no workspace define o papel. Nenhum risco de quebra, zero migração.</p>
+  </div>
+
+  <table>
+    <tr><th>Abordagem</th><th>Esforço</th><th>Risco</th><th>Ganho</th></tr>
+    <tr><td>Renomear tudo para Jana</td><td class="no">Alta (2-4h)</td><td class="no">Quebrar prod</td><td class="partial">Só semântico</td></tr>
+    <tr><td>Jana = identidade lógica</td><td class="yes">Zero</td><td class="yes">Zero</td><td class="yes">Mesmo efeito</td></tr>
+  </table>
+
+  <!-- SKILLS COMPARTILHADAS -->
+  <h2>🔗 Skills Compartilhadas — Como Funciona</h2>
+
+  <p style="color:var(--muted); font-size:14px; margin-bottom:12px;">Você perguntou se os dois agentes podem compartilhar as mesmas skills. Sim — via Supabase como broker central.</p>
+
+  <div class="card accent">
+    <h3 style="color:var(--accent);">Supabase = Sistema Nervoso Central</h3>
+    <ul style="margin-top: 8px;">
+      <li>Tabela <code>jarbas_tarefas</code> é a fila compartilhada — qualquer máquina pode enfileirar, qualquer máquina pode executar</li>
+      <li>Cada tarefa tem campo <code>preferred_host</code> (macmini | macbook | any)</li>
+      <li>Skills idênticas nos dois computadores (via rsync) — mesmas capacidades</li>
+      <li>Resultados e notificações passam pelo Supabase → JARBAS entrega pro Telegram</li>
+    </ul>
+  </div>
+
+  <!-- BIDIRECTIONAL -->
+  <h2>↔️ Bidirecional: Mac Mini também pode jogar pro Air?</h2>
+
+  <div class="info">
+    <h4>💡 Pode, mas não é necessário agora</h4>
+    <p>Como o Air nem sempre está ligado (você leva pra fora), tarefas do Mini enfileiradas pro Air podem ficar presas. O mais seguro: <strong>Mini sempre executa tudo</strong>, Air executa quando está ligado e há sobrecarga. Você pode rotear explicitamente com <code>no air: [tarefa]</code> quando quiser usar o Air.</p>
+  </div>
+
+  <!-- BOT SEPARADO -->
+  <h2>🤖 Segundo Bot do Telegram — Vale?</h2>
+
+  <table>
+    <tr><th>Cenário</th><th>Um bot (recomendado agora)</th><th>Dois bots</th></tr>
+    <tr><td>Complexidade de setup</td><td class="yes">Baixa</td><td class="partial">Média</td></tr>
+    <tr><td>Você falar com Jana diretamente</td><td class="no">Não</td><td class="yes">Sim</td></tr>
+    <tr><td>Dobrar conversas paralelas</td><td class="partial">Parcial (via fila)</td><td class="yes">Sim</td></tr>
+    <tr><td>Risco de conflito</td><td class="yes">Zero</td><td class="partial">Se mal configurado</td></tr>
+    <tr><td>Manutenção</td><td class="yes">Simples</td><td class="partial">Dois sistemas</td></tr>
+  </table>
+
+  <div class="info">
+    <h4>💡 Recomendação: um bot agora, dois depois</h4>
+    <p>Implementar a fila de offload resolve 90% do problema de travamento. Segundo bot é fase 2 — só faz sentido quando você quer conversar diretamente com a Jana ou quando a fila não for suficiente para a carga.</p>
+  </div>
+
+  <!-- PLANO DE EXECUÇÃO -->
+  <h2>📋 Plano de Execução — O que Fazer</h2>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num p1">P1</div>
+      <div>
+        <strong>Completar setup do MacBook Air</strong>
+        <div style="font-size:12px; color:var(--muted);">rsync do Mini → Air · ~20 min · Etapa 4 do plano anterior</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <p>Rodar no Mac Mini para espelhar tudo no Air:</p>
+      <pre>rsync -avz ~/jarbas/ jarbas@100.101.208.82:~/jarbas/
+rsync -avz ~/.openclaw/ jarbas@100.101.208.82:~/.openclaw/
+rsync -avz ~/.claude/ jarbas@100.101.208.82:~/.claude/
+rsync -avz ~/.ssh/ jarbas@100.101.208.82:~/.ssh/</pre>
+      <div class="note">Depois no Air: instalar dependências com <code>cd ~/jarbas && npm install</code></div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num p1">P1</div>
+      <div>
+        <strong>Adicionar campo preferred_host na jarbas_tarefas</strong>
+        <div style="font-size:12px; color:var(--muted);">Migration Supabase · ~5 min</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <pre>ALTER TABLE jarbas_tarefas 
+ADD COLUMN IF NOT EXISTS preferred_host TEXT DEFAULT 'macmini',
+ADD COLUMN IF NOT EXISTS executing_host TEXT,
+ADD COLUMN IF NOT EXISTS host_claimed_at TIMESTAMPTZ;</pre>
+      <div class="note">Isso permite roteamento por máquina. JANA só pega tarefas com preferred_host = 'macmini' ou 'any'.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num p1">P1</div>
+      <div>
+        <strong>task-consumer.mjs — filtrar por host</strong>
+        <div style="font-size:12px; color:var(--muted);">Editar arquivo existente · ~15 min</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <p>Cada máquina só pega tarefas destinadas a ela:</p>
+      <pre>// No task-consumer.mjs, na query de busca de tarefas:
+const HOST = process.env.JARBAS_HOST || 'macmini'; // 'macbook' no Air
+
+const { data: tarefas } = await supabase
+  .from('jarbas_tarefas')
+  .select('*')
+  .eq('status', 'pendente')
+  .in('preferred_host', [HOST, 'any'])
+  .is('executing_host', null)
+  .order('created_at', { ascending: true })
+  .limit(3);</pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num p2">P2</div>
+      <div>
+        <strong>Skill de delegação no JARBAS Air</strong>
+        <div style="font-size:12px; color:var(--muted);">Nova skill · ~30 min</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <p>JARBAS detecta tarefa pesada e enfileira no Mini automaticamente:</p>
+      <pre>// skill_delegar_jana.mjs
+// Tarefas que sempre vão pro Mini:
+const HEAVY_TASKS = ['lapidar_pagina', 'olivia_gerar_peticao', 
+                     'analise_juridica', 'analisar_video', 'e2e_vision'];
+
+export async function delegarParaJana({ skill, payload, chatId }) {
+  return supabase.from('jarbas_tarefas').insert({
+    skill,
+    payload: { ...payload, chat_id: chatId },
+    preferred_host: 'macmini',
+    status: 'pendente'
+  });
+}</pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num p2">P2</div>
+      <div>
+        <strong>OpenClaw no Air com identidade separada</strong>
+        <div style="font-size:12px; color:var(--muted);">Config · ~10 min</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <p>Air recebe mensagens Telegram, Mini processa fila. Ambos com mesmo bot token por enquanto:</p>
+      <pre># .env no MacBook Air:
+JARBAS_HOST=macbook
+JARBAS_ROLE=orchestrator
+
+# .env no Mac Mini:
+JARBAS_HOST=macmini
+JARBAS_ROLE=worker</pre>
+      <div class="note">⚠️ Por enquanto o Air fica como PRIMARY no Telegram. Mini fica em standby para Telegram mas ativo para processar a fila. Quando Air desliga, Mini assume o Telegram automaticamente.</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-header">
+      <div class="step-num p3">P3</div>
+      <div>
+        <strong>Segundo bot Telegram para JANA (futuro)</strong>
+        <div style="font-size:12px; color:var(--muted);">Fase 2 · quando necessário</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <ul>
+        <li>Criar bot no BotFather: <strong>@JanaOsBot</strong></li>
+        <li>Configurar token no Mac Mini (<code>TELEGRAM_TOKEN_JANA</code>)</li>
+        <li>JANA responde perguntas diretas + notifica resultados de tarefas</li>
+        <li>JARBAS continua sendo seu ponto de entrada principal</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- VERDICT -->
+  <div class="verdict">
+    <h3>🎯 Veredicto Final</h3>
+    <p style="color:var(--muted); font-size:14px; margin-top:8px; max-width:600px; margin-left:auto; margin-right:auto;">
+      A arquitetura que você idealizou é <strong style="color:var(--green);">100% viável</strong>. Você não precisa de dois bots agora — precisa que o JARBAS pare de travar usando a fila que já existe. O Mac Mini vira o executor invisível (Jana lógica), o Air vira o orquestrador. Dobra a capacidade sem dobrar a complexidade. Renomear para Jana é opcional e pode ser feito depois sem pressa.
+    </p>
+    <div style="margin-top:16px; display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <div style="background:var(--surface); border:1px solid var(--green); border-radius:8px; padding:10px 16px; font-size:13px; color:var(--green);">✅ Duas máquinas ativas em paralelo</div>
+      <div style="background:var(--surface); border:1px solid var(--green); border-radius:8px; padding:10px 16px; font-size:13px; color:var(--green);">✅ JARBAS nunca trava no Telegram</div>
+      <div style="background:var(--surface); border:1px solid var(--green); border-radius:8px; padding:10px 16px; font-size:13px; color:var(--green);">✅ Mac Mini 24/7 sem mudanças</div>
+      <div style="background:var(--surface); border:1px solid var(--green); border-radius:8px; padding:10px 16px; font-size:13px; color:var(--green);">✅ Skills 100% compartilhadas</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    🦞 JARBAS + 🌸 JANA · MdLab · 15 Mar 2026<br>
+    MacBook Air M4 (orchestrator) + Mac Mini M4 (worker) · Jana OS v1.0
+  </div>
+
+</div>
+</body>
+</html>

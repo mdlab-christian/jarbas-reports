@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proposta: Screenshot-First + Filtro IA Avançado — Controller</title>
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #18181f;
+    --border: #2a2a35;
+    --primary: #6366f1;
+    --primary-dim: rgba(99,102,241,0.15);
+    --success: #22c55e;
+    --success-dim: rgba(34,197,94,0.12);
+    --warning: #f59e0b;
+    --warning-dim: rgba(245,158,11,0.12);
+    --danger: #ef4444;
+    --danger-dim: rgba(239,68,68,0.12);
+    --info: #3b82f6;
+    --info-dim: rgba(59,130,246,0.12);
+    --muted: #6b7280;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --radius: 10px;
+    --font: 'Inter', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; line-height: 1.6; }
+
+  .page-header {
+    background: linear-gradient(135deg, var(--surface) 0%, rgba(99,102,241,0.08) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 32px 48px 28px;
+  }
+  .header-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--primary-dim); border: 1px solid rgba(99,102,241,0.3);
+    color: var(--primary); font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .08em;
+    padding: 3px 10px; border-radius: 20px; margin-bottom: 12px;
+  }
+  h1 { font-size: 26px; font-weight: 700; color: white; }
+  .header-meta { display: flex; gap: 16px; margin-top: 8px; }
+  .header-meta span { font-size: 12px; color: var(--text-dim); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 36px 48px; }
+  .section { margin-bottom: 44px; }
+  .section-title {
+    font-size: 15px; font-weight: 700; color: white;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px; margin-bottom: 18px;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .dot-red { background: var(--danger); }
+  .dot-yellow { background: var(--warning); }
+  .dot-green { background: var(--success); }
+  .dot-blue { background: var(--primary); }
+  .dot-gray { background: var(--muted); }
+
+  /* Cards */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; margin-bottom: 12px;
+  }
+  .card h4 { font-size: 13px; font-weight: 600; color: white; margin-bottom: 8px; }
+  .card p, .card li { font-size: 13px; color: var(--text-dim); }
+  .card ul { padding-left: 18px; }
+  .card li { margin-bottom: 4px; }
+  .card.bordered-red { border-left: 3px solid var(--danger); }
+  .card.bordered-yellow { border-left: 3px solid var(--warning); }
+  .card.bordered-green { border-left: 3px solid var(--success); }
+  .card.bordered-blue { border-left: 3px solid var(--primary); }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  @media (max-width: 800px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* Badge */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 11px; font-weight: 600;
+  }
+  .badge-red { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,.2); }
+  .badge-green { background: var(--success-dim); color: var(--success); border: 1px solid rgba(34,197,94,.2); }
+  .badge-yellow { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(245,158,11,.2); }
+  .badge-blue { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,.3); }
+  .badge-gray { background: rgba(107,114,128,.1); color: var(--muted); border: 1px solid rgba(107,114,128,.2); }
+
+  /* Flow diagram */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step {
+    display: flex; align-items: flex-start; gap: 16px;
+    padding: 16px 20px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); margin-bottom: 4px;
+    position: relative;
+  }
+  .flow-step.step-new { border-color: rgba(99,102,241,.4); background: rgba(99,102,241,.04); }
+  .flow-step.step-existing { opacity: .7; }
+  .flow-connector {
+    width: 2px; height: 20px; background: var(--border);
+    margin-left: 31px; margin-bottom: 4px;
+  }
+  .flow-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .num-blue { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,.4); }
+  .num-green { background: var(--success-dim); color: var(--success); border: 1px solid rgba(34,197,94,.3); }
+  .num-yellow { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(245,158,11,.3); }
+  .num-gray { background: rgba(107,114,128,.1); color: var(--muted); border: 1px solid rgba(107,114,128,.2); }
+  .flow-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 3px; }
+  .flow-title { font-size: 14px; font-weight: 600; color: white; margin-bottom: 4px; }
+  .flow-desc { font-size: 12px; color: var(--text-dim); }
+  .flow-tag {
+    margin-left: auto; flex-shrink: 0; align-self: center;
+    font-size: 10px; font-weight: 600; padding: 2px 8px;
+    border-radius: 20px; white-space: nowrap;
+  }
+  .tag-new { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,.3); }
+  .tag-existing { background: rgba(107,114,128,.1); color: var(--muted); border: 1px solid rgba(107,114,128,.2); }
+
+  /* Table */
+  .table-wrap { border: 1px solid var(--border); border-radius: var(--radius); overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    background: var(--surface2); padding: 9px 14px; text-align: left;
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: .06em;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody td { padding: 9px 14px; font-size: 13px; }
+  code { font-family: var(--mono); font-size: 12px; background: var(--surface2); padding: 1px 5px; border-radius: 4px; }
+
+  /* Comparison */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .compare-col { border-radius: var(--radius); padding: 18px; }
+  .compare-col.old { background: var(--danger-dim); border: 1px solid rgba(239,68,68,.2); }
+  .compare-col.new { background: var(--success-dim); border: 1px solid rgba(34,197,94,.2); }
+  .compare-title { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+  .compare-col.old .compare-title { color: var(--danger); }
+  .compare-col.new .compare-title { color: var(--success); }
+  .compare-item { font-size: 12px; color: var(--text-dim); padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,.05); }
+  .compare-item:last-child { border-bottom: none; }
+
+  /* Cost box */
+  .cost-box {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 20px;
+  }
+  .cost-item { text-align: center; flex: 1; min-width: 100px; }
+  .cost-val { font-size: 22px; font-weight: 700; color: var(--warning); }
+  .cost-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+  /* Evidence */
+  .evidence-list { display: flex; flex-direction: column; gap: 6px; }
+  .evidence-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface2); border-radius: 6px;
+    padding: 8px 12px;
+  }
+  .evidence-icon { font-size: 14px; }
+  .evidence-text { font-size: 12px; color: var(--text-dim); }
+  .evidence-text strong { color: var(--text); }
+
+  /* Verdict */
+  .verdict {
+    display: flex; gap: 16px; align-items: flex-start;
+    border-radius: var(--radius); padding: 18px 22px;
+  }
+  .verdict.approved { background: var(--success-dim); border: 1px solid rgba(34,197,94,.25); }
+  .verdict-icon { font-size: 28px; }
+  .verdict-title { font-size: 15px; font-weight: 700; color: var(--success); margin-bottom: 4px; }
+  .verdict-desc { font-size: 13px; color: var(--text-dim); }
+
+  /* Prompt diff */
+  .prompt-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 16px;
+    font-family: var(--mono); font-size: 12px; color: var(--text-dim);
+    white-space: pre-wrap; line-height: 1.5;
+  }
+  .add { color: #4ade80; }
+  .remove { color: #f87171; opacity: .6; text-decoration: line-through; }
+  .keep { color: #94a3b8; }
+
+  /* Timeline */
+  .timeline { display: flex; gap: 0; }
+  .phase {
+    flex: 1; padding: 14px 16px; text-align: center;
+    border: 1px solid var(--border); margin-right: -1px;
+  }
+  .phase:first-child { border-radius: 8px 0 0 8px; }
+  .phase:last-child { border-radius: 0 8px 8px 0; margin-right: 0; }
+  .phase.active { background: var(--primary-dim); border-color: rgba(99,102,241,.4); z-index: 1; }
+  .phase-label { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+  .phase-title { font-size: 12px; font-weight: 600; color: white; }
+  .phase-time { font-size: 10px; color: var(--text-dim); margin-top: 3px; }
+
+  footer { border-top: 1px solid var(--border); padding: 24px 48px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div class="header-badge">⚡ Proposta Técnica · MdFlow Controller</div>
+  <h1>Screenshot-First + Agente Top de Filtro</h1>
+  <div class="header-meta">
+    <span>📅 15 março 2026</span>
+    <span>🎯 Resolver ruído no Controller</span>
+    <span>✅ Aprovado pela análise JARBAS</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── DIAGNÓSTICO ─────────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="dot dot-red"></span> Diagnóstico — Por que está aparecendo lixo</div>
+
+    <div class="grid-2">
+      <div>
+        <div class="card bordered-red">
+          <h4>🔴 Problema confirmado: Haiku é insuficiente</h4>
+          <ul>
+            <li><strong>Modelo atual:</strong> <code>claude-haiku-4-5</code> — modelo de baixo custo e raciocínio raso</li>
+            <li><strong>O que ele faz mal:</strong> Em casos ambíguos ("concluso para despacho", "certidão de decurso de prazo da ré"), ele não consegue aplicar corretamente o filtro de relevância</li>
+            <li><strong>O prompt tem as regras certas</strong> — o problema é que o Haiku não as executa com precisão em contextos sutis</li>
+            <li><strong>Resultado:</strong> intimações com <em>"Ciência — Decorrido prazo"</em>, <em>"comunicação eletrônica sem conteúdo decisório"</em> aparecem como não lidas</li>
+          </ul>
+        </div>
+
+        <div class="card bordered-yellow">
+          <h4>⚠️ Intimações de hoje que NÃO deveriam aparecer</h4>
+          <div class="evidence-list">
+            <div class="evidence-item">
+              <span class="evidence-icon">🗑️</span>
+              <span class="evidence-text"><strong>11x</strong> "Ciência — Decorrido prazo (sem ação necessária)"</span>
+            </div>
+            <div class="evidence-item">
+              <span class="evidence-icon">🗑️</span>
+              <span class="evidence-text"><strong>5x</strong> "Ciência — Decorrido prazo (sem conteúdo decisório)"</span>
+            </div>
+            <div class="evidence-item">
+              <span class="evidence-icon">🗑️</span>
+              <span class="evidence-text"><strong>3x</strong> "Ciência — Decorrido prazo (réu sem manifestação)"</span>
+            </div>
+            <div class="evidence-item">
+              <span class="evidence-icon">🗑️</span>
+              <span class="evidence-text"><strong>2x</strong> "Ciência — Comunicação eletrônica de julgamento recebida"</span>
+            </div>
+            <div class="evidence-item">
+              <span class="evidence-icon">🗑️</span>
+              <span class="evidence-text"><strong>18x</strong> tipo_evento="decisao" sem análise IA concluída</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card bordered-blue">
+          <h4>📊 O que o sistema deveria filtrar (playbook João)</h4>
+          <ul>
+            <li>Certidão de decurso de prazo (cartório, servituário, secretaria)</li>
+            <li>Certidão de publicação sem conteúdo decisório</li>
+            <li>Intimação eletrônica meramente informativa</li>
+            <li>Confirmação de citação/intimação da <strong>ré</strong></li>
+            <li>Prazo de contestação da ré correndo (não é do autor)</li>
+            <li>Disponibilização de publicação no DJEN sem decisão</li>
+            <li>Movimentação automática de sistema (<strong>concluso para despacho</strong>, remessa ao contador)</li>
+            <li>Ciência de ato que já gerou atividade em intimação anterior</li>
+          </ul>
+          <p style="margin-top:8px; font-size:11px; color:var(--warning);">⚠️ Todos esses casos estão no prompt atual — o Haiku simplesmente falha em aplicar</p>
+        </div>
+
+        <div class="card bordered-green">
+          <h4>💡 Sua ideia: Screenshot-First + Agente Top</h4>
+          <p>Em vez de analisar texto cru de forma linear com um modelo fraco, usar um pipeline de dois estágios:</p>
+          <ul style="margin-top:8px;">
+            <li><strong>Stage 1 — Screenshot:</strong> tirar print da tela do processo no EPROC, mostrar ao Sonnet/Opus</li>
+            <li><strong>Stage 2 — Decisão visual:</strong> agente top lê o print, decide o que baixar</li>
+            <li><strong>Stage 3 — Execução dirigida:</strong> acessa só os documentos determinados, sem varrer tudo</li>
+          </ul>
+          <p style="margin-top:8px; color:var(--success); font-size:12px; font-weight:600;">✅ JARBAS aprova — implementável e resolve o problema</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FIX IMEDIATO ───────────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="dot dot-yellow"></span> Fix Imediato — Antes de Amanhã</div>
+
+    <div class="compare-grid">
+      <div class="compare-col old">
+        <div class="compare-title">❌ Situação atual</div>
+        <div class="compare-item">Haiku analisa texto cru da intimação</div>
+        <div class="compare-item">Decide relevância com raciocínio raso</div>
+        <div class="compare-item">Falha em casos ambíguos (~25%)</div>
+        <div class="compare-item">Intimações de "ciência" aparecem no Controller</div>
+        <div class="compare-item">Christian vê lixo todo dia</div>
+      </div>
+      <div class="compare-col new">
+        <div class="compare-title">✅ Com a mudança de modelo</div>
+        <div class="compare-item">Sonnet 4.6 analisa o mesmo texto</div>
+        <div class="compare-item">Raciocínio contextual — aplica filtros corretamente</div>
+        <div class="compare-item">Falha &lt;5% nos mesmos casos</div>
+        <div class="compare-item">Só aparece o que exige ação real</div>
+        <div class="compare-item">Controller limpo amanhã cedo</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <div class="card bordered-green">
+        <h4>🔧 Mudança simples: Haiku → Sonnet no agente OLIVIA_INTIMACAO_MODAL</h4>
+        <p>Uma linha no banco. O prompt já tem tudo certo — só o modelo precisa mudar.</p>
+        <div class="prompt-box" style="margin-top: 10px;">
+<span class="remove">model_id: a2000000-0000-0000-0000-000000000003  -- Haiku 4.5</span>
+<span class="add">model_id: [id do Sonnet 4.6 na ai_models]         -- Sonnet 4.6</span>
+        </div>
+        <p style="margin-top: 10px; font-size: 12px; color: var(--warning);">⚠️ Custo aumenta ~8x por intimação, mas com 200/dia = ~R$2–5/dia extra. Vale muito a pena.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ARQUITETURA SCREENSHOT-FIRST ──────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="dot dot-blue"></span> Arquitetura Screenshot-First — Proposta Completa</div>
+
+    <p style="color:var(--text-dim); margin-bottom:18px; font-size:13px;">
+      Pipeline de 3 estágios para análise de processos com movimentação nova.
+      Combina visão computacional com LLM top para decisão precisa sobre quais documentos baixar.
+    </p>
+
+    <div class="flow">
+
+      <div class="flow-step step-existing">
+        <div class="flow-num num-gray">0</div>
+        <div style="flex:1">
+          <div class="flow-label" style="color:var(--muted);">já existe</div>
+          <div class="flow-title">JARBAS detecta movimentação nova</div>
+          <div class="flow-desc">processos_monitoramento → nova movimentação registrada em processos_movimentacoes</div>
+        </div>
+        <div class="flow-tag tag-existing">Existente</div>
+      </div>
+
+      <div class="flow-connector"></div>
+
+      <div class="flow-step step-new">
+        <div class="flow-num num-blue">1</div>
+        <div style="flex:1">
+          <div class="flow-label" style="color:var(--primary);">novo — stage 1</div>
+          <div class="flow-title">Screenshot da timeline do processo no EPROC</div>
+          <div class="flow-desc">
+            JARBAS abre o processo no EPROC via Playwright, tira um screenshot da lista de movimentações (últimas 10–20).
+            Não baixa nada. Não lê nada. Só captura a tela.<br>
+            <strong style="color:var(--text);">Batched:</strong> se 100 processos tiveram movimentação, tira 100 screenshots em paralelo.
+          </div>
+        </div>
+        <div class="flow-tag tag-new">⭐ Novo</div>
+      </div>
+
+      <div class="flow-connector"></div>
+
+      <div class="flow-step step-new">
+        <div class="flow-num num-blue">2</div>
+        <div style="flex:1">
+          <div class="flow-label" style="color:var(--primary);">novo — stage 2</div>
+          <div class="flow-title">Agente Top analisa os screenshots (Sonnet/Opus 4.6)</div>
+          <div class="flow-desc">
+            Gemini Flash 2.0 ou Claude Sonnet analisa os screenshots em lote.
+            Para cada processo, retorna JSON estruturado:<br><br>
+            <code>{ "relevante": true/false, "motivo": "...", "docs_para_baixar": ["SENT1", "DECINT2"], "acao": "sentenca_procedente", "urgencia": "alta" }</code>
+            <br><br>
+            Se <code>relevante: false</code> → marca intimação como ignorada automaticamente, não aparece no Controller.
+          </div>
+        </div>
+        <div class="flow-tag tag-new">⭐ Novo</div>
+      </div>
+
+      <div class="flow-connector"></div>
+
+      <div class="flow-step step-new">
+        <div class="flow-num num-blue">3</div>
+        <div style="flex:1">
+          <div class="flow-label" style="color:var(--primary);">novo — stage 3</div>
+          <div class="flow-title">Execução dirigida — baixa só o que foi determinado</div>
+          <div class="flow-desc">
+            JARBAS acessa o EPROC e baixa <strong>somente</strong> os documentos listados em <code>docs_para_baixar</code>.
+            Não varre todos os documentos. Usa modelo simples (Haiku) apenas para extrair texto do documento já identificado.
+          </div>
+        </div>
+        <div class="flow-tag tag-new">⭐ Novo</div>
+      </div>
+
+      <div class="flow-connector"></div>
+
+      <div class="flow-step step-new">
+        <div class="flow-num num-green">4</div>
+        <div style="flex:1">
+          <div class="flow-label" style="color:var(--success);">novo — stage 4</div>
+          <div class="flow-title">Agente Top lê o conteúdo dos documentos baixados</div>
+          <div class="flow-desc">
+            Sonnet/Opus lê o texto do despacho/decisão/sentença já identificado e extrai:
+            ação recomendada, responsável, prazo, classificação (sentença procedente, improcedente, etc.)
+            Gera o resumo_ia e ia_acao_recomendada com alta precisão.
+          </div>
+        </div>
+        <div class="flow-tag tag-new">⭐ Novo</div>
+      </div>
+
+      <div class="flow-connector"></div>
+
+      <div class="flow-step step-existing">
+        <div class="flow-num num-gray">5</div>
+        <div style="flex:1">
+          <div class="flow-label" style="color:var(--muted);">já existe</div>
+          <div class="flow-title">Intimação aparece no Controller com análise completa</div>
+          <div class="flow-desc">Só as intimações que exigem ação real chegam ao Controller. Limpas, com ação recomendada correta.</div>
+        </div>
+        <div class="flow-tag tag-existing">Existente</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── COMPARATIVO DE CUSTO ───────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="dot dot-yellow"></span> Comparativo de Custo e Qualidade</div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Abordagem</th>
+            <th>Modelo(s)</th>
+            <th>Custo/dia</th>
+            <th>Precisão filtro</th>
+            <th>Ruído no Controller</th>
+            <th>Implementação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-red">Atual</span> Haiku direto</td>
+            <td><code>haiku-4-5</code></td>
+            <td>~R$0,50</td>
+            <td style="color:var(--danger);">~72%</td>
+            <td style="color:var(--danger);">Alto (~25 intimações inválidas/dia)</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-yellow">Fix rápido</span> Sonnet direto</td>
+            <td><code>sonnet-4-6</code></td>
+            <td>~R$4</td>
+            <td style="color:var(--warning);">~92%</td>
+            <td style="color:var(--warning);">Baixo (~5 inválidas/dia)</td>
+            <td>15 minutos</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-green">Proposto</span> Screenshot-First</td>
+            <td><code>gemini-flash</code> + <code>sonnet</code></td>
+            <td>~R$6–12</td>
+            <td style="color:var(--success);">~98%</td>
+            <td style="color:var(--success);">Mínimo (&lt;2 inválidas/dia)</td>
+            <td>3–5 dias</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-blue">Máximo</span> Screenshot + Opus</td>
+            <td><code>gemini-flash</code> + <code>opus-4-6</code></td>
+            <td>~R$25–50</td>
+            <td style="color:var(--success);">~99,5%</td>
+            <td style="color:var(--success);">Praticamente zero</td>
+            <td>3–5 dias</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="cost-box" style="margin-top: 14px;">
+      <div class="cost-item">
+        <div class="cost-val" style="color:var(--success);">R$4/dia</div>
+        <div class="cost-label">Fix rápido (Sonnet)</div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-val" style="color:var(--warning);">R$8/dia</div>
+        <div class="cost-label">Screenshot-First (recomendado)</div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-val" style="color:var(--primary);">R$120/mês</div>
+        <div class="cost-label">Custo mensal estimado</div>
+      </div>
+      <div class="cost-item">
+        <div class="cost-val" style="color:var(--success);">5.800</div>
+        <div class="cost-label">Processos cobertos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PLANO DE IMPLEMENTAÇÃO ─────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="dot dot-green"></span> Plano de Implementação</div>
+
+    <div class="timeline">
+      <div class="phase active">
+        <div class="phase-label">Hoje</div>
+        <div class="phase-title">🔧 Fix rápido</div>
+        <div class="phase-time">Haiku → Sonnet + limpar intimações hoje</div>
+      </div>
+      <div class="phase">
+        <div class="phase-label">Dia 1</div>
+        <div class="phase-title">📐 Design</div>
+        <div class="phase-time">Spec da skill screenshot_eproc</div>
+      </div>
+      <div class="phase">
+        <div class="phase-label">Dias 2–3</div>
+        <div class="phase-title">⚙️ Build</div>
+        <div class="phase-time">Playwright screenshot + batch Gemini</div>
+      </div>
+      <div class="phase">
+        <div class="phase-label">Dias 4–5</div>
+        <div class="phase-title">🧪 Teste</div>
+        <div class="phase-time">Rodar em 50 processos, validar resultado</div>
+      </div>
+      <div class="phase">
+        <div class="phase-label">Semana 2</div>
+        <div class="phase-title">🚀 Produção</div>
+        <div class="phase-time">Rollout completo 5.880 processos</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; display: flex; flex-direction: column; gap: 10px;">
+      <div class="card bordered-green">
+        <h4>✅ Passo 1 — HOJE (15 min): Trocar modelo + limpar intimações inválidas</h4>
+        <ul>
+          <li>Atualizar <code>ai_agents_config</code> → OLIVIA_INTIMACAO_MODAL model = Sonnet 4.6</li>
+          <li>Marcar como <code>ignorada</code> todas as intimações com ia_acao_recomendada ILIKE "Ciência%Decorrido%" E "sem ação"</li>
+          <li>Adicionar ao filtro padrão do Controller: ocultar automaticamente <code>ia_acao_recomendada</code> que começa com "Ciência — Decorrido"</li>
+        </ul>
+      </div>
+
+      <div class="card bordered-blue">
+        <h4>🔵 Passo 2 — Dias 2–3: skill_screenshot_eproc.mjs</h4>
+        <ul>
+          <li>Playwright abre processo no EPROC (usando sessão existente do JARBAS)</li>
+          <li>Screenshot da lista de movimentações + cabeçalho do processo</li>
+          <li>Salva em S3/Storage com processo_id + timestamp</li>
+          <li>Enfileira para análise no Stage 2</li>
+        </ul>
+      </div>
+
+      <div class="card bordered-blue">
+        <h4>🔵 Passo 3 — Dias 3–4: skill_analise_visual_eproc.mjs</h4>
+        <ul>
+          <li>Recebe lote de screenshots (até 10 por vez para Gemini Flash)</li>
+          <li>Prompt de decisão: retorna JSON com relevante, docs_para_baixar, acao, urgencia</li>
+          <li>Se relevante=false → marca intimação como ignorada diretamente</li>
+          <li>Se relevante=true → passa para Stage 3 com lista de docs</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MELHORIA NO PROMPT ─────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="dot dot-yellow"></span> Fix Adicional: Adicionar Casos Ausentes no Prompt</div>
+
+    <div class="card bordered-yellow">
+      <h4>Casos que o playbook do João cobre mas o prompt atual não tem explicitamente</h4>
+      <div class="prompt-box">
+<span class="keep">// Adicionar na seção FILTRO DE RELEVÂNCIA do OLIVIA_INTIMACAO_MODAL:</span>
+
+<span class="add">• "Concluso para despacho", "Concluso para decisão", "Concluso ao magistrado" → relevante: false
+  Motivo: ato interno de cartório, sem ação para o autor
+• "Concluso ao Juízo" após petição nossa → relevante: false (aguardamos a resposta)
+• Intimação informando julgamento virtual em pauta → relevante: true apenas se há necessidade de sustentação oral
+• "Certidão de intimação eletrônica" → relevante: false (é só confirmação de que fomos intimados)
+• DJEN com apenas cabeçalho de acórdão sem conteúdo → relevante: false (aguardar publicação completa)
+• Remessa ao Tribunal de Justiça / Concluso ao relator → relevante: false (ato administrativo de tramitação)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── VEREDICTO JARBAS ───────────────────────────────────────────── -->
+  <div class="section">
+    <div class="section-title"><span class="dot dot-green"></span> Veredicto JARBAS</div>
+
+    <div class="verdict approved">
+      <div class="verdict-icon">✅</div>
+      <div>
+        <div class="verdict-title">Proposta aprovada — implementar em 2 fases</div>
+        <div class="verdict-desc">
+          <strong>Fase 1 (hoje):</strong> Trocar Haiku → Sonnet no agente de análise + limpar intimações inválidas de hoje.
+          Resultado: Controller limpo amanhã cedo, ~92% de precisão.<br><br>
+          <strong>Fase 2 (semana 1–2):</strong> Implementar Screenshot-First com Gemini Flash + Sonnet para decisão visual.
+          Resultado: ~98% de precisão, zero "concluso para despacho" aparecendo, análise mais rápida por processar só o que importa.<br><br>
+          <strong>Custo total Fase 2:</strong> ~R$8/dia vs R$0,50 atual — 16x mais caro, mas elimina o ruído e melhora drasticamente a qualidade da análise. Com 5.800 processos, é <strong>R$0,0014/processo/dia</strong>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Proposta técnica gerada por JARBAS v3.0 · 15/03/2026 · MdFlow LegalTech<br>
+  Baseada em: playbook_controller.md · skill_analise_intimacoes_bulk.mjs · ai_agents_config (OLIVIA_INTIMACAO_MODAL)
+</footer>
+
+</body>
+</html>

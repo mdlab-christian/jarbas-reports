@@ -442,6 +442,109 @@ JARBAS_ROLE=orchestrator
   </div>
 </div>
 
+<!-- UPGRADE JARBAS -->
+<h2>⚡ Upgrade do JARBAS — Multi-tarefa Real</h2>
+
+<p>Além da fila paralela, o JARBAS precisa de um upgrade geral para lidar com múltiplas tarefas simultâneas de forma eficiente. Isso inclui o Claude Code — hoje ele usa sempre o mesmo processo sequencial.</p>
+
+<div class="warn">
+  <h4>⚠️ Como o Claude Code funciona hoje</h4>
+  <p>A <code>skill_claude_code.mjs</code> usa <code>claude --print</code> — spawn de processo filho, sem sessão persistente. Cada chamada cria um processo novo, executa e descarta. Isso significa: se duas tarefas chamam o Claude Code ao mesmo tempo, os processos concorrem por recursos e saída de terminal. Não há isolamento real.</p>
+</div>
+
+<h3>Mudanças do upgrade</h3>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">U1</div>
+    <div><strong>Claude Code — processo isolado por tarefa</strong> <span class="tag p2">P2 · ~1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Cada tarefa que chama Claude Code inicia seu próprio processo isolado com diretório de trabalho e env separados. Sem concorrência de saída, sem interferência.</p>
+    <pre>// skill_claude_code.mjs — isolamento por tarefa:
+async function runClaudeIsolado(prompt, { taskId, workDir }) {
+  const sessionDir = path.join(HOME, '.claude-sessions', taskId);
+  await fs.mkdir(sessionDir, { recursive: true });
+  
+  return spawn('claude', ['--print', '--dangerously-skip-permissions'], {
+    cwd: workDir || HOME + '/beta-mdflow',
+    env: { ...cleanEnv, CLAUDE_SESSION_DIR: sessionDir },
+    stdio: ['pipe', 'pipe', 'pipe']
+  });
+  // Cada processo tem seu próprio stdout/stderr — zero interferência
+}</pre>
+    <div class="note">Com o task-consumer paralelo (3 workers), podem ter 3 processos Claude Code rodando ao mesmo tempo — um por worker, todos isolados.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">U2</div>
+    <div><strong>Pool de sessões Claude Code pré-aquecidas</strong> <span class="tag p3">P3 · futuro</span></div>
+  </div>
+  <div class="step-b">
+    <p>O maior custo de latência hoje é o cold start do Claude Code (carregar contexto, SOUL.md, CLAUDE.md). Com sessões pré-aquecidas, a primeira tarefa não precisa esperar o bootstrap.</p>
+    <pre>// Conceito: manter N sessões ativas prontas para receber tarefas
+class ClaudePool {
+  constructor(size = 3) {
+    this.pool = []; // sessões abertas esperando trabalho
+    this.warmUp(size);
+  }
+  
+  async getSession() {
+    return this.pool.pop() || this.createSession();
+  }
+  
+  async warmUp(n) {
+    for (let i = 0; i < n; i++) {
+      this.pool.push(await this.createSession()); // pré-carrega contexto
+    }
+  }
+}</pre>
+    <div class="note">Fase 3 — implementar depois que a fila paralela estiver funcionando. Reduz latência de ~8s para ~1s no início de cada tarefa Claude Code.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--accent);color:#fff;">U3</div>
+    <div><strong>JARBAS como orquestrador puro — não executa, delega</strong> <span class="tag p2">P2 · design</span></div>
+  </div>
+  <div class="step-b">
+    <p>O upgrade principal não é técnico — é de design. JARBAS deve identificar automaticamente se uma tarefa é rápida (responde inline) ou pesada (enfileira). Regra clara:</p>
+    <table>
+      <tr><th>Tarefa</th><th>Tempo estimado</th><th>Comportamento</th></tr>
+      <tr><td>Status, consulta, memória</td><td>&lt;5s</td><td>Inline — responde direto</td></tr>
+      <tr><td>Análise simples, relatório</td><td>5-30s</td><td>Inline com timeout guard</td></tr>
+      <tr><td>Lapidação, EPROC, vídeo, OlivIA</td><td>&gt;30s</td><td>Enfileira → "✅ enfileirado"</td></tr>
+      <tr><td>Qualquer Claude Code</td><td>variável</td><td>Sempre enfileira</td></tr>
+    </table>
+    <pre>// Detecção automática no router do JARBAS:
+const HEAVY_SKILLS = new Set([
+  'lapidar_pagina', 'revisao_pagina', 'claude_code', 'openclaw_agent',
+  'olivia_gerar_peticao', 'analise_juridica', 'analisar_video',
+  'captura_intimacoes', 'importar_processo', 'e2e_test'
+]);
+
+if (HEAVY_SKILLS.has(skill)) {
+  await enfileirar(skill, payload);
+  return "✅ Enfileirado — te aviso quando terminar";
+} else {
+  return await executarInline(skill, payload);
+}</pre>
+  </div>
+</div>
+
+<div class="ok">
+  <h4>✅ Resultado do upgrade completo</h4>
+  <ul>
+    <li><strong>6 workers paralelos</strong> (3 por máquina) — cada um com seu Claude Code isolado</li>
+    <li><strong>JARBAS nunca bloqueia</strong> — qualquer tarefa pesada é delegada em &lt;2 segundos</li>
+    <li><strong>Claude Code escalável</strong> — pode ter 6 processos rodando simultaneamente</li>
+    <li><strong>Sessões pré-aquecidas</strong> (fase 3) — latência mínima no início de cada tarefa</li>
+  </ul>
+</div>
+
 <!-- TUNNEL -->
 <h2>🌐 Tunnel Cloudflare — Compartilhar ou Separar?</h2>
 

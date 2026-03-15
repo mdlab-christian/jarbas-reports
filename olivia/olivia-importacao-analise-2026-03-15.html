@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>OlivIA — Análise de Importação & Plano de Reimportação</title>
+<style>
+  :root {
+    --ok: #16a34a; --warn: #d97706; --err: #dc2626; --info: #2563eb;
+    --bg: #0f172a; --card: #1e293b; --border: #334155;
+    --text: #f1f5f9; --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; padding: 32px; }
+  h1 { font-size: 1.8rem; margin-bottom: 4px; }
+  .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 32px; }
+  h2 { font-size: 1.1rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 32px 0 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .stat .val { font-size: 2rem; font-weight: 700; }
+  .stat .lbl { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+  .ok { color: var(--ok); } .warn { color: var(--warn); } .err { color: var(--err); } .info { color: var(--info); }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 0.75rem; font-weight: 600; }
+  .badge-ok { background: #14532d; color: #86efac; }
+  .badge-warn { background: #78350f; color: #fcd34d; }
+  .badge-err { background: #7f1d1d; color: #fca5a5; }
+  .badge-info { background: #1e3a5f; color: #93c5fd; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; padding: 8px 12px; color: var(--muted); border-bottom: 1px solid var(--border); font-weight: 500; }
+  td { padding: 8px 12px; border-bottom: 1px solid #1e293b; }
+  tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; background: #1e293b; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 0.75rem; margin: 2px; }
+  .sep { border-top: 1px solid var(--border); margin: 24px 0; }
+  .step { display: flex; gap: 16px; margin-bottom: 20px; align-items: flex-start; }
+  .step-num { background: var(--info); color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; font-size: 0.85rem; }
+  .step-body h3 { font-size: 1rem; margin-bottom: 4px; }
+  .step-body p { color: var(--muted); font-size: 0.875rem; line-height: 1.5; }
+  .verdict { border-left: 4px solid var(--ok); padding-left: 16px; }
+  .verdict.warn { border-color: var(--warn); }
+  .verdict.err { border-color: var(--err); }
+  .highlight { background: #1e3a5f; border: 1px solid #2563eb; border-radius: 8px; padding: 12px 16px; margin: 12px 0; }
+  ul.checks li { padding: 4px 0; color: var(--muted); font-size: 0.875rem; }
+  ul.checks li::before { content: '→ '; color: var(--warn); }
+  ul.checks li.ok::before { content: '✓ '; color: var(--ok); }
+  ul.checks li.err::before { content: '✗ '; color: var(--err); }
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+  code { background: #0f172a; border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; font-family: monospace; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<h1>🔬 OlivIA — Análise de Importação</h1>
+<p class="sub">Diagnóstico completo do banco atual + plano de reimportação · 15/03/2026</p>
+
+<!-- ═══════════════ ESTADO ATUAL ═══════════════ -->
+<h2>📊 Estado Atual do Banco</h2>
+<div class="grid">
+  <div class="stat"><div class="val ok">14</div><div class="lbl">Tipos de Petição</div></div>
+  <div class="stat"><div class="val ok">183</div><div class="lbl">Tags</div></div>
+  <div class="stat"><div class="val ok">1.000+</div><div class="lbl">Blocos de Texto</div></div>
+  <div class="stat"><div class="val ok">329</div><div class="lbl">Modelos (versões)</div></div>
+  <div class="stat"><div class="val ok">167</div><div class="lbl">Grupos de Modelos</div></div>
+  <div class="stat"><div class="val ok">1.000+</div><div class="lbl">Jurisprudências</div></div>
+  <div class="stat"><div class="val warn">1.000+</div><div class="lbl">Vínculos modelo↔tag</div></div>
+  <div class="stat"><div class="val err">0</div><div class="lbl">Vínculos modelo↔juris</div></div>
+</div>
+
+<!-- ═══════════════ DIAGNÓSTICO DOS VÍNCULOS ═══════════════ -->
+<h2>🔴 Problemas Identificados</h2>
+
+<div class="card">
+  <h3 class="err" style="margin-bottom:16px">Problema #1 — categoria_empresa_id NULO em 100% dos modelos</h3>
+  <table>
+    <tr><th>Tabela</th><th>Campo</th><th>Com valor</th><th>Sem valor</th><th>Impacto</th></tr>
+    <tr>
+      <td><code>olivia_modelos_grupo</code></td>
+      <td><code>categoria_empresa_id</code></td>
+      <td class="ok">0 / 167</td>
+      <td class="err">167 / 167 (100%)</td>
+      <td class="err">SmartBlocks não filtra por empresa</td>
+    </tr>
+    <tr>
+      <td><code>olivia_blocos_texto</code></td>
+      <td><code>categoria_empresa_id</code></td>
+      <td class="ok">0 / 1000</td>
+      <td class="err">1000 / 1000 (100%)</td>
+      <td class="err">Blocos não filtram por empresa</td>
+    </tr>
+    <tr>
+      <td><code>olivia_tags</code></td>
+      <td><code>secao_id</code></td>
+      <td class="warn">173 / 183</td>
+      <td class="warn">10 / 183</td>
+      <td class="warn">10 tags órfãs sem seção</td>
+    </tr>
+  </table>
+  <div class="highlight" style="margin-top:16px">
+    <strong>Root cause:</strong> A importação copiou os dados do banco antigo mas <strong>não mapeou</strong> o campo <code>categoria_empresa_id</code> (que no banco antigo era derivado do nome da empresa no processo, não uma FK explícita). O campo existe no schema novo mas ficou <code>null</code>.
+  </div>
+</div>
+
+<div class="card">
+  <h3 class="err" style="margin-bottom:16px">Problema #2 — olivia_modelo_juris vazia (0 registros)</h3>
+  <p style="color:var(--muted); margin-bottom:12px">Os vínculos entre modelos e jurisprudências não foram importados. As 1.000+ jurisprudências estão no banco mas desvinculadas de qualquer modelo.</p>
+  <div class="highlight">
+    <strong>Impacto:</strong> Modo Express e Modo Agente não encontram jurisprudências contextuais para enriquecer as petições geradas.
+  </div>
+</div>
+
+<div class="card">
+  <h3 class="warn" style="margin-bottom:16px">Problema #3 — Tags duplicadas sem vínculo de tipo_peticao</h3>
+  <p style="color:var(--muted); margin-bottom:12px">Tags com nomes iguais existem intencionalmente (ex: "Preliminares" para BV vs "Preliminares" para Telefonia). Correto. Mas sem o <code>secao_id</code> e sem o vínculo por <code>categoria_empresa_id</code>, o SmartBlocks não consegue filtrar quais tags mostrar para cada tipo de empresa.</p>
+  <table style="margin-top:8px">
+    <tr><th>Tag (exemplo)</th><th>Código</th><th>secao_id</th></tr>
+    <tr><td>(Serviço de crédito) Preliminares</td><td>preliminares_servico_de_credito</td><td class="err">NULL</td></tr>
+    <tr><td>(Telefonia) Preliminares</td><td>preliminares_telefonia</td><td class="err">NULL</td></tr>
+    <tr><td>(Correspondência com Extratos) Preliminares</td><td>preliminares_correspondencia_...</td><td class="err">NULL</td></tr>
+  </table>
+</div>
+
+<div class="card">
+  <h3 class="warn" style="margin-bottom:16px">Problema #4 — Modelos grupo sem categoria detectável</h3>
+  <p style="color:var(--muted); margin-bottom:12px">A categoria está <strong>embutida no nome</strong> do modelo (ex: "[BV]", "[Lojas]", "[Telefonia]") mas não está no campo <code>categoria_empresa_id</code>. O frontend não consegue filtrar modelos por categoria de empresa no Step 1 do gerador.</p>
+  <div class="two-col" style="margin-top:12px">
+    <div>
+      <p style="color:var(--muted); font-size:.8rem; margin-bottom:6px">Categorias detectáveis pelo nome:</p>
+      <table>
+        <tr><th>Padrão no nome</th><th>Categoria</th><th>Qtd modelos</th></tr>
+        <tr><td>[BV]</td><td>Instituições Financeiras</td><td>~20</td></tr>
+        <tr><td>[Lojas]</td><td>Lojas</td><td>2</td></tr>
+        <tr><td>[Mercado Livre]</td><td>Mercado Livre</td><td>2</td></tr>
+        <tr><td>[Telefonia]</td><td>Telefonia e Internet</td><td>2</td></tr>
+        <tr><td>[Cessão]</td><td>Cessão</td><td>2</td></tr>
+        <tr><td>[Energia]</td><td>Energia Elétrica</td><td>2</td></tr>
+      </table>
+    </div>
+    <div>
+      <p style="color:var(--muted); font-size:.8rem; margin-bottom:6px">IDs empresas_categorias confirmados:</p>
+      <table>
+        <tr><th>Nome</th><th>ID</th></tr>
+        <tr><td>Instituições Financeiras</td><td><code>1bf519a7</code></td></tr>
+        <tr><td>Telefonia e Internet</td><td><code>b4cbc785</code></td></tr>
+        <tr><td>Mercado Livre</td><td><code>97ef9f16</code></td></tr>
+        <tr><td>Cessão</td><td><code>3b1015e1</code></td></tr>
+        <tr><td>Lojas</td><td><code>7c878456</code></td></tr>
+        <tr><td>Energia Elétrica</td><td><code>6c67927b</code></td></tr>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ VEREDICTO ═══════════════ -->
+<h2>⚖️ Veredicto: Reimportar ou Corrigir In-Place?</h2>
+
+<div class="two-col">
+  <div class="card verdict warn">
+    <h3 class="warn" style="margin-bottom:12px">❌ Opção A — Reimportar do zero</h3>
+    <p style="color:var(--muted); font-size:.875rem; margin-bottom:12px">DELETE em cascata de todos os dados OlivIA + reimportação do banco antigo com mapeamento correto.</p>
+    <ul class="checks">
+      <li class="err">Risco alto: histórico de geração (olivia_historico) zerado</li>
+      <li class="err">Threads de chat perdidas</li>
+      <li class="err">Análises existentes perdidas</li>
+      <li class="warn">Tempo: 2-3h de importação completa</li>
+      <li class="warn">Só necessário se os dados estiverem corrompidos estruturalmente</li>
+      <li class="ok">Parte boa: banco limpo, sem lixo acumulado</li>
+    </ul>
+    <div class="highlight" style="margin-top:12px">
+      <strong>Conclusão:</strong> NÃO necessário. Os dados estão corretos — só faltam vínculos.
+    </div>
+  </div>
+
+  <div class="card verdict" style="border-color: var(--ok)">
+    <h3 class="ok" style="margin-bottom:12px">✅ Opção B — Correção cirúrgica in-place</h3>
+    <p style="color:var(--muted); font-size:.875rem; margin-bottom:12px">UPDATEs direcionados para preencher os campos vazios sem apagar nada.</p>
+    <ul class="checks">
+      <li class="ok">Histórico e threads preservados</li>
+      <li class="ok">Dados corretos — só vínculos faltando</li>
+      <li class="ok">Tempo: ~30 min de SQL</li>
+      <li class="ok">Reversível (pode desfazer se errar)</li>
+      <li class="ok">Sem risco de perda de dados</li>
+    </ul>
+    <div class="highlight" style="margin-top:12px">
+      <strong>Conclusão:</strong> ✅ Esta é a solução definitiva. Corrigir os 4 problemas via SQL.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ PLANO DE EXECUÇÃO ═══════════════ -->
+<h2>🛠️ Plano de Execução — Correção Cirúrgica</h2>
+
+<div class="card">
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h3>Popular categoria_empresa_id em olivia_modelos_grupo via nome</h3>
+      <p>Detectar padrões no nome do modelo ([BV], [Lojas], [Telefonia]...) e fazer UPDATE com os IDs corretos de <code>empresas_categorias</code>. Modelos sem padrão detectável ficam com NULL (genéricos, aparecem para todos).</p>
+      <div class="highlight" style="margin-top:8px; font-size:.8rem">
+        <strong>SQL:</strong><br>
+        <code>UPDATE olivia_modelos_grupo SET categoria_empresa_id = '1bf519a7...' WHERE nome ILIKE '%[BV]%' OR nome ILIKE '%BV Financ%';</code><br>
+        × 6 categorias detectáveis
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h3>Popular categoria_empresa_id em olivia_blocos_texto via tag_ids</h3>
+      <p>Cada bloco tem <code>tag_ids[]</code>. Cada tag tem o nome com o padrão de categoria (ex: "(Serviço de crédito) Preliminares"). Fazer UPDATE nos blocos herdando a categoria da sua tag principal.</p>
+      <div class="highlight" style="margin-top:8px; font-size:.8rem">
+        <strong>Estratégia:</strong> JOIN entre <code>olivia_blocos_texto.tag_ids[1]</code> e <code>olivia_tags.nome</code> → detectar categoria pelo nome da tag → UPDATE categoria_empresa_id.
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h3>Popular secao_id nas 10 tags órfãs</h3>
+      <p>As 10 tags sem <code>secao_id</code> precisam ser vinculadas à seção correta de <code>olivia_tags_secao</code>. UPDATE direto por código da tag.</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h3>Importar vínculos olivia_modelo_juris</h3>
+      <p>Reconstruir os vínculos modelo↔jurisprudência a partir do banco antigo. Se o banco antigo tiver a tabela equivalente, é um INSERT direto com mapeamento de IDs. Se não tiver, usar as <code>juris_ids[]</code> nos blocos como proxy para inferir quais jurisprudências cada modelo usa.</p>
+      <div class="highlight" style="margin-top:8px; font-size:.8rem">
+        <strong>Nota:</strong> Verificar se <code>olivia_blocos_texto.juris_ids</code> já contém os vínculos (campo existe no schema).
+      </div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">5</div>
+    <div class="step-body">
+      <h3>Validar filtragem no SmartBlocks</h3>
+      <p>Após os UPDATEs, testar: Step 1 → selecionar empresa "BV" → modelos devem filtrar para Instituições Financeiras → Step 2 → tags e blocos devem aparecer filtrados corretamente.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ CHECKLIST FINAL ═══════════════ -->
+<h2>✅ Checklist de Execução</h2>
+<div class="card">
+  <table>
+    <tr>
+      <th>Item</th><th>Tabela</th><th>Ação</th><th>Complexidade</th><th>Status</th>
+    </tr>
+    <tr>
+      <td>categoria_empresa_id nos grupos</td>
+      <td><code>olivia_modelos_grupo</code></td>
+      <td>UPDATE por padrão de nome</td>
+      <td><span class="badge badge-ok">Baixa</span></td>
+      <td class="err">Pendente</td>
+    </tr>
+    <tr>
+      <td>categoria_empresa_id nos blocos</td>
+      <td><code>olivia_blocos_texto</code></td>
+      <td>UPDATE via tag_ids → nome tag</td>
+      <td><span class="badge badge-warn">Média</span></td>
+      <td class="err">Pendente</td>
+    </tr>
+    <tr>
+      <td>secao_id tags órfãs</td>
+      <td><code>olivia_tags</code></td>
+      <td>UPDATE 10 registros por código</td>
+      <td><span class="badge badge-ok">Baixa</span></td>
+      <td class="err">Pendente</td>
+    </tr>
+    <tr>
+      <td>Vínculos modelo↔juris</td>
+      <td><code>olivia_modelo_juris</code></td>
+      <td>INSERT a partir de juris_ids dos blocos</td>
+      <td><span class="badge badge-warn">Média</span></td>
+      <td class="err">Pendente</td>
+    </tr>
+    <tr>
+      <td>Filtro categoria no SmartBlocks Step 1</td>
+      <td>Frontend</td>
+      <td>Validar após SQLs</td>
+      <td><span class="badge badge-ok">Baixa</span></td>
+      <td class="warn">Após SQLs</td>
+    </tr>
+  </table>
+</div>
+
+<div class="card" style="margin-top:24px; border-color: var(--ok)">
+  <h3 class="ok" style="margin-bottom:8px">🎯 Recomendação Final</h3>
+  <p style="color: var(--muted); line-height: 1.6">
+    <strong style="color:var(--text)">NÃO reimportar do zero.</strong> Os dados estão íntegros. O problema é exclusivamente de vínculos faltantes — 
+    <code>categoria_empresa_id</code> nulo em 100% dos modelos e blocos, e <code>olivia_modelo_juris</code> vazia.<br><br>
+    A correção cirúrgica via SQL é mais segura, mais rápida e preserva todo o histórico.
+    <strong style="color:var(--text)"> Estimativa: 30 minutos de execução.</strong><br><br>
+    Confirma execução e JARBAS roda os SQLs diretamente via Management API.
+  </p>
+</div>
+
+<p style="color:var(--muted); font-size:.75rem; margin-top:32px; text-align:center">JARBAS · OlivIA Analysis · 15/03/2026</p>
+
+</body>
+</html>

@@ -617,6 +617,167 @@ echo "🔄 Sync Air iniciado em background"</pre>
   </div>
 </div>
 
+<!-- OTIMIZAÇÕES -->
+<h2>🔧 Otimizações do Sistema Atual</h2>
+
+<p style="color:var(--muted);font-size:13px;margin-bottom:16px;">Analisei o código real do JARBAS e identifiquei oportunidades de melhoria além do plano principal.</p>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--red);color:#fff;">O1</div>
+    <div><strong>POLL_INTERVAL: 5s → 1s quando há tarefas, 5s quando idle</strong> <span class="tag p1">P1 · 15min · impacto imediato</span></div>
+  </div>
+  <div class="step-b">
+    <p>Hoje o worker espera 5 segundos entre polls independente se tem tarefas ou não. Com poll adaptativo, quando a fila tem tarefas ele verifica a cada 1s — reduz latência de início de tarefa de até 5s para quase zero.</p>
+    <pre>// task-consumer.mjs — poll adaptativo:
+let consecutiveEmpty = 0;
+const pollDelay = () => consecutiveEmpty > 3
+  ? POLL_INTERVAL        // 5s quando idle
+  : 1_000;               // 1s quando tem trabalho
+
+// No loop:
+if (!tarefa?.id) {
+  consecutiveEmpty++;
+  await sleep(pollDelay());
+} else {
+  consecutiveEmpty = 0; // reset quando encontra tarefa
+}</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--red);color:#fff;">O2</div>
+    <div><strong>Watchdog no Air também</strong> <span class="tag p1">P1 · 20min</span></div>
+  </div>
+  <div class="step-b">
+    <p>O Mini já tem <code>com.mdx.jarbas-watchdog.plist</code> que reinicia o JARBAS se cair. O Air precisa do mesmo — sem watchdog, se o processo morrer no Air, os 4 workers somem silenciosamente.</p>
+    <pre># Copiar e adaptar o plist do Mini para o Air:
+scp jarbas@100.78.173.81:~/Library/LaunchAgents/com.mdx.jarbas-watchdog.plist \
+    ~/Library/LaunchAgents/com.mdx.jarbas-watchdog.plist
+launchctl load ~/Library/LaunchAgents/com.mdx.jarbas-watchdog.plist</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--yellow);color:#000;">O3</div>
+    <div><strong>INTER_TASK_DELAY: 3s → dinâmico por tipo de skill</strong> <span class="tag p2">P2 · 30min</span></div>
+  </div>
+  <div class="step-b">
+    <p>Hoje há 3 segundos fixos entre qualquer tarefa. Faz sentido para EPROC (anti-detecção), mas não para análise IA ou lapidação. Com delay dinâmico, tarefas IA começam imediatamente.</p>
+    <pre>const INTER_TASK_DELAY_BY_TYPE = {
+  importar_processo: 5_000,   // anti-bot EPROC
+  captura_intimacoes: 5_000,
+  distribuir: 3_000,
+  default: 500,               // tudo mais: 0.5s
+};</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--yellow);color:#000;">O4</div>
+    <div><strong>Heartbeat do Air reportando para o mesmo Supabase</strong> <span class="tag p2">P2 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Hoje só o Mini reporta heartbeat. O Air precisa reportar também com <code>host_name=macbook</code>. Assim o Mission Control mostra os dois como nós distintos com status independente.</p>
+    <pre>// heartbeat.mjs no Air — usar INSTANCE_ID diferente:
+const INSTANCE_ID = process.env.INSTANCE_ID || 'macbook-air-m4';
+// Vai aparecer como segundo registro no jarbas_heartbeat</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--yellow);color:#000;">O5</div>
+    <div><strong>Alerta automático quando fila acumula</strong> <span class="tag p2">P2 · 30min</span></div>
+  </div>
+  <div class="step-b">
+    <p>Se a fila de tarefas pendentes passar de 10 itens, JARBAS te avisa no Telegram. Indica que os workers estão sobrecarregados ou que houve burst de tarefas.</p>
+    <pre>// No heartbeat.mjs — verificar tamanho da fila:
+const { count } = await supabase
+  .from('jarbas_tarefas')
+  .select('*', { count: 'exact', head: true })
+  .eq('status', 'pendente');
+
+if (count > 10) {
+  await notify(CHAT_ID, `⚠️ Fila com ${count} tarefas pendentes — workers ocupados`);
+}</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--yellow);color:#000;">O6</div>
+    <div><strong>Versão do JARBAS sincronizada entre máquinas</strong> <span class="tag p2">P2 · 20min</span></div>
+  </div>
+  <div class="step-b">
+    <p>Hoje o heartbeat reporta versão <code>2.6.0</code> no Mini. Com git como fonte de verdade, ambas as máquinas sempre reportam a mesma versão (do package.json). Se Air estiver desatualizado, heartbeat detecta e avisa.</p>
+    <pre>// heartbeat.mjs — versão do package.json:
+const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+const VERSION = pkg.version; // sempre sincronizado com git</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--blue);color:#fff;">O7</div>
+    <div><strong>Fila com Supabase Realtime (push) em vez de polling</strong> <span class="tag p3">P3 · 2h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Hoje os workers fazem polling a cada 1-5s. Com Supabase Realtime, o banco notifica o worker instantaneamente quando uma nova tarefa é inserida — latência zero, sem CPU desperdiçado em polls vazios.</p>
+    <pre>// task-consumer.mjs — Realtime trigger:
+supabase.channel('nova-tarefa')
+  .on('postgres_changes', {
+    event: 'INSERT', schema: 'public', table: 'jarbas_tarefas',
+    filter: `status=eq.pendente`
+  }, () => workerPool.signal()) // acorda worker ocioso
+  .subscribe();</pre>
+    <div class="note">Mais elegante, mas polling funciona perfeitamente. Implementar quando quiser refinar.</div>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--blue);color:#fff;">O8</div>
+    <div><strong>Logs estruturados por sessão no jarbas_logs</strong> <span class="tag p3">P3 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>A tabela <code>jarbas_logs</code> existe mas os logs vão só para o console. Estruturar logs de tarefas no Supabase permite ver no Mission Control o que exatamente aconteceu em cada execução — qual etapa falhou, quanto tempo cada parte levou.</p>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--blue);color:#fff;">O9</div>
+    <div><strong>Compressão automática de contexto antes de lapidações longas</strong> <span class="tag p3">P3 · 1h</span></div>
+  </div>
+  <div class="step-b">
+    <p>O JARBAS já tem <code>skill_comprimir_contexto.mjs</code>. Antes de cada lapidação pesada (que vai consumir muito contexto), comprimir automaticamente o histórico da sessão — evita atingir limite de contexto no meio da execução.</p>
+    <pre>// Antes de iniciar lapidação:
+if (estimatedTokens > 150_000) {
+  await comprimirContexto(chatId);
+  await notify(chatId, "🗜️ Contexto comprimido para liberar espaço para a lapidação");
+}</pre>
+  </div>
+</div>
+
+<div class="step">
+  <div class="step-h">
+    <div class="step-n" style="background:var(--blue);color:#fff;">O10</div>
+    <div><strong>Task batching — agrupar tarefas similares</strong> <span class="tag p3">P3 · 2h</span></div>
+  </div>
+  <div class="step-b">
+    <p>Se você manda "lapida /olivia", "lapida /controller" e "lapida /processos" em sequência rápida, em vez de criar 3 tarefas separadas, agrupa em uma missão com 3 sub-tarefas. Um worker gerencia o lote inteiro, com progresso consolidado.</p>
+    <pre>// Detectar burst de comandos similares no mesmo minuto:
+if (tarefasRecentes.filter(t => t.tipo === skill).length >= 2) {
+  return criarMissao([...tarefasRecentes, novaTarefa]);
+}</pre>
+    <div class="note">Reduz overhead de fila e facilita acompanhamento no Mission Control.</div>
+  </div>
+</div>
+
 <div class="verdict">
   <h3>🎯 Veredicto Final</h3>
   <p style="color:var(--muted);font-size:14px;max-width:700px;margin:0 auto;">

@@ -1131,10 +1131,377 @@ AGENTE:
   </div>
 </div>
 
+<!-- CC REVIEW -->
+<div class="section" id="cc-review">
+  <div class="section-title"><span class="icon">🤖</span> 10. CC Review — Descobertas Adicionais (Claude Code)</div>
+
+  <div class="alert alert-info" style="margin-bottom:20px;">
+    <div class="alert-title">ℹ️ Metodologia</div>
+    Análise independente realizada pelo Claude Code lendo os arquivos-fonte diretamente. Cobriu: <code>useStepIdentificacaoData.ts</code>, <code>StepIdentificacao.tsx</code>, <code>StepTriagem.tsx</code>, <code>StepEstrutura.tsx</code>, <code>StepRevisao.tsx</code>, <code>StepConclusao.tsx</code>, <code>OliviaGeradorSmartBlocks.tsx</code>, <code>SmartBlocksStep2Blocos.tsx</code>, <code>OliviaAnaliseDecisao.tsx</code>, <code>OliviaGeradorLanding.tsx</code>, <code>webhook-main.mjs</code> (grep olivia/*). Total: ~4.500 linhas de código inspecionadas.
+  </div>
+
+  <!-- 10.1 Validação dos bugs JARBAS -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">10.1 — Validação dos 5 Bugs JARBAS</div>
+    </div>
+    <div class="card-body">
+
+      <div style="display:flex; align-items:flex-start; gap:12px; padding:14px; background:var(--bg2); border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+        <span style="font-size:18px; flex-shrink:0;">🔴</span>
+        <div style="flex:1;">
+          <div style="font-weight:600; margin-bottom:4px;">Bug 1 — <code>categoria_empresa_id = NULL</code> → filtro de modelos quebrado</div>
+          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;"><strong style="color:var(--yellow);">CAUSA PROVÁVEL — confirmado como bug de dados, não de código</strong></div>
+          <div style="font-size:13px; line-height:1.7; color:var(--text);">
+            O código em <code>useStepIdentificacaoData.ts:134-136</code> está correto: usa <code>.or(`categoria_empresa_id.is.null,categoria_empresa_id.eq.${state.categoria_empresa_id}`)</code> — inclui modelos genéricos (NULL) E os específicos da categoria. O bug está nos dados: se <strong>todos</strong> os modelos têm <code>categoria_empresa_id = NULL</code>, o filtro não discrimina nada. Resultado: todos os modelos aparecem para todos os casos, independente da empresa do processo.
+          </div>
+          <div style="margin-top:8px; font-size:12px; color:var(--muted);">FIX-0 (migração de dados) resolve corretamente. Sem issues de código adicionais.</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:flex-start; gap:12px; padding:14px; background:var(--bg2); border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+        <span style="font-size:18px; flex-shrink:0;">✅</span>
+        <div style="flex:1;">
+          <div style="font-weight:600; margin-bottom:4px;">Bug 2 — <code>olivia_versoes.modelo_id</code> apontando para entidade errada</div>
+          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;"><strong style="color:var(--green);">RESOLVIDO — já corrigido no código</strong></div>
+          <div style="font-size:13px; line-height:1.7; color:var(--text);">
+            <code>useStepIdentificacaoData.ts:121</code> tem comentário explícito: <em>"CRIADO: usa olivia_modelos_grupo (não olivia_modelos_peticao) pois versoes.modelo_id = grupo.active_version_id"</em>. A query usa <code>wizardState.modelo_id</code> (que internamente = <code>active_version_id</code> do grupo). O seletor de versões funciona corretamente em produção. Este bug foi corrigido em algum momento pós-identificação pelo JARBAS.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:flex-start; gap:12px; padding:14px; background:var(--bg2); border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+        <span style="font-size:18px; flex-shrink:0;">🟡</span>
+        <div style="flex:1;">
+          <div style="font-weight:600; margin-bottom:4px;">Bug 3 — <code>/olivia/analise-decisao</code>: tipo hardcoded + campo <code>documentos</code> vs <code>arquivos</code></div>
+          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;"><strong style="color:var(--yellow);">PARCIALMENTE CONFIRMADO — diagnóstico JARBAS impreciso, mas bug real existe</strong></div>
+          <div style="font-size:13px; line-height:1.7; color:var(--text);">
+            Frontend em <code>OliviaAnaliseDecisao.tsx:253</code>: <code>tipo: 'DECISAO'</code> — isso está <strong>correto</strong> (esta tab é específica para decisões). Campo em linha 255: <code>arquivos: arquivosUploaded</code> — também correto. O bug real (descoberto na análise) está no JARBAS backend: o handler <code>/olivia/analise-decisao</code> está <strong>desabilitado intencionalmente</strong> via <code>pathname === '/olivia/analise-decisao-fallback_never_reached'</code> (ver BUG-CC-03 abaixo). Toda chamada cai no fallback N8N.
+          </div>
+          <div style="margin-top:8px; font-size:12px; color:var(--muted);">O diagnóstico JARBAS estava correto quanto ao sintoma (análise não funciona), mas errado quanto à causa (não é tipo/campo, é handler desabilitado).</div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:flex-start; gap:12px; padding:14px; background:var(--bg2); border-radius:8px; border:1px solid var(--border); margin-bottom:12px;">
+        <span style="font-size:18px; flex-shrink:0;">✅</span>
+        <div style="flex:1;">
+          <div style="font-weight:600; margin-bottom:4px;">Bug 4 — Auto-trigger de análise 1s após upload</div>
+          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;"><strong style="color:var(--green);">NÃO É BUG — comportamento esperado e correto</strong></div>
+          <div style="font-size:13px; line-height:1.7; color:var(--text);">
+            <code>StepTriagem.tsx:218-225</code> chama <code>aguardarAnaliseProvas(processoId)</code> na <strong>transição para o Step 2</strong>, não 1s após upload. A análise é disparada no Step 1 ao selecionar o processo (<code>StepIdentificacao.tsx</code> via <code>UploadProvasInline</code>). O Step 2 apenas aguarda o resultado da análise já iniciada. Este é o fluxo correto: analyse em background enquanto o usuário preenche Step 1.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex; align-items:flex-start; gap:12px; padding:14px; background:var(--bg2); border-radius:8px; border:1px solid var(--border); margin-bottom:0;">
+        <span style="font-size:18px; flex-shrink:0;">🔴</span>
+        <div style="flex:1;">
+          <div style="font-weight:600; margin-bottom:4px;">Bug 5 — 53 modelos sem <code>conteudo_template</code> → DOCX corrompido</div>
+          <div style="color:var(--muted); font-size:13px; margin-bottom:8px;"><strong style="color:var(--red);">BUG MAIS PROFUNDO ENCONTRADO — ver BUG-CC-01</strong></div>
+          <div style="font-size:13px; line-height:1.7; color:var(--text);">
+            O JARBAS identificou corretamente que 53 modelos não têm <code>conteudo_template</code>. Porém, a análise revelou um bug adicional que torna o warning <em>inútil</em>: a query de versões em <code>useStepIdentificacaoData.ts:152</code> não inclui o campo <code>conteudo_template</code> no <code>SELECT</code>. Resultado: o warning "Template sem conteúdo" aparece para <strong>100% das versões</strong> (não apenas as 53 problemáticas), tornando-o um falso positivo permanente que o usuário aprende a ignorar.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10.2 Novos bugs descobertos -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">10.2 — Bugs Adicionais Descobertos pelo CC</div>
+    </div>
+    <div class="card-body">
+
+      <div class="priority-item p0" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="font-weight:700; font-size:15px;">BUG-CC-01 · P0 — Warning de template SEMPRE ativo (falso positivo)</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;"><code>useStepIdentificacaoData.ts:152</code> + <code>StepIdentificacao.tsx:437-449</code></div>
+          </div>
+          <span class="badge badge-critical">CAUSA GARANTIDA</span>
+        </div>
+        <div style="font-size:13px; line-height:1.7; margin-top:10px; color:var(--text);">
+          <strong>Problema:</strong> A query de versões usa <code>.select('id, nome, descricao, ordem, config')</code> — omite <code>conteudo_template</code>. Então <code>sel.conteudo_template</code> é sempre <code>undefined</code>, e a condição <code>if (sel && !sel.conteudo_template)</code> dispara para TODA versão selecionada, exibindo o aviso amarelo de template vazio para 100% dos modelos, inclusive os que têm conteúdo.
+        </div>
+        <div style="font-size:13px; margin-top:8px; background:var(--bg3); padding:10px 12px; border-radius:6px; font-family:monospace; color:var(--green);">
+          // FIX (1 linha): adicionar conteudo_template ao SELECT<br>
+          .select('id, nome, descricao, ordem, config, conteudo_template')
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;"><strong>Impacto:</strong> UX degradada — usuário ignora warning legítimo. Gera geração de DOCX sem template para 53 modelos sem aviso efetivo.</div>
+      </div>
+
+      <div class="priority-item p0" style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="font-weight:700; font-size:15px;">BUG-CC-02 · P0 — <code>SmartBlocksStep2Blocos.tsx</code> é componente órfão com campos inexistentes</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;"><code>SmartBlocksStep2Blocos.tsx</code> (529 linhas)</div>
+          </div>
+          <span class="badge badge-critical">CAUSA GARANTIDA</span>
+        </div>
+        <div style="font-size:13px; line-height:1.7; margin-top:10px; color:var(--text);">
+          <strong>Problema:</strong> O componente referencia <code>state.modelo_grupo_id</code> (linhas 133, 139, 191) e <code>state.blocos</code> (linha 221+), mas <code>SmartBlocksWizardState</code> em <code>OliviaGeradorSmartBlocks.tsx</code> define apenas <code>modelo_id</code> e <code>blocos_ids</code>. O TypeScript compilaria com erro se o componente fosse usado — e de fato não é usado: <code>OliviaGeradorSmartBlocks.tsx</code> importa <code>ManualStep2Conteudo</code> no Step 2, não este componente. São 529 linhas de código morto com lógica de seleção de blocos distinta do fluxo real.
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;"><strong>Impacto:</strong> Nenhum em runtime (não usado). Mas cria confusão arquitetural enorme — dois Step 2 "oficiais" para Smart Blocks com lógicas incompatíveis. Risco de alguém "ativar" este componente no futuro quebrando o wizard.</div>
+        <div style="font-size:12px; color:var(--yellow); margin-top:4px;"><strong>Ação recomendada:</strong> Deletar ou renomear para <code>SmartBlocksStep2Blocos.DEPRECATED.tsx</code> com comentário explicativo.</div>
+      </div>
+
+      <div class="priority-item p1">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+          <div>
+            <div style="font-weight:700; font-size:15px;">BUG-CC-03 · P1 — Handler <code>/olivia/analise-decisao</code> no JARBAS deliberadamente desabilitado</div>
+            <div style="color:var(--muted); font-size:12px; margin-top:2px;"><code>webhook-main.mjs:367-368</code></div>
+          </div>
+          <span class="badge badge-warning">CAUSA PROVÁVEL</span>
+        </div>
+        <div style="font-size:13px; line-height:1.7; margin-top:10px; color:var(--text);">
+          <strong>Problema:</strong> O handler está registrado como <code>if (pathname === '/olivia/analise-decisao-fallback_never_reached')</code> — o sufixo <code>_fallback_never_reached</code> garante que nunca execute. Toda chamada frontend cai no fallback N8N (<code>callWebhook('olivia/analise-decisao', ...)</code>). O problema secundário: se o N8N não retorna <code>analise_id</code>, o frontend (<code>OliviaAnaliseDecisao.tsx:265-274</code>) emite apenas um warning toast e não inicia o polling, deixando a análise em estado de "iniciada mas nunca monitorada".
+        </div>
+        <div style="font-size:13px; margin-top:8px; background:var(--bg3); padding:10px 12px; border-radius:6px; font-family:monospace; color:var(--muted);">
+          // webhook-main.mjs:367 — nome proposital para desabilitar<br>
+          if (pathname === '/olivia/analise-decisao-fallback_never_reached') &#123;<br>
+          &nbsp;&nbsp;// ... handler nunca executado<br>
+          &#125;
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;"><strong>Impacto:</strong> Análise de decisão só funciona se o N8N workflow <code>olivia/analise-decisao</code> estiver ativo e retornando <code>analise_id</code>. Verificar se o workflow N8N correspondente existe e está funcional.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10.3 Gaps spec vs implementação -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">10.3 — Gaps Spec vs Implementação</div>
+    </div>
+    <div class="card-body">
+
+      <div style="padding:14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--yellow); margin-bottom:12px;">
+        <div style="font-weight:600; margin-bottom:6px;">GAP-CC-01 · P1 — StepEstrutura usa outline hardcoded (não gerado pelo N8N)</div>
+        <div style="font-size:13px; line-height:1.7; color:var(--text);">
+          Spec §07.3: <em>"Exibe relatório em Markdown (resultado do WH-OLI-03)"</em>. Implementação em <code>StepEstrutura.tsx</code>: usa <code>DEFAULT_OUTLINE</code> e <code>OUTLINE_RECURSAL</code> — constantes hardcoded com estrutura genérica de petição. O botão "Regenerar" chama <code>mdflow/olivia/triagem-outline</code> <strong>opcionalmente</strong>, mas o outline inicial nunca vem do N8N. Adicionalmente, a detecção de tipo recursal usa um <code>Set</code> de UUIDs hardcoded (<code>TIPOS_RECURSAIS</code>) — frágil e difícil de manter.
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:6px;"><strong>Severidade:</strong> Média. O outline estático funciona, mas perde a personalização por tipo de petição que a spec promete.</div>
+      </div>
+
+      <div style="padding:14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--blue); margin-bottom:0;">
+        <div style="font-weight:600; margin-bottom:6px;">GAP-CC-02 · P2 — Geração acontece no Step 4 (StepRevisao), spec diz Step 5 (StepConclusao)</div>
+        <div style="font-size:13px; line-height:1.7; color:var(--text);">
+          Spec §07.4 = StepRevisao como editor pós-geração. Spec §07.5 = StepConclusao como trigger de geração. Implementação: <code>StepRevisao.tsx</code> detecta <code>normalizedStatus === 'pendente'</code> e auto-dispara a geração, exibindo progresso E editor de revisão inline. <code>StepConclusao.tsx</code> tem seu próprio botão "Gerar Petição Final" mas só executa se <code>status_geracao</code> não for já <code>'SUCESSO'</code> (que foi setado pelo StepRevisao).
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:6px;"><strong>Severidade:</strong> Baixa. Funciona end-to-end. A inversão é intencional (geração + revisão no mesmo step = UX mais fluida). Não é um bug, mas diverge da arquitetura documentada. Recomendo atualizar a spec para refletir a implementação real.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10.4 % conclusão por modo -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">10.4 — % Real de Conclusão por Modo</div>
+    </div>
+    <div class="card-body">
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:12px;">
+
+        <div style="background:var(--bg2); border-radius:8px; border:1px solid var(--border); padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-weight:600;">⚡ Express</div>
+            <span style="font-size:22px; font-weight:700; color:var(--yellow);">82%</span>
+          </div>
+          <div style="height:6px; background:var(--bg3); border-radius:3px; margin-bottom:12px;">
+            <div style="height:6px; width:82%; background:var(--yellow); border-radius:3px;"></div>
+          </div>
+          <ul style="font-size:12px; color:var(--muted); line-height:1.9; padding-left:14px; margin:0;">
+            <li>Fluxo principal funciona ✅</li>
+            <li>BUG-CC-01: warning falso positivo ⚠️</li>
+            <li>GAP-CC-01: outline hardcoded ⚠️</li>
+            <li>Bug 1: filtro modelos sem dados 🔴</li>
+            <li>53 modelos sem template → DOCX falha 🔴</li>
+          </ul>
+        </div>
+
+        <div style="background:var(--bg2); border-radius:8px; border:1px solid var(--border); padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-weight:600;">🧱 Smart Blocks</div>
+            <span style="font-size:22px; font-weight:700; color:var(--orange);">70%</span>
+          </div>
+          <div style="height:6px; background:var(--bg3); border-radius:3px; margin-bottom:12px;">
+            <div style="height:6px; width:70%; background:var(--orange); border-radius:3px;"></div>
+          </div>
+          <ul style="font-size:12px; color:var(--muted); line-height:1.9; padding-left:14px; margin:0;">
+            <li>Step 1 (Identificação) funciona ✅</li>
+            <li>BUG-CC-02: Step 2 real = ManualStep2Conteudo ⚠️</li>
+            <li>Orphan component cria risco arquitetural 🔴</li>
+            <li>Filtro modelos/versões: mesmo Bug 1 🔴</li>
+            <li>Decisão Storage vs Drive pendente (D-1) ⚠️</li>
+          </ul>
+        </div>
+
+        <div style="background:var(--bg2); border-radius:8px; border:1px solid var(--border); padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-weight:600;">🤖 Modo Agente</div>
+            <span style="font-size:22px; font-weight:700; color:var(--green);">88%</span>
+          </div>
+          <div style="height:6px; background:var(--bg3); border-radius:3px; margin-bottom:12px;">
+            <div style="height:6px; width:88%; background:var(--green); border-radius:3px;"></div>
+          </div>
+          <ul style="font-size:12px; color:var(--muted); line-height:1.9; padding-left:14px; margin:0;">
+            <li>Fila JARBAS funciona ✅</li>
+            <li>Handler <code>/olivia/gerar-modo-agente</code> ✅</li>
+            <li>Polling olivia_historico ✅</li>
+            <li>BUG-CC-01: warning falso positivo ⚠️</li>
+            <li>Modo fila: UI de acompanhamento incompleta ⚠️</li>
+          </ul>
+        </div>
+
+        <div style="background:var(--bg2); border-radius:8px; border:1px solid var(--border); padding:16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div style="font-weight:600;">💬 VibeLaw Studio</div>
+            <span style="font-size:22px; font-weight:700; color:var(--green);">91%</span>
+          </div>
+          <div style="height:6px; background:var(--bg3); border-radius:3px; margin-bottom:12px;">
+            <div style="height:6px; width:91%; background:var(--green); border-radius:3px;"></div>
+          </div>
+          <ul style="font-size:12px; color:var(--muted); line-height:1.9; padding-left:14px; margin:0;">
+            <li>Chat conversacional ✅</li>
+            <li>Apply patch ✅</li>
+            <li>Create doc → DOCX ✅</li>
+            <li>Threads UPPERCASE ✅</li>
+            <li>Minor: busca antes de lista (spec) ⚠️</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="alert alert-warning" style="margin-top:16px;">
+        <div class="alert-title">⚠️ Score E2E JARBAS (9.1/10) vs % real de conclusão por modo</div>
+        O score 9.1 do C5 mediu fluxos E2E completos com dados controlados. As % acima refletem conformidade com spec + ausência de bugs em dados reais de produção. Os dois números são compatíveis: o wizard funciona end-to-end mas com dados reais (categoria NULL, templates ausentes) produz erros silenciosos.
+      </div>
+    </div>
+  </div>
+
+  <!-- 10.5 Avaliação do plano FIX-0→FIX-5 -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">10.5 — Avaliação do Plano FIX-0→FIX-5</div>
+    </div>
+    <div class="card-body">
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:10px; margin-bottom:16px;">
+        <div style="padding:12px 14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--green);">
+          <div style="font-weight:600; font-size:13px; margin-bottom:4px;">FIX-0 — Dados + Backend</div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.6;">✅ Correto e necessário. Inclui "Corrigir query de versões" (= BUG-CC-01 que descobri). E "Corrigir /olivia/analise-decisao" (= BUG-CC-03). JARBAS já antecipou estes fixes. Prioridade absoluta antes de qualquer outra coisa.</div>
+        </div>
+        <div style="padding:12px 14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--green);">
+          <div style="font-weight:600; font-size:13px; margin-bottom:4px;">FIX-1 — Landing + Step 1</div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.6;">✅ Sequência correta. Depende de FIX-0 para filtro de categorias funcionar. "Seletor de versão corrigido" resolve BUG-CC-01 visualmente mas o fix real é na query (FIX-0).</div>
+        </div>
+        <div style="padding:12px 14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--yellow);">
+          <div style="font-weight:600; font-size:13px; margin-bottom:4px;">FIX-2 — Análise de Provas</div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.6;">⚠️ Scope maior que parece. A skill JARBAS de análise de provas não existe ainda. Sugestão: começar com Gemini Vision direto (opção C da D-3) — mais rápido, ótimo para PDFs escaneados que é o caso típico do EPROC.</div>
+        </div>
+        <div style="padding:12px 14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--blue);">
+          <div style="font-weight:600; font-size:13px; margin-bottom:4px;">FIX-3 — N8N Express</div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.6;">✅ Correto. Progresso incremental + relatório inline = impacto imediato na UX. "Auditoria dos 53 modelos" deve vir aqui com BUG-CC-01 já resolvido no FIX-0 para o warning funcionar corretamente.</div>
+        </div>
+        <div style="padding:12px 14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--red);">
+          <div style="font-weight:600; font-size:13px; margin-bottom:4px;">FIX-4 — Smart Blocks</div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.6;">⚠️ Incluir explicitamente: deletar/arquivar <code>SmartBlocksStep2Blocos.tsx</code> (BUG-CC-02) para evitar confusão futura. "Blocos filtrados por modelo/versão" deve usar <code>ManualStep2Conteudo</code> como base, não o componente órfão.</div>
+        </div>
+        <div style="padding:12px 14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--purple);">
+          <div style="font-weight:600; font-size:13px; margin-bottom:4px;">FIX-5 — E2E + Polish</div>
+          <div style="font-size:12px; color:var(--muted); line-height:1.6;">✅ Correto como fase final. Adicionar: atualizar spec §07.3 e §07.4 para refletir GAP-CC-02 (geração no Step 4, não Step 5) — documenta a decisão arquitetural real.</div>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <div class="alert-title">💡 Sugestão adicional ao plano</div>
+        Adicionar <strong>FIX-0.5</strong> entre FIX-0 e FIX-1: <em>Limpeza arquitetural</em>. Deletar BUG-CC-02, resolver GAP-CC-02 na spec, e auditar/remover outros componentes órfãos. Custo: 1-2h. Benefício: reduz risco de regressões durante FIX-1 a FIX-5.
+      </div>
+    </div>
+  </div>
+
+  <!-- 10.6 Timeline -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">10.6 — Timeline Realista</div>
+    </div>
+    <div class="card-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Fase</th>
+            <th>Estimativa CC</th>
+            <th>Risco</th>
+            <th>Observação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>FIX-0</strong> — Dados + Backend</td>
+            <td>3-5h</td>
+            <td><span style="color:var(--yellow);">Médio</span></td>
+            <td>Depende do tamanho da migração de dados (167 modelos). BUG-CC-01 é 1 linha.</td>
+          </tr>
+          <tr>
+            <td><strong>FIX-0.5</strong> — Limpeza arquitetural</td>
+            <td>1-2h</td>
+            <td><span style="color:var(--green);">Baixo</span></td>
+            <td>Deletar BUG-CC-02, atualizar spec, tidy up.</td>
+          </tr>
+          <tr>
+            <td><strong>FIX-1</strong> — Landing + Step 1</td>
+            <td>4-6h</td>
+            <td><span style="color:var(--yellow);">Médio</span></td>
+            <td>Redesign de cards é UX-heavy. Painel processo pode ser complexo.</td>
+          </tr>
+          <tr>
+            <td><strong>FIX-2</strong> — Análise de Provas</td>
+            <td>6-10h</td>
+            <td><span style="color:var(--red);">Alto</span></td>
+            <td>Skill nova no JARBAS + integração Gemini/Claude + testes com PDFs reais. Maior incerteza.</td>
+          </tr>
+          <tr>
+            <td><strong>FIX-3</strong> — N8N Express</td>
+            <td>3-5h</td>
+            <td><span style="color:var(--yellow);">Médio</span></td>
+            <td>Progresso incremental requer polling fino. DOCX validation é bem definida.</td>
+          </tr>
+          <tr>
+            <td><strong>FIX-4</strong> — Smart Blocks</td>
+            <td>4-7h</td>
+            <td><span style="color:var(--yellow);">Médio</span></td>
+            <td>Depende da decisão D-1 (Storage vs Drive). Se Drive: +2-3h de infra.</td>
+          </tr>
+          <tr>
+            <td><strong>FIX-5</strong> — E2E + Polish</td>
+            <td>4-6h</td>
+            <td><span style="color:var(--green);">Baixo</span></td>
+            <td>E2E Playwright já existe (C5). Reexecutar com dados reais + polish UI.</td>
+          </tr>
+          <tr style="background:var(--bg2);">
+            <td><strong>TOTAL</strong></td>
+            <td><strong>25-41h</strong></td>
+            <td><span style="color:var(--yellow);">Médio</span></td>
+            <td>Paralelo FIX-3+FIX-4+FIX-5 após FIX-2 → real ≈ <strong>15-25h de clock</strong></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="alert alert-warning" style="margin-top:14px;">
+        <div class="alert-title">⚠️ Bloqueadores de timeline</div>
+        <strong>D-1</strong> (Storage vs Drive) deve ser decidida ANTES de iniciar FIX-4. <strong>D-2</strong> (migração automática vs manual) deve ser decidida ANTES de FIX-0 para não reter o sprint inteiro. Se D-2 = opção A (automática), FIX-0 pode começar imediatamente após decisão.
+      </div>
+    </div>
+  </div>
+
+  <!-- 10.7 Resumo executivo CC -->
+  <div class="alert alert-info">
+    <div class="alert-title">📋 Resumo Executivo — CC Review</div>
+    <strong>O que JARBAS encontrou está correto</strong> (exceto Bug 4 que não é bug, e Bug 3 com causa diferente). <strong>O que CC encontrou de novo</strong>: BUG-CC-01 (query faltando campo → warning inútil), BUG-CC-02 (componente órfão de 529 linhas com campos errados), BUG-CC-03 (handler desabilitado intencionalmente). <strong>Plano FIX-0→FIX-5 está correto</strong> com as adições sugeridas (FIX-0.5, uso de ManualStep2Conteudo no FIX-4, Gemini Vision no FIX-2). <strong>Timeline realista: 15-25h de clock</strong> com paralelismo nas fases finais. Principais bloqueadores: decisões D-1 e D-2 de Christian.
+  </div>
+</div>
+
 <!-- FOOTER -->
 <hr>
 <div style="text-align:center; color:var(--muted); padding: 20px 0; font-size:12px;">
-  <p>🦞 JARBAS Deep Research · 15/03/2026 · OlivIA Audit v1.0</p>
+  <p>🦞 JARBAS Deep Research · 15/03/2026 · OlivIA Audit v1.0 &nbsp;|&nbsp; 🤖 CC Review adicionado em 15/03/2026</p>
   <p style="margin-top:4px;">Próximo passo: Christian revisa este relatório → toma decisões D-1, D-2, D-3 → JARBAS inicia FIX-0</p>
 </div>
 

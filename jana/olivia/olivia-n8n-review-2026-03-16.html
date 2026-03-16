@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Workflows N8N | Análise JANA</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #7c6ef5;
+    --accent2: #5e9ef0;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --muted: #8892aa;
+    --code: #c4b5fd;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.6; }
+  
+  header { background: linear-gradient(135deg, #1a1d27 0%, #12152a 100%); border-bottom: 1px solid var(--border); padding: 32px 40px; }
+  header h1 { font-size: 26px; font-weight: 700; color: white; margin-bottom: 6px; }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--muted); font-size: 13px; }
+  .header-meta { display: flex; gap: 24px; margin-top: 16px; }
+  .meta-badge { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-size: 12px; }
+  .meta-badge strong { color: var(--accent); display: block; font-size: 18px; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 40px; }
+  
+  .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 16px; margin-top: 32px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 32px; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .summary-card .label { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .summary-card .value { font-size: 22px; font-weight: 700; color: white; }
+  .summary-card .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .wf-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  .wf-header { padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px; cursor: pointer; }
+  .wf-header:hover { background: var(--surface2); }
+  .wf-badge { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .badge-ok { background: rgba(74,222,128,0.12); }
+  .badge-warn { background: rgba(251,191,36,0.12); }
+  .badge-err { background: rgba(248,113,113,0.12); }
+  .wf-title { flex: 1; }
+  .wf-title h3 { font-size: 15px; font-weight: 600; color: white; margin-bottom: 4px; }
+  .wf-title .wf-id { font-family: monospace; font-size: 11px; color: var(--muted); }
+  .wf-title p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .wf-stats { display: flex; gap: 12px; align-items: center; flex-shrink: 0; }
+  .stat-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--muted); }
+  .status-ok { color: var(--green); font-weight: 600; }
+  .status-warn { color: var(--yellow); font-weight: 600; }
+  .status-err { color: var(--red); font-weight: 600; }
+
+  .wf-body { padding: 0 24px 24px; border-top: 1px solid var(--border); }
+  .wf-section { margin-top: 20px; }
+  .wf-section h4 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 12px; }
+  
+  .flow-steps { display: flex; flex-direction: column; gap: 6px; }
+  .flow-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; background: var(--surface2); border-radius: 8px; }
+  .step-num { width: 20px; height: 20px; background: var(--border); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: var(--muted); flex-shrink: 0; margin-top: 1px; }
+  .flow-step span { font-size: 13px; color: var(--text); }
+
+  .nodes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+  .node-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+  .node-item .node-name { font-weight: 600; font-size: 13px; color: white; margin-bottom: 2px; }
+  .node-item .node-type { font-family: monospace; font-size: 10px; color: var(--code); margin-bottom: 4px; }
+  .node-item .node-desc { font-size: 12px; color: var(--muted); }
+  .node-disabled { opacity: 0.4; }
+
+  .issues-list, .suggest-list { display: flex; flex-direction: column; gap: 6px; }
+  .issue-item { display: flex; gap: 8px; padding: 8px 12px; background: rgba(248,113,113,0.07); border: 1px solid rgba(248,113,113,0.2); border-radius: 8px; font-size: 13px; color: var(--text); }
+  .suggest-item { display: flex; gap: 8px; padding: 8px 12px; background: rgba(124,110,245,0.07); border: 1px solid rgba(124,110,245,0.2); border-radius: 8px; font-size: 13px; color: var(--text); }
+
+  .toggle-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 4px 8px; border-radius: 4px; margin-left: auto; }
+  .toggle-btn:hover { background: var(--border); }
+  
+  .wf-body { display: none; }
+  .wf-card.expanded .wf-body { display: block; }
+
+  code { background: var(--surface2); padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 12px; color: var(--code); }
+
+  .n8n-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 8px 14px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--accent); font-size: 12px; text-decoration: none; }
+  .n8n-link:hover { border-color: var(--accent); }
+
+  .expand-all { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; color: var(--text); cursor: pointer; font-size: 13px; margin-bottom: 20px; }
+  .expand-all:hover { border-color: var(--accent); color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>OlivIA — <span>Workflows N8N</span></h1>
+  <p>Análise node-por-node gerada por JANA 🌸 — 16/03/2026</p>
+  <div class="header-meta">
+    <div class="meta-badge"><strong>13</strong>workflows analisados</div>
+    <div class="meta-badge"><strong>11</strong>ativos / 2 stubs</div>
+    <div class="meta-badge"><strong>185+</strong>nodes no total</div>
+    <div class="meta-badge"><strong style="color:var(--yellow)">⚠️ 2</strong>stubs sem impl.</div>
+  </div>
+</header>
+
+<div class="container">
+
+<button class="expand-all" onclick="toggleAll()">▼ Expandir todos</button>
+
+<div class="wf-card" id="wf-2W3ge7XWZp1HKwGK">
+  <div class="wf-header" onclick="toggle('2W3ge7XWZp1HKwGK')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>OlivIA</h3>
+      <div class="wf-id">ID: 2W3ge7XWZp1HKwGK</div>
+      <p>Workflow principal da OlivIA. Recebe o payload completo (processo, triagem, blocos, modelo) e executa geração completa via OpenAI Assistants API com loop de polling. Inclui análise de documentos (PDF.co OCR), triagem contextual, redação por tipo de decisão e revisão final. Salva resultado em olivia_historico.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 99 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook recebe payload</span></div><div class="flow-step"><div class="step-num">2</div><span>Cria thread OpenAI</span></div><div class="flow-step"><div class="step-num">3</div><span>Adiciona mensagem com contexto completo</span></div><div class="flow-step"><div class="step-num">4</div><span>Executa Run → polling até completar</span></div><div class="flow-step"><div class="step-num">5</div><span>Se há documentos → PDF.co OCR → processa em batches</span></div><div class="flow-step"><div class="step-num">6</div><span>Sub-workflow triagem: gera perguntas contextuais</span></div><div class="flow-step"><div class="step-num">7</div><span>Sub-workflow resumo processo (GPT)</span></div><div class="flow-step"><div class="step-num">8</div><span>Switch por tipo de decisão (favorável/desfavorável/despacho)</span></div><div class="flow-step"><div class="step-num">9</div><span>Redação específica por tipo</span></div><div class="flow-step"><div class="step-num">10</div><span>Revisão pelo agente principal</span></div><div class="flow-step"><div class="step-num">11</div><span>UPDATE olivia_historico status=SUCESSO + texto_gerado</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (99 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/olivia/chat`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create thread</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `https://api.openai.com/v1/threads`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create message</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $json.id }}/messages`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create run</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread').item.json.id `</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get run status</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread').item.json.id `</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">If</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'strict',...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread').item.json.id `</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Switch1</div>
+          <div class="node-type">switch</div>
+          <div class="node-desc">Switch/roteamento por condições</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create run1</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('Webhook').item.json.body.thread_id }}/r`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait1</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get run status1</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('Webhook').item.json.body.thread_id }}/r`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">If1</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'strict',...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages1</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('Webhook').item.json.body.thread_id }}/m`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA1</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create message2</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('Webhook').item.json.body.thread_id }}/m`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Supabase</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase  em ``</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond to Webhook</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Supabase1</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase update em ``</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code1</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond to Webhook1</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA2</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA3</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Supabase2</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase get em ``</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">HTTP Request1</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `https://contato-27890.bubbleapps.io/version-test/api/1.1/wf/atualizar_conversa`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create thread1</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `https://api.openai.com/v1/threads`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create message1</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').item.json.id`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create run2</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait2</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get run status2</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">If2</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'strict',...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages2</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA4</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Supabase3</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase  em ``</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code2</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond to Webhook2</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA5</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[PDF.co] Extrair OCR</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `https://api.pdf.co/v1/pdf/convert/to/text`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Baixar .txt</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `={{ $json.url }}`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code3</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Loop Over Items</div>
+          <div class="node-type">splitInBatches</div>
+          <div class="node-desc">Divide em lotes de ?</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait3</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages3</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').item.json.id`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code4</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Loop Over Items1</div>
+          <div class="node-type">splitInBatches</div>
+          <div class="node-desc">Divide em lotes de ?</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait4</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code5</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create message3</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $json.id }}/messages`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create run3</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread - analise').ite`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait5</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get run status3</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread - analise').ite`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">If3</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'strict',...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages4</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread - analise').ite`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA6</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create thread - analise</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `https://api.openai.com/v1/threads`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Execute Workflow</div>
+          <div class="node-type">executeWorkflow</div>
+          <div class="node-desc">Executa sub-workflow `{'__rl': True, 'mode': 'list', 'value': 'MAF7cA23WY4Ik8aD', 'cachedResultName': '[SubWorkflow] - Create run & Get run Status'}`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields3</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Supabase4</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase  em ``</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code6</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond to Webhook3</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Extrair resposta da IA7</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[OpenAi] Create message - classificar tipo do arquivo (desfavoravel, favoravel, despacho)</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').item.json.id`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[GPT] Message - Extrair dados processo</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages5</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Execute Workflow1</div>
+          <div class="node-type">executeWorkflow</div>
+          <div class="node-desc">Executa sub-workflow `{'__rl': True, 'mode': 'list', 'value': 'MAF7cA23WY4Ik8aD', 'cachedResultName': '[SubWorkflow] - Create run & Get run Status'}`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code7</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields1</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages6</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code8</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields2</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[GPT] Message - Resumo processo</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Switch</div>
+          <div class="node-type">switch</div>
+          <div class="node-desc">Switch/roteamento por condições</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[GPT] Message: decisao_desfavoravel</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[GPT] Message: decisao_favoravel</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[GPT] Message: despacho</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages7</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Create thread1').first().json`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Execute Workflow2</div>
+          <div class="node-type">executeWorkflow</div>
+          <div class="node-desc">Executa sub-workflow `{'__rl': True, 'mode': 'list', 'value': 'MAF7cA23WY4Ik8aD', 'cachedResultName': '[SubWorkflow] - Create run & Get run Status'}`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields4</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code9</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields5</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields6</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create message4</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Thread - Agente principal').f`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code10</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Loop Over Items2</div>
+          <div class="node-type">splitInBatches</div>
+          <div class="node-desc">Divide em lotes de ?</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait6</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create run4</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Thread - Agente principal').f`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Wait7</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda (pause/resume)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get run status4</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Thread - Agente principal').f`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">If4</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'strict',...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Get messages8</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Thread - Agente principal').i`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code11</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Edit Fields7</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define campos: (dados)</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[OpenAi] Create message</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Thread - Agente principal').f`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Create message5</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP =POST → `=https://api.openai.com/v1/threads/{{ $('[Open ai] Thread - Agente principal').f`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">[Open ai] Thread - Agente principal</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `https://api.openai.com/v1/threads`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code12</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ buildProcessoContext() não popula joins quando processo vem via URL param → petição genérica (B1)</div><div class="issue-item">⚠️ 13 nodes de código — alto débito técnico</div><div class="issue-item">⚠️ 8 wait nodes — risco de timeout em processos longos</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Garantir que dados_processo chega com joins completos (clientes, empresas, advogados)</div><div class="suggest-item">💡 Adicionar fallback se context vem vazio: buscar processo direto no Supabase</div><div class="suggest-item">💡 Considerar dividir em sub-workflows menores (atualmente 99 nodes ativos)</div><div class="suggest-item">💡 13 nodes de código — verificar se podem ser simplificados</div><div class="suggest-item">💡 Usa wait/polling (8x) — monitorar timeouts</div><div class="suggest-item">💡 Workflow muito grande (>50 nodes) — considerar dividir em sub-workflows</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/2W3ge7XWZp1HKwGK" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-5H7icedAtJIia23i">
+  <div class="wf-header" onclick="toggle('5H7icedAtJIia23i')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>N8N-DIST-GERAR-PETICAO — OlivIA Async</h3>
+      <div class="wf-id">ID: 5H7icedAtJIia23i</div>
+      <p>Dispatcher assíncrono. Recebe POST do frontend com payload OlivIA, responde 200 imediatamente (evita timeout do frontend), e continua processando em background. Verifica modo (Express vs Agente) e roteia para o workflow correto.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 14 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook recebe POST /mdflow/olivia/express</span></div><div class="flow-step"><div class="step-num">2</div><span>Responde 200 imediato ao frontend</span></div><div class="flow-step"><div class="step-num">3</div><span>Valida payload (processo_id, modelo_id, tipo_peticao)</span></div><div class="flow-step"><div class="step-num">4</div><span>Switch: modo Express → OlivIA principal | modo Agente → JARBAS</span></div><div class="flow-step"><div class="step-num">5</div><span>Execute sub-workflow assíncrono</span></div><div class="flow-step"><div class="step-num">6</div><span>Error handler → UPDATE olivia_historico status=ERRO</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (14 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook: Gerar Petição</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/mdflow/distribuicao/gerar-peticao-inicial`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Validar + Init</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond Imediato</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">IF: Continuar?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'strict'}...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Buscar Processo</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">OlivIA → Petição</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Salvar Petição</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Log Conclusão</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Error Trigger</div>
+          <div class="node-type">errorTrigger</div>
+          <div class="node-desc">Node tipo `errorTrigger`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Error Handler</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">IF: Modo Agente?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'strict'}...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Chamar JARBAS Agente</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → `https://jarbas.jarbas-mdlab.com/olivia/gerar-modo-agente`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Log Agente</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Chamar JARBAS Doc</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ 8 nodes de código customizado — lógica de roteamento hardcoded</div><div class="issue-item">⚠️ Sem retry automático em caso de falha do sub-workflow</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Adicionar retry logic no dispatch</div><div class="suggest-item">💡 Centralizar validação de payload em 1 node Set</div><div class="suggest-item">💡 Log de início com timestamp para rastrear duração total</div><div class="suggest-item">💡 8 nodes de código — verificar se podem ser simplificados</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/5H7icedAtJIia23i" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-03-jelC6imeuusUdlY72i">
+  <div class="wf-header" onclick="toggle('03-jelC6imeuusUdlY72i')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>N8N-DIST-PETICAO — Gerar Petição Inicial</h3>
+      <div class="wf-id">ID: 03-jelC6imeuusUdlY72i</div>
+      <p>Geração de petição inicial via distribuição. Busca e valida dados do processo, constrói o contexto e monta response com dados completos do processo para alimentar a IA.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 14 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook recebe request</span></div><div class="flow-step"><div class="step-num">2</div><span>Busca processo no Supabase com joins</span></div><div class="flow-step"><div class="step-num">3</div><span>Valida se processo existe e tem dados</span></div><div class="flow-step"><div class="step-num">4</div><span>Constrói processo_context com cliente, empresa, advogado</span></div><div class="flow-step"><div class="step-num">5</div><span>Retorna payload estruturado para o workflow chamador</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (14 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook: Gerar Petição</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/mdflow/distribuicao/gerar_peticao`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Validate & Init</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Log Start</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Fetch & Validate</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">IF: Has Valid</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': ''}, 'conditions': [{'id': 'if-...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Build Response</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Build Empty Response</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Log Complete</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond: Resultado</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Error Trigger</div>
+          <div class="node-type">errorTrigger</div>
+          <div class="node-desc">Node tipo `errorTrigger`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Handle Error</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond: Erro</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Process All</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">IF-ValCheck</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': False, 'leftValue': '', 'typeValidation': 'loose'}...</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ 8 nodes de código — mesma lógica duplicada em outros workflows</div><div class="issue-item">⚠️ Sem tratamento explícito de processo sem advogado vinculado</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Unificar com N8N-PROC-OLIVIA-RESUMO em um único sub-workflow de contexto</div><div class="suggest-item">💡 Adicionar validação: se advogado ausente → retornar aviso ao frontend</div><div class="suggest-item">💡 8 nodes de código — verificar se podem ser simplificados</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/03-jelC6imeuusUdlY72i" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-2Yvg36Bzfss7g5KQ">
+  <div class="wf-header" onclick="toggle('2Yvg36Bzfss7g5KQ')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>WH-OLIVIA-RECURSO</h3>
+      <div class="wf-id">ID: 2Yvg36Bzfss7g5KQ</div>
+      <p>Geração de recursos jurídicos (apelação, agravo de instrumento, embargos, etc.). Valida tipo de recurso, roteia para sub-workflow específico e executa geração.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 5 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook recebe tipo_recurso + processo_id</span></div><div class="flow-step"><div class="step-num">2</div><span>Valida tipo (apelação/agravo/embargos/etc.)</span></div><div class="flow-step"><div class="step-num">3</div><span>Roteia para sub-workflow específico de cada recurso</span></div><div class="flow-step"><div class="step-num">4</div><span>Executa geração</span></div><div class="flow-step"><div class="step-num">5</div><span>Retorna resultado</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (5 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/olivia/recurso`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Validar e Rotear</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Executar Workflow</div>
+          <div class="node-type">executeWorkflow</div>
+          <div class="node-desc">Executa sub-workflow `={{ $json.workflowId }}`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Verificar Recurso Copia</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Responder</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Apenas 5 nodes — muito simples para a complexidade do domínio</div><div class="issue-item">⚠️ Sub-workflows específicos por tipo podem não existir ainda</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Expandir com lógica de contexto específica por tipo de recurso</div><div class="suggest-item">💡 Adicionar prazo automático conforme tipo (apelação=15d, agravo=15d, etc.)</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/2Yvg36Bzfss7g5KQ" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-0lcbMHTEwbyrrYAH">
+  <div class="wf-header" onclick="toggle('0lcbMHTEwbyrrYAH')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>N8N-PROC-OLIVIA-RESUMO</h3>
+      <div class="wf-id">ID: 0lcbMHTEwbyrrYAH</div>
+      <p>Sub-workflow chamado por outros. Recebe dados brutos do processo e usa GPT para extrair informações estruturadas: partes, valores, fundamentos, histórico processual.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 3 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Execute Workflow Trigger (chamado por outro WF)</span></div><div class="flow-step"><div class="step-num">2</div><span>GPT Message: prompt para extrair dados do processo</span></div><div class="flow-step"><div class="step-num">3</div><span>Retorna JSON estruturado com dados extraídos</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (3 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/mdflow/pagina_processo/gerar_resumo`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Gerar Resumo IA</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond to Webhook</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Muito simples (3 nodes) — sem fallback se GPT retornar formato errado</div><div class="issue-item">⚠️ Sem cache: cada geração re-processa o mesmo processo</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Adicionar validação do JSON retornado pelo GPT</div><div class="suggest-item">💡 Implementar cache simples: se processo já foi resumido → retornar cached</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/0lcbMHTEwbyrrYAH" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-9nTgWoQiU4FUIxQm">
+  <div class="wf-header" onclick="toggle('9nTgWoQiU4FUIxQm')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>N8N-OLIVIA-PETICAO-V3</h3>
+      <div class="wf-id">ID: 9nTgWoQiU4FUIxQm</div>
+      <p>Versão V3 do gerador de petição (alternativo/legado). Workflow mais simples, possivelmente usado como fallback ou para testes.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 7 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook</span></div><div class="flow-step"><div class="step-num">2</div><span>Busca dados</span></div><div class="flow-step"><div class="step-num">3</div><span>Processa com IA</span></div><div class="flow-step"><div class="step-num">4</div><span>Salva resultado</span></div><div class="flow-step"><div class="step-num">5</div><span>Retorna</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (7 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook OlivIA V3</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/olivia/gerar-peticao`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond 202</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Validar + Init</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Buscar Modelo + Preparar Input</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Executar SW-GERAR</div>
+          <div class="node-type">executeWorkflow</div>
+          <div class="node-desc">Executa sub-workflow `{'__rl': True, 'value': 'lXxs3xXg0UAtbcOu6v1h3', 'mode': 'id'}`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Error Handler</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Error Trigger</div>
+          <div class="node-type">errorTrigger</div>
+          <div class="node-desc">Node tipo `errorTrigger`</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Pode estar em conflito com o workflow principal OlivIA</div><div class="issue-item">⚠️ Não está claro quando é chamado vs o workflow principal</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Documentar quando usa V3 vs OlivIA principal</div><div class="suggest-item">💡 Se é legado — desativar para evitar confusão</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/9nTgWoQiU4FUIxQm" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-8yeCpY5EaEP5XQ9e">
+  <div class="wf-header" onclick="toggle('8yeCpY5EaEP5XQ9e')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>prod-olivia-express</h3>
+      <div class="wf-id">ID: 8yeCpY5EaEP5XQ9e</div>
+      <p>Workflow Express em produção. Processa o fluxo de triagem + geração do modo Express. Recebe perguntas respondidas + provas + contexto do processo e coordena a geração via IA.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 16 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook /prod-olivia-express</span></div><div class="flow-step"><div class="step-num">2</div><span>Valida payload</span></div><div class="flow-step"><div class="step-num">3</div><span>Processa provas (se existirem)</span></div><div class="flow-step"><div class="step-num">4</div><span>Executa triagem contextual</span></div><div class="flow-step"><div class="step-num">5</div><span>Monta prompt com contexto completo</span></div><div class="flow-step"><div class="step-num">6</div><span>Chama IA para geração</span></div><div class="flow-step"><div class="step-num">7</div><span>Formata resposta</span></div><div class="flow-step"><div class="step-num">8</div><span>UPDATE olivia_historico</span></div><div class="flow-step"><div class="step-num">9</div><span>Notifica frontend via Supabase</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (16 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">WH-Gerar</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/mdflow/olivia/express`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B1-Validate</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B-Respond202</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B2-BuscarContexto</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B3-MontarPrompt</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B4-ChamarRedator</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B5-ParseRedator</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B6-IF Skip</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': True, 'leftValue': '', 'typeValidation': 'loose'},...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B7-Revisor</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B8-Salvar</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Error Trigger</div>
+          <div class="node-type">errorTrigger</div>
+          <div class="node-desc">Node tipo `errorTrigger`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">ErrorHandler</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B-IF-Valid</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição: {'options': {'caseSensitive': False, 'leftValue': '', 'typeValidation': 'loose'}...</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B-Respond-ValError</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B9-AppsScript</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">B10-UpdateGoogleDocUrl</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ 10 nodes de código — risco de bugs em edge cases</div><div class="issue-item">⚠️ Triagem não recebe provas_urls corretamente (B8)</div><div class="issue-item">⚠️ Dependente do formato do payload do frontend</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Adicionar log de cada etapa para debug</div><div class="suggest-item">💡 Validar provas_urls antes de processar — se vazio, pular análise sem erro</div><div class="suggest-item">💡 Padronizar formato de resposta com o workflow principal</div><div class="suggest-item">💡 10 nodes de código — verificar se podem ser simplificados</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/8yeCpY5EaEP5XQ9e" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-Akg1AxMpZayDdnk2">
+  <div class="wf-header" onclick="toggle('Akg1AxMpZayDdnk2')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>N8N-OLIVIA-VIBELAW-APPLY-PATCH</h3>
+      <div class="wf-id">ID: Akg1AxMpZayDdnk2</div>
+      <p>Aplica patches de edição no VibeLaw Studio. Recebe diff/patch do editor e aplica na petição atual salva no olivia_historico.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 3 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook recebe patch + historico_id</span></div><div class="flow-step"><div class="step-num">2</div><span>Aplica patch no texto_gerado</span></div><div class="flow-step"><div class="step-num">3</div><span>UPDATE olivia_historico com novo texto</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (3 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/olivia/vibelaw-apply-patch`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Apply Patch Logic</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Sem validação se patch é válido antes de aplicar</div><div class="issue-item">⚠️ Sem histórico de versões do patch (se aplicar errado, perde o original)</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Salvar versão anterior antes de aplicar patch (rollback)</div><div class="suggest-item">💡 Validar patch format antes de aplicar</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/Akg1AxMpZayDdnk2" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-6u9qZ5caQ5JgkMPS">
+  <div class="wf-header" onclick="toggle('6u9qZ5caQ5JgkMPS')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>WH-JURI-02 — Olivia Chat (Jurimetria)</h3>
+      <div class="wf-id">ID: 6u9qZ5caQ5JgkMPS</div>
+      <p>Chat jurídico com jurimetria. Integra análise de jurisprudência e dados estatísticos de decisões para responder perguntas jurídicas contextuais.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 3 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook recebe mensagem + contexto processo</span></div><div class="flow-step"><div class="step-num">2</div><span>Busca jurisprudências relevantes</span></div><div class="flow-step"><div class="step-num">3</div><span>GPT responde com contexto jurídico</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (3 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/webhooks/olivia/chat`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Process</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Apenas 3 nodes — sem memória de conversa</div><div class="issue-item">⚠️ Sem integração com olivia_threads para persistência (DEC-06 pendente)</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Implementar memória de chat via olivia_threads</div><div class="suggest-item">💡 Integrar com dados reais de jurimetria do banco</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/6u9qZ5caQ5JgkMPS" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-9dV4sCzpKKWIgXpC">
+  <div class="wf-header" onclick="toggle('9dV4sCzpKKWIgXpC')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>WH-CTRL-02 — Controller Chat Olivia</h3>
+      <div class="wf-id">ID: 9dV4sCzpKKWIgXpC</div>
+      <p>Controller do chat da OlivIA. Roteia mensagens de chat para o handler correto (VibeLaw, jurimetria, etc.).</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 3 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook recebe mensagem de chat</span></div><div class="flow-step"><div class="step-num">2</div><span>Identifica contexto/modo</span></div><div class="flow-step"><div class="step-num">3</div><span>Roteia para handler correto</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (3 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/mdflow/controller/chat_olivia`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Process</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Respond</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook com status 200</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ 3 nodes apenas — lógica de roteamento pode ser insuficiente</div><div class="issue-item">⚠️ Sem fallback definido se modo não identificado</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Expandir lógica de roteamento</div><div class="suggest-item">💡 Adicionar fallback com resposta genérica</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/9dV4sCzpKKWIgXpC" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-9EuObcreZQ8F7xwj">
+  <div class="wf-header" onclick="toggle('9EuObcreZQ8F7xwj')">
+    <div class="wf-badge badge-ok">✅</div>
+    <div class="wf-title">
+      <h3>TEST-OLIVIA-TRIAGEM-SIMPLE</h3>
+      <div class="wf-id">ID: 9EuObcreZQ8F7xwj</div>
+      <p>Workflow de teste simples para triagem OlivIA. Usado para validar fluxo de triagem sem executar geração completa.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 2 nodes</span>
+      <span class="status-ok">✅ Funcional</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook teste</span></div><div class="flow-step"><div class="step-num">2</div><span>Executa triagem simplificada</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (2 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/olivia/triagem`</div>
+        </div>
+        <div class="node-item ">
+          <div class="node-name">Code</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código js customizado</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Workflow de teste — não deve estar em produção ativo</div><div class="issue-item">⚠️ Pode ser confundido com o workflow real de triagem</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Manter desativado fora de períodos de teste</div><div class="suggest-item">💡 Renomear para [TEST] prefixo visível</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/9EuObcreZQ8F7xwj" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-1Z3iyy7c4jLR5bXq">
+  <div class="wf-header" onclick="toggle('1Z3iyy7c4jLR5bXq')">
+    <div class="wf-badge badge-err">❌</div>
+    <div class="wf-title">
+      <h3>[OlivIA] - gerar_replica_boavista</h3>
+      <div class="wf-id">ID: 1Z3iyy7c4jLR5bXq</div>
+      <p>Stub para geração de réplica específica para Boa Vista SCPC. Apenas webhook sem implementação.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 1 nodes</span>
+      <span class="status-err">❌ Stub/Incompleto</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook (stub — sem continuação)</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (1 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/07c7559e-c091-4d18-923c-0a593bc29c9d`</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Workflow stub — sem lógica implementada</div><div class="issue-item">⚠️ Sem implementação — 1 node apenas</div><div class="issue-item">⚠️ Ativo em produção mas não faz nada útil</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Implementar lógica específica para réplica Boa Vista</div><div class="suggest-item">💡 Ou desativar até implementação estar pronta</div><div class="suggest-item">💡 Implementar lógica de geração</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/1Z3iyy7c4jLR5bXq" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-63gWiUdpmnVXSQTm">
+  <div class="wf-header" onclick="toggle('63gWiUdpmnVXSQTm')">
+    <div class="wf-badge badge-err">❌</div>
+    <div class="wf-title">
+      <h3>[OlivIA] - gerar_contrarrazoes_boavista</h3>
+      <div class="wf-id">ID: 63gWiUdpmnVXSQTm</div>
+      <p>Stub para geração de contrarrazões Boa Vista SCPC. Apenas webhook sem implementação.</p>
+    </div>
+    <div class="wf-stats">
+      <span class="stat-pill">🔧 1 nodes</span>
+      <span class="status-err">❌ Stub/Incompleto</span>
+      <span style="color:var(--muted); font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class='wf-section'><h4>Fluxo de execução</h4><div class='flow-steps'><div class="flow-step"><div class="step-num">1</div><span>Webhook (stub — sem continuação)</span></div></div></div>
+    
+    <div class="wf-section">
+      <h4>Nodes (1 ativos)</h4>
+      <div class="nodes-grid">
+        <div class="node-item ">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST `/de993546-db24-4c14-8f3d-2662a50ea47a`</div>
+        </div></div>
+    </div>
+    
+    <div class='wf-section'><h4>Problemas identificados</h4><div class='issues-list'><div class="issue-item">⚠️ Workflow stub — sem lógica implementada</div><div class="issue-item">⚠️ Sem implementação — 1 node apenas</div><div class="issue-item">⚠️ Ativo em produção mas não faz nada útil</div></div></div>
+    <div class='wf-section'><h4>Sugestões de melhoria</h4><div class='suggest-list'><div class="suggest-item">💡 Implementar lógica específica para contrarrazões Boa Vista</div><div class="suggest-item">💡 Ou desativar até implementação estar pronta</div><div class="suggest-item">💡 Implementar lógica de geração</div></div></div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/63gWiUdpmnVXSQTm" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+</div>
+
+<script>
+function toggle(id) {
+  const card = document.getElementById("wf-" + id);
+  card.classList.toggle("expanded");
+}
+let allExpanded = false;
+function toggleAll() {
+  allExpanded = !allExpanded;
+  document.querySelectorAll(".wf-card").forEach(c => {
+    if (allExpanded) c.classList.add("expanded");
+    else c.classList.remove("expanded");
+  });
+  document.querySelector(".expand-all").textContent = allExpanded ? "▲ Recolher todos" : "▼ Expandir todos";
+}
+// Auto-expand primeiro
+document.addEventListener("DOMContentLoaded", () => {
+  // Expande o principal automaticamente
+  document.getElementById("wf-2W3ge7XWZp1HKwGK")?.classList.add("expanded");
+});
+</script>
+</body>
+</html>

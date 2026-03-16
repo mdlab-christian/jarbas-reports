@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditorias + CRM — Estado do Fluxo | MdFlow</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222636;
+    --border: #2d3148;
+    --primary: #6366f1;
+    --primary-dim: rgba(99,102,241,0.15);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.12);
+    --yellow: #eab308;
+    --yellow-dim: rgba(234,179,8,0.12);
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.12);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59,130,246,0.12);
+    --muted: #6b7280;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .header { background: linear-gradient(135deg, #1e1b4b 0%, #0f1117 60%); border-bottom: 1px solid var(--border); padding: 40px 48px 32px; }
+  .header-badge { display: inline-flex; align-items: center; gap: 6px; background: var(--primary-dim); border: 1px solid var(--primary); border-radius: 20px; padding: 4px 12px; font-size: 11px; color: var(--primary); font-weight: 600; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 16px; }
+  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -.5px; margin-bottom: 6px; }
+  .header p { color: var(--text-dim); font-size: 14px; }
+  .header-meta { display: flex; gap: 20px; margin-top: 16px; font-size: 12px; color: var(--muted); }
+  .header-meta span { display: flex; align-items: center; gap: 5px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+  /* Status cards row */
+  .status-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 40px; }
+  .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; }
+  .status-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+  .status-card .value { font-size: 22px; font-weight: 700; }
+  .status-card .sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+  .status-card.green .value { color: var(--green); }
+  .status-card.yellow .value { color: var(--yellow); }
+  .status-card.blue .value { color: var(--blue); }
+  .status-card.primary .value { color: var(--primary); }
+
+  /* Section */
+  .section { margin-bottom: 44px; }
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Flow steps */
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; gap: 0; }
+  .flow-line { display: flex; flex-direction: column; align-items: center; width: 40px; flex-shrink: 0; }
+  .flow-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; border: 2px solid; }
+  .flow-connector { width: 2px; flex: 1; min-height: 20px; background: var(--border); margin: 4px 0; }
+  .flow-step:last-child .flow-connector { display: none; }
+  .flow-dot.done { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+  .flow-dot.pending { background: var(--yellow-dim); border-color: var(--yellow); color: var(--yellow); }
+  .flow-dot.future { background: var(--surface2); border-color: var(--border); color: var(--muted); }
+  .flow-content { flex: 1; padding: 4px 0 24px 16px; }
+  .flow-content h3 { font-size: 15px; font-weight: 600; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .flow-content p { color: var(--text-dim); font-size: 13px; line-height: 1.5; }
+  .flow-content .tag { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 600; margin-top: 6px; margin-right: 4px; }
+  .tag.green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,.3); }
+  .tag.yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(234,179,8,.3); }
+  .tag.blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,.3); }
+  .tag.red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
+  .tag.primary { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(99,102,241,.3); }
+
+  /* Code block */
+  .code-block { background: #0d0f18; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: #a5b4fc; line-height: 1.7; margin-top: 10px; overflow-x: auto; }
+  .code-block .comment { color: #4b5563; }
+  .code-block .key { color: #f9a8d4; }
+  .code-block .val { color: #86efac; }
+  .code-block .fn { color: #93c5fd; }
+
+  /* Cards grid */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card h3 { font-size: 14px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+  .card ul { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .card ul li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--text-dim); }
+  .card ul li::before { content: '→'; color: var(--primary); flex-shrink: 0; margin-top: 1px; }
+  .card ul li strong { color: var(--text); }
+  .card ul li.done::before { content: '✓'; color: var(--green); }
+  .card ul li.warn::before { content: '⚠'; color: var(--yellow); }
+
+  /* Table */
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th { text-align: left; padding: 10px 14px; background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+  .tbl td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
+  .tbl tr:hover td { background: rgba(255,255,255,.02); }
+  .tbl td strong { color: var(--text); }
+
+  /* Alert box */
+  .alert { border-radius: 8px; padding: 14px 16px; margin-bottom: 16px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+  .alert.info { background: var(--blue-dim); border: 1px solid rgba(59,130,246,.3); color: #93c5fd; }
+  .alert.warn { background: var(--yellow-dim); border: 1px solid rgba(234,179,8,.3); color: #fde047; }
+  .alert.success { background: var(--green-dim); border: 1px solid rgba(34,197,94,.3); color: #86efac; }
+  .alert-icon { flex-shrink: 0; font-size: 16px; }
+
+  /* Pill badge */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: .3px; }
+
+  .divider { height: 1px; background: var(--border); margin: 32px 0; }
+  @media (max-width: 768px) { .status-row { grid-template-columns: 1fr 1fr; } .cards { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-badge">📋 MdFlow — Auditoria + CRM</div>
+  <h1>Estado do Fluxo: Auditorias → CRM</h1>
+  <p>Documentação operacional do fluxo completo — da consulta de CPF até o lead no CRM com restrições cadastradas.</p>
+  <div class="header-meta">
+    <span>📅 16/03/2026</span>
+    <span>🔧 JARBAS v3.3</span>
+    <span>📦 beta-mdflow / main</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Status geral -->
+  <div class="status-row">
+    <div class="status-card green">
+      <div class="label">Fluxo Auditoria → CRM</div>
+      <div class="value">✅ OK</div>
+      <div class="sub">Lead + restrições + comprovante</div>
+    </div>
+    <div class="status-card green">
+      <div class="label">Botão Unificado</div>
+      <div class="value">✅ OK</div>
+      <div class="sub">1 botão: Criar Lead com Restrições</div>
+    </div>
+    <div class="status-card green">
+      <div class="label">Bug lead_id migrado</div>
+      <div class="value">✅ OK</div>
+      <div class="sub">processos_documentos.lead_id adicionado</div>
+    </div>
+    <div class="status-card yellow">
+      <div class="label">Dual Save (Drive)</div>
+      <div class="value">⚠️ Pendente</div>
+      <div class="sub">Storage OK · Drive a implementar</div>
+    </div>
+  </div>
+
+  <!-- FLUXO PRINCIPAL -->
+  <div class="section">
+    <div class="section-title">🔁 Fluxo Principal — Passo a Passo</div>
+
+    <div class="flow">
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">1</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Disparar Auditoria <span class="tag green">✓ Implementado</span></h3>
+          <p>Usuário entra em <strong>/auditorias</strong>, digita CPF e seleciona bureaus (Serasa, SPC, Quod, BCB). Um modal de seleção de bureaus abre antes de confirmar. A auditoria é criada na tabela <code>auditorias</code> e enviada para a API Full (ApiFull).</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">2</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Resultado da Auditoria <span class="tag green">✓ Implementado</span></h3>
+          <p>Modal de resultado exibe: banner resumo (qtde restrições + valor total), consultas por bureau (cards individuais), link para PDF oficial (se disponível). Campos: CPF mascarado, nome titular, link para cliente cadastrado.</p>
+          <div>
+            <span class="tag blue">ResultModal</span>
+            <span class="tag blue">SummaryBanner</span>
+            <span class="tag blue">ConsultaCard</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">3</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Criar Lead com Restrições <span class="tag green">✓ Implementado (hoje unificado)</span></h3>
+          <p>Botão único <strong>"Criar Lead com Restrições"</strong> abre o <code>CadastrarRestricoesDrawer</code>. Antes havia dois botões separados ("Cadastrar Restrições" + "Criar Lead no CRM") — foram unificados neste commit de hoje. O botão aparece apenas quando <code>possui_restricoes = true</code> E <code>lead_id IS NULL</code>.</p>
+          <div>
+            <span class="tag primary">CadastrarRestricoesDrawer</span>
+            <span class="tag green">✓ Botão unificado</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">4</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Matching de Empresas <span class="tag green">✓ Implementado</span></h3>
+          <p>O drawer carrega todas as empresas da organização e faz matching por <strong>token similarity</strong> (normalização + tokens). Score ≥ 0.75 = match alto (verde), ≥ 0.45 = médio (amarelo), abaixo = sem match. O usuário pode trocar a empresa manualmente antes de salvar.</p>
+          <div class="code-block">
+<span class="comment">// Lógica de score</span>
+<span class="fn">tokenSimilarity</span>("ENEL DISTRIBUIÇÃO", "Enel Distribuição Sul") → <span class="val">0.83</span> ✓ match alto
+<span class="fn">tokenSimilarity</span>("BANCO DO BRASIL", "BB Consignado S/A") → <span class="val">0.22</span> ✗ sem match
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">5</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Regra Boa Vista — 16 + 1 <span class="tag green">✓ Implementado</span></h3>
+          <p>Restrições <code>apifull_115</code> (órgão SCPC/Boa Vista) ficam como <strong>itens individuais</strong> + 1 item extra Boa Vista agrupado (soma de todos os valores). Exemplo: 16 restrições individuais + 1 Boa Vista = <strong>17 total</strong>. Boa Vista sempre <code>processavel: true</code>.</p>
+          <div class="code-block">
+<span class="fn">buildRestricaoItemsComRegras</span>(restricoes, empresas):
+  → 16 itens individuais (apifull_115, processavel: false)
+  → + 1 item extra <span class="key">Boa Vista</span>: valor_total_somado, processavel: <span class="val">true</span>
+  → total: <span class="val">17 restrições</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">6</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Salvar Lead + Restrições <span class="tag green">✓ Implementado</span></h3>
+          <p>Ao confirmar o drawer: (1) cria lead em <code>leads</code> com <code>coluna_crm = 'novos'</code>, (2) insere cada restrição selecionada em <code>restricoes</code> vinculada ao lead, (3) se empresa não existir no sistema, cria automaticamente em <code>empresas</code> (Boa Vista com <code>status_aprovacao = 'aprovada'</code>, outros com <code>'pendente'</code>), (4) atualiza <code>auditorias.lead_id</code>.</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">7</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Comprovante da Auditoria nos Documentos <span class="tag green">✓ Implementado hoje</span></h3>
+          <p>Após salvar lead + restrições, insere registro em <code>processos_documentos</code> com:</p>
+          <div class="code-block">
+{
+  <span class="key">entidade_tipo</span>: <span class="val">'lead'</span>,
+  <span class="key">lead_id</span>: leadId,           <span class="comment">// coluna adicionada hoje via migration</span>
+  <span class="key">categoria</span>: <span class="val">'comprovante_auditoria'</span>,
+  <span class="key">fonte_url</span>: <span class="val">'/auditorias/pdf/:auditoria_id'</span>,
+  <span class="key">status</span>: <span class="val">'disponivel'</span>
+}
+          </div>
+          <p style="margin-top:8px">Aparece na aba <strong>Documentos</strong> do lead no CRM. Quando o processo Boa Vista for criado na Distribuição, será vinculado automaticamente (lógica futura no ModalCriarProcesso).</p>
+        </div>
+      </div>
+
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot done">8</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h3>Lead no CRM — Coluna "Novos" <span class="tag green">✓ Implementado</span></h3>
+          <p>Após salvar, navega para <code>/crm?lead=:id</code>. O lead aparece na coluna <strong>Novos</strong> do Kanban com: score colorido, CPF mascarado, contagem de restrições. Drawer do lead exibe restrições, documentos, advogado vinculado, MDZap.</p>
+          <div>
+            <span class="tag green">CrmKanban</span>
+            <span class="tag green">CrmLeadCard</span>
+            <span class="tag green">ClienteDrawer</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PENDÊNCIAS -->
+  <div class="section">
+    <div class="section-title">⚠️ Pendências e Próximos Passos</div>
+
+    <div class="cards">
+      <div class="card">
+        <h3>🔗 Vincular Comprovante ao Processo Boa Vista</h3>
+        <ul>
+          <li class="warn"><strong>Trigger:</strong> ao criar processo Boa Vista na Distribuição</li>
+          <li><strong>Onde:</strong> ModalCriarProcesso / fluxo de preparação</li>
+          <li><strong>Lógica:</strong> se processo vem de restrição Boa Vista E lead tem <code>comprovante_auditoria</code> → copiar documento para o processo</li>
+          <li><strong>Status:</strong> infraestrutura pronta, falta implementar no modal</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>💾 Dual Save — Storage + Google Drive</h3>
+        <ul>
+          <li class="warn"><strong>Hoje:</strong> uploads salvos apenas no Supabase Storage (<code>documentos/leads/:id/</code>)</li>
+          <li><strong>Google Drive:</strong> campo <code>google_drive_folder_id</code> existe nos leads/processos</li>
+          <li><strong>Webhook:</strong> <code>sync-storage-drive</code> existe no n8n mas não está sendo chamado no upload</li>
+          <li><strong>A fazer:</strong> após upload no Storage → chamar webhook → n8n faz upload no Drive → atualiza <code>google_drive_id</code></li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🧪 Testes de Ponta a Ponta</h3>
+        <ul>
+          <li class="warn"><strong>CRM lapidado:</strong> não testado end-to-end ainda</li>
+          <li><strong>Fluxo completo:</strong> auditoria → drawer → lead → drawer CRM → documentos</li>
+          <li><strong>Verificar:</strong> comprovante aparecendo na aba Documentos</li>
+          <li><strong>Verificar:</strong> 17 restrições corretas (16 individuais + 1 Boa Vista)</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h3>🔀 Distribuição (outra conversa)</h3>
+        <ul>
+          <li><strong>ModalCriarProcesso:</strong> já existe em /distribuicao</li>
+          <li><strong>Ponto de integração:</strong> ao criar processo Boa Vista, verificar <code>comprovante_auditoria</code> no lead</li>
+          <li><strong>Fluxo futuro:</strong> lead no CRM → processo criado na distribuição → comprovante vinculado automaticamente</li>
+          <li><strong>Status:</strong> sendo tratado em conversa separada</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHEMA -->
+  <div class="section">
+    <div class="section-title">🗄️ Estrutura de Dados Relevante</div>
+
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th>Tabela</th>
+          <th>Campos Chave</th>
+          <th>Função no Fluxo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>auditorias</strong></td>
+          <td>cpf, nome_titular, resultado_json, lead_id, possui_restricoes, possui_restricoes_processaveis</td>
+          <td>Raiz do fluxo. <code>lead_id</code> vincula à auditoria após criação do lead.</td>
+        </tr>
+        <tr>
+          <td><strong>leads</strong></td>
+          <td>nome, cpf, coluna_crm, score, google_drive_folder_id, drive_cliente</td>
+          <td>Entrada no CRM. Coluna <code>novos</code> ao criar via auditoria.</td>
+        </tr>
+        <tr>
+          <td><strong>restricoes</strong></td>
+          <td>lead_id, empresa_id, empresa_nome, orgao_nome, valor, processavel, tipo</td>
+          <td>Restrições do CPF vinculadas ao lead. <code>processavel=true</code> → acionável judicialmente.</td>
+        </tr>
+        <tr>
+          <td><strong>empresas</strong></td>
+          <td>nome, razao_social, nome_fantasia, processavel, status_aprovacao</td>
+          <td>Matching de credores. Boa Vista criada automaticamente com <code>aprovada</code>.</td>
+        </tr>
+        <tr>
+          <td><strong>processos_documentos</strong></td>
+          <td>lead_id ✨novo, processo_id, entidade_tipo, categoria, fonte_url, google_drive_id, arquivo_url</td>
+          <td>Documentos vinculados a leads e processos. <code>categoria=comprovante_auditoria</code> marca o comprovante.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- COMMITS -->
+  <div class="section">
+    <div class="section-title">📦 Commits Relevantes</div>
+
+    <div class="alert success">
+      <div class="alert-icon">✅</div>
+      <div><strong>Hoje (16/03/2026):</strong> migration <code>lead_id</code> aplicada, botão unificado "Criar Lead com Restrições", comprovante salvo no drawer.</div>
+    </div>
+
+    <table class="tbl">
+      <thead>
+        <tr><th>Commit</th><th>O que fez</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>f3d85bf</code></td><td>Salvar comprovante auditoria nos documentos do lead ao criar</td></tr>
+        <tr><td><code>3e16db5</code></td><td>Fix Boa Vista é item EXTRA — mantém todas individuais + 1 Boa Vista somada</td></tr>
+        <tr><td><code>bcd6ebb</code></td><td>Agrupamento por órgão — Boa Vista vira 1 restrição somada</td></tr>
+        <tr><td><code>b56bad3</code></td><td>status_aprovacao='aprovada' para empresa Boa Vista</td></tr>
+        <tr><td><code>69e7b28</code></td><td>Modal seleção de bureaus antes de auditar</td></tr>
+        <tr><td><code>acbfdd0</code></td><td>PRD CRM v2.0 — fluxo completo documentado</td></tr>
+        <tr><td><code>0ffae7c</code></td><td>Direcionamento automático + multi-add restrições</td></tr>
+        <tr><td><code>78d7dd5</code></td><td>Filtro por score + CPF mascarado + visual polish</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="divider"></div>
+  <p style="text-align:center; color: var(--muted); font-size: 12px;">Gerado por JARBAS · 16/03/2026 · MdLab LegalTech</p>
+</div>
+</body>
+</html>

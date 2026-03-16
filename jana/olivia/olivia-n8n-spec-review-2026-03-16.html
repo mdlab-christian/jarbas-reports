@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Workflows N8N (SPEC Correta) | JANA</title>
+<style>
+  :root {
+    --bg:#0f1117;--surface:#1a1d27;--surface2:#22263a;--border:#2e3250;
+    --accent:#7c6ef5;--green:#4ade80;--yellow:#fbbf24;--red:#f87171;--blue:#60a5fa;
+    --text:#e2e8f0;--muted:#8892aa;--code:#c4b5fd;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;line-height:1.6;}
+  header{background:linear-gradient(135deg,#1a1d27,#12152a);border-bottom:1px solid var(--border);padding:28px 40px;}
+  header h1{font-size:24px;font-weight:700;color:white;margin-bottom:4px;}
+  header h1 span{color:var(--accent);}
+  header p{color:var(--muted);font-size:13px;}
+  .header-meta{display:flex;gap:16px;margin-top:14px;flex-wrap:wrap;}
+  .meta-badge{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:12px;}
+  .meta-badge strong{color:var(--accent);display:block;font-size:20px;}
+  .container{max-width:1200px;margin:0 auto;padding:28px 40px;}
+  .section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin:28px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+  .spec-table{width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;}
+  .spec-table th{text-align:left;padding:10px 12px;background:var(--surface2);color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:0.8px;border-bottom:1px solid var(--border);}
+  .spec-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;}
+  .spec-table tr:hover td{background:var(--surface2);}
+  code{background:var(--surface2);padding:2px 6px;border-radius:4px;font-family:monospace;font-size:11px;color:var(--code);}
+  .pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+  .pill-ok{background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.3);}
+  .pill-err{background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);}
+  .pill-warn{background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3);}
+  .pill-gray{background:rgba(107,114,128,.15);color:#9ca3af;border:1px solid rgba(107,114,128,.3);}
+  .wf-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:16px;overflow:hidden;}
+  .wf-header{padding:18px 22px;display:flex;align-items:flex-start;gap:14px;cursor:pointer;}
+  .wf-header:hover{background:var(--surface2);}
+  .modo-tag{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;flex-shrink:0;margin-top:2px;}
+  .wf-title{flex:1;}
+  .wf-title h3{font-size:14px;font-weight:600;color:white;margin-bottom:2px;}
+  .wf-title .wf-id{font-family:monospace;font-size:10px;color:var(--muted);}
+  .wf-title p{color:var(--muted);font-size:12px;margin-top:3px;}
+  .wf-right{display:flex;gap:10px;align-items:center;flex-shrink:0;}
+  .stat-pill{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;font-size:11px;color:var(--muted);}
+  .wf-body{display:none;padding:0 22px 20px;border-top:1px solid var(--border);}
+  .wf-card.expanded .wf-body{display:block;}
+  .wf-section{margin-top:18px;}
+  .wf-section h4{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;}
+  .nodes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px;}
+  .node-item{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
+  .node-item .node-name{font-weight:600;font-size:12px;color:white;margin-bottom:2px;}
+  .node-item .node-type{font-family:monospace;font-size:10px;color:var(--code);margin-bottom:3px;}
+  .node-item .node-desc{font-size:11px;color:var(--muted);}
+  .node-disabled{opacity:.35;}
+  .spec-status{padding:8px 12px;border-radius:8px;font-size:12px;font-weight:500;margin-top:14px;display:flex;align-items:center;gap:8px;}
+  .spec-ok{background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);color:#4ade80;}
+  .spec-err{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);color:#f87171;}
+  .spec-warn{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);color:#fbbf24;}
+  .n8n-link{display:inline-flex;align-items:center;gap:6px;margin-top:12px;padding:7px 13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--accent);font-size:12px;text-decoration:none;}
+  .n8n-link:hover{border-color:var(--accent);}
+  .error-card{background:rgba(248,113,113,.05);border:1px solid rgba(248,113,113,.15);border-radius:10px;padding:14px 18px;margin-bottom:12px;}
+  .error-card h4{color:#f87171;font-size:13px;font-weight:600;margin-bottom:4px;}
+  .error-card .eid{font-family:monospace;font-size:11px;color:var(--muted);}
+  .error-card p{font-size:12px;color:var(--muted);margin-top:4px;}
+  .expand-all{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--text);cursor:pointer;font-size:12px;margin-bottom:18px;}
+  .expand-all:hover{border-color:var(--accent);color:var(--accent);}
+  .alert-box{background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:16px 20px;margin-bottom:24px;}
+  .alert-box h3{color:#fbbf24;font-size:14px;font-weight:600;margin-bottom:8px;}
+  .alert-box p{font-size:13px;color:var(--muted);}
+  .alert-box ul{margin-top:8px;padding-left:20px;font-size:13px;color:var(--text);}
+  .alert-box ul li{margin-bottom:4px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>OlivIA — <span>Workflows N8N</span> <span style="color:var(--muted);font-size:16px">/ conforme SPEC D-EXEC-08</span></h1>
+  <p>Revisão corrigida por JANA 🌸 — 16/03/2026 | Baseado em SPEC.md (aprovado final 14/03/2026)</p>
+  <div class="header-meta">
+    <div class="meta-badge"><strong>6</strong>modos ativos (SPEC)</div>
+    <div class="meta-badge"><strong style="color:var(--green)">5</strong>workflows corretos</div>
+    <div class="meta-badge"><strong style="color:var(--red)">2</strong>legados/inativos</div>
+    <div class="meta-badge"><strong style="color:var(--yellow)">9</strong>workflows errados no relatório anterior</div>
+  </div>
+</header>
+
+<div class="container">
+
+<div class="alert-box">
+  <h3>⚠️ Correção do relatório anterior</h3>
+  <p>O relatório anterior listava workflows errados. Conforme <strong>SPEC D-EXEC-08</strong>: <em>"1 workflow por modo (EXPRESS, SMARTBLOCKS, AGENTE, VIBELAW, TRIAGEM, ANALISE)"</em>.</p>
+  <ul>
+    <li><strong>OlivIA</strong> (2W3ge7XWZp1HKwGK) — workflow antigo/centralizado, não é o correto</li>
+    <li><strong>N8N-DIST-GERAR-PETICAO</strong> e <strong>N8N-DIST-PETICAO</strong> — são de distribuição de processos, não OlivIA</li>
+    <li><strong>WH-OLIVIA-RECURSO</strong> — recursos devem usar o mesmo workflow Express (tipo=RECURSO no payload)</li>
+    <li><strong>N8N-PROC-OLIVIA-RESUMO</strong> — sub-workflow interno, não um modo</li>
+    <li>TEST, Controller, Chat Jurimetria — não são modos do gerador</li>
+  </ul>
+</div>
+
+<div class="section-title">📋 Mapeamento SPEC → Workflow (D-EXEC-08)</div>
+
+<table class="spec-table">
+<thead>
+  <tr>
+    <th>Modo</th>
+    <th>ID Correto</th>
+    <th>Nome N8N</th>
+    <th>Status</th>
+    <th>Nodes</th>
+  </tr>
+</thead>
+<tbody>  <tr>
+    <td><span class="pill" style="background:rgba(74,222,128,.15);color:#4ade80;border:1px solid rgba(74,222,128,.3)">⚡ EXPRESS</span></td>
+    <td><code>8yeCpY5EaEP5XQ9e</code></td>
+    <td style="color:white;font-weight:500">prod-olivia-express</td>
+    <td><span class="pill pill-ok">✅ Ativo</span></td>
+    <td style="color:var(--muted)">16</td>
+  </tr>  <tr>
+    <td><span class="pill" style="background:rgba(107,114,128,.15);color:#6b7280;border:1px solid rgba(107,114,128,.3)">⚡ EXPRESS (legado)</span></td>
+    <td><code>dGw50wQ4xjdsjR3n</code></td>
+    <td style="color:white;font-weight:500">WH-OLIVIA-GERAR-DOC-V3</td>
+    <td><span class="pill pill-err">❌ Inativo/Legado</span></td>
+    <td style="color:var(--muted)">12</td>
+  </tr>  <tr>
+    <td><span class="pill" style="background:rgba(167,139,250,.15);color:#a78bfa;border:1px solid rgba(167,139,250,.3)">🧩 SMART BLOCKS</span></td>
+    <td><code>efUURhKmLOvKBxWp</code></td>
+    <td style="color:white;font-weight:500">N8N-OLIVIA-GERAR-MANUAL — Gerar Petição Manual (Blocos)</td>
+    <td><span class="pill pill-ok">✅ Ativo</span></td>
+    <td style="color:var(--muted)">8</td>
+  </tr>  <tr>
+    <td><span class="pill" style="background:rgba(251,191,36,.15);color:#fbbf24;border:1px solid rgba(251,191,36,.3)">✨ VIBELAW CHAT</span></td>
+    <td><code>DnecdvxoRKyMjZMD</code></td>
+    <td style="color:white;font-weight:500">N8N-OLIVIA-VIBELAW-CHAT</td>
+    <td><span class="pill pill-ok">✅ Ativo</span></td>
+    <td style="color:var(--muted)">3</td>
+  </tr>  <tr>
+    <td><span class="pill" style="background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)">✏️ VIBELAW PATCH</span></td>
+    <td><code>Akg1AxMpZayDdnk2</code></td>
+    <td style="color:white;font-weight:500">N8N-OLIVIA-VIBELAW-APPLY-PATCH</td>
+    <td><span class="pill pill-ok">✅ Ativo</span></td>
+    <td style="color:var(--muted)">3</td>
+  </tr>  <tr>
+    <td><span class="pill" style="background:rgba(96,165,250,.15);color:#60a5fa;border:1px solid rgba(96,165,250,.3)">🔍 ANÁLISE DECISÃO</span></td>
+    <td><code>gMFefLfXZbf-MWhwiZF5B</code></td>
+    <td style="color:white;font-weight:500">N8N-OLIVIA-ANALISE-V2</td>
+    <td><span class="pill pill-ok">✅ Ativo</span></td>
+    <td style="color:var(--muted)">21</td>
+  </tr>  <tr>
+    <td><span class="pill" style="background:rgba(56,189,248,.15);color:#38bdf8;border:1px solid rgba(56,189,248,.3)">📋 ANÁLISE PROCESSO</span></td>
+    <td><code>DjZoLN5KLpWOyCOr</code></td>
+    <td style="color:white;font-weight:500">[OlivIA] Analise de IA</td>
+    <td><span class="pill pill-warn">⚠️ Verificar</span></td>
+    <td style="color:var(--muted)">64</td>
+  </tr>  <tr>
+    <td><span class="pill" style="background:rgba(107,114,128,.15);color:#6b7280;border:1px solid rgba(107,114,128,.3)">🔄 TRIAGEM (LEGADO)</span></td>
+    <td><code>AvmF07YPjxXvM2H0</code></td>
+    <td style="color:white;font-weight:500">WH-OLIVIA-TRIAGEM-QUESTIONS [LEGACY]</td>
+    <td><span class="pill pill-err">❌ Inativo/Legado</span></td>
+    <td style="color:var(--muted)">7</td>
+  </tr></tbody>
+</table>
+
+<button class="expand-all" onclick="toggleAll()">▼ Expandir detalhes</button>
+
+<div class="section-title">🔍 Detalhes por Workflow</div>
+
+<div class="wf-card" id="wf-8yeCpY5EaEP5XQ9e">
+  <div class="wf-header" onclick="toggle('8yeCpY5EaEP5XQ9e')">
+    <span class="modo-tag" style="background:rgba(74,222,128,.15);color:#4ade80">⚡ EXPRESS</span>
+    <div class="wf-title">
+      <h3>prod-olivia-express</h3>
+      <div class="wf-id">ID: 8yeCpY5EaEP5XQ9e · 16 nodes · 🟢 Ativo</div>
+      <p>Workflow principal do modo Express em produção. Processa triagem + geração da petição IA Guiada.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">WH-OLIVIA-EXPRESS-V1 (prod)</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-ok spec-status">✅ <strong>Status SPEC:</strong> ATIVO — este é o correto</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (16)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">WH-Gerar</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /mdflow/olivia/express</div>
+        </div><div class="node-item">
+          <div class="node-name">B1-Validate</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B-Respond202</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">B2-BuscarContexto</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B3-MontarPrompt</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B4-ChamarRedator</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B5-ParseRedator</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B6-IF Skip</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">B7-Revisor</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B8-Salvar</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Error Trigger</div>
+          <div class="node-type">errorTrigger</div>
+          <div class="node-desc">Node: errorTrigger</div>
+        </div><div class="node-item">
+          <div class="node-name">ErrorHandler</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B-IF-Valid</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">B-Respond-ValError</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">B9-AppsScript</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B10-UpdateGoogleDocUrl</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/8yeCpY5EaEP5XQ9e" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-dGw50wQ4xjdsjR3n">
+  <div class="wf-header" onclick="toggle('dGw50wQ4xjdsjR3n')">
+    <span class="modo-tag" style="background:rgba(107,114,128,.15);color:#6b7280">⚡ EXPRESS (legado)</span>
+    <div class="wf-title">
+      <h3>WH-OLIVIA-GERAR-DOC-V3</h3>
+      <div class="wf-id">ID: dGw50wQ4xjdsjR3n · 12 nodes · 🔴 Inativo</div>
+      <p>Versão anterior do Express. Citado na SPEC seção 30.3, mas **desativado**. Não deve ser chamado.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">Express V3 (desativado)</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-err spec-status">❌ <strong>Status SPEC:</strong> INATIVO — legado, não usar</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (12)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">Webhook Trigger</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /mdflow/olivia/gerar-doc-legacy</div>
+        </div><div class="node-item">
+          <div class="node-name">Validar Auth</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">Não Autorizado</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">Buscar Modelo</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Montar Prompt</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Prompt OK?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">Erro Modelo</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">Claude Gerar Petição</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → https://api.anthropic.com/v1/messages</div>
+        </div><div class="node-item">
+          <div class="node-name">Processar Resposta</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Salvar Histórico</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Responder Sucesso</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">HTTP: DOCX Converter</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → https://jarbas.jarbas-mdlab.com/olivia/docx-converter</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/dGw50wQ4xjdsjR3n" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-efUURhKmLOvKBxWp">
+  <div class="wf-header" onclick="toggle('efUURhKmLOvKBxWp')">
+    <span class="modo-tag" style="background:rgba(167,139,250,.15);color:#a78bfa">🧩 SMART BLOCKS</span>
+    <div class="wf-title">
+      <h3>N8N-OLIVIA-GERAR-MANUAL — Gerar Petição Manual (Blocos)</h3>
+      <div class="wf-id">ID: efUURhKmLOvKBxWp · 8 nodes · 🟢 Ativo</div>
+      <p>Workflow do modo Smart Blocks / Manual. Gera petição a partir de blocos de texto selecionados.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">WH-OLIVIA-SMARTBLOCKS-V1</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-ok spec-status">✅ <strong>Status SPEC:</strong> ATIVO — correto conforme SPEC</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (8)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">Webhook Trigger</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /olivia/gerar-manual</div>
+        </div><div class="node-item">
+          <div class="node-name">Validar Payload</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Autorizado?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">Inserir Historico</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Insercao OK?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond Success</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond DB Error</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond Unauthorized</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/efUURhKmLOvKBxWp" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-DnecdvxoRKyMjZMD">
+  <div class="wf-header" onclick="toggle('DnecdvxoRKyMjZMD')">
+    <span class="modo-tag" style="background:rgba(251,191,36,.15);color:#fbbf24">✨ VIBELAW CHAT</span>
+    <div class="wf-title">
+      <h3>N8N-OLIVIA-VIBELAW-CHAT</h3>
+      <div class="wf-id">ID: DnecdvxoRKyMjZMD · 3 nodes · 🟢 Ativo</div>
+      <p>Chat SSE do VibeLaw Studio. Processa mensagens do editor com streaming.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">WH-OLIVIA-VIBELAW-CHAT</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-ok spec-status">✅ <strong>Status SPEC:</strong> ATIVO — correto conforme SPEC</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (3)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /olivia/vibelaw-chat</div>
+        </div><div class="node-item">
+          <div class="node-name">VibeLaw Chat Logic</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/DnecdvxoRKyMjZMD" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-Akg1AxMpZayDdnk2">
+  <div class="wf-header" onclick="toggle('Akg1AxMpZayDdnk2')">
+    <span class="modo-tag" style="background:rgba(245,158,11,.15);color:#f59e0b">✏️ VIBELAW PATCH</span>
+    <div class="wf-title">
+      <h3>N8N-OLIVIA-VIBELAW-APPLY-PATCH</h3>
+      <div class="wf-id">ID: Akg1AxMpZayDdnk2 · 3 nodes · 🟢 Ativo</div>
+      <p>Aplica patches de edição no texto da petição no VibeLaw Studio.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">WH-OLIVIA-VIBELAW-PATCH</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-ok spec-status">✅ <strong>Status SPEC:</strong> ATIVO — correto conforme SPEC</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (3)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /olivia/vibelaw-apply-patch</div>
+        </div><div class="node-item">
+          <div class="node-name">Apply Patch Logic</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/Akg1AxMpZayDdnk2" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-gMFefLfXZbf-MWhwiZF5B">
+  <div class="wf-header" onclick="toggle('gMFefLfXZbf-MWhwiZF5B')">
+    <span class="modo-tag" style="background:rgba(96,165,250,.15);color:#60a5fa">🔍 ANÁLISE DECISÃO</span>
+    <div class="wf-title">
+      <h3>N8N-OLIVIA-ANALISE-V2</h3>
+      <div class="wf-id">ID: gMFefLfXZbf-MWhwiZF5B · 21 nodes · 🟢 Ativo</div>
+      <p>Análise de decisões judiciais via Gemini Vision. Extrai prazos, risco, ação recomendada de PDFs.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">WH-OLIVIA-ANALISE-V2</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-ok spec-status">✅ <strong>Status SPEC:</strong> ATIVO — correto conforme SPEC</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (21)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">WH-Analise</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /olivia/analise-decisao</div>
+        </div><div class="node-item">
+          <div class="node-name">A1-ValidatePayload</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">A2-IF Valid?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">A-RespondError</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">A3-InsertAnalise</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">A5-Respond202</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">B1-FetchContexto</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B2-PlaybookEmbeddingRAG</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B3-PrepDocs</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B4-UpdateProgress25</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B5-IF HasDocs?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">B6-SplitDocs</div>
+          <div class="node-type">splitInBatches</div>
+          <div class="node-desc">Divide em lotes de ?</div>
+        </div><div class="node-item">
+          <div class="node-name">B7-FetchDocBinary</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → =https://qdivfairxhdihaqqypgb.supabase.co/storage/v1/object/{{ $json._doc.storag</div>
+        </div><div class="node-item">
+          <div class="node-name">B8-ProcessDoc</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B9-ConsolidarDocs</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B10-UpdateProgress75</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B11-ClaudeAnalise</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B12-ParseResultado</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">B13-SalvarResultado</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Error Trigger</div>
+          <div class="node-type">errorTrigger</div>
+          <div class="node-desc">Node: errorTrigger</div>
+        </div><div class="node-item">
+          <div class="node-name">ErrorHandler</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/gMFefLfXZbf-MWhwiZF5B" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-DjZoLN5KLpWOyCOr">
+  <div class="wf-header" onclick="toggle('DjZoLN5KLpWOyCOr')">
+    <span class="modo-tag" style="background:rgba(56,189,248,.15);color:#38bdf8">📋 ANÁLISE PROCESSO</span>
+    <div class="wf-title">
+      <h3>[OlivIA] Analise de IA</h3>
+      <div class="wf-id">ID: DjZoLN5KLpWOyCOr · 64 nodes · 🟢 Ativo</div>
+      <p>Análise completa de processo judicial (77 nodes). Usa mesmo OLIVIA-ANALISE.json com tipo=PROCESSO.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">WH-OLIVIA-ANALISE-PROCESSO</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-warn spec-status">⚠️ <strong>Status SPEC:</strong> ATIVO — verificar se está sendo chamado corretamente</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (64)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /olivia/analise-processo</div>
+        </div><div class="node-item">
+          <div class="node-name">Switch</div>
+          <div class="node-type">switch</div>
+          <div class="node-desc">Switch — roteamento por condições</div>
+        </div><div class="node-item">
+          <div class="node-name">Agente </div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → https://api.anthropic.com/v1/messages</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond to Webhook2</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">Extrair URL de petições e provas</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">OCR - Mistral</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → https://api.mistral.ai/v1/ocr</div>
+        </div><div class="node-item">
+          <div class="node-name">Aggregate1</div>
+          <div class="node-type">aggregate</div>
+          <div class="node-desc">Node: aggregate</div>
+        </div><div class="node-item">
+          <div class="node-name">Agente 1 - Petições</div>
+          <div class="node-type">anthropic</div>
+          <div class="node-desc">Claude/Anthropic</div>
+        </div><div class="node-item">
+          <div class="node-name">Code in JavaScript</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Supabase Vector Store7</div>
+          <div class="node-type">vectorStoreSupabase</div>
+          <div class="node-desc">Node: vectorStoreSupabase</div>
+        </div><div class="node-item">
+          <div class="node-name">Embeddings OpenAI7</div>
+          <div class="node-type">embeddingsOpenAi</div>
+          <div class="node-desc">OpenAI</div>
+        </div><div class="node-item">
+          <div class="node-name">Answer questions with a vector store3</div>
+          <div class="node-type">toolVectorStore</div>
+          <div class="node-desc">Node: toolVectorStore</div>
+        </div><div class="node-item">
+          <div class="node-name">OpenAI Chat Model3</div>
+          <div class="node-type">lmChatOpenAi</div>
+          <div class="node-desc">OpenAI</div>
+        </div><div class="node-item">
+          <div class="node-name">Edit Fields2</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define/transforma campos</div>
+        </div><div class="node-item">
+          <div class="node-name">Get a row in Supabase</div>
+          <div class="node-type">supabaseTool</div>
+          <div class="node-desc">Node: supabaseTool</div>
+        </div><div class="node-item">
+          <div class="node-name">Unificar OCR</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">If</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">:processos</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase get em ``</div>
+        </div><div class="node-item">
+          <div class="node-name">:olivia_modelos_peticao</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase get em ``</div>
+        </div><div class="node-item">
+          <div class="node-name">:olivia_historico_gerador</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase  em ``</div>
+        </div><div class="node-item">
+          <div class="node-name">Update a row in Supabase2</div>
+          <div class="node-type">supabaseTool</div>
+          <div class="node-desc">Node: supabaseTool</div>
+        </div><div class="node-item">
+          <div class="node-name">:restricoes</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase get em ``</div>
+        </div><div class="node-item">
+          <div class="node-name">Update a row in Supabase3</div>
+          <div class="node-type">supabaseTool</div>
+          <div class="node-desc">Node: supabaseTool</div>
+        </div><div class="node-item">
+          <div class="node-name">Get a row in Supabase1</div>
+          <div class="node-type">supabaseTool</div>
+          <div class="node-desc">Node: supabaseTool</div>
+        </div><div class="node-item">
+          <div class="node-name">Update a row in Supabase</div>
+          <div class="node-type">supabaseTool</div>
+          <div class="node-desc">Node: supabaseTool</div>
+        </div><div class="node-item">
+          <div class="node-name">Agente 2 - Provas</div>
+          <div class="node-type">anthropic</div>
+          <div class="node-desc">Claude/Anthropic</div>
+        </div><div class="node-item">
+          <div class="node-name">Agente 3 - Relatório</div>
+          <div class="node-type">anthropic</div>
+          <div class="node-desc">Claude/Anthropic</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF3  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF5  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF6  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF7  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF8  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF9  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF10  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Download PDF4  🚫</div>
+          <div class="node-type">httpRequest</div>
+          <div class="node-desc">HTTP POST → ={{ $('Webhook1').item.json.body.document.documentUrl }}</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">AI Agent  🚫</div>
+          <div class="node-type">agent</div>
+          <div class="node-desc">Node: agent</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Postgres Chat Memory  🚫</div>
+          <div class="node-type">memoryPostgresChat</div>
+          <div class="node-desc">Node: memoryPostgresChat</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Answer questions with a vector store1  🚫</div>
+          <div class="node-type">toolVectorStore</div>
+          <div class="node-desc">Node: toolVectorStore</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">OpenAI Chat Model1  🚫</div>
+          <div class="node-type">lmChatOpenAi</div>
+          <div class="node-desc">OpenAI</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Supabase Vector Store  🚫</div>
+          <div class="node-type">vectorStoreSupabase</div>
+          <div class="node-desc">Node: vectorStoreSupabase</div>
+        </div><div class="node-item node-disabled">
+          <div class="node-name">Embeddings OpenAI  🚫</div>
+          <div class="node-type">embeddingsOpenAi</div>
+          <div class="node-desc">OpenAI</div>
+        </div><div class="node-item">
+          <div class="node-name">Loop Over Items</div>
+          <div class="node-type">splitInBatches</div>
+          <div class="node-desc">Divide em lotes de ?</div>
+        </div><div class="node-item">
+          <div class="node-name">Preparar chunks</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Edit Fields</div>
+          <div class="node-type">set</div>
+          <div class="node-desc">Define/transforma campos</div>
+        </div><div class="node-item">
+          <div class="node-name">Get a row</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase get em ``</div>
+        </div><div class="node-item">
+          <div class="node-name">Merge analises</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Update a row</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase update em ``</div>
+        </div><div class="node-item">
+          <div class="node-name">If1</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">Merge analises1</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Wait</div>
+          <div class="node-type">wait</div>
+          <div class="node-desc">Aguarda resume (polling assíncrono)</div>
+        </div><div class="node-item">
+          <div class="node-name">Preparar chunks1</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond to Webhook</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">Get a row2</div>
+          <div class="node-type">supabase</div>
+          <div class="node-desc">Supabase get em ``</div>
+        </div><div class="node-item">
+          <div class="node-name">Message a model1</div>
+          <div class="node-type">googleGemini</div>
+          <div class="node-desc">Google/Gemini AI</div>
+        </div><div class="node-item">
+          <div class="node-name">Message a model in Google Gemini</div>
+          <div class="node-type">googleGeminiTool</div>
+          <div class="node-desc">Google/Gemini AI</div>
+        </div><div class="node-item">
+          <div class="node-name">Supabase Vector Store9</div>
+          <div class="node-type">vectorStoreSupabase</div>
+          <div class="node-desc">Node: vectorStoreSupabase</div>
+        </div><div class="node-item">
+          <div class="node-name">Embeddings OpenAI9</div>
+          <div class="node-type">embeddingsOpenAi</div>
+          <div class="node-desc">OpenAI</div>
+        </div><div class="node-item">
+          <div class="node-name">Answer questions with a vector store4</div>
+          <div class="node-type">toolVectorStore</div>
+          <div class="node-desc">Node: toolVectorStore</div>
+        </div><div class="node-item">
+          <div class="node-name">OpenAI Chat Model</div>
+          <div class="node-type">lmChatOpenAi</div>
+          <div class="node-desc">OpenAI</div>
+        </div><div class="node-item">
+          <div class="node-name">Agente 3 - Relatório2</div>
+          <div class="node-type">anthropic</div>
+          <div class="node-desc">Claude/Anthropic</div>
+        </div><div class="node-item">
+          <div class="node-name">Analyze document1</div>
+          <div class="node-type">googleGemini</div>
+          <div class="node-desc">Google/Gemini AI</div>
+        </div><div class="node-item">
+          <div class="node-name">Code in JavaScript1</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">AI Agent1</div>
+          <div class="node-type">agent</div>
+          <div class="node-desc">Node: agent</div>
+        </div><div class="node-item">
+          <div class="node-name">OpenAI Chat Model2</div>
+          <div class="node-type">lmChatOpenAi</div>
+          <div class="node-desc">OpenAI</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/DjZoLN5KLpWOyCOr" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="wf-card" id="wf-AvmF07YPjxXvM2H0">
+  <div class="wf-header" onclick="toggle('AvmF07YPjxXvM2H0')">
+    <span class="modo-tag" style="background:rgba(107,114,128,.15);color:#6b7280">🔄 TRIAGEM (LEGADO)</span>
+    <div class="wf-title">
+      <h3>WH-OLIVIA-TRIAGEM-QUESTIONS [LEGACY]</h3>
+      <div class="wf-id">ID: AvmF07YPjxXvM2H0 · 7 nodes · 🔴 Inativo</div>
+      <p>Workflow de triagem antigo. INATIVO conforme SPEC seção 30.3. Triagem agora via JARBAS /olivia/gerar-triagem.</p>
+    </div>
+    <div class="wf-right">
+      <span class="stat-pill">Triagem legada — INATIVA</span>
+      <span style="color:var(--muted);font-size:18px">›</span>
+    </div>
+  </div>
+  <div class="wf-body">
+    <div class="spec-err spec-status">❌ <strong>Status SPEC:</strong> INATIVO — triagem migrada para JARBAS</div>
+    
+    <div class="wf-section">
+      <h4>Nodes (7)</h4>
+      <div class="nodes-grid"><div class="node-item">
+          <div class="node-name">Webhook</div>
+          <div class="node-type">webhook</div>
+          <div class="node-desc">Entrada webhook POST /olivia/triagem-questions-legacy-DO-NOT-USE</div>
+        </div><div class="node-item">
+          <div class="node-name">Validar e Extrair</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Payload Válido?</div>
+          <div class="node-type">if</div>
+          <div class="node-desc">Condição if/else</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond Invalid</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div><div class="node-item">
+          <div class="node-name">Gerar Perguntas IA</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Formatar Resposta</div>
+          <div class="node-type">code</div>
+          <div class="node-desc">Código JS customizado</div>
+        </div><div class="node-item">
+          <div class="node-name">Respond Success</div>
+          <div class="node-type">respondToWebhook</div>
+          <div class="node-desc">Responde ao webhook (status 200)</div>
+        </div></div>
+    </div>
+    
+    <a class="n8n-link" href="https://primary-production-e209.up.railway.app/workflow/AvmF07YPjxXvM2H0" target="_blank">🔗 Abrir no N8N</a>
+  </div>
+</div>
+<div class="section-title" style="margin-top:40px">❌ Workflows que NÃO são da OlivIA (relatório anterior estava errado)</div>
+<p style="color:var(--muted);font-size:13px;margin-bottom:18px">Estes workflows foram listados no primeiro relatório por engano. Explicação abaixo.</p>
+
+<div class="error-card">
+  <h4>❌ OlivIA</h4>
+  <div class="eid">ID: 2W3ge7XWZp1HKwGK</div>
+  <p>Workflow antigo/genérico. Não é o workflow correto de nenhum modo específico. A SPEC define 1 workflow por modo — este era uma tentativa antiga de centralizar tudo.</p>
+</div>
+<div class="error-card">
+  <h4>❌ N8N-DIST-GERAR-PETICAO — OlivIA Async</h4>
+  <div class="eid">ID: 5H7icedAtJIia23i</div>
+  <p>Dispatcher da distribuição de processos, não da OlivIA. 'DIST' = Distribuição jurídica (fila de distribuição de processos para advogados) — não tem nada a ver com geração de petição OlivIA.</p>
+</div>
+<div class="error-card">
+  <h4>❌ N8N-DIST-PETICAO — Gerar Petição Inicial</h4>
+  <div class="eid">ID: 03-jelC6imeuusUdlY72i</div>
+  <p>Também é workflow de distribuição. Gera petição inicial do processo de distribuição — módulo separado do MdFlow, não é OlivIA.</p>
+</div>
+<div class="error-card">
+  <h4>❌ WH-OLIVIA-RECURSO</h4>
+  <div class="eid">ID: 2Yvg36Bzfss7g5KQ</div>
+  <p>Recursos jurídicos podem usar o mesmo workflow do Express/IA Assistida (tipo=RECURSO no payload). Não precisa de workflow separado conforme D-EXEC-08.</p>
+</div>
+<div class="error-card">
+  <h4>❌ N8N-PROC-OLIVIA-RESUMO</h4>
+  <div class="eid">ID: 0lcbMHTEwbyrrYAH</div>
+  <p>Sub-workflow interno, não um modo da OlivIA. É chamado internamente por outros workflows. Não deve ser listado como modo principal.</p>
+</div>
+<div class="error-card">
+  <h4>❌ N8N-OLIVIA-PETICAO-V3</h4>
+  <div class="eid">ID: 9nTgWoQiU4FUIxQm</div>
+  <p>Versão legada/experimental. Não está mapeado na SPEC como workflow ativo de nenhum modo.</p>
+</div>
+<div class="error-card">
+  <h4>❌ WH-JURI-02 — Olivia Chat (Jurimetria)</h4>
+  <div class="eid">ID: 6u9qZ5caQ5JgkMPS</div>
+  <p>Chat com jurimetria — funcionalidade separada, não é um modo do gerador de petições. Não listado na SPEC D-EXEC-08.</p>
+</div>
+<div class="error-card">
+  <h4>❌ WH-CTRL-02 — Controller Chat Olivia</h4>
+  <div class="eid">ID: 9dV4sCzpKKWIgXpC</div>
+  <p>Controller interno, não um modo. Sub-componente do chat.</p>
+</div>
+<div class="error-card">
+  <h4>❌ TEST-OLIVIA-TRIAGEM-SIMPLE</h4>
+  <div class="eid">ID: 9EuObcreZQ8F7xwj</div>
+  <p>Workflow de teste. Não deve estar em produção ativo.</p>
+</div>
+</div>
+<script>
+function toggle(id){document.getElementById("wf-"+id).classList.toggle("expanded");}
+let allExpanded=false;
+function toggleAll(){
+  allExpanded=!allExpanded;
+  document.querySelectorAll(".wf-card").forEach(c=>{allExpanded?c.classList.add("expanded"):c.classList.remove("expanded");});
+  document.querySelector(".expand-all").textContent=allExpanded?"▲ Recolher":"▼ Expandir detalhes";
+}
+</script>
+</body>
+</html>

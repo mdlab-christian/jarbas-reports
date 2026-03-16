@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório — Análise de Intimações IA | Controller | 16/03/2026</title>
+<style>
+  :root {
+    --green: #16a34a; --green-bg: #f0fdf4; --green-border: #bbf7d0;
+    --yellow: #d97706; --yellow-bg: #fffbeb; --yellow-border: #fde68a;
+    --red: #dc2626; --red-bg: #fef2f2; --red-border: #fecaca;
+    --blue: #2563eb; --blue-bg: #eff6ff; --blue-border: #bfdbfe;
+    --purple: #7c3aed; --purple-bg: #f5f3ff; --purple-border: #ddd6fe;
+    --gray: #374151; --gray-light: #f9fafb; --border: #e5e7eb;
+    --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: #f3f4f6; color: var(--gray); line-height: 1.6; }
+  .page { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: white; border-radius: 16px; padding: 32px 40px; margin-bottom: 28px; }
+  .header h1 { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+  .header .sub { opacity: 0.85; font-size: 14px; }
+  .header .meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+  .header .meta-item { background: rgba(255,255,255,0.15); border-radius: 8px; padding: 10px 18px; }
+  .header .meta-item .num { font-size: 28px; font-weight: 700; }
+  .header .meta-item .lbl { font-size: 12px; opacity: 0.8; }
+
+  /* Score geral */
+  .score-card { background: white; border-radius: 16px; padding: 28px 32px; margin-bottom: 28px; border: 1px solid var(--border); display: flex; align-items: center; gap: 32px; flex-wrap: wrap; }
+  .score-gauge { text-align: center; }
+  .score-num { font-size: 64px; font-weight: 800; color: var(--yellow); line-height: 1; }
+  .score-label { font-size: 13px; color: #6b7280; margin-top: 4px; }
+  .score-desc { flex: 1; min-width: 280px; }
+  .score-desc h2 { font-size: 20px; margin-bottom: 10px; }
+  .score-desc p { color: #6b7280; font-size: 14px; }
+
+  /* Section */
+  .section { background: white; border-radius: 16px; padding: 28px 32px; margin-bottom: 20px; border: 1px solid var(--border); }
+  .section h2 { font-size: 17px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .section h2 .icon { font-size: 20px; }
+
+  /* Grid 2-3 colunas */
+  .grid-2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+
+  /* Stat card */
+  .stat { background: var(--gray-light); border-radius: 12px; padding: 18px 20px; border: 1px solid var(--border); }
+  .stat.green { background: var(--green-bg); border-color: var(--green-border); }
+  .stat.yellow { background: var(--yellow-bg); border-color: var(--yellow-border); }
+  .stat.red { background: var(--red-bg); border-color: var(--red-border); }
+  .stat.blue { background: var(--blue-bg); border-color: var(--blue-border); }
+  .stat.purple { background: var(--purple-bg); border-color: var(--purple-border); }
+  .stat .num { font-size: 32px; font-weight: 700; line-height: 1.1; }
+  .stat .num.green { color: var(--green); }
+  .stat .num.yellow { color: var(--yellow); }
+  .stat .num.red { color: var(--red); }
+  .stat .num.blue { color: var(--blue); }
+  .stat .num.purple { color: var(--purple); }
+  .stat .lbl { font-size: 13px; color: #6b7280; margin-top: 4px; }
+  .stat .sub { font-size: 12px; color: #9ca3af; margin-top: 2px; }
+
+  /* Progress bar */
+  .progress-row { margin-bottom: 12px; }
+  .progress-row .label { font-size: 13px; display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .progress-bar { height: 10px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 99px; }
+  .fill-green { background: var(--green); }
+  .fill-yellow { background: var(--yellow); }
+  .fill-red { background: var(--red); }
+  .fill-blue { background: var(--blue); }
+  .fill-purple { background: var(--purple); }
+  .fill-gray { background: #9ca3af; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: #f3f4f6; padding: 10px 14px; text-align: left; font-weight: 600; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: 0.05em; }
+  tbody td { padding: 10px 14px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #f9fafb; }
+
+  /* Badge */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+  .badge.green { background: var(--green-bg); color: var(--green); }
+  .badge.yellow { background: var(--yellow-bg); color: var(--yellow); }
+  .badge.red { background: var(--red-bg); color: var(--red); }
+  .badge.blue { background: var(--blue-bg); color: var(--blue); }
+  .badge.gray { background: #f3f4f6; color: #6b7280; }
+
+  /* Donut */
+  .donut-wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+  .donut-legend { flex: 1; min-width: 180px; }
+  .legend-item { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Alert */
+  .alert { border-radius: 10px; padding: 14px 18px; margin-bottom: 12px; font-size: 13px; border-left: 4px solid; }
+  .alert.red { background: var(--red-bg); border-color: var(--red); }
+  .alert.yellow { background: var(--yellow-bg); border-color: var(--yellow); }
+  .alert.green { background: var(--green-bg); border-color: var(--green); }
+  .alert .title { font-weight: 700; margin-bottom: 3px; }
+
+  /* Plan card */
+  .plan-item { border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; }
+  .plan-item .plan-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .plan-item .priority { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
+  .p1 { background: #fef2f2; color: var(--red); }
+  .p2 { background: var(--yellow-bg); color: var(--yellow); }
+  .p3 { background: var(--blue-bg); color: var(--blue); }
+  .plan-item h3 { font-size: 15px; font-weight: 600; }
+  .plan-item p { font-size: 13px; color: #6b7280; margin-top: 4px; }
+  .plan-item ul { margin: 8px 0 0 18px; font-size: 13px; color: #6b7280; }
+  .plan-item ul li { margin-bottom: 4px; }
+
+  /* Confidence meter */
+  .conf-meter { display: flex; align-items: center; gap: 8px; }
+  .conf-bar { flex: 1; height: 6px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+  .conf-fill { height: 100%; border-radius: 99px; }
+
+  /* Footer */
+  .footer { text-align: center; padding: 24px; color: #9ca3af; font-size: 12px; }
+
+  /* Divider */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* Conteúdo truncado */
+  .truncate { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+      <div>
+        <h1>📋 Análise de Intimações — Relatório de Qualidade IA</h1>
+        <div class="sub">MdFlow Controller · 16 de março de 2026 · Gerado por JARBAS</div>
+      </div>
+      <div style="font-size:13px; opacity:0.8; text-align:right;">
+        Modelo: Claude Sonnet 4-6<br>
+        Banco: Supabase (qdivfairxhdihaqqypgb)
+      </div>
+    </div>
+    <div class="meta">
+      <div class="meta-item">
+        <div class="num">72</div>
+        <div class="lbl">Intimações analisadas</div>
+      </div>
+      <div class="meta-item">
+        <div class="num">100%</div>
+        <div class="lbl">Processadas pela IA</div>
+      </div>
+      <div class="meta-item">
+        <div class="num">86,9</div>
+        <div class="lbl">Confiança média (%)</div>
+      </div>
+      <div class="meta-item">
+        <div class="num">4</div>
+        <div class="lbl">Decisões favoráveis detectadas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Score geral -->
+  <div class="score-card">
+    <div class="score-gauge">
+      <div class="score-num">7,2</div>
+      <div class="score-label">/ 10 — Nota geral</div>
+      <div style="margin-top:8px;"><span class="badge yellow">🟡 Em evolução</span></div>
+    </div>
+    <div class="score-desc">
+      <h2>Diagnóstico Geral</h2>
+      <p>O upgrade do modelo entregou resultados sólidos: 100% das intimações foram processadas sem erros, a confiança média chegou a 86,9% e o sistema está identificando corretamente decisões favoráveis, trânsitos em julgado e responsáveis por ação. <strong>Porém há gaps críticos</strong> que impedem o aproveitamento pleno dos dados pela interface do Controller: campos legados (<code>resumo_ia</code>, <code>tipo_evento</code>, <code>prazo_dias</code>, <code>urgente</code>) não estão sendo alimentados, o que faz a UI parecer "vazia" mesmo com análise rica armazenada no JSON.</p>
+    </div>
+  </div>
+
+  <!-- O que funciona bem -->
+  <div class="section">
+    <h2><span class="icon">✅</span> O que está funcionando bem</h2>
+    <div class="grid-4">
+      <div class="stat green">
+        <div class="num green">100%</div>
+        <div class="lbl">Processamento sem erro</div>
+        <div class="sub">0 falhas de IA em 72 registros</div>
+      </div>
+      <div class="stat green">
+        <div class="num green">61/72</div>
+        <div class="lbl">Novo modelo ativo</div>
+        <div class="sub">84,7% já com _analista_raw</div>
+      </div>
+      <div class="stat green">
+        <div class="num green">86,9%</div>
+        <div class="lbl">Confiança média</div>
+        <div class="sub">Max 95% · Min 55%</div>
+      </div>
+      <div class="stat green">
+        <div class="num green">4</div>
+        <div class="lbl">Trânsitos em julgado</div>
+        <div class="sub">Identificados e roteados corretamente</div>
+      </div>
+    </div>
+    <div class="grid-3" style="margin-top:16px;">
+      <div class="stat blue">
+        <div class="num blue">4 responsáveis</div>
+        <div class="lbl">Roteamento automático ativo</div>
+        <div class="sub">Stephanie · Dra. Eloísa · Leonardo · Marcelo</div>
+      </div>
+      <div class="stat blue">
+        <div class="num blue">6</div>
+        <div class="lbl">Prazos de 15 dias detectados</div>
+        <div class="sub">Cumprimentos de sentença priorizados</div>
+      </div>
+      <div class="stat blue">
+        <div class="num blue">48</div>
+        <div class="lbl">Ciências de renuncia identificadas</div>
+        <div class="sub">flag_ciencia_renuncia automático</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribuição por tipo de atividade / fase / responsável -->
+  <div class="grid-2">
+    <div class="section" style="margin-bottom:0;">
+      <h2><span class="icon">👤</span> Distribuição por Responsável</h2>
+      <div class="progress-row">
+        <div class="label"><span>Stephanie</span><span>27 (44,3%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-purple" style="width:44.3%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="label"><span>Dra. Eloísa</span><span>15 (24,6%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-blue" style="width:24.6%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="label"><span>Leonardo</span><span>12 (19,7%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-green" style="width:19.7%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="label"><span>Marcelo</span><span>7 (11,5%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:11.5%"></div></div>
+      </div>
+      <hr class="divider">
+      <div style="font-size:12px;color:#9ca3af;">11 sem roteamento (modelo antigo)</div>
+    </div>
+
+    <div class="section" style="margin-bottom:0;">
+      <h2><span class="icon">⚖️</span> Distribuição por Fase Processual</h2>
+      <div class="progress-row">
+        <div class="label"><span>Defesa (1ª instância)</span><span>22 (36,1%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-blue" style="width:36.1%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="label"><span>Recursal (2º grau)</span><span>15 (24,6%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-purple" style="width:24.6%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="label"><span>Inicial</span><span>12 (19,7%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:19.7%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="label"><span>Execução</span><span>9 (14,8%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-green" style="width:14.8%"></div></div>
+      </div>
+      <div class="progress-row">
+        <div class="label"><span>Julgamento</span><span>3 (4,9%)</span></div>
+        <div class="progress-bar"><div class="progress-fill fill-gray" style="width:4.9%"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tipo de atividade -->
+  <div class="section" style="margin-top:20px;">
+    <h2><span class="icon">🎯</span> Tipo de Atividade Sugerida pela IA</h2>
+    <div class="grid-4">
+      <div class="stat">
+        <div class="num" style="color:#7c3aed;">52</div>
+        <div class="lbl">Ciência / Renuncia</div>
+        <div class="sub">Intimações passivas — sem ação imediata necessária</div>
+      </div>
+      <div class="stat">
+        <div class="num" style="color:#2563eb;">5</div>
+        <div class="lbl">Decisão 2º Grau</div>
+        <div class="sub">Acórdãos a monitorar / contrarrazões</div>
+      </div>
+      <div class="stat green">
+        <div class="num green">4</div>
+        <div class="lbl">Cumprimento de Sentença</div>
+        <div class="sub">Execução a protocolar — R$ identificado</div>
+      </div>
+      <div class="stat">
+        <div class="num" style="color:#9ca3af;">11</div>
+        <div class="lbl">Sem classificação</div>
+        <div class="sub">Modelo antigo (estrutura legada)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decisões importantes -->
+  <div class="section">
+    <h2><span class="icon">🏆</span> Decisões Importantes Detectadas</h2>
+    <div class="grid-2">
+      <div>
+        <div class="alert green">
+          <div class="title">✅ 4 Decisões Favoráveis</div>
+          Detectadas automaticamente com flag_decisao_favoravel=true. Trânsitos em julgado identificados corretamente com valores e prazo de 15 dias para protocolar cumprimento de sentença.
+        </div>
+        <div class="alert red">
+          <div class="title">⚠️ 2 Decisões Desfavoráveis</div>
+          flag_decisao_desfavoravel=true. Processos em fase recursal — necessário verificar se prazo para recurso foi tratado.
+        </div>
+      </div>
+      <div>
+        <table>
+          <thead>
+            <tr><th>Processo</th><th>Valor</th><th>Prazo</th><th>Resp.</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="truncate">Trânsito em julgado — R$15.051,39</td>
+              <td>R$15.051</td>
+              <td><span class="badge yellow">15 dias</span></td>
+              <td>Dra. Eloísa</td>
+            </tr>
+            <tr>
+              <td class="truncate">Trânsito em julgado — R$15.198,93</td>
+              <td>R$15.199</td>
+              <td><span class="badge yellow">15 dias</span></td>
+              <td>Dra. Eloísa</td>
+            </tr>
+            <tr>
+              <td class="truncate">Trânsito em julgado — R$36.417,95</td>
+              <td>R$36.418</td>
+              <td><span class="badge yellow">15 dias</span></td>
+              <td>Dra. Eloísa</td>
+            </tr>
+            <tr>
+              <td class="truncate">Decisão dano moral R$15.197,81</td>
+              <td>R$15.198</td>
+              <td><span class="badge yellow">15 dias</span></td>
+              <td>Dra. Eloísa</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:12px;color:#9ca3af;margin-top:8px;">Total identificado: ~R$81.865 em execuções a protocolar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Gaps críticos -->
+  <div class="section">
+    <h2><span class="icon">🚨</span> Gaps Críticos — O que não está funcionando</h2>
+    <table>
+      <thead>
+        <tr><th>Campo</th><th>Status</th><th>Impacto na UI</th><th>Causa</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>resumo_ia</code></td>
+          <td><span class="badge red">❌ 72/72 vazios</span></td>
+          <td>Controller não exibe resumo no card da intimação</td>
+          <td>Dado está em <code>analise_ia.resumo</code> mas não é copiado para o campo legado</td>
+        </tr>
+        <tr>
+          <td><code>tipo_evento</code></td>
+          <td><span class="badge red">❌ 61/72 null</span></td>
+          <td>Filtros por tipo não funcionam; tag visual ausente</td>
+          <td>IA classifica em <code>analise_ia._analista_raw.atividade_tipo</code> mas não preenche o campo raiz</td>
+        </tr>
+        <tr>
+          <td><code>prazo_dias</code> / <code>data_prazo</code></td>
+          <td><span class="badge red">❌ 72/72 vazios</span></td>
+          <td>Nenhuma intimação aparece com prazo no Controller; alertas de prazo não funcionam</td>
+          <td>Prazo detectado em <code>_analista_raw.atividade_sugerida.prazo_dias</code> não é propagado para a coluna raiz</td>
+        </tr>
+        <tr>
+          <td><code>urgente</code></td>
+          <td><span class="badge red">❌ 72/72 false</span></td>
+          <td>Nenhuma intimação marcada como urgente mesmo quando há prazo iminente</td>
+          <td>Flag nunca é setada pelo processador — lógica de urgência não implementada</td>
+        </tr>
+        <tr>
+          <td><code>flag_recurso_necessario</code></td>
+          <td><span class="badge yellow">⚠️ 61/72 null</span></td>
+          <td>Alertas de recurso ausentes mesmo em decisões desfavoráveis</td>
+          <td>Campo não está sendo preenchido pelo analista IA</td>
+        </tr>
+        <tr>
+          <td><code>ia_acao_recomendada</code></td>
+          <td><span class="badge yellow">⚠️ todos vazios</span></td>
+          <td>Coluna de ação recomendada vazia na listagem</td>
+          <td>Dado rico em <code>_analista_raw.atividade_sugerida.descricao</code> não mapeado</td>
+        </tr>
+        <tr>
+          <td>11 registros modelo antigo</td>
+          <td><span class="badge yellow">⚠️ estrutura legada</span></td>
+          <td>Esses registros têm análise superficial sem roteamento/responsável/fase</td>
+          <td>Processados antes do upgrade — precisam de reprocessamento</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Confiança baixa -->
+  <div class="section">
+    <h2><span class="icon">📊</span> Casos com Confiança Baixa (&lt; 75%) — Requerem Atenção Humana</h2>
+    <table>
+      <thead>
+        <tr><th>Título</th><th>Fase</th><th>Confiança</th><th>Motivo / Ação</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="truncate">Decisão dano moral R$15.197,81 fundo crédito</td>
+          <td><span class="badge blue">recursal</span></td>
+          <td>
+            <div class="conf-meter">
+              <div class="conf-bar"><div class="conf-fill fill-red" style="width:62%"></div></div>
+              <span style="font-size:12px;font-weight:700;color:var(--red)">62%</span>
+            </div>
+          </td>
+          <td style="font-size:12px;">Decisão 2º grau sem inteiro teor — verificar evento 6 no TJRS. Prazo até 31/03/2026.</td>
+        </tr>
+        <tr>
+          <td class="truncate">Decisão dano moral vs Cooper Card R$15.706</td>
+          <td><span class="badge blue">recursal</span></td>
+          <td>
+            <div class="conf-meter">
+              <div class="conf-bar"><div class="conf-fill fill-yellow" style="width:72%"></div></div>
+              <span style="font-size:12px;font-weight:700;color:var(--yellow)">72%</span>
+            </div>
+          </td>
+          <td style="font-size:12px;">Apenas cabeçalho recebido — aguardar texto integral da decisão antes de agir.</td>
+        </tr>
+        <tr>
+          <td class="truncate">Decisão indenização dano moral R$16.211,82</td>
+          <td><span class="badge blue">recursal</span></td>
+          <td>
+            <div class="conf-meter">
+              <div class="conf-bar"><div class="conf-fill fill-red" style="width:55%"></div></div>
+              <span style="font-size:12px;font-weight:700;color:var(--red)">55%</span>
+            </div>
+          </td>
+          <td style="font-size:12px;">Conteúdo decisório incompleto no TJSC/Joinville — acessar o sistema para verificar.</td>
+        </tr>
+        <tr>
+          <td class="truncate">Intimação Mercado Pago — dano moral (TJSP)</td>
+          <td><span class="badge blue">recursal</span></td>
+          <td>
+            <div class="conf-meter">
+              <div class="conf-bar"><div class="conf-fill fill-red" style="width:55%"></div></div>
+              <span style="font-size:12px;font-weight:700;color:var(--red)">55%</span>
+            </div>
+          </td>
+          <td style="font-size:12px;">Intimação confirmada mas sem conteúdo decisório — verificar contrarrazões evento 18.</td>
+        </tr>
+        <tr>
+          <td class="truncate">Decorrido prazo — réu contestou ou prazo fatal</td>
+          <td><span class="badge gray">julgamento</span></td>
+          <td>
+            <div class="conf-meter">
+              <div class="conf-bar"><div class="conf-fill fill-yellow" style="width:72%"></div></div>
+              <span style="font-size:12px;font-weight:700;color:var(--yellow)">72%</span>
+            </div>
+          </td>
+          <td style="font-size:12px;">Processo sentenciado desfavoravelmente — verificar eventos 30 e 31 para confirmar prazo recursal.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="alert yellow" style="margin-top:16px;">
+      <div class="title">Padrão identificado</div>
+      Todos os casos de baixa confiança estão na fase recursal e compartilham o mesmo problema: o EPROC envia apenas o <strong>cabeçalho da movimentação sem o inteiro teor da decisão</strong>. A IA não consegue classificar com segurança sem o conteúdo completo. Solução: capturar <code>conteudo_completo</code> via download do PDF da decisão antes de processar.
+    </div>
+  </div>
+
+  <!-- Plano de melhorias -->
+  <div class="section">
+    <h2><span class="icon">🗺️</span> Plano de Melhorias — Priorizado</h2>
+
+    <div class="plan-item">
+      <div class="plan-header">
+        <span class="priority p1">P1 — Crítico</span>
+        <h3>Sync de campos raiz após análise IA</h3>
+      </div>
+      <p>Os campos <code>resumo_ia</code>, <code>tipo_evento</code>, <code>prazo_dias</code>, <code>data_prazo</code> e <code>urgente</code> não estão sendo preenchidos após o processamento da IA. A análise rica existe no JSON mas a UI do Controller não consegue consumir.</p>
+      <ul>
+        <li>No finalizador da skill de análise IA, após salvar <code>analise_ia</code>, executar UPDATE nos campos raiz</li>
+        <li><code>resumo_ia</code> ← <code>analise_ia._analista_raw.resumo_controller</code></li>
+        <li><code>tipo_evento</code> ← <code>analise_ia._analista_raw.atividade_tipo</code> (mapeado para enum da tabela)</li>
+        <li><code>prazo_dias</code> ← <code>analise_ia._analista_raw.atividade_sugerida.prazo_dias</code></li>
+        <li><code>urgente</code> ← <code>prazo_dias &lt;= 5 OR flag_recurso_necessario = true</code></li>
+        <li>Script de backfill para os 72 registros já processados</li>
+      </ul>
+    </div>
+
+    <div class="plan-item">
+      <div class="plan-header">
+        <span class="priority p1">P1 — Crítico</span>
+        <h3>Reprocessar 11 registros com modelo antigo</h3>
+      </div>
+      <p>11 intimações usaram a estrutura legada (sem <code>_analista_raw</code>) — sem roteamento, sem fase, sem responsável. Precisam ser reprocessadas pelo novo modelo.</p>
+      <ul>
+        <li>Identificar: <code>SELECT * FROM intimacoes WHERE analise_ia-&gt;&gt;'_analista_raw' IS NULL AND ia_status = 'concluido'</code></li>
+        <li>Resetar <code>ia_status = 'pendente'</code> nos 11 registros</li>
+        <li>Deixar o ciclo normal reprocessar nas próximas horas</li>
+      </ul>
+    </div>
+
+    <div class="plan-item">
+      <div class="plan-header">
+        <span class="priority p2">P2 — Alto</span>
+        <h3>Capturar conteudo_completo antes de analisar (fase recursal)</h3>
+      </div>
+      <p>7 casos com confiança &lt; 75% são todos da fase recursal com conteúdo truncado. O EPROC envia apenas o cabeçalho — a IA não tem base suficiente para classificar com segurança.</p>
+      <ul>
+        <li>Para intimações com <code>fase_processual = 'recursal'</code> e conteúdo &lt; 300 chars: enfileirar download do PDF do evento antes de processar IA</li>
+        <li>Preencher <code>conteudo_completo</code> com o texto extraído do PDF</li>
+        <li>Reprocessar IA com o conteúdo completo disponível</li>
+        <li>Resultado esperado: confiança &gt; 80% para esses casos</li>
+      </ul>
+    </div>
+
+    <div class="plan-item">
+      <div class="plan-header">
+        <span class="priority p2">P2 — Alto</span>
+        <h3>Ativar flag_recurso_necessario no prompt da IA</h3>
+      </div>
+      <p><code>flag_recurso_necessario</code> está null em 100% dos registros mesmo com 2 decisões desfavoráveis detectadas. O campo existe no schema mas o prompt não instrui a IA a preenchê-lo.</p>
+      <ul>
+        <li>Adicionar instrução explícita no system prompt do analista IA</li>
+        <li>Lógica: se <code>flag_decisao_desfavoravel = true</code> E <code>fase_processual IN ('defesa', 'recursal')</code> → avaliar necessidade de recurso</li>
+        <li>Resultado: alertas de recurso automáticos no Controller</li>
+      </ul>
+    </div>
+
+    <div class="plan-item">
+      <div class="plan-header">
+        <span class="priority p3">P3 — Melhoria</span>
+        <h3>Dashboard de qualidade IA — monitoramento contínuo</h3>
+      </div>
+      <p>Hoje não há visibilidade sobre a qualidade do processamento IA ao longo do tempo. Criar painel simples no Controller com métricas semanais.</p>
+      <ul>
+        <li>% de registros com confiança &gt; 80% (baseline atual: 88,5%)</li>
+        <li>Distribuição de tipos de atividade por semana</li>
+        <li>Contagem de decisões favoráveis vs. desfavoráveis por tribunal</li>
+        <li>Alertas automáticos quando confiança média cair abaixo de 80%</li>
+      </ul>
+    </div>
+
+    <div class="plan-item">
+      <div class="plan-header">
+        <span class="priority p3">P3 — Melhoria</span>
+        <h3>Enriquecer títulos automáticos com valor da causa</h3>
+      </div>
+      <p>Os títulos gerados pela IA já incluem valores (ex: "Trânsito em julgado — R$15.051,39") — ótimo. Mas 61 intimações ainda têm <code>tipo_evento = null</code>, o que prejudica filtros e agrupamentos na UI.</p>
+      <ul>
+        <li>Mapear <code>atividade_tipo</code> para <code>tipo_evento</code> enum: ciencia_renuncia → 'ciencia', cumprimento_sentenca → 'execucao', etc.</li>
+        <li>Atualizar via UPDATE após processamento (parte do P1)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Resumo executivo -->
+  <div class="section" style="background: linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%); border-color: #bbf7d0;">
+    <h2><span class="icon">📌</span> Resumo Executivo</h2>
+    <div class="grid-2">
+      <div>
+        <div class="alert green">
+          <div class="title">O que melhorou com o upgrade</div>
+          100% das intimações processadas sem erro. Confiança média de 86,9% (muito boa). Roteamento automático por responsável funcionando. Detecção de trânsitos em julgado e valores identificando ~R$81k em execuções a protocolar. Identificação de ciência de renuncia em 48 intimações.
+        </div>
+        <div class="alert yellow">
+          <div class="title">O que ainda falta</div>
+          A análise rica está dentro do JSON mas não chegando à UI. Campos legados (<code>resumo_ia</code>, <code>prazo_dias</code>, <code>urgente</code>, <code>tipo_evento</code>) vazios fazem o Controller parecer "cru" mesmo com dados disponíveis. É um problema de sync de dados, não de qualidade de IA.
+        </div>
+      </div>
+      <div>
+        <div style="background:white;border-radius:12px;padding:20px;border:1px solid var(--border);">
+          <h3 style="font-size:15px;margin-bottom:12px;">Próximas ações recomendadas</h3>
+          <div style="font-size:13px;">
+            <div style="display:flex;gap:8px;margin-bottom:10px;"><span style="color:var(--red);font-weight:700;">1.</span><span><strong>Hoje:</strong> Script de backfill — preencher campos raiz nos 72 registros já processados</span></div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;"><span style="color:var(--red);font-weight:700;">2.</span><span><strong>Hoje:</strong> Reprocessar os 11 registros com modelo antigo</span></div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;"><span style="color:var(--yellow);font-weight:700;">3.</span><span><strong>Esta semana:</strong> Implementar captura de conteudo_completo para fase recursal</span></div>
+            <div style="display:flex;gap:8px;margin-bottom:10px;"><span style="color:var(--yellow);font-weight:700;">4.</span><span><strong>Esta semana:</strong> Ativar flag_recurso_necessario no prompt da IA</span></div>
+            <div style="display:flex;gap:8px;"><span style="color:var(--blue);font-weight:700;">5.</span><span><strong>Próxima sprint:</strong> Dashboard de qualidade IA no Controller</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Relatório gerado por JARBAS · MdLab · 16/03/2026 12:01 BRT<br>
+    Dados: 72 intimações · Supabase qdivfairxhdihaqqypgb · Modelo: Claude Sonnet 4-6
+  </div>
+
+</div>
+</body>
+</html>

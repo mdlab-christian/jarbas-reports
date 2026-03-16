@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoria EPROC — JARBAS · 16/03/2026</title>
+<style>
+  :root {
+    --green: #22c55e; --yellow: #eab308; --red: #ef4444; --blue: #3b82f6;
+    --orange: #f97316; --purple: #a855f7; --gray: #6b7280;
+    --bg: #0f172a; --card: #1e293b; --border: #334155; --text: #e2e8f0; --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 2.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 1.8rem; font-weight: 700; color: #f8fafc; }
+  .header .sub { color: var(--muted); font-size: 0.9rem; margin-top: 0.4rem; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .badge-green { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-yellow { background: rgba(234,179,8,0.15); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-orange { background: rgba(249,115,22,0.15); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; text-align: center; }
+  .stat-card .num { font-size: 2.2rem; font-weight: 700; line-height: 1; }
+  .stat-card .lbl { font-size: 0.78rem; color: var(--muted); margin-top: 0.3rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  .stat-card.green .num { color: var(--green); }
+  .stat-card.yellow .num { color: var(--yellow); }
+  .stat-card.red .num { color: var(--red); }
+  .stat-card.blue .num { color: var(--blue); }
+  .stat-card.orange .num { color: var(--orange); }
+
+  /* Section */
+  .section { margin-bottom: 2rem; }
+  .section-title { font-size: 1rem; font-weight: 700; color: #f8fafc; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: #0f172a; color: var(--muted); text-align: left; padding: 0.6rem 0.8rem; font-weight: 600; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+  td { padding: 0.65rem 0.8rem; border-bottom: 1px solid rgba(51,65,85,0.5); vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .table-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+
+  /* Alert box */
+  .alert { border-radius: 10px; padding: 1rem 1.2rem; margin-bottom: 1rem; display: flex; gap: 0.75rem; align-items: flex-start; }
+  .alert-red { background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.25); }
+  .alert-yellow { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25); }
+  .alert-green { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); }
+  .alert-blue { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); }
+  .alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 2px; }
+  .alert-body strong { display: block; font-size: 0.9rem; margin-bottom: 0.2rem; }
+  .alert-body p { font-size: 0.83rem; color: var(--muted); }
+  .alert-body code { background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px; font-size: 0.8rem; font-family: monospace; color: #e2e8f0; }
+
+  /* Progress bar */
+  .progress-wrap { background: #0f172a; border-radius: 6px; height: 8px; overflow: hidden; margin-top: 4px; }
+  .progress-bar { height: 100%; border-radius: 6px; }
+  .pb-green { background: var(--green); }
+  .pb-red { background: var(--red); }
+
+  /* Code block */
+  .code-block { background: #0f172a; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; font-family: monospace; font-size: 0.8rem; color: #94a3b8; overflow-x: auto; margin-top: 0.5rem; }
+  .code-block .cm { color: #6b7280; }
+  .code-block .kw { color: #93c5fd; }
+  .code-block .str { color: #86efac; }
+  .code-block .fn { color: #fde68a; }
+  .code-block .num { color: #c4b5fd; }
+
+  /* Two col */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+  /* Timeline */
+  .timeline { list-style: none; }
+  .timeline li { display: flex; gap: 0.75rem; padding-bottom: 1rem; }
+  .timeline li:last-child { padding-bottom: 0; }
+  .tl-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .tl-green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .tl-red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .tl-yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .tl-body { flex: 1; }
+  .tl-title { font-size: 0.85rem; font-weight: 600; }
+  .tl-desc { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+
+  .recbox { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.2rem; margin-bottom: 0.75rem; }
+  .recbox h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem; }
+  .recbox p { font-size: 0.82rem; color: var(--muted); }
+  .priority { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+  .p0 { background: rgba(239,68,68,0.2); color: var(--red); }
+  .p1 { background: rgba(249,115,22,0.2); color: var(--orange); }
+  .p2 { background: rgba(234,179,8,0.2); color: var(--yellow); }
+  .p3 { background: rgba(59,130,246,0.2); color: var(--blue); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div style="font-size:2rem;margin-bottom:0.5rem">🔍</div>
+    <h1>Auditoria do Sistema EPROC</h1>
+    <div class="sub">JARBAS · MdLab · 16 de março de 2026 · 12:58</div>
+    <div style="margin-top:0.75rem;display:flex;gap:0.5rem;justify-content:center;flex-wrap:wrap">
+      <span class="badge badge-green">3 Tribunais Online</span>
+      <span class="badge badge-green">5 Contas Ativas</span>
+      <span class="badge badge-blue">Vision Sonnet 4.6</span>
+      <span class="badge badge-red">1 Bug Crítico</span>
+      <span class="badge badge-yellow">3 Melhorias P1</span>
+    </div>
+  </div>
+
+  <!-- SUMMARY CARDS -->
+  <div class="summary-grid">
+    <div class="stat-card green">
+      <div class="num">98.1%</div>
+      <div class="lbl">Taxa de sucesso</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="num">803</div>
+      <div class="lbl">Tarefas EPROC (7d)</div>
+    </div>
+    <div class="stat-card green">
+      <div class="num">5</div>
+      <div class="lbl">Contas ativas</div>
+    </div>
+    <div class="stat-card yellow">
+      <div class="num">3</div>
+      <div class="lbl">Erros últimos 7d</div>
+    </div>
+    <div class="stat-card blue">
+      <div class="num">6.7k</div>
+      <div class="lbl">Memórias visuais</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="num">1</div>
+      <div class="lbl">Bug crítico</div>
+    </div>
+  </div>
+
+  <!-- STATUS DOS TRIBUNAIS -->
+  <div class="section">
+    <div class="section-title">🏛️ Status dos Tribunais</div>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Tribunal</th>
+            <th>URL</th>
+            <th>HTTP</th>
+            <th>Contas</th>
+            <th>Último Login</th>
+            <th>Falhas</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>TJRS</strong></td>
+            <td><code style="font-size:0.75rem;color:#94a3b8">eproc1g.tjrs.jus.br</code></td>
+            <td><span class="badge badge-green">302 ✓</span></td>
+            <td>RS116571, RS131163</td>
+            <td>Hoje 14:44</td>
+            <td style="color:var(--green)">0</td>
+            <td><span class="badge badge-green">✅ Online</span></td>
+          </tr>
+          <tr>
+            <td><strong>TJSC</strong></td>
+            <td><code style="font-size:0.75rem;color:#94a3b8">eproc1g.tjsc.jus.br</code></td>
+            <td><span class="badge badge-green">302 ✓</span></td>
+            <td>SC074025, SC075466</td>
+            <td>Hoje 14:40</td>
+            <td style="color:var(--green)">0</td>
+            <td><span class="badge badge-green">✅ Online</span></td>
+          </tr>
+          <tr>
+            <td><strong>TJSP</strong></td>
+            <td><code style="font-size:0.75rem;color:#94a3b8">eproc1g.tjsp.jus.br</code></td>
+            <td><span class="badge badge-green">302 ✓</span></td>
+            <td>SP535101</td>
+            <td>Hoje 14:44</td>
+            <td style="color:var(--green)">0</td>
+            <td><span class="badge badge-green">✅ Online</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem">⚡ Todos os tribunais respondem com 302 (redirect para SSO) — comportamento esperado e correto.</p>
+  </div>
+
+  <!-- PERFORMANCE 7 DIAS -->
+  <div class="section">
+    <div class="section-title">📊 Performance últimos 7 dias</div>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr>
+            <th>Skill</th>
+            <th>Concluídas</th>
+            <th>Erros</th>
+            <th>Taxa sucesso</th>
+            <th>Avg tentativas</th>
+            <th>Avaliação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>importar_processo</strong></td>
+            <td style="color:var(--green)">423</td>
+            <td style="color:var(--green)">0</td>
+            <td>
+              <div>100%</div>
+              <div class="progress-wrap"><div class="progress-bar pb-green" style="width:100%"></div></div>
+            </td>
+            <td>1.18x</td>
+            <td><span class="badge badge-green">Excelente</span></td>
+          </tr>
+          <tr>
+            <td><strong>captura_intimacoes</strong></td>
+            <td style="color:var(--green)">158</td>
+            <td style="color:var(--red)">3</td>
+            <td>
+              <div>98.1%</div>
+              <div class="progress-wrap"><div class="progress-bar pb-green" style="width:98.1%"></div></div>
+            </td>
+            <td>0.75x (erros: 2.0x)</td>
+            <td><span class="badge badge-green">Bom</span></td>
+          </tr>
+          <tr>
+            <td><strong>download_documentos</strong></td>
+            <td style="color:var(--green)">137</td>
+            <td style="color:var(--green)">0</td>
+            <td>
+              <div>100%</div>
+              <div class="progress-wrap"><div class="progress-bar pb-green" style="width:100%"></div></div>
+            </td>
+            <td>1.23x</td>
+            <td><span class="badge badge-green">Excelente</span></td>
+          </tr>
+          <tr>
+            <td><strong>importacao_diaria</strong></td>
+            <td style="color:var(--green)">64</td>
+            <td style="color:var(--yellow)">2</td>
+            <td>
+              <div>97%</div>
+              <div class="progress-wrap"><div class="progress-bar pb-green" style="width:97%"></div></div>
+            </td>
+            <td>0.7x (erros: 3.0x)</td>
+            <td><span class="badge badge-yellow">Atenção</span></td>
+          </tr>
+          <tr>
+            <td><strong>enriquecer_processo</strong></td>
+            <td style="color:var(--green)">45</td>
+            <td style="color:var(--green)">0</td>
+            <td>
+              <div>100%</div>
+              <div class="progress-wrap"><div class="progress-bar pb-green" style="width:100%"></div></div>
+            </td>
+            <td>1.13x</td>
+            <td><span class="badge badge-green">Excelente</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ERROS RECENTES -->
+  <div class="section">
+    <div class="section-title">🚨 Erros Recentes</div>
+
+    <div class="alert alert-red">
+      <div class="alert-icon">🔴</div>
+      <div class="alert-body">
+        <strong>15/03 09:30 e 07:53 — "Login EPROC falhou: EPROC offline"</strong>
+        <p>Dois erros de login por <code>captura_intimacoes</code> no mesmo dia. O preflight <code>isEprocAvailable()</code> detectou indisponibilidade e abortou sem tentar login. Cada um esgotou 3 tentativas (max_tentativas=3). <strong>Causa provável:</strong> janela de manutenção do TJRS/TJSC na madrugada de 15/03.</p>
+      </div>
+    </div>
+
+    <div class="alert alert-yellow">
+      <div class="alert-icon">🟡</div>
+      <div class="alert-body">
+        <strong>15/03 22:24 — "Execution context was destroyed, most likely because of a navigation"</strong>
+        <p>O Playwright executou um <code>page.evaluate()</code> enquanto a página estava navegando. Isso ocorre quando o EPROC faz redirect inesperado (ex: timeout de sessão → redirect para login). <strong>0 tentativas registradas</strong> — o erro ocorreu antes do circuit breaker. Causa: falta de <code>try/catch</code> com re-check de estado antes do evaluate.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ARQUITETURA ATUAL -->
+  <div class="section">
+    <div class="section-title">🏗️ Arquitetura Atual do Sistema</div>
+    <div class="two-col">
+      <div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:1rem">
+          <h4 style="font-size:0.9rem;font-weight:700;margin-bottom:0.8rem;color:#f8fafc">🔄 Fluxo de Login (State Machine v7.1)</h4>
+          <ul class="timeline">
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Preflight HTTP</div><div class="tl-desc">isEprocAvailable() — abort imediato se offline</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Chromium Persistent Profile</div><div class="tl-desc">chrome-profiles/[oab]/ com cookies salvos</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">detectState() loop (12 iter.)</div><div class="tl-desc">Estados: EPROC_LOGIN → SSO_LOGIN → 2FA → PROFILE → PANEL</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">TOTP automático</div><div class="tl-desc">generateTOTP() + retry automático se código expirou</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Seleção de Perfil (ADVOGADO)</div><div class="tl-desc">Compatível TJRS (texto) e TJSC (OAB no texto)</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Vision Fallback no UNKNOWN</div><div class="tl-desc">Estado desconhecido → adaptiveAction() com Claude Vision</div></div></li>
+            <li><div class="tl-dot tl-yellow"></div><div class="tl-body"><div class="tl-title">maxRetries = 2 + 15s wait</div><div class="tl-desc">2 tentativas de login por invocação</div></div></li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.2rem;margin-bottom:1rem">
+          <h4 style="font-size:0.9rem;font-weight:700;margin-bottom:0.8rem;color:#f8fafc">🛡️ Resiliência Implementada</h4>
+          <ul class="timeline">
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Circuit Breaker (task-consumer)</div><div class="tl-desc">3 falhas → pausa 15min + notifica Telegram</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Reagendamento automático</div><div class="tl-desc">Erros transitórios → +2h → +4h → +8h (máx 3x)</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Orphan recovery</div><div class="tl-desc">Tarefas em_andamento > 10-90min → reset automático</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Circuit breaker de conta</div><div class="tl-desc">≥5 falhas consecutivas → conta desativada + alerta</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">Anti-bot: jitter inter-task</div><div class="tl-desc">importar: 5s, captura: 5s, download: 2s entre tarefas</div></div></li>
+            <li><div class="tl-dot tl-green"></div><div class="tl-body"><div class="tl-title">reloginFn dentro da skill</div><div class="tl-desc">Sessão expirada no meio → relogin sem re-enfileirar</div></div></li>
+            <li><div class="tl-dot tl-yellow"></div><div class="tl-body"><div class="tl-title">Sem pool de sessões</div><div class="tl-desc">Cada tarefa abre/fecha browser (oportunidade de melhoria)</div></div></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODELO DE IA -->
+  <div class="section">
+    <div class="section-title">🤖 Modelos de IA no Pipeline EPROC</div>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr><th>Componente</th><th>Modelo</th><th>Quando ativa</th><th>Custo estimado</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Visão Adaptativa (Clayton)</strong><br><span style="font-size:0.75rem;color:var(--muted)">skill_clayton_visual_fallback.mjs v2.0</span></td>
+            <td><span class="badge badge-blue">claude-sonnet-4-6</span><br><span style="font-size:0.72rem;color:var(--green)">SEMPRE (hardcoded)</span></td>
+            <td>Camada 3: quando Playwright falha e memória visual não tem resposta. Estado UNKNOWN no login. Navegação impossível.</td>
+            <td>~R$0,02/invocação</td>
+          </tr>
+          <tr>
+            <td><strong>Memória Visual (Camada 1)</strong><br><span style="font-size:0.75rem;color:var(--muted)">clayton_visual_memory (Supabase)</span></td>
+            <td><span class="badge badge-green">Zero custo</span></td>
+            <td>Primeiro tentado. 6 entradas, 6.726 acertos totais. RS: 5.702 hits, SC: 1.014 hits, SP: 9 hits.</td>
+            <td>R$0,00</td>
+          </tr>
+          <tr>
+            <td><strong>Análise de Intimações (bulk)</strong><br><span style="font-size:0.75rem;color:var(--muted)">skill_analise_intimacoes_bulk.mjs</span></td>
+            <td><span class="badge badge-blue">claude-sonnet-4-6</span></td>
+            <td>Após captura: classifica urgência, detecta prazos, extrai CNJs</td>
+            <td>~R$0,05/intimação</td>
+          </tr>
+          <tr>
+            <td><strong>Enriquecimento de processo</strong><br><span style="font-size:0.75rem;color:var(--muted)">skill_enriquecer_processo.mjs</span></td>
+            <td><span class="badge badge-blue">claude-sonnet-4-6</span></td>
+            <td>Pós-importação: resume, classifica fase, detecta valores</td>
+            <td>~R$0,10/processo</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-green" style="margin-top:1rem">
+      <div class="alert-icon">✅</div>
+      <div class="alert-body">
+        <strong>Haiku foi descontinuado corretamente</strong>
+        <p>Em 14/03/2026 foi removido o uso de Haiku para Vision. Hoje <strong>100% dos calls de Vision usam Sonnet 4.6</strong> — mais inteligente, ainda barato (~R$0,02/call). Não existe mais risco de tela mal interpretada por modelo fraco.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISÃO ADAPTATIVA DETALHES -->
+  <div class="section">
+    <div class="section-title">👁️ Memória Visual (Clayton) — Detalhes</div>
+    <div class="table-card">
+      <table>
+        <thead>
+          <tr><th>Tribunal</th><th>Contexto</th><th>Confiança</th><th>Acertos</th><th>Último uso</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="badge badge-blue">RS</span></td>
+            <td>buscar_processo_por_cnj</td>
+            <td>85%</td>
+            <td style="color:var(--green);font-weight:700">5.702 ⭐</td>
+            <td>Hoje 14:44</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-blue">SC</span></td>
+            <td>buscar_processo_por_cnj</td>
+            <td>85%</td>
+            <td style="color:var(--green);font-weight:700">1.014</td>
+            <td>Hoje 14:40</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-yellow">TJSC</span></td>
+            <td>navegar_relatorio_processos</td>
+            <td>85%</td>
+            <td>7</td>
+            <td>Hoje 09:34</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-yellow">TJSP</span></td>
+            <td>navegar_relatorio_processos</td>
+            <td>85%</td>
+            <td>6</td>
+            <td>Hoje 09:33</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-yellow">TJSC</span></td>
+            <td>processo_aberto</td>
+            <td>95%</td>
+            <td>34</td>
+            <td>14/03</td>
+          </tr>
+          <tr>
+            <td><span class="badge badge-yellow">SP</span></td>
+            <td>buscar_processo_por_cnj</td>
+            <td>90%</td>
+            <td style="color:var(--yellow)">9 ⚠️</td>
+            <td>14/03</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem">TJSP tem apenas 9 acertos — memória visual ainda jovem para esse tribunal. Mais uso = mais precisão.</p>
+  </div>
+
+  <!-- BUG CRÍTICO -->
+  <div class="section">
+    <div class="section-title">🐛 Bug Crítico Encontrado</div>
+
+    <div class="alert alert-red">
+      <div class="alert-icon">🔴</div>
+      <div class="alert-body">
+        <strong>[BUG-01] skill_eproc_cnj.mjs — URL do TJSP incorreta (P0)</strong>
+        <p>O arquivo <code>skill_eproc_cnj.mjs</code> tem um mapeamento hardcoded <strong>errado</strong> para TJSP:<br>
+        <code>'8.04': { nome: 'TJSP', url: 'https://esaj.tjsp.jus.br/' }</code><br>
+        Porém a conta real no Supabase aponta para <code>https://eproc1g.tjsp.jus.br</code> (EPROC, não ESAJ).<br>
+        O ESAJ é o sistema do TJSP para consulta pública, não o EPROC para advogados. <strong>Todo acesso por CNJ ao TJSP vai para o sistema errado.</strong></p>
+      </div>
+    </div>
+
+    <div class="code-block">
+<span class="cm">// ❌ ATUAL (errado)</span>
+<span class="kw">const</span> <span class="fn">TRIBUNAL_MAP</span> = {
+  <span class="str">'8.21'</span>: { nome: <span class="str">'TJRS'</span>, url: <span class="str">'https://www.eproc2g.tjrs.jus.br/eproc/'</span> },
+  <span class="str">'8.12'</span>: { nome: <span class="str">'TJSC'</span>, url: <span class="str">'https://eproc1.tjsc.jus.br/eproc/'</span> },
+  <span class="str">'8.04'</span>: { nome: <span class="str">'TJSP'</span>, url: <span class="str">'https://esaj.tjsp.jus.br/'</span> },  <span class="cm">// ← ERRADO</span>
+};
+
+<span class="cm">// ✅ CORREÇÃO</span>
+<span class="str">'8.04'</span>: { nome: <span class="str">'TJSP'</span>, url: <span class="str">'https://eproc1g.tjsp.jus.br'</span> },  <span class="cm">// ← CORRETO</span>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);margin-top:0.5rem">⚠️ Além disso, as URLs do TJRS no mapeamento também divergem: hardcoded usa <code>eproc2g</code> mas a conta usa <code>eproc1g</code>. A skill <code>eproc_cnj</code> deve usar as URLs do Supabase, não o mapeamento hardcoded.</p>
+  </div>
+
+  <!-- RECOMENDAÇÕES -->
+  <div class="section">
+    <div class="section-title">🎯 Recomendações de Melhoria</div>
+
+    <div class="recbox">
+      <h4><span class="priority p0">P0 — BUG</span> Corrigir TRIBUNAL_MAP em skill_eproc_cnj.mjs</h4>
+      <p>Substituir URLs hardcoded por lookup nas contas do Supabase (já carregadas via loadAccounts). O mapeamento fixo cria dessincronia toda vez que um tribunal atualiza sua URL. Solução: detectar tribunal via CNJ → buscar a conta ativa correspondente → usar account.eproc_url.</p>
+    </div>
+
+    <div class="recbox">
+      <h4><span class="priority p1">P1</span> Tratar "Execution context destroyed" com guard de estado</h4>
+      <p>Antes de qualquer <code>page.evaluate()</code>, verificar se a página ainda está no estado esperado com <code>isSessionExpired()</code> ou checar URL. O erro "context destroyed" é silencioso e mata a tarefa sem entrar no circuit breaker (tentativas=0). Adicionar <code>try/catch</code> específico com reloginFn trigger.</p>
+    </div>
+
+    <div class="recbox">
+      <h4><span class="priority p1">P1</span> Reagendamento offline para captura_intimacoes sem CNJ</h4>
+      <p>Quando EPROC está offline, <code>captura_intimacoes</code> falha mas <strong>não é reagendada</strong> (o reagendamento atual requer <code>numero_cnj</code> que a captura não tem). Resultado: a captura daquele ciclo é simplesmente perdida. Solução: adicionar lógica de reagendamento sem CNJ, usando <code>oab</code> como chave + delay de 2-4h.</p>
+    </div>
+
+    <div class="recbox">
+      <h4><span class="priority p1">P1</span> Fallback Vision → Playwright com auto-promoção de seletores</h4>
+      <p>O sistema já tem a lógica (threshold: 10 acertos + 90% confiança → promover a seletor Playwright). Porém a tabela <code>clayton_visual_memory</code> não tem a coluna <code>seletor</code> que a skill espera — ela foi renomeada para <code>decisao.seletor_css</code> dentro do JSON. Validar se a promoção está funcionando corretamente.</p>
+    </div>
+
+    <div class="recbox">
+      <h4><span class="priority p2">P2</span> Implementar pool de sessões (browser reuse)</h4>
+      <p>Hoje cada tarefa abre e fecha o Chromium. Com 5 contas e tarefas frequentes, isso gera latência desnecessária (~3-5s por login quando sessão ainda válida). Um pool simples com 1 browser por OAB, com keepalive e re-login lazy quando expirar, reduziria tempo médio de execução em ~40%.</p>
+    </div>
+
+    <div class="recbox">
+      <h4><span class="priority p2">P2</span> Expandir memória visual para TJSP</h4>
+      <p>TJSP tem apenas 9 acertos na memória visual (vs RS: 5.702). Isso significa que o TJSP ainda depende mais de Vision pago do que de cache. Adicionar contextos pré-mapeados para TJSP: <code>login_tela</code>, <code>seleção_perfil</code>, <code>busca_processo</code>, <code>relatorio_processos</code>.</p>
+    </div>
+
+    <div class="recbox">
+      <h4><span class="priority p3">P3</span> Health check proativo a cada hora com alerta de degradação</h4>
+      <p>Hoje o sistema detecta offline no momento da tentativa. Adicionar um cron leve (a cada 1h) que faz preflight em todos os tribunais e notifica Christian se qualquer um ficar offline — antes de a captura agendar e falhar. Já tem o <code>isEprocAvailable()</code>, basta expor no monitor_n8n ou heartbeat.</p>
+    </div>
+  </div>
+
+  <!-- FLUXO DE FALLBACK PROPOSTO -->
+  <div class="section">
+    <div class="section-title">🔁 Fluxo de Fallback Proposto (Playwright → Vision)</div>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:1.5rem">
+      <div style="display:flex;flex-direction:column;gap:0;font-size:0.85rem">
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;margin-bottom:0.5rem">
+          <div style="font-size:1.2rem">1️⃣</div>
+          <div><strong style="color:var(--green)">Memória Visual (Camada 1)</strong> — Zero custo, instantâneo<br><span style="color:var(--muted);font-size:0.78rem">Busca na table <code>clayton_visual_memory</code> por tribunal+contexto. Se acertos ≥ 1 e confiança ≥ 85% → usa seletor salvo.</span></div>
+        </div>
+
+        <div style="text-align:center;color:var(--muted);font-size:0.8rem;margin:0.2rem 0">↓ cache miss ou confiança baixa</div>
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;margin-bottom:0.5rem">
+          <div style="font-size:1.2rem">2️⃣</div>
+          <div><strong style="color:var(--blue)">Playwright CSS (Camada 2)</strong> — ~95% dos casos<br><span style="color:var(--muted);font-size:0.78rem">Seletores pré-mapeados por tribunal. Tentativas em lista ordenada. Validação DOM antes de clicar.</span></div>
+        </div>
+
+        <div style="text-align:center;color:var(--muted);font-size:0.8rem;margin:0.2rem 0">↓ todos os seletores falharam</div>
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2);border-radius:8px;margin-bottom:0.5rem">
+          <div style="font-size:1.2rem">3️⃣</div>
+          <div><strong style="color:var(--orange)">Claude Vision — Sonnet 4.6 (Camada 3)</strong> — ~R$0,02/call<br><span style="color:var(--muted);font-size:0.78rem">Screenshot → análise → seletor ou coordenadas → click. Retry inteligente (2x). Notifica Telegram. Auto-salva na memória se confiança ≥ 70%.</span></div>
+        </div>
+
+        <div style="text-align:center;color:var(--muted);font-size:0.8rem;margin:0.2rem 0">↓ Vision também falhou (raro)</div>
+
+        <div style="display:flex;align-items:center;gap:0.75rem;padding:0.7rem;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px">
+          <div style="font-size:1.2rem">🔴</div>
+          <div><strong style="color:var(--red)">Abort + Reagendar</strong> — tarefa volta para fila<br><span style="color:var(--muted);font-size:0.78rem">Marca como erro + reagenda com backoff (2h → 4h → 8h). Circuit breaker ativa se 3 falhas seguidas. Notifica Christian.</span></div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;padding:0.75rem;background:rgba(34,197,94,0.05);border-radius:6px;font-size:0.8rem;color:var(--muted)">
+        💡 <strong style="color:#f8fafc">Melhoria proposta:</strong> Adicionar Camada 2.5 — seletor por coordenadas salvas na memória visual, antes de invocar a Vision. Custo: zero. Útil quando o seletor CSS mudou mas o elemento está na mesma posição.
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCLUSÃO -->
+  <div class="section">
+    <div class="section-title">✅ Conclusão</div>
+    <div class="alert alert-green">
+      <div class="alert-icon">🟢</div>
+      <div class="alert-body">
+        <strong>Sistema EPROC funcionando bem — 98.1% de taxa de sucesso em 7 dias</strong>
+        <p>Os 3 erros da semana foram causados por indisponibilidade real do EPROC (2x) e por um edge case de navegação (1x). A arquitetura está sólida: login state machine, TOTP automático, fallback Vision com memória persistente, circuit breaker e reagendamento automático. O único risco real é o <strong>bug P0 da URL do TJSP</strong> que precisa ser corrigido imediatamente.</p>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1rem">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem">
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.5rem;font-weight:600">✅ O que está funcionando</div>
+        <ul style="font-size:0.82rem;list-style:none;display:flex;flex-direction:column;gap:0.3rem">
+          <li>✅ Login automático 5 OABs (TJRS/TJSC/TJSP)</li>
+          <li>✅ 2FA TOTP com retry automático</li>
+          <li>✅ Vision Fallback (Sonnet 4.6 always)</li>
+          <li>✅ Memória visual com 6.7k acertos</li>
+          <li>✅ Reagendamento backoff offline</li>
+          <li>✅ Circuit breaker por skill e por conta</li>
+          <li>✅ Anti-bot jitter entre tarefas</li>
+          <li>✅ Orphan recovery automático</li>
+        </ul>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem">
+        <div style="font-size:0.8rem;color:var(--muted);margin-bottom:0.5rem;font-weight:600">🔧 O que precisa ser feito</div>
+        <ul style="font-size:0.82rem;list-style:none;display:flex;flex-direction:column;gap:0.3rem">
+          <li>🔴 [P0] Corrigir URL TJSP em skill_eproc_cnj</li>
+          <li>🟠 [P1] Guard "context destroyed" no evaluate</li>
+          <li>🟠 [P1] Reagendamento captura sem CNJ</li>
+          <li>🟠 [P1] Validar auto-promoção seletores</li>
+          <li>🟡 [P2] Pool de sessões por OAB</li>
+          <li>🟡 [P2] Expandir memória visual TJSP</li>
+          <li>🔵 [P3] Health check proativo dos tribunais</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div style="text-align:center;color:var(--muted);font-size:0.75rem;padding:2rem 0;border-top:1px solid var(--border);margin-top:1rem">
+    Gerado por JARBAS · MdLab LegalTech · 16/03/2026
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jana OS — Diagnóstico de Distribuição de Tarefas</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface2: #1e2631;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --blue: #58a6ff;
+    --purple: #bc8cff;
+    --orange: #ffa657;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:var(--bg); color:var(--text); font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; padding:32px; min-height:100vh; }
+  
+  .header { text-align:center; margin-bottom:48px; }
+  .header h1 { font-size:2rem; font-weight:700; margin-bottom:8px; }
+  .header .subtitle { color:var(--muted); font-size:1rem; }
+  .badge { display:inline-block; padding:4px 12px; border-radius:20px; font-size:0.75rem; font-weight:600; margin-left:8px; }
+  .badge-red { background:#3d1a1a; color:var(--red); border:1px solid #7d2a2a; }
+  .badge-green { background:#1a3a2a; color:var(--green); border:1px solid #2a5a3a; }
+  .badge-yellow { background:#3a2a0a; color:var(--yellow); border:1px solid #5a4a1a; }
+
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:24px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; margin-bottom:24px; }
+  
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+  .card h3 { font-size:0.85rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:16px; }
+  
+  .machine-card { border-radius:12px; padding:24px; border:2px solid; }
+  .mini-card { background:linear-gradient(135deg, #1a1f2e, #0d1117); border-color:#58a6ff44; }
+  .air-card { background:linear-gradient(135deg, #1a2a1a, #0d1117); border-color:#3fb95044; }
+  
+  .machine-name { font-size:1.3rem; font-weight:700; margin-bottom:4px; }
+  .machine-sub { color:var(--muted); font-size:0.85rem; margin-bottom:20px; }
+  
+  .stat-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border); }
+  .stat-row:last-child { border-bottom:none; }
+  .stat-label { color:var(--muted); font-size:0.85rem; }
+  .stat-value { font-weight:600; font-size:0.95rem; }
+  
+  .progress-bar { width:100%; height:8px; background:var(--border); border-radius:4px; overflow:hidden; margin-top:4px; }
+  .progress-fill { height:100%; border-radius:4px; transition:width 0.5s; }
+  
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .dot-green { background:var(--green); box-shadow:0 0 6px var(--green); }
+  .dot-red { background:var(--red); box-shadow:0 0 6px var(--red); }
+  .dot-yellow { background:var(--yellow); box-shadow:0 0 6px var(--yellow); }
+  
+  .problem-box { background:#2d1a1a; border:2px solid var(--red); border-radius:12px; padding:24px; margin-bottom:24px; }
+  .problem-box h2 { color:var(--red); font-size:1.2rem; margin-bottom:12px; }
+  .problem-text { line-height:1.7; }
+  
+  .fix-box { background:#1a2d1a; border:2px solid var(--green); border-radius:12px; padding:24px; margin-bottom:24px; }
+  .fix-box h2 { color:var(--green); font-size:1.2rem; margin-bottom:16px; }
+  
+  .code-block { background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:16px; font-family:'JetBrains Mono','Fira Code','SF Mono',monospace; font-size:0.8rem; line-height:1.6; color:#a9d1f7; overflow-x:auto; margin:12px 0; }
+  .code-comment { color:#6e7681; }
+  .code-key { color:#ff7b72; }
+  .code-str { color:#a5d6ff; }
+  .code-fn { color:#d2a8ff; }
+  .code-val { color:#79c0ff; }
+  
+  .step { display:flex; gap:16px; padding:16px; background:var(--surface2); border-radius:8px; margin-bottom:12px; }
+  .step-num { min-width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:0.85rem; }
+  .step-num-red { background:#3d1a1a; color:var(--red); border:1px solid var(--red); }
+  .step-num-green { background:#1a3a1a; color:var(--green); border:1px solid var(--green); }
+  .step-content h4 { font-size:0.95rem; margin-bottom:4px; }
+  .step-content p { color:var(--muted); font-size:0.85rem; line-height:1.5; }
+  
+  .distribution-bar { display:flex; height:32px; border-radius:8px; overflow:hidden; margin:12px 0; }
+  .dist-mini { background:var(--blue); display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; color:#0d1117; }
+  .dist-air { background:var(--green); display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; color:#0d1117; }
+  .dist-unknown { background:var(--muted); display:flex; align-items:center; justify-content:center; font-size:0.75rem; font-weight:700; color:#0d1117; }
+  
+  table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+  th { text-align:left; padding:10px 12px; color:var(--muted); font-weight:600; border-bottom:1px solid var(--border); font-size:0.75rem; text-transform:uppercase; }
+  td { padding:10px 12px; border-bottom:1px solid #1e2631; }
+  tr:last-child td { border-bottom:none; }
+  .tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:0.72rem; font-weight:600; }
+  .tag-air { background:#1a3a1a; color:var(--green); }
+  .tag-mini { background:#1a2a3a; color:var(--blue); }
+  .tag-any { background:#2a2a1a; color:var(--yellow); }
+  
+  .tldr { background:linear-gradient(135deg, #1e2631, #161b22); border:1px solid var(--purple); border-radius:12px; padding:24px; margin-bottom:32px; }
+  .tldr h2 { color:var(--purple); margin-bottom:12px; font-size:1.1rem; }
+  .tldr p { line-height:1.7; font-size:0.95rem; }
+  
+  .timeline { margin-top:12px; }
+  .tl-item { display:flex; gap:12px; margin-bottom:8px; align-items:flex-start; }
+  .tl-arrow { color:var(--muted); padding-top:2px; }
+  .tl-text { font-size:0.85rem; line-height:1.5; }
+  
+  .section-title { font-size:1.1rem; font-weight:700; margin:32px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+  
+  .chip { display:inline-block; padding:2px 10px; border-radius:20px; font-size:0.75rem; font-weight:600; margin:2px; }
+  .chip-mini { background:#1a2a3a; color:var(--blue); border:1px solid #2a3a5a; }
+  .chip-air { background:#1a3a1a; color:var(--green); border:1px solid #2a5a2a; }
+  .chip-shared { background:#2a2a1a; color:var(--yellow); border:1px solid #4a3a1a; }
+
+  .alert { padding:12px 16px; border-radius:8px; font-size:0.85rem; line-height:1.5; margin-bottom:12px; display:flex; gap:10px; align-items:flex-start; }
+  .alert-red { background:#2d1a1a; border-left:3px solid var(--red); }
+  .alert-yellow { background:#2d2a1a; border-left:3px solid var(--yellow); }
+  .alert-green { background:#1a2d1a; border-left:3px solid var(--green); }
+
+  footer { text-align:center; margin-top:48px; color:var(--muted); font-size:0.8rem; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦞 Jana OS — Diagnóstico de Distribuição</h1>
+  <div class="subtitle">Deep Research · 2026-03-15 21:25 GMT-3 <span class="badge badge-red">Problema Identificado</span></div>
+</div>
+
+<!-- TL;DR -->
+<div class="tldr">
+  <h2>⚡ TL;DR — Diagnóstico em 3 linhas</h2>
+  <p>Ambas as máquinas estão online e funcionais. O problema é que <strong>100% das tarefas são criadas com <code>preferred_host = 'any'</code></strong>, transformando a distribuição numa corrida entre as duas máquinas — e o Mini, por ter mais workers ativos, ganha a maioria. A lógica do dispatcher existe no código mas não está sendo aplicada na criação das tarefas.</p>
+</div>
+
+<!-- Estado das Máquinas -->
+<div class="section-title">📊 Estado Atual das Máquinas</div>
+<div class="grid-2">
+  <div class="machine-card mini-card">
+    <div class="machine-name">🖥️ Mac Mini M4</div>
+    <div class="machine-sub">jarbas-macmini · 100.78.173.81</div>
+    <div class="stat-row">
+      <span class="stat-label">Status</span>
+      <span class="stat-value"><span class="status-dot dot-green"></span>Online</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">RAM Livre</span>
+      <span class="stat-value" style="color:var(--yellow)">494 MB / 16 GB</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Workers Ativos</span>
+      <span class="stat-value">1 / 4</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">CPU</span>
+      <span class="stat-value" style="color:var(--yellow)">6.1% · load 2.81</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Uptime</span>
+      <span class="stat-value">16h 47m</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Heartbeat</span>
+      <span class="stat-value" style="color:var(--green)">Há &lt; 1min</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Tarefas executadas (15/03)</span>
+      <span class="stat-value" style="color:var(--blue)">68 (71%)</span>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:0.75rem; color:var(--muted); margin-bottom:4px;">Carga relativa de tarefas</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:71%; background:var(--blue)"></div></div>
+    </div>
+  </div>
+
+  <div class="machine-card air-card">
+    <div class="machine-name">💻 MacBook Air M4</div>
+    <div class="machine-sub">jarbas-macbookair · 100.101.208.82</div>
+    <div class="stat-row">
+      <span class="stat-label">Status</span>
+      <span class="stat-value"><span class="status-dot dot-green"></span>Online</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">RAM Livre</span>
+      <span class="stat-value" style="color:var(--green)">1.97 GB / 16 GB</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Workers Ativos</span>
+      <span class="stat-value" style="color:var(--red)">0 / 4 ⚠️</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">CPU</span>
+      <span class="stat-value" style="color:var(--green)">1.0% · load 1.52</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Uptime (JARBAS)</span>
+      <span class="stat-value">30m</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Heartbeat</span>
+      <span class="stat-value" style="color:var(--green)">Há &lt; 1min</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Tarefas executadas (15/03)</span>
+      <span class="stat-value" style="color:var(--green)">27 (28%)</span>
+    </div>
+    <div style="margin-top:12px">
+      <div style="font-size:0.75rem; color:var(--muted); margin-bottom:4px;">Carga relativa de tarefas</div>
+      <div class="progress-bar"><div class="progress-fill" style="width:28%; background:var(--green)"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Distribuição Visual -->
+<div class="card" style="margin-bottom:24px;">
+  <h3>Distribuição de Tarefas — 15 de Março (118 total)</h3>
+  <div class="distribution-bar">
+    <div class="dist-mini" style="width:57.6%">Mini 68</div>
+    <div class="dist-air" style="width:22.9%">Air 27</div>
+    <div class="dist-unknown" style="width:19.5%">? 23</div>
+  </div>
+  <div style="font-size:0.8rem; color:var(--muted); margin-top:8px;">
+    Meta ideal: Mini ~40% · Air ~60% (Air tem mais RAM livre, Mini tem prioridade em rotinas)
+  </div>
+</div>
+
+<!-- O Problema -->
+<div class="section-title">🔴 Problema Identificado</div>
+
+<div class="problem-box">
+  <h2>🐛 Root Cause: preferred_host = 'any' em 100% das tarefas</h2>
+  <div class="problem-text">
+    <p style="margin-bottom:12px;">A função SQL <code>jarbas_consume_tarefa_host</code> busca tarefas com:</p>
+    <div class="code-block">WHERE status = 'pendente'
+AND (<span class="code-key">preferred_host</span> = <span class="code-str">'any'</span> OR <span class="code-key">preferred_host</span> = p_host)
+ORDER BY prioridade DESC, created_at ASC
+FOR UPDATE SKIP LOCKED</div>
+    <p style="margin-top:12px; margin-bottom:12px;">Com <strong>100% das tarefas como <code>'any'</code></strong>, ambas as máquinas competem por todas as tarefas. O Mini ganha mais porque tem workers que acordam mais cedo (processo mais antigo, poll mais frequente).</p>
+    <p>O dispatcher em Node.js existe e está correto — mas <strong>a lógica nunca é aplicada</strong> porque as tarefas chegam ao banco já com <code>preferred_host = 'any'</code>, contornando toda a lógica inteligente.</p>
+  </div>
+</div>
+
+<!-- Por que isso acontece -->
+<div class="section-title">🔍 Cadeia do Problema</div>
+<div class="card" style="margin-bottom:24px;">
+  <div class="timeline">
+    <div class="step">
+      <div class="step-num step-num-red">1</div>
+      <div class="step-content">
+        <h4>Tarefa é criada — <code>preferred_host</code> não é setado</h4>
+        <p>Tarefas como <code>cerebro_documental</code>, <code>captura_intimacoes</code>, <code>analise_intimacoes_bulk</code> são criadas diretamente via Supabase insert SEM passar pela função <code>criarTarefa()</code> do dispatcher, ou com <code>preferred_host: 'any'</code> explícito.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num step-num-red">2</div>
+      <div class="step-content">
+        <h4>Banco recebe <code>preferred_host = 'any'</code></h4>
+        <p>O campo fica como <code>'any'</code> — padrão do insert. A lógica de roteamento (MINI_ALWAYS, AIR_PREFERRED, EPROC_SHARED) nunca é consultada.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num step-num-red">3</div>
+      <div class="step-content">
+        <h4>SQL retorna a tarefa pra quem pegar primeiro</h4>
+        <p>Com <code>FOR UPDATE SKIP LOCKED</code>, a primeira máquina que fizer poll pega a tarefa. O Mini tem workers mais estáveis (processo rodando há 16h vs 30min do Air), então ganha mais corridas.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num step-num-red">4</div>
+      <div class="step-content">
+        <h4>Resultado: Mini sobrecarregado, Air ocioso</h4>
+        <p>Mini com 494MB de RAM livre executando 71% das tarefas. Air com 1.97GB livre e CPU a 1% executando apenas 28% — e nesse momento 0 workers ativos.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Evidências -->
+<div class="section-title">📋 Evidências</div>
+<div class="grid-2" style="margin-bottom:24px;">
+  <div class="card">
+    <h3>Distribuição por tipo de tarefa</h3>
+    <table>
+      <tr><th>Tipo</th><th>Mini</th><th>Air</th><th>Regra</th></tr>
+      <tr>
+        <td>cerebro_documental</td>
+        <td style="color:var(--blue)">44</td>
+        <td style="color:var(--green)">17</td>
+        <td><span class="tag tag-mini">MINI_ALWAYS</span></td>
+      </tr>
+      <tr>
+        <td>captura_intimacoes</td>
+        <td style="color:var(--blue)">20</td>
+        <td style="color:var(--green)">6</td>
+        <td><span class="tag tag-mini">MINI_ALWAYS</span></td>
+      </tr>
+      <tr>
+        <td>analise_intimacoes</td>
+        <td style="color:var(--blue)">4</td>
+        <td style="color:var(--green)">2</td>
+        <td><span class="tag tag-air">AIR_PREFERRED</span></td>
+      </tr>
+      <tr>
+        <td>relatorio_html</td>
+        <td style="color:var(--blue)">0</td>
+        <td style="color:var(--green)">2</td>
+        <td><span class="tag tag-air">AIR_PREFERRED</span></td>
+      </tr>
+    </table>
+    <div class="alert alert-red" style="margin-top:12px;">
+      <span>⚠️</span>
+      <span><code>cerebro_documental</code> é MINI_ALWAYS mas o Air executou 17 vezes — vazando por causa do <code>'any'</code></span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>preferred_host nos últimos 134 registros</h3>
+    <div style="text-align:center; padding:20px;">
+      <div style="font-size:3rem; font-weight:800; color:var(--yellow)">100%</div>
+      <div style="font-size:1rem; color:var(--muted); margin-top:8px;">preferred_host = <code>'any'</code></div>
+      <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">134 de 134 tarefas</div>
+    </div>
+    <div class="alert alert-red">
+      <span>🔴</span>
+      <span>A lógica de roteamento inteligente do dispatcher está sendo completamente ignorada na prática</span>
+    </div>
+  </div>
+</div>
+
+<!-- A Solução -->
+<div class="section-title">✅ Solução Recomendada</div>
+
+<div class="fix-box">
+  <h2>✅ Fix em 2 frentes: SQL + Node.js</h2>
+
+  <div class="step">
+    <div class="step-num step-num-green">1</div>
+    <div class="step-content">
+      <h4>Fix SQL — Lógica de roteamento dentro do banco</h4>
+      <p>Atualizar a função <code>jarbas_consume_tarefa_host</code> para considerar o tipo da tarefa quando <code>preferred_host = 'any'</code>. Isso garante roteamento mesmo se o Node não setar o campo.</p>
+      <div class="code-block"><span class="code-comment">-- Lógica adicional na WHERE clause:</span>
+AND (
+  preferred_host = p_host
+  OR (preferred_host = <span class="code-str">'any'</span> AND (
+    <span class="code-comment">-- Mini pega: rotinas fixas dele</span>
+    (p_host = <span class="code-str">'macmini'</span> AND tipo IN (
+      <span class="code-str">'cerebro_documental'</span>, <span class="code-str">'captura_intimacoes'</span>,
+      <span class="code-str">'importacao_diaria'</span>, <span class="code-str">'session_cleaner'</span>, <span class="code-str">'immune_system'</span>
+    ))
+    OR
+    <span class="code-comment">-- Air pega: IA pura e lapidação</span>
+    (p_host = <span class="code-str">'macbook'</span> AND tipo IN (
+      <span class="code-str">'lapidar_pagina'</span>, <span class="code-str">'claude_code'</span>, <span class="code-str">'analise_juridica'</span>,
+      <span class="code-str">'relatorio_html'</span>, <span class="code-str">'analisar_video'</span>, <span class="code-str">'jurimetria'</span>
+    ))
+    OR
+    <span class="code-comment">-- Qualquer um: resto (load balancing)</span>
+    tipo NOT IN (<span class="code-str">'cerebro_documental'</span>, <span class="code-str">'captura_intimacoes'</span>, ...)
+  ))
+)</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num step-num-green">2</div>
+    <div class="step-content">
+      <h4>Fix Node.js — Garantir que criarTarefa() sempre seta preferred_host</h4>
+      <p>Auditar todos os pontos de criação de tarefa e garantir que usam <code>criarTarefa()</code> do dispatcher, que já tem a lógica correta. Ou adicionar um hook pre-insert no Supabase.</p>
+      <div class="code-block"><span class="code-comment">// task-dispatcher.mjs — já correto, mas precisa ser chamado sempre</span>
+<span class="code-key">export async function</span> <span class="code-fn">criarTarefa</span>(tarefa, opts = {}) {
+  <span class="code-comment">// Computar preferred_host se não veio explícito</span>
+  const preferred_host = <span class="code-key">await</span> <span class="code-fn">dispatchHost</span>(tarefa.tipo, opts);
+  <span class="code-comment">// Garantir que tarefa.preferred_host não sobrescreva se for 'any'</span>
+  const final_host = (tarefa.preferred_host &amp;&amp; tarefa.preferred_host !== <span class="code-str">'any'</span>)
+    ? tarefa.preferred_host
+    : preferred_host;
+  <span class="code-key">await</span> supabase.from(<span class="code-str">'jarbas_tarefas'</span>)
+    .insert({ ...tarefa, preferred_host: final_host });
+}</div>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num step-num-green">3</div>
+    <div class="step-content">
+      <h4>Bonus — Balanceamento por RAM quando preferred_host = 'any'</h4>
+      <p>Para tarefas genuinamente flexíveis, o dispatcher já considera carga via heartbeat. Melhorar para também considerar RAM livre:</p>
+      <div class="code-block"><span class="code-comment">// getCargaAtual() — adicionar ram_free_mb ao heartbeat check</span>
+const miniScore = carga.macmini.ativos / carga.macmini.max + (1 - carga.macmini.ram_mb / 16384);
+const airScore  = carga.macbook.ativos / carga.macbook.max + (1 - carga.macbook.ram_mb / 16384);
+return miniScore &lt;= airScore ? <span class="code-str">'macmini'</span> : <span class="code-str">'macbook'</span>;</div>
+    </div>
+  </div>
+</div>
+
+<!-- Regras de Roteamento -->
+<div class="section-title">🗺️ Mapa de Roteamento (como deveria ser)</div>
+<div class="card" style="margin-bottom:24px;">
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+    <div>
+      <div style="color:var(--blue); font-weight:700; margin-bottom:10px;">🖥️ SEMPRE Mini</div>
+      <div class="chip chip-mini">cerebro_documental</div>
+      <div class="chip chip-mini">captura_intimacoes</div>
+      <div class="chip chip-mini">importacao_diaria</div>
+      <div class="chip chip-mini">session_cleaner</div>
+      <div class="chip chip-mini">immune_system</div>
+      <div class="chip chip-mini">olivia_prazo_guardian</div>
+      <div class="chip chip-mini">monitorar_cron</div>
+    </div>
+    <div>
+      <div style="color:var(--green); font-weight:700; margin-bottom:10px;">💻 PREFERÊNCIA Air</div>
+      <div class="chip chip-air">lapidar_pagina</div>
+      <div class="chip chip-air">claude_code</div>
+      <div class="chip chip-air">analise_juridica</div>
+      <div class="chip chip-air">relatorio_html</div>
+      <div class="chip chip-air">analisar_video</div>
+      <div class="chip chip-air">jurimetria</div>
+      <div class="chip chip-air">gerar_prd</div>
+      <div class="chip chip-air">e2e_test · e2e_vision</div>
+    </div>
+    <div>
+      <div style="color:var(--yellow); font-weight:700; margin-bottom:10px;">⚖️ Compartilhado</div>
+      <div class="chip chip-shared">importar_processo</div>
+      <div class="chip chip-shared">enriquecer_processo</div>
+      <div class="chip chip-shared">download_pecas</div>
+      <div class="chip chip-shared">olivia_gerar_peticao</div>
+      <div class="chip chip-shared">olivia_eproc_protocolar</div>
+      <div class="chip chip-shared">distribuir</div>
+    </div>
+  </div>
+</div>
+
+<!-- Próximos Passos -->
+<div class="section-title">🚀 Próximos Passos</div>
+<div class="grid-2">
+  <div class="card">
+    <h3>Prioridade P0 — Fix Imediato</h3>
+    <div class="alert alert-red">
+      <span>🔴</span>
+      <span><strong>Atualizar SQL</strong> da função <code>jarbas_consume_tarefa_host</code> para incluir lógica de tipo quando <code>preferred_host = 'any'</code></span>
+    </div>
+    <div class="alert alert-yellow">
+      <span>🟡</span>
+      <span><strong>Auditar criação de tarefas</strong> — garantir que crons e workers usam <code>criarTarefa()</code> do dispatcher</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Prioridade P1 — Melhorias</h3>
+    <div class="alert alert-green">
+      <span>🟢</span>
+      <span>Adicionar <strong>ram_free_mb</strong> no heartbeat e considerar RAM no load balancing para tarefas <code>'any'</code></span>
+    </div>
+    <div class="alert alert-green">
+      <span>🟢</span>
+      <span>Página <strong>Mission Control</strong> com view dual-host ao vivo (tarefa Jana OS v2 #8)</span>
+    </div>
+  </div>
+</div>
+
+<footer>
+  🦞 JARBAS · Jana OS Diagnostics · 2026-03-15 · mac-mini-m4<br>
+  <span style="margin-top:4px; display:block;">Mini: 100.78.173.81 · Air: 100.101.208.82 · Tailscale ativo</span>
+</footer>
+
+</body>
+</html>

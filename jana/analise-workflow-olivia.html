@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise IA — Workflow OlivIA | JANA</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222636;
+    --border: #2e3248;
+    --primary: #6c8ef5;
+    --primary-dim: #3a4a8a;
+    --green: #4ade80;
+    --green-dim: #1a3d2b;
+    --yellow: #facc15;
+    --yellow-dim: #3a3010;
+    --red: #f87171;
+    --red-dim: #3d1a1a;
+    --orange: #fb923c;
+    --orange-dim: #3d2010;
+    --text: #e2e8f0;
+    --text-muted: #8892a4;
+    --text-dim: #4a5568;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    --sans: 'Inter', 'Segoe UI', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; line-height: 1.6; }
+  
+  .header {
+    background: linear-gradient(135deg, #1a1d27 0%, #12152a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 28px 40px;
+  }
+  .header-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; }
+  .header .sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
+  .badge-ok { background: var(--green-dim); color: var(--green); border: 1px solid #2d6a4a; }
+  .badge-warn { background: var(--yellow-dim); color: var(--yellow); border: 1px solid #6a5a10; }
+  .badge-err { background: var(--red-dim); color: var(--red); border: 1px solid #6a2a2a; }
+  .badge-info { background: var(--primary-dim); color: var(--primary); border: 1px solid #3a4a8a; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 40px; }
+
+  /* Veredicto banner */
+  .veredicto {
+    background: linear-gradient(135deg, #1e2235, #1a2040);
+    border: 1px solid var(--primary-dim);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .veredicto-icon { font-size: 32px; flex-shrink: 0; }
+  .veredicto h2 { font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .veredicto p { color: var(--text-muted); font-size: 13px; line-height: 1.7; }
+
+  /* Stats grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+    text-align: center;
+  }
+  .stat-card .num { font-size: 32px; font-weight: 800; line-height: 1.1; margin-bottom: 4px; }
+  .stat-card .lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
+  .num-green { color: var(--green); }
+  .num-red { color: var(--red); }
+  .num-yellow { color: var(--yellow); }
+  .num-blue { color: var(--primary); }
+
+  /* Sections */
+  .section { margin-bottom: 32px; }
+  .section-title {
+    font-size: 13px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px; margin-bottom: 18px;
+  }
+
+  /* Workflow diagram */
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin-bottom: 24px; }
+  .flow-step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 120px;
+    position: relative;
+  }
+  .flow-step .step-sub { font-size: 10px; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+  .flow-arrow { color: var(--text-dim); padding: 0 6px; font-size: 18px; }
+  .step-ok { border-color: #2d6a4a; background: var(--green-dim); color: var(--green); }
+  .step-warn { border-color: #6a5a10; background: var(--yellow-dim); color: var(--yellow); }
+  .step-err { border-color: #6a2a2a; background: var(--red-dim); color: var(--red); }
+  .step-neutral { border-color: var(--border); color: var(--text); }
+
+  /* Issue cards */
+  .issue-list { display: flex; flex-direction: column; gap: 14px; }
+  .issue {
+    background: var(--surface);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .issue-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .issue-sev {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 4px; letter-spacing: .04em; flex-shrink: 0;
+  }
+  .sev-critical { background: var(--red-dim); color: var(--red); border: 1px solid #6a2a2a; }
+  .sev-high { background: var(--orange-dim); color: var(--orange); border: 1px solid #6a3a10; }
+  .sev-medium { background: var(--yellow-dim); color: var(--yellow); border: 1px solid #6a5a10; }
+  .sev-low { background: var(--green-dim); color: var(--green); border: 1px solid #2d6a4a; }
+  .issue-title { font-size: 14px; font-weight: 600; color: #fff; flex: 1; }
+  .issue-body { padding: 14px 18px; }
+  .issue-body p { color: var(--text-muted); font-size: 13px; line-height: 1.65; margin-bottom: 10px; }
+  .issue-body p:last-child { margin-bottom: 0; }
+  .issue-body code {
+    background: #111420; border: 1px solid var(--border);
+    padding: 2px 6px; border-radius: 4px;
+    font-family: var(--mono); font-size: 11px; color: var(--primary);
+  }
+  .issue-body pre {
+    background: #111420; border: 1px solid var(--border);
+    padding: 12px; border-radius: 6px;
+    font-family: var(--mono); font-size: 11px; color: #c9d1d9;
+    overflow-x: auto; margin: 8px 0;
+    white-space: pre-wrap;
+  }
+  .fix-label { font-size: 11px; font-weight: 700; color: var(--primary); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em; }
+
+  /* Positivos */
+  .pos-list { display: flex; flex-direction: column; gap: 10px; }
+  .pos-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--green);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+  .pos-item strong { color: #fff; display: block; margin-bottom: 2px; }
+  .pos-item span { color: var(--text-muted); }
+
+  /* Resultado final */
+  .result-sample {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-top: 16px;
+  }
+  .result-sample h4 { font-size: 12px; color: var(--text-muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .04em; }
+
+  .tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .tag { padding: 3px 10px; border-radius: 12px; font-size: 11px; border: 1px solid; }
+  .tag-alto { background: var(--red-dim); color: var(--red); border-color: #6a2a2a; }
+  .tag-med { background: var(--yellow-dim); color: var(--yellow); border-color: #6a5a10; }
+  .tag-ok { background: var(--green-dim); color: var(--green); border-color: #2d6a4a; }
+
+  /* Roadmap */
+  .roadmap { display: flex; flex-direction: column; gap: 12px; }
+  .road-item {
+    display: flex; gap: 16px; align-items: flex-start;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 18px;
+  }
+  .road-num {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: var(--primary-dim); color: var(--primary); border: 1px solid var(--primary-dim);
+  }
+  .road-item.done .road-num { background: var(--green-dim); color: var(--green); border-color: #2d6a4a; }
+  .road-item.current .road-num { background: var(--yellow-dim); color: var(--yellow); border-color: #6a5a10; }
+  .road-content strong { display: block; font-size: 13px; color: #fff; margin-bottom: 3px; }
+  .road-content span { font-size: 12px; color: var(--text-muted); }
+
+  /* Footer */
+  .footer { text-align: center; padding: 24px; color: var(--text-dim); font-size: 12px; border-top: 1px solid var(--border); margin-top: 40px; }
+
+  @media (max-width: 640px) {
+    .container { padding: 20px 16px; }
+    .header { padding: 20px 16px; }
+    .flow { flex-direction: column; align-items: flex-start; }
+    .flow-arrow { transform: rotate(90deg); padding: 4px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-row">
+    <div>
+      <h1>🦊 JANA — Análise do Workflow OlivIA Análise IA</h1>
+      <div class="sub">Revisão técnica completa: frontend · backend · banco · status em produção · 16/03/2026</div>
+    </div>
+    <span class="badge badge-warn">⚠️ Parcialmente Funcional</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- VEREDICTO -->
+  <div class="veredicto">
+    <div class="veredicto-icon">🔍</div>
+    <div>
+      <h2>Veredicto: O workflow funciona, mas tem um bug crítico de travamento</h2>
+      <p>
+        A análise de ponta a ponta está implementada corretamente (frontend → n8n/JARBAS → Supabase → Realtime → resultado). 
+        O caso de hoje prova que funciona: <strong style="color:#4ade80">1 análise concluiu com sucesso</strong> às 22:15, com 8 perguntas de triagem geradas, 5 riscos identificados e playbook aplicado.
+        <br><br>
+        O problema principal: <strong style="color:#f87171">21 de 35 análises (60%) estão travadas em PROCESSANDO</strong> — todas paradas na mesma fase ("Buscando jurisprudência relevante..."), 
+        indicando um gargalo no step de RAG/jurisprudência do n8n. Além disso, há <strong style="color:#fb923c">2 bugs de case sensitivity</strong> no frontend que podem causar falsos negativos na detecção de conclusão.
+      </p>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="num num-green">12</div>
+      <div class="lbl">Concluídas ✅</div>
+    </div>
+    <div class="stat-card">
+      <div class="num num-red">21</div>
+      <div class="lbl">Travadas 🔴</div>
+    </div>
+    <div class="stat-card">
+      <div class="num num-yellow">2</div>
+      <div class="lbl">Resetadas hoje</div>
+    </div>
+    <div class="stat-card">
+      <div class="num num-blue">35</div>
+      <div class="lbl">Total no banco</div>
+    </div>
+    <div class="stat-card">
+      <div class="num" style="color:#fb923c">34%</div>
+      <div class="lbl">Taxa de sucesso</div>
+    </div>
+  </div>
+
+  <!-- FLUXO -->
+  <div class="section">
+    <div class="section-title">Fluxo do Workflow — Estado Atual</div>
+    <div class="flow">
+      <div class="flow-step step-ok">
+        🖥️ Frontend
+        <div class="step-sub">Seleção + upload ok</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-ok">
+        🔀 JARBAS/n8n
+        <div class="step-sub">Fallback funciona</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-ok">
+        🗄️ INSERT olivia_analises
+        <div class="step-sub">Registro criado ok</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-ok">
+        📄 Extração docs
+        <div class="step-sub">progresso 50%</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-err">
+        ⚡ RAG / Jurisprudência
+        <div class="step-sub">TRAVAMENTO AQUI</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-neutral" style="opacity:.4">
+        🤖 Claude
+        <div class="step-sub">análise final</div>
+      </div>
+      <div class="flow-arrow" style="opacity:.4">→</div>
+      <div class="flow-step step-neutral" style="opacity:.4">
+        ✅ CONCLUIDA
+        <div class="step-sub">UPDATE + Realtime</div>
+      </div>
+    </div>
+    <p style="font-size:12px; color:var(--text-muted)">
+      📌 Nota: A análise que concluiu hoje (<code style="font-family:monospace;background:#111420;padding:2px 6px;border-radius:4px;color:#6c8ef5">451a0475</code>) 
+      passou por esse fluxo com sucesso — portanto o caminho feliz está funcional. O travamento parece intermitente ou dependente de dados do processo.
+    </p>
+  </div>
+
+  <!-- ISSUES -->
+  <div class="section">
+    <div class="section-title">Issues Encontrados</div>
+    <div class="issue-list">
+
+      <!-- ISSUE 1 - CRÍTICO -->
+      <div class="issue">
+        <div class="issue-header">
+          <span class="issue-sev sev-critical">P0 — Crítico</span>
+          <span class="issue-title">21 análises travadas em PROCESSANDO desde 14/03</span>
+        </div>
+        <div class="issue-body">
+          <p>Todas as análises travadas pararam na mesma fase:</p>
+          <pre>"fase": "Documentos extraídos. Buscando jurisprudência relevante..."
+"progresso": 50</pre>
+          <p>
+            Isso indica que o step de RAG/busca de jurisprudência no n8n está <strong style="color:#f87171">falhando silenciosamente</strong> — 
+            sem disparar a atualização de status para ERRO. O workflow fica suspenso indefinidamente porque:
+          </p>
+          <p>1. Não há tratamento de erro no step de jurisprudência que force o UPDATE para ERRO no banco</p>
+          <p>2. O Safety Timeout de 5min no frontend só afeta o estado local (UI) — não altera o banco</p>
+          <p>3. O constraint do banco (<code>chk_olivia_analises_status</code>) não permite PENDENTE — impossível reprocessar sem criar nova análise</p>
+          <div class="fix-label">Correção recomendada</div>
+          <p>No n8n: adicionar Error Handler global no workflow que faça <code>UPDATE olivia_analises SET status='ERRO'</code> em qualquer exceção não tratada. Também considerar adicionar PENDENTE ao constraint para permitir reprocessamento.</p>
+        </div>
+      </div>
+
+      <!-- ISSUE 2 - ALTO -->
+      <div class="issue">
+        <div class="issue-header">
+          <span class="issue-sev sev-high">P1 — Alto</span>
+          <span class="issue-title">Case sensitivity: frontend compara 'concluida' mas banco salva 'CONCLUIDA'</span>
+        </div>
+        <div class="issue-body">
+          <p>O frontend verifica o status com letras minúsculas:</p>
+          <pre>// OliviaAnaliseProcesso.tsx + OliviaAnaliseDecisao.tsx
+if (data.status === 'concluida' || data.status === 'concluida_parcial') { ... }
+if (data.status === 'erro') { ... }</pre>
+          <p>Mas o banco armazena em MAIÚSCULAS (<code>CONCLUIDA</code>, <code>ERRO</code>). O Supabase JS client retorna o valor exatamente como está no banco.</p>
+          <p>
+            <strong style="color:#fb923c">Risco:</strong> Se o Realtime ou polling retornar o status em maiúsculas (padrão do banco), o frontend nunca detecta a conclusão — a análise completa no banco mas a UI fica girando infinitamente.
+          </p>
+          <p>
+            O cache check também usa <code>.eq('status', 'CONCLUIDA')</code> (maiúsculo) — inconsistente com o resto do código.
+          </p>
+          <div class="fix-label">Correção recomendada</div>
+          <p>Normalizar no frontend: <code>data.status?.toLowerCase() === 'concluida'</code> — ou padronizar o n8n para sempre salvar em maiúsculas e ajustar todas as comparações.</p>
+        </div>
+      </div>
+
+      <!-- ISSUE 3 - MÉDIO -->
+      <div class="issue">
+        <div class="issue-header">
+          <span class="issue-sev sev-medium">P2 — Médio</span>
+          <span class="issue-title">Sem status PENDENTE: análises com erro não podem ser reprocessadas</span>
+        </div>
+        <div class="issue-body">
+          <p>
+            O constraint do banco permite apenas: <code>PROCESSANDO | CONCLUIDA | CONCLUIDA_PARCIAL | ERRO</code>. 
+            Não existe <code>PENDENTE</code> para marcar análises para reprocessamento.
+          </p>
+          <p>
+            Hoje precisei resetar para ERRO (workaround) porque PENDENTE violava o constraint. Isso significa que o advogado/admin precisa criar uma nova análise do zero ao invés de simplesmente reprocessar.
+          </p>
+          <div class="fix-label">Correção recomendada</div>
+          <p>Migration: <code>ALTER TABLE olivia_analises DROP CONSTRAINT chk_olivia_analises_status; ALTER TABLE olivia_analises ADD CONSTRAINT chk_olivia_analises_status CHECK (status = ANY (ARRAY['PENDENTE','PROCESSANDO','CONCLUIDA','CONCLUIDA_PARCIAL','ERRO']));</code></p>
+        </div>
+      </div>
+
+      <!-- ISSUE 4 - BAIXO -->
+      <div class="issue">
+        <div class="issue-header">
+          <span class="issue-sev sev-low">P3 — Baixo</span>
+          <span class="issue-title">tokens_usados e custo_usd sempre zerados</span>
+        </div>
+        <div class="issue-body">
+          <p>
+            Nas 12 análises concluídas, os campos <code>tokens_usados</code> e <code>custo_usd</code> ficam em 0.
+            Não há rastreamento de consumo de tokens por análise.
+          </p>
+          <div class="fix-label">Impacto</div>
+          <p>Impossível calcular custo real por organização. Se o produto escalar, não haverá dados para precificação ou rate limiting.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PONTOS POSITIVOS -->
+  <div class="section">
+    <div class="section-title">✅ O que está funcionando bem</div>
+    <div class="pos-list">
+      <div class="pos-item">
+        <strong>Fallback JARBAS → n8n</strong>
+        <span>isJarbasOnline() com timeout de 2s + fallback automático para n8n. Resiliente.</span>
+      </div>
+      <div class="pos-item">
+        <strong>Realtime + Polling duplo</strong>
+        <span>Supabase Realtime como primário + polling a cada 15s como fallback. Guard de dupla execução com isAnalyzingRef.</span>
+      </div>
+      <div class="pos-item">
+        <strong>Cache de 30 dias com UX bacana</strong>
+        <span>Toast com botão "Nova análise" para sobrescrever cache. Evita reprocessamentos desnecessários.</span>
+      </div>
+      <div class="pos-item">
+        <strong>Safety Timeout de 5min na UI</strong>
+        <span>Evita que a UI fique spinning para sempre se o backend travar.</span>
+      </div>
+      <div class="pos-item">
+        <strong>Upload defensivo de arquivos</strong>
+        <span>Falha de upload não cancela a análise — continua sem o documento com toast de aviso.</span>
+      </div>
+      <div class="pos-item">
+        <strong>Resultado da análise: excelente qualidade</strong>
+        <span>Quando conclui, a análise é muito boa: visão geral, 5 riscos com severidade+mitigação, pontos fortes/fracos, 8 perguntas de triagem contextualizadas, playbook aplicado.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- AMOSTRA DO RESULTADO -->
+  <div class="section">
+    <div class="section-title">📋 Amostra — Última Análise Concluída (451a0475)</div>
+    <div class="result-sample">
+      <h4>Processo: 5013649-66.2025.8.21.0015 | Mercado Pago | Porto Alegre/RS</h4>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px">
+        <strong style="color:#fff">Chance de sucesso:</strong> 
+        <span style="color:#facc15;font-weight:700">Não calculada</span> (campo zerado — ver Issue #P3 de tokens) · 
+        <strong style="color:#fff">Playbook:</strong> Mercado Livre — Análise de Provas
+      </p>
+      <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">Riscos identificados</div>
+      <div class="tag-row">
+        <span class="tag tag-alto">ALTO — CDC questionável (PJ)</span>
+        <span class="tag tag-alto">ALTO — Súmula 385 STJ</span>
+        <span class="tag tag-alto">ALTO — Sem documentos</span>
+        <span class="tag tag-med">MÉDIO — Dano moral PJ requer prova</span>
+        <span class="tag tag-med">MÉDIO — IP contratação</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:14px;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">8 perguntas de triagem geradas</div>
+      <p style="font-size:12px;color:var(--text-muted)">
+        Natureza da restrição · Conta ML/MP · Recebimento de produto · Outras restrições (Súm. 385) · Valor e data · 
+        Comunicação prévia (Súm. 359) · CDC — consumidor final? · BO registrado
+      </p>
+    </div>
+  </div>
+
+  <!-- ROADMAP -->
+  <div class="section">
+    <div class="section-title">🗺️ Roadmap Recomendado</div>
+    <div class="roadmap">
+      <div class="road-item done">
+        <div class="road-num">✓</div>
+        <div class="road-content">
+          <strong>Fix do bug F1 — filtro UUID na URL</strong>
+          <span>Corrigido hoje (parâmetro como query param em vez de path param)</span>
+        </div>
+      </div>
+      <div class="road-item current">
+        <div class="road-num">1</div>
+        <div class="road-content">
+          <strong>P0 — Investigar travamento no step de RAG/jurisprudência no n8n</strong>
+          <span>Ver logs do workflow, adicionar Error Handler global → UPDATE status='ERRO' em qualquer exceção</span>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-num">2</div>
+        <div class="road-content">
+          <strong>P1 — Fix case sensitivity: normalizar status para lowercase no frontend</strong>
+          <span><code style="font-family:monospace;font-size:11px">data.status?.toLowerCase() === 'concluida'</code> em todos os comparadores</span>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-num">3</div>
+        <div class="road-content">
+          <strong>P2 — Migration: adicionar status PENDENTE ao constraint</strong>
+          <span>Permite reprocessamento sem criar nova análise</span>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-num">4</div>
+        <div class="road-content">
+          <strong>P3 — Implementar rastreamento de tokens/custo por análise</strong>
+          <span>Popular tokens_usados e custo_usd no UPDATE final do n8n</span>
+        </div>
+      </div>
+      <div class="road-item">
+        <div class="road-num">5</div>
+        <div class="road-content">
+          <strong>Reset em massa das 21 análises travadas</strong>
+          <span>Após fix do n8n — resetar para ERRO ou PENDENTE para reprocessamento automático</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Gerado por JANA 🦊 — MacBook Air M4 | 16/03/2026 22:40 GMT-3<br>
+  Dados: Supabase <code>qdivfairxhdihaqqypgb</code> · Código: <code>~/beta-mdflow/src/pages/olivia/</code>
+</div>
+
+</body>
+</html>

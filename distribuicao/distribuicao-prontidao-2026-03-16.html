@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribuição — Diagnóstico de Prontidão</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --text: #e8eaf6;
+    --muted: #7b82a8;
+    --green: #4caf7d;
+    --yellow: #f5c542;
+    --red: #e05c5c;
+    --blue: #5c9aff;
+    --orange: #ff9a45;
+    --purple: #a57aff;
+    --green-bg: rgba(76,175,125,0.1);
+    --yellow-bg: rgba(245,197,66,0.1);
+    --red-bg: rgba(224,92,92,0.1);
+    --blue-bg: rgba(92,154,255,0.1);
+    --orange-bg: rgba(255,154,69,0.1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px 24px;
+  }
+  .page-header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 20px;
+    margin-bottom: 32px;
+  }
+  .page-header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .page-header .meta {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+  .badge {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.4px;
+  }
+  .badge-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green); }
+  .badge-yellow { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow); }
+  .badge-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red); }
+  .badge-blue { background: var(--blue-bg); color: var(--blue); border: 1px solid var(--blue); }
+  .badge-orange { background: var(--orange-bg); color: var(--orange); border: 1px solid var(--orange); }
+
+  /* ALERT BOXES */
+  .alert {
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin-bottom: 16px;
+    border-left: 4px solid;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .alert-body { flex: 1; }
+  .alert-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .alert-desc { font-size: 12px; color: var(--muted); }
+  .alert-red { background: var(--red-bg); border-color: var(--red); }
+  .alert-red .alert-title { color: var(--red); }
+  .alert-yellow { background: var(--yellow-bg); border-color: var(--yellow); }
+  .alert-yellow .alert-title { color: var(--yellow); }
+  .alert-blue { background: var(--blue-bg); border-color: var(--blue); }
+  .alert-blue .alert-title { color: var(--blue); }
+
+  /* SECTION */
+  .section { margin-bottom: 40px; }
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 900px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+  }
+
+  /* CARD */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+  }
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    gap: 8px;
+  }
+  .card-title {
+    font-size: 15px;
+    font-weight: 700;
+  }
+  .card-subtitle {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* STEP LIST */
+  .step-list { list-style: none; }
+  .step-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+  }
+  .step-list li:last-child { border-bottom: none; }
+  .step-icon { flex-shrink: 0; width: 20px; text-align: center; margin-top: 1px; }
+  .step-label { flex: 1; }
+  .step-note { color: var(--muted); font-size: 11px; margin-top: 2px; }
+
+  /* STATUS DOT */
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0; margin-top: 5px; }
+  .dot-green { background: var(--green); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+  .dot-blue { background: var(--blue); }
+  .dot-orange { background: var(--orange); }
+
+  /* SCORE BAR */
+  .score-bar { margin-top: 12px; }
+  .score-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+  .score-track {
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .score-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .score-fill-green { background: var(--green); }
+  .score-fill-yellow { background: var(--yellow); }
+  .score-fill-red { background: var(--red); }
+  .score-fill-blue { background: var(--blue); }
+
+  /* TABLE */
+  .mini-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .mini-table th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .mini-table td {
+    padding: 8px 8px;
+    border-bottom: 1px solid rgba(46,51,80,0.5);
+    vertical-align: top;
+  }
+  .mini-table tr:last-child td { border-bottom: none; }
+
+  /* DOC STRUCTURE */
+  .doc-tree { font-size: 12px; line-height: 2; }
+  .doc-tree .tree-root { color: var(--muted); margin-bottom: 4px; }
+  .doc-tree .tree-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    border-radius: 4px;
+  }
+  .tree-prefix { color: var(--border); font-family: monospace; }
+  .tree-filename { font-family: 'Fira Code', 'Courier New', monospace; font-size: 11px; }
+
+  /* BUG CARD */
+  .bug-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-left: 3px solid;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+  .bug-card.p0 { border-left-color: var(--red); }
+  .bug-card.p1 { border-left-color: var(--yellow); }
+  .bug-card .bug-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .bug-card .bug-title { font-weight: 700; font-size: 13px; }
+  .bug-card .bug-desc { font-size: 12px; color: var(--muted); line-height: 1.5; }
+  .bug-card .bug-impact { font-size: 11px; margin-top: 8px; padding: 4px 8px; border-radius: 4px; display: inline-block; }
+  .bug-card.p0 .bug-impact { background: var(--red-bg); color: var(--red); }
+  .bug-card.p1 .bug-impact { background: var(--yellow-bg); color: var(--yellow); }
+
+  /* FLOW */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 12px 0;
+  }
+  .flow-step {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    min-width: 90px;
+  }
+  .flow-arrow {
+    color: var(--muted);
+    font-size: 14px;
+    padding: 0 6px;
+  }
+  .flow-step.ok { border-color: var(--green); color: var(--green); }
+  .flow-step.warn { border-color: var(--yellow); color: var(--yellow); }
+  .flow-step.err { border-color: var(--red); color: var(--red); }
+  .flow-step.pending { border-color: var(--blue); color: var(--blue); }
+
+  /* PILLS ROW */
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .pill {
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid;
+  }
+  .pill-green { background: var(--green-bg); color: var(--green); border-color: var(--green); }
+  .pill-yellow { background: var(--yellow-bg); color: var(--yellow); border-color: var(--yellow); }
+  .pill-red { background: var(--red-bg); color: var(--red); border-color: var(--red); }
+  .pill-blue { background: var(--blue-bg); color: var(--blue); border-color: var(--blue); }
+  .pill-muted { background: var(--surface2); color: var(--muted); border-color: var(--border); }
+
+  /* CHECKLIST */
+  .checklist { list-style: none; }
+  .checklist li { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; font-size: 12px; }
+  .checklist .ck { flex-shrink: 0; margin-top: 1px; }
+
+  .footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h1>🏛️ Distribuição — Diagnóstico de Prontidão</h1>
+      <div class="meta">MdFlow / MP Advocacia &nbsp;·&nbsp; Gerado em 16/03/2026 &nbsp;·&nbsp; JARBAS v3.0 TURBO MAX</div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <span class="badge badge-green">✅ 6 docs criados</span>
+      <span class="badge badge-red">🚨 2 bugs P0</span>
+      <span class="badge badge-yellow">⚠️ 1 pendência P1</span>
+    </div>
+  </div>
+</div>
+
+<!-- BUGS CRÍTICOS -->
+<div class="section">
+  <div class="section-title">🚨 Bugs P0 — Bloqueiam distribuição agora</div>
+
+  <div class="bug-card p0">
+    <div class="bug-header">
+      <span class="bug-title">🔴 Drive 404 — Links de documentos inválidos</span>
+      <span class="badge badge-red">P0 · Bloqueador</span>
+    </div>
+    <div class="bug-desc">
+      O campo <code>folder_link</code> dos processos no MdFlow retorna 404 quando o JARBAS tenta baixar os PDFs. Sem os documentos, a distribuição não pode ser iniciada.
+    </div>
+    <div class="bug-impact">💥 Impacto: 100% das distribuições bloqueadas — nenhum processo consegue ser distribuído</div>
+  </div>
+
+  <div class="bug-card p0">
+    <div class="bug-header">
+      <span class="bug-title">🔴 Filtro de status incorreto no banco</span>
+      <span class="badge badge-red">P0 · Bloqueador</span>
+    </div>
+    <div class="bug-desc">
+      A query que busca processos "Aguardando Distribuição" está retornando registros com status incorreto. A fila de distribuição aparece vazia mesmo com processos pendentes, ou retorna processos já distribuídos.
+    </div>
+    <div class="bug-impact">💥 Impacto: JARBAS não consegue identificar qual processo distribuir a seguir</div>
+  </div>
+
+  <div class="bug-card p1">
+    <div class="bug-header">
+      <span class="bug-title">🟡 Legado monolítico — 1949 linhas RS/SC + router misturados</span>
+      <span class="badge badge-yellow">P1 · Débito Técnico</span>
+    </div>
+    <div class="bug-desc">
+      O arquivo <code>skill_distribuicao_eproc.mjs</code> mistura lógica de RS, SC e o router numa única função. Dificulta manutenção e cria risco de cross-contamination entre estados.
+    </div>
+    <div class="bug-impact">⚠️ Impacto: Qualquer alteração em RS pode quebrar SC silenciosamente</div>
+  </div>
+</div>
+
+<!-- PRONTIDÃO POR ESTADO -->
+<div class="section">
+  <div class="section-title">📊 Prontidão por Estado / OAB</div>
+  <div class="grid-3">
+
+    <!-- RS CHRISTIAN -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🟢 RS — Dr. Christian Paz</div>
+          <div class="card-subtitle">OAB RS116571 · TJRS</div>
+        </div>
+        <span class="badge badge-green">Documentado</span>
+      </div>
+      <ul class="step-list">
+        <li><span class="dot dot-green"></span><span class="step-label">Comarca — algoritmo definido<div class="step-note">autor POA → POA, ré POA → POA, nenhum → cidade da ré</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">Rito + Competência + Classe<div class="step-note">Cível Geral (70) · PROCED. COMUM CÍVEL (0000000029)</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">jstree funciona normalmente<div class="step-note">incluirAssunto("022003") via JS</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">CEP auto-preenche logradouro e bairro<div class="step-note">✅ sem necessidade de ViaCEP</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">Upload em lote + tipificação<div class="step-note">COMPROVANTES (com S) para docs 5c e 6</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">Entidades sem CNPJ mapeadas<div class="step-note">Boa Vista, Banrisul, BB, Celesc</div></span></li>
+      </ul>
+      <div class="score-bar">
+        <div class="score-label"><span>Prontidão documentação</span><span>90%</span></div>
+        <div class="score-track"><div class="score-fill score-fill-green" style="width:90%"></div></div>
+      </div>
+      <div class="pills">
+        <span class="pill pill-yellow">⚠️ Drive 404 bloqueia</span>
+        <span class="pill pill-yellow">⚠️ Filtro status bloqueia</span>
+      </div>
+    </div>
+
+    <!-- SP CHRISTIAN -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🟢 SP — Dr. Christian Paz</div>
+          <div class="card-subtitle">OAB SP535101 · TJSP</div>
+        </div>
+        <span class="badge badge-green">Documentado</span>
+      </div>
+      <ul class="step-list">
+        <li><span class="dot dot-green"></span><span class="step-label">Comarca — casos especiais mapeados<div class="step-note">Boa Vista → Barueri · Enel → São Paulo (foro Regional 2)</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">jstree SP — bypass documentado<div class="step-note">hdnCodAssuntoJudicial + hdnIdAssuntoJudicial direto</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">CEP preenche só UF — ViaCEP necessário<div class="step-note">buscar bairro em https://viacep.com.br/ws/{CEP}/json/</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">Cidade do autor: select dinâmico<div class="step-note">[...sel.options].find(o=&gt;o.text.includes('Suzano'))?.value</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">Seletores instáveis mapeados<div class="step-note">selJustica dinâmico · sbmProcessoEtapa2 com .first()</div></span></li>
+        <li><span class="dot dot-green"></span><span class="step-label">Processo de treinamento registrado<div class="step-note">Kevin Alves · CPF 43458277870 · Boa Vista · Barueri</div></span></li>
+      </ul>
+      <div class="score-bar">
+        <div class="score-label"><span>Prontidão documentação</span><span>95%</span></div>
+        <div class="score-track"><div class="score-fill score-fill-green" style="width:95%"></div></div>
+      </div>
+      <div class="pills">
+        <span class="pill pill-green">✅ Mais detalhado</span>
+        <span class="pill pill-yellow">⚠️ Drive 404 bloqueia</span>
+      </div>
+    </div>
+
+    <!-- SC CHRISTIAN -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🟡 SC — Dr. Christian Paz</div>
+          <div class="card-subtitle">OAB RS116571 · TJSC</div>
+        </div>
+        <span class="badge badge-yellow">Rascunho</span>
+      </div>
+      <ul class="step-list">
+        <li><span class="dot dot-green"></span><span class="step-label">Comarca — algoritmo definido<div class="step-note">Florianópolis exibida como "Capital" no EPROC SC</div></span></li>
+        <li><span class="dot dot-yellow"></span><span class="step-label">Competência diferente do RS<div class="step-note">⚠️ "Cível — Responsabilidade Civil" (não Cível Geral)</div></span></li>
+        <li><span class="dot dot-yellow"></span><span class="step-label">Modal exclusivo do SC documentado<div class="step-note">⚠️ popup de endereço da ré após E5 — sem validação prática</div></span></li>
+        <li><span class="dot dot-blue"></span><span class="step-label">jstree funciona normalmente<div class="step-note">📝 confirmar código 022003 no SC na prática</div></span></li>
+        <li><span class="dot dot-blue"></span><span class="step-label">CEP + ViaCEP para bairro<div class="step-note">📝 a confirmar quanto o SC preenche automaticamente</div></span></li>
+        <li><span class="dot dot-blue"></span><span class="step-label">Entidades SC<div class="step-note">📝 só Celesc mapeada — aguardando prática para expandir</div></span></li>
+      </ul>
+      <div class="score-bar">
+        <div class="score-label"><span>Prontidão documentação</span><span>65%</span></div>
+        <div class="score-track"><div class="score-fill score-fill-yellow" style="width:65%"></div></div>
+      </div>
+      <div class="pills">
+        <span class="pill pill-blue">📝 Validar na prática</span>
+        <span class="pill pill-yellow">⚠️ Modal SC a testar</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RS HELOISA -->
+  <div style="margin-top:16px;">
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🔵 RS — Dra. Heloísa Miglioranza</div>
+          <div class="card-subtitle">OAB pendente de ativação · TJRS</div>
+        </div>
+        <span class="badge badge-blue">Aguardando OAB</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted); line-height:1.6;">
+        Fluxo idêntico ao <strong style="color:var(--text)">DIST_RS_CHRISTIAN.md</strong> com uma única diferença: docs 5c e 6 usam tipo <strong style="color:var(--text)">ANEXO</strong> em vez de COMPROVANTES.
+        Arquivo pronto para ativação — só falta registrar OAB + credenciais no <code>.env</code>.
+      </div>
+      <div class="pills" style="margin-top:10px;">
+        <span class="pill pill-blue">📝 Registrar OAB no .env</span>
+        <span class="pill pill-blue">📝 Confirmar outras diferenças na prática</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ESTRUTURA DE DOCUMENTOS -->
+<div class="section">
+  <div class="section-title">📁 Estrutura de Documentos Criada</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">Arquivos em <code style="font-size:12px;color:var(--blue)">~/jarbas/distribuicao/</code></div>
+      <div class="doc-tree">
+        <div class="tree-root">distribuicao/</div>
+        <table class="mini-table">
+          <thead><tr><th>Arquivo</th><th>Responsabilidade</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><span class="tree-filename" style="color:var(--blue)">DISTRIBUICAO_CORE.md</span></td>
+              <td>Fluxo macro, regras universais, roteamento</td>
+              <td><span class="badge badge-green">✅ Criado</span></td>
+            </tr>
+            <tr>
+              <td><span class="tree-filename">DIST_RS_CHRISTIAN.md</span></td>
+              <td>RS · OAB RS116571 — fluxo completo E1→E7</td>
+              <td><span class="badge badge-green">✅ Criado</span></td>
+            </tr>
+            <tr>
+              <td><span class="tree-filename">DIST_SP_CHRISTIAN.md</span></td>
+              <td>SP · OAB SP535101 — com bypasses TJSP</td>
+              <td><span class="badge badge-green">✅ Criado</span></td>
+            </tr>
+            <tr>
+              <td><span class="tree-filename">DIST_SC_CHRISTIAN.md</span></td>
+              <td>SC · OAB RS116571 — rascunho a validar</td>
+              <td><span class="badge badge-yellow">⚠️ Rascunho</span></td>
+            </tr>
+            <tr>
+              <td><span class="tree-filename">DIST_RS_HELOISA.md</span></td>
+              <td>RS · OAB Heloísa — aguarda ativação</td>
+              <td><span class="badge badge-blue">⏸ Pendente OAB</span></td>
+            </tr>
+            <tr>
+              <td><span class="tree-filename">DIST_PREPARAR_DOCS.md</span></td>
+              <td>Download Drive → extração de dados → tipificação</td>
+              <td><span class="badge badge-green">✅ Criado</span></td>
+            </tr>
+            <tr>
+              <td><span class="tree-filename">DIST_FINALIZAR.md</span></td>
+              <td>Capturar CNJ → atualizar MdFlow → limpar</td>
+              <td><span class="badge badge-green">✅ Criado</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">Fluxo de roteamento</div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Como o JARBAS decide qual skill usar</div>
+      <div class="flow">
+        <div class="flow-step ok">MdFlow<br>buscar processo</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step ok">Identificar<br>estado + OAB</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step ok">Abrir skill<br>específica</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step ok">Executar<br>E1→E7</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-step ok">Finalizar<br>+ CNJ</div>
+      </div>
+      <div style="margin-top:16px;">
+        <table class="mini-table">
+          <thead><tr><th>Estado</th><th>OAB</th><th>Skill</th></tr></thead>
+          <tbody>
+            <tr><td>RS</td><td>RS116571</td><td><code>DIST_RS_CHRISTIAN.md</code></td></tr>
+            <tr><td>RS</td><td>Heloísa</td><td><code>DIST_RS_HELOISA.md</code></td></tr>
+            <tr><td>SP</td><td>SP535101</td><td><code>DIST_SP_CHRISTIAN.md</code></td></tr>
+            <tr><td>SC</td><td>RS116571</td><td><code>DIST_SC_CHRISTIAN.md</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DIFERENÇAS CRÍTICAS POR ESTADO -->
+<div class="section">
+  <div class="section-title">⚡ Diferenças Críticas entre Estados</div>
+  <div class="card">
+    <table class="mini-table">
+      <thead>
+        <tr>
+          <th>Aspecto</th>
+          <th>RS</th>
+          <th>SP</th>
+          <th>SC</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Competência</strong></td>
+          <td>Cível — Geral (70)</td>
+          <td>Área: Cível (0)</td>
+          <td>Cível — Responsab. Civil ⚠️</td>
+        </tr>
+        <tr>
+          <td><strong>jstree assunto</strong></td>
+          <td>✅ incluirAssunto() funciona</td>
+          <td>❌ Bypass manual nos campos hidden</td>
+          <td>✅ incluirAssunto() funciona</td>
+        </tr>
+        <tr>
+          <td><strong>CEP auto-fill</strong></td>
+          <td>✅ preenche logradouro + bairro</td>
+          <td>⚠️ só UF — buscar bairro no ViaCEP</td>
+          <td>📝 parcial — confirmar na prática</td>
+        </tr>
+        <tr>
+          <td><strong>Modal extra</strong></td>
+          <td>Nenhum</td>
+          <td>Nenhum</td>
+          <td>⚠️ popup endereço da ré após E5</td>
+        </tr>
+        <tr>
+          <td><strong>Seletores estáveis</strong></td>
+          <td>✅ Sim</td>
+          <td>⚠️ selJustica dinâmico · sbmEtapa2 duplicado</td>
+          <td>📝 a confirmar</td>
+        </tr>
+        <tr>
+          <td><strong>Capitalização vara → cidade</strong></td>
+          <td>Sem cidade = Porto Alegre</td>
+          <td>Foro Central Cível = São Paulo</td>
+          <td>"Capital" = Florianópolis</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CHECKLIST PRÉ-EXECUÇÃO -->
+<div class="section">
+  <div class="section-title">✅ Checklist — O que falta antes de executar</div>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">🔴 Bloqueadores (P0 — resolver primeiro)</div>
+      <ul class="checklist">
+        <li><span class="ck">🔴</span><span>Corrigir links do Drive no banco — <code>folder_link</code> com 404 precisa ser revalidado</span></li>
+        <li><span class="ck">🔴</span><span>Corrigir filtro de status em <code>/distribuicao</code> — query retorna resultados errados</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:14px;">🟡 Melhorias (P1 — após P0 resolvido)</div>
+      <ul class="checklist">
+        <li><span class="ck">🟡</span><span>Separar skill legada de 1949 linhas em módulos por estado</span></li>
+        <li><span class="ck">🔵</span><span>Validar DIST_SC_CHRISTIAN.md com distribuição real de SC</span></li>
+        <li><span class="ck">🔵</span><span>Registrar OAB da Dra. Heloísa quando ativada</span></li>
+        <li><span class="ck">🔵</span><span>Expandir lista de entidades SC além da Celesc</span></li>
+        <li><span class="ck">🔵</span><span>Confirmar código 022003 para assunto no EPROC SC</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- REGRAS NEGOCIAIS -->
+<div class="section">
+  <div class="section-title">⚖️ Regras Negociais Universais (hardcoded no CORE)</div>
+  <div class="card">
+    <ul class="step-list">
+      <li><span style="color:var(--red);font-size:16px;">🚫</span><span class="step-label"><strong>CEF bloqueada:</strong> nunca distribuir contra Caixa Econômica Federal — parar e notificar<div class="step-note">Qualquer processo com CEF como ré deve ser interrompido imediatamente</div></span></li>
+      <li><span style="color:var(--red);font-size:16px;">🚫</span><span class="step-label"><strong>Anti-litigância:</strong> máximo 1 distribuição por cliente × empresa por dia<div class="step-note">Verificar histórico antes de iniciar</div></span></li>
+      <li><span style="color:var(--yellow);font-size:16px;">⚠️</span><span class="step-label"><strong>CNJ só existe após distribuição:</strong> nunca buscar ou aguardar CNJ antes de finalizar<div class="step-note">Número gerado pelo EPROC na tela de confirmação do protocolo</div></span></li>
+      <li><span style="color:var(--green);font-size:16px;">✅</span><span class="step-label"><strong>Foco exclusivo:</strong> não trocar de processo durante a execução<div class="step-note">Concluir até ter CNJ confirmado no MdFlow</div></span></li>
+      <li><span style="color:var(--blue);font-size:16px;">🧹</span><span class="step-label"><strong>Limpeza obrigatória:</strong> apagar <code>/tmp/[slug]-docs/</code> após CNJ salvo<div class="step-note">Nunca deixar documentos de clientes em pasta temporária</div></span></li>
+    </ul>
+  </div>
+</div>
+
+<div class="footer">
+  <span>🦞 JARBAS v3.0 TURBO MAX · MP Advocacia / MdLab</span>
+  <span>distribuicao-prontidao-2026-03-16.html</span>
+</div>
+
+</body>
+</html>

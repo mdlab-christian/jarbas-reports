@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARBAS — Diagnóstico Dual-Mac</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif; background: #0a0a0f; color: #e8e8f0; min-height: 100vh; }
+
+  .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); padding: 40px; border-bottom: 1px solid #2a2a4a; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  .header .subtitle { color: #8888aa; font-size: 14px; }
+  .header .badge { display: inline-block; background: #e94560; color: white; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; margin-left: 12px; vertical-align: middle; }
+  .header .badge.green { background: #00b894; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 20px; }
+
+  .verdict-box { background: linear-gradient(135deg, #1a2a1a, #0d1f0d); border: 2px solid #00b894; border-radius: 16px; padding: 28px; margin-bottom: 32px; }
+  .verdict-box.warn { background: linear-gradient(135deg, #2a1a0a, #1f0d00); border-color: #ff9f43; }
+  .verdict-box h2 { font-size: 20px; color: #00b894; margin-bottom: 12px; }
+  .verdict-box.warn h2 { color: #ff9f43; }
+  .verdict-box p { color: #ccc; line-height: 1.7; font-size: 15px; }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+  @media(max-width: 600px) { .grid-2 { grid-template-columns: 1fr; } }
+
+  .card { background: #12121e; border: 1px solid #2a2a3e; border-radius: 12px; padding: 24px; }
+  .card h3 { font-size: 16px; color: #7c7cf5; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .card .icon { font-size: 20px; }
+
+  .stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #1e1e2e; }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: #888; font-size: 13px; }
+  .stat-value { font-size: 13px; font-weight: 600; color: #e8e8f0; }
+  .stat-value.green { color: #00b894; }
+  .stat-value.red { color: #e94560; }
+  .stat-value.yellow { color: #ff9f43; }
+  .stat-value.blue { color: #74b9ff; }
+
+  .section-title { font-size: 18px; font-weight: 700; color: #fff; margin: 32px 0 16px; padding-bottom: 8px; border-bottom: 1px solid #2a2a3e; }
+
+  .status-item { background: #12121e; border: 1px solid #2a2a3e; border-radius: 10px; padding: 16px 20px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.green { background: #00b894; box-shadow: 0 0 8px #00b894; }
+  .status-dot.red { background: #e94560; box-shadow: 0 0 8px #e94560; }
+  .status-dot.yellow { background: #ff9f43; box-shadow: 0 0 8px #ff9f43; }
+  .status-text { flex: 1; }
+  .status-text strong { display: block; font-size: 14px; color: #e8e8f0; margin-bottom: 3px; }
+  .status-text span { font-size: 12px; color: #888; }
+
+  .task-table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
+  .task-table th { text-align: left; padding: 12px 16px; background: #16162a; color: #8888aa; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #2a2a3e; }
+  .task-table td { padding: 12px 16px; border-bottom: 1px solid #1e1e2e; font-size: 13px; }
+  .task-table tr:last-child td { border-bottom: none; }
+  .task-table td:first-child { color: #7c7cf5; font-weight: 600; }
+  .badge-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-tag.mini { background: rgba(116, 185, 255, 0.15); color: #74b9ff; }
+  .badge-tag.air { background: rgba(162, 155, 254, 0.15); color: #a29bfe; }
+  .badge-tag.both { background: rgba(0, 184, 148, 0.15); color: #00b894; }
+
+  .fix-box { background: #1a1025; border: 1px solid #6c5ce7; border-radius: 12px; padding: 24px; margin-bottom: 20px; }
+  .fix-box h3 { color: #6c5ce7; font-size: 16px; margin-bottom: 16px; }
+  .fix-step { display: flex; gap: 14px; margin-bottom: 14px; align-items: flex-start; }
+  .fix-num { background: #6c5ce7; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .fix-content { flex: 1; }
+  .fix-content strong { display: block; color: #e8e8f0; font-size: 14px; margin-bottom: 4px; }
+  .fix-content span { color: #888; font-size: 13px; }
+  code { background: #1e1e3a; color: #a29bfe; padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+  pre { background: #0d0d1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 16px; margin: 12px 0; overflow-x: auto; font-size: 12px; color: #a29bfe; font-family: 'SF Mono', Monaco, monospace; line-height: 1.6; }
+
+  .productivity-box { background: linear-gradient(135deg, #1a1025, #0d1a25); border: 1px solid #6c5ce7; border-radius: 16px; padding: 28px; margin-top: 32px; }
+  .productivity-box h2 { color: #a29bfe; font-size: 20px; margin-bottom: 20px; }
+  .prod-row { display: flex; align-items: center; gap: 16px; padding: 12px 0; border-bottom: 1px solid #1e1e2e; }
+  .prod-row:last-child { border-bottom: none; }
+  .prod-icon { font-size: 22px; width: 36px; text-align: center; }
+  .prod-text strong { display: block; color: #e8e8f0; font-size: 14px; }
+  .prod-text span { color: #888; font-size: 12px; }
+  .prod-gain { margin-left: auto; color: #00b894; font-weight: 700; font-size: 14px; }
+
+  .footer { margin-top: 48px; text-align: center; color: #444; font-size: 12px; padding-bottom: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦞 JARBAS — Diagnóstico Dual-Mac
+    <span class="badge">16/03/2026</span>
+  </h1>
+  <div class="subtitle">Mac Mini M4 + MacBook Air — Análise de Funcionalidade e Distribuição de Tarefas</div>
+</div>
+
+<div class="container">
+
+  <!-- VEREDICTO PRINCIPAL -->
+  <div class="verdict-box warn">
+    <h2>⚠️ Veredicto: Parcialmente Funcional</h2>
+    <p>O MacBook Air está <strong>online, acessível e com SSH aberto</strong> — a conectividade de rede funciona. O bloqueio atual é um único problema técnico: <strong>a chave SSH do Mac Mini não está autorizada no MacBook Air</strong>. Sem isso, não consigo executar comandos remoto. Depois de resolver (5 minutos), a setup dual-Mac fica totalmente operacional e sim, vai <strong>aumentar produtividade real</strong> — mas não "dobrar" — explico abaixo.</p>
+  </div>
+
+  <!-- HARDWARE -->
+  <div class="section-title">🖥️ Hardware dos Dois Computadores</div>
+  <div class="grid-2">
+    <div class="card">
+      <h3><span class="icon">🖥️</span> Mac Mini M4 (Principal)</h3>
+      <div class="stat-row"><span class="stat-label">Chip</span><span class="stat-value blue">Apple M4</span></div>
+      <div class="stat-row"><span class="stat-label">RAM</span><span class="stat-value">16 GB</span></div>
+      <div class="stat-row"><span class="stat-label">Armazenamento</span><span class="stat-value">256 GB (58% usado)</span></div>
+      <div class="stat-row"><span class="stat-label">IP local</span><span class="stat-value">192.168.15.78</span></div>
+      <div class="stat-row"><span class="stat-label">Tailscale</span><span class="stat-value">100.78.173.81</span></div>
+      <div class="stat-row"><span class="stat-label">JARBAS</span><span class="stat-value green">✅ Rodando</span></div>
+      <div class="stat-row"><span class="stat-label">Modo</span><span class="stat-value blue">Ligado 24/7 (operação)</span></div>
+    </div>
+    <div class="card">
+      <h3><span class="icon">💻</span> MacBook Air (Desenvolvimento)</h3>
+      <div class="stat-row"><span class="stat-label">Chip</span><span class="stat-value blue">Apple Silicon (arm64)</span></div>
+      <div class="stat-row"><span class="stat-label">IP local</span><span class="stat-value">192.168.15.80</span></div>
+      <div class="stat-row"><span class="stat-label">Tailscale</span><span class="stat-value">100.101.208.82</span></div>
+      <div class="stat-row"><span class="stat-label">SSH porta 22</span><span class="stat-value green">✅ ABERTO</span></div>
+      <div class="stat-row"><span class="stat-label">Autenticação chave</span><span class="stat-value red">❌ Chave não autorizada</span></div>
+      <div class="stat-row"><span class="stat-label">OpenClaw</span><span class="stat-value red">❌ Não detectado</span></div>
+      <div class="stat-row"><span class="stat-label">Status</span><span class="stat-value yellow">⚡ Online (sem carregador)</span></div>
+    </div>
+  </div>
+
+  <!-- DIAGNÓSTICO DE CONECTIVIDADE -->
+  <div class="section-title">🔌 Status de Conectividade</div>
+
+  <div class="status-item">
+    <div class="status-dot green"></div>
+    <div class="status-text">
+      <strong>MacBook Air — Rede local (192.168.15.80:22)</strong>
+      <span>SSH aberto e respondendo — mesma subnet Wi-Fi</span>
+    </div>
+  </div>
+  <div class="status-item">
+    <div class="status-dot green"></div>
+    <div class="status-text">
+      <strong>MacBook Air — Tailscale (100.101.208.82:22)</strong>
+      <span>SSH aberto via VPN — funciona mesmo em redes diferentes</span>
+    </div>
+  </div>
+  <div class="status-item">
+    <div class="status-dot red"></div>
+    <div class="status-text">
+      <strong>Autenticação SSH — Chave Ed25519 rejeitada</strong>
+      <span>A chave pública do Mac Mini (SHA256:dVrsng2jUH...) não está em ~/.ssh/authorized_keys do MBA</span>
+    </div>
+  </div>
+  <div class="status-item">
+    <div class="status-dot red"></div>
+    <div class="status-text">
+      <strong>OpenClaw no MacBook Air — Não configurado</strong>
+      <span>Nenhum gateway respondendo nas portas 18080, 18089, 3000, 8080 no MBA</span>
+    </div>
+  </div>
+  <div class="status-item">
+    <div class="status-dot yellow"></div>
+    <div class="status-text">
+      <strong>MacBook Air sem carregador</strong>
+      <span>Funciona com tela ligada. Com tela apagada: macOS dorme — SSH cai. Recomendo usar caffeinate ou ligar na tomada</span>
+    </div>
+  </div>
+
+  <!-- DISTRIBUIÇÃO DE TAREFAS -->
+  <div class="section-title">⚡ Distribuição Ideal de Tarefas</div>
+
+  <table class="task-table">
+    <thead>
+      <tr>
+        <th>Tipo de Tarefa</th>
+        <th>Máquina</th>
+        <th>Motivo</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>EPROC / Intimações / Operação jurídica</td>
+        <td><span class="badge-tag mini">Mac Mini</span></td>
+        <td style="color:#888">Ligado 24/7, não depende de ninguém presente</td>
+      </tr>
+      <tr>
+        <td>Crons noturnos (briefing 6h, 23h, monitor n8n)</td>
+        <td><span class="badge-tag mini">Mac Mini</span></td>
+        <td style="color:#888">MBA pode estar dormindo à noite</td>
+      </tr>
+      <tr>
+        <td>Supabase queries / jarbas_tarefas</td>
+        <td><span class="badge-tag mini">Mac Mini</span></td>
+        <td style="color:#888">Banco de dados principal fica aqui</td>
+      </tr>
+      <tr>
+        <td>Build do beta-mdflow / git push</td>
+        <td><span class="badge-tag air">MacBook Air</span></td>
+        <td style="color:#888">Dev pesado libera CPU do Mini para operação</td>
+      </tr>
+      <tr>
+        <td>Claude Code / Lovable / coding sessions longas</td>
+        <td><span class="badge-tag air">MacBook Air</span></td>
+        <td style="color:#888">Gustavo trabalhando aqui — paralelismo real</td>
+      </tr>
+      <tr>
+        <td>npm install / dependências pesadas</td>
+        <td><span class="badge-tag air">MacBook Air</span></td>
+        <td style="color:#888">Não trava o Mini durante operação</td>
+      </tr>
+      <tr>
+        <td>Análise de vídeo com Gemini</td>
+        <td><span class="badge-tag mini">Mac Mini</span></td>
+        <td style="color:#888">Upload de arquivo grande — Mini tem conexão estável</td>
+      </tr>
+      <tr>
+        <td>Subagents paralelos (ARCHON + Sonnet)</td>
+        <td><span class="badge-tag both">Ambos</span></td>
+        <td style="color:#888">Mini: operação. Air: dev. Dobro de tokens paralelos</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- PROBLEMA DO SEM CARREGADOR -->
+  <div class="section-title">🔋 MacBook Air sem Carregador — O que Acontece?</div>
+
+  <div class="card" style="margin-bottom: 28px;">
+    <div class="stat-row"><span class="stat-label">Tela ligada, sem carregador</span><span class="stat-value green">✅ SSH funciona, JARBAS acessa normalmente</span></div>
+    <div class="stat-row"><span class="stat-label">Tela apagada (sleep automático)</span><span class="stat-value red">❌ macOS dorme — SSH cai — JARBAS perde acesso</span></div>
+    <div class="stat-row"><span class="stat-label">Tampinha fechada, sem carregador</span><span class="stat-value red">❌ Sleep imediato — inacessível</span></div>
+    <div class="stat-row"><span class="stat-label">Tampinha fechada, COM carregador</span><span class="stat-value green">✅ Modo clamshell — funciona como desktop</span></div>
+    <div class="stat-row"><span class="stat-label">Solução sem carregador</span><span class="stat-value yellow">⚡ Rodar: caffeinate -dis (impede sleep)</span></div>
+  </div>
+
+  <!-- COMO RESOLVER -->
+  <div class="section-title">🔧 Como Resolver — Passo a Passo</div>
+
+  <div class="fix-box">
+    <h3>Etapa 1 — Autorizar chave SSH do Mac Mini no MacBook Air</h3>
+
+    <div class="fix-step">
+      <div class="fix-num">1</div>
+      <div class="fix-content">
+        <strong>No MacBook Air (você físico, ou Gustavo), abrir terminal e rodar:</strong>
+        <pre>mkdir -p ~/.ssh
+echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILhAOKtjcnRfPA4V6VxjrQBRusfSOmWSe/BpJMDlSzZv jarbas@macmini" >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys</pre>
+      </div>
+    </div>
+
+    <div class="fix-step">
+      <div class="fix-num">2</div>
+      <div class="fix-content">
+        <strong>Verificar usuário correto no MacBook Air</strong>
+        <span>O usuário SSH deve ser o mesmo do macOS. Rodar <code>whoami</code> no terminal do MBA e me dizer qual é — provavelmente <code>christian</code> ou <code>jarbas</code></span>
+      </div>
+    </div>
+
+    <div class="fix-step">
+      <div class="fix-num">3</div>
+      <div class="fix-content">
+        <strong>Após autorizar, testar com:</strong>
+        <pre>ssh christian@192.168.15.80 "hostname && echo 'JARBAS acessou MBA com sucesso'"</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="fix-box">
+    <h3>Etapa 2 — Manter MBA acessível sem carregador</h3>
+
+    <div class="fix-step">
+      <div class="fix-num">1</div>
+      <div class="fix-content">
+        <strong>No MacBook Air, rodar para evitar sleep:</strong>
+        <pre>caffeinate -dis &</pre>
+        <span>Mantém o MBA acordado indefinidamente enquanto tiver bateria. Cancelar com <code>Ctrl+C</code></span>
+      </div>
+    </div>
+
+    <div class="fix-step">
+      <div class="fix-num">2</div>
+      <div class="fix-content">
+        <strong>Configuração permanente (sem precisar rodar todo dia):</strong>
+        <pre># Adicionar ao ~/.zprofile do MacBook Air:
+caffeinate -dis &</pre>
+      </div>
+    </div>
+  </div>
+
+  <div class="fix-box" style="border-color: #00b894;">
+    <h3 style="color: #00b894;">Etapa 3 (Opcional) — Instalar OpenClaw no MacBook Air</h3>
+    <div class="fix-step">
+      <div class="fix-num">1</div>
+      <div class="fix-content">
+        <strong>Para JARBAS executar tarefas diretamente no MBA:</strong>
+        <pre>npm install -g openclaw
+openclaw start</pre>
+        <span>Depois configuro o Mac Mini para despachar tarefas de dev para o MBA automaticamente via node plugin</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPECTATIVA REAL DE PRODUTIVIDADE -->
+  <div class="productivity-box">
+    <h2>📈 Expectativa Real de Produtividade</h2>
+
+    <div class="prod-row">
+      <div class="prod-icon">⚡</div>
+      <div class="prod-text">
+        <strong>Paralelismo real com Gustavo</strong>
+        <span>Gustavo no MBA fazendo código enquanto JARBAS roda operação no Mini = ganho concreto</span>
+      </div>
+      <div class="prod-gain">+40%</div>
+    </div>
+
+    <div class="prod-row">
+      <div class="prod-icon">🔧</div>
+      <div class="prod-text">
+        <strong>Mini desafogado para operação</strong>
+        <span>Build/compilação pesada no Air = Mini mais responsivo para EPROC, crons, análises IA</span>
+      </div>
+      <div class="prod-gain">+25%</div>
+    </div>
+
+    <div class="prod-row">
+      <div class="prod-icon">🤖</div>
+      <div class="prod-text">
+        <strong>Subagentes em paralelo</strong>
+        <span>Após instalar OpenClaw no MBA: 2 agentes rodando simultâneos = lapidações 2x mais rápidas</span>
+      </div>
+      <div class="prod-gain">+35%</div>
+    </div>
+
+    <div class="prod-row">
+      <div class="prod-icon">⚠️</div>
+      <div class="prod-text">
+        <strong>Limitante: token budget</strong>
+        <span>Dobrar máquinas não dobra tokens — o custo de API é o gargalo real, não CPU</span>
+      </div>
+      <div class="prod-gain" style="color:#ff9f43">~0%</div>
+    </div>
+
+    <div style="margin-top: 20px; padding: 16px; background: rgba(0,184,148,0.1); border-radius: 8px; border: 1px solid rgba(0,184,148,0.3);">
+      <p style="color: #00b894; font-weight: 700; font-size: 15px; margin-bottom: 6px;">🎯 Ganho real estimado: 30–50% mais throughput</p>
+      <p style="color: #888; font-size: 13px;">"Dobrar produtividade" é possível se você usar o MBA para o seu próprio trabalho de dev em paralelo com JARBAS operando no Mini — aí sim é 2x. Se for só automação, o gargalo é custo de API.</p>
+    </div>
+  </div>
+
+  <!-- PRÓXIMOS PASSOS -->
+  <div class="section-title">✅ Próximos Passos</div>
+
+  <div class="status-item">
+    <div class="status-dot yellow"></div>
+    <div class="status-text">
+      <strong>[1 — Você] Autorizar chave SSH no MacBook Air</strong>
+      <span>Rodar o comando da Etapa 1 acima no terminal do MBA. Leva 30 segundos.</span>
+    </div>
+  </div>
+  <div class="status-item">
+    <div class="status-dot yellow"></div>
+    <div class="status-text">
+      <strong>[2 — Você] Me dizer o username do MBA</strong>
+      <span>Rodar <code>whoami</code> no MBA e me falar — preciso disso para configurar o SSH corretamente</span>
+    </div>
+  </div>
+  <div class="status-item">
+    <div class="status-dot yellow"></div>
+    <div class="status-text">
+      <strong>[3 — JARBAS] Configurar distribuição automática de tarefas</strong>
+      <span>Após SSH funcionar, configuro o roteamento: tarefas de dev → MBA, operação → Mini</span>
+    </div>
+  </div>
+  <div class="status-item">
+    <div class="status-dot yellow"></div>
+    <div class="status-text">
+      <strong>[4 — Opcional] Instalar OpenClaw no MBA para subagentes paralelos</strong>
+      <span>Máximo poder: lapidações com 2 agentes simultâneos, um em cada máquina</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    Gerado por JARBAS v3.3 • Mac Mini M4 • 16/03/2026 10:27
+  </div>
+
+</div>
+</body>
+</html>

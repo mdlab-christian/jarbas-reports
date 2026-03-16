@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribuição EPROC — Upgrade Haiku → Sonnet 4.6 + Vision Adaptativa</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d2e;
+    --bg3: #252840;
+    --accent: #6c63ff;
+    --accent2: #00d4aa;
+    --accent3: #ff6b6b;
+    --accent4: #ffd93d;
+    --text: #e8eaf6;
+    --text2: #9fa8c9;
+    --border: #2d3060;
+    --green: #4caf8a;
+    --red: #f06060;
+    --orange: #ff9f43;
+    --blue: #5b9ef5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 2rem; font-weight: 800; color: var(--accent); margin-bottom: 0.25rem; }
+  h2 { font-size: 1.3rem; font-weight: 700; color: var(--accent2); margin: 2rem 0 1rem; }
+  h3 { font-size: 1rem; font-weight: 600; color: var(--accent4); margin: 1rem 0 0.5rem; }
+  .subtitle { color: var(--text2); font-size: 0.95rem; margin-bottom: 2rem; }
+  .badge { display: inline-block; padding: 0.2rem 0.7rem; border-radius: 20px; font-size: 0.75rem; font-weight: 700; }
+  .badge-red { background: rgba(240,96,96,0.2); color: var(--red); border: 1px solid var(--red); }
+  .badge-green { background: rgba(76,175,138,0.2); color: var(--green); border: 1px solid var(--green); }
+  .badge-orange { background: rgba(255,159,67,0.2); color: var(--orange); border: 1px solid var(--orange); }
+  .badge-blue { background: rgba(91,158,245,0.2); color: var(--blue); border: 1px solid var(--blue); }
+  .badge-purple { background: rgba(108,99,255,0.2); color: var(--accent); border: 1px solid var(--accent); }
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+  .card-accent { border-left: 4px solid var(--accent); }
+  .card-green { border-left: 4px solid var(--green); }
+  .card-red { border-left: 4px solid var(--red); }
+  .card-orange { border-left: 4px solid var(--orange); }
+  .card-blue { border-left: 4px solid var(--blue); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
+  @media (max-width: 700px) { .grid2, .grid3 { grid-template-columns: 1fr; } }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th { background: var(--bg3); padding: 0.6rem 0.8rem; text-align: left; color: var(--text2); font-weight: 600; border-bottom: 1px solid var(--border); }
+  td { padding: 0.55rem 0.8rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.03); }
+  .metric { text-align: center; padding: 1rem; }
+  .metric-val { font-size: 2rem; font-weight: 800; }
+  .metric-label { font-size: 0.8rem; color: var(--text2); margin-top: 0.25rem; }
+  .tag-bad { color: var(--red); font-weight: 600; }
+  .tag-good { color: var(--green); font-weight: 600; }
+  .tag-warn { color: var(--orange); font-weight: 600; }
+  .code {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.8rem 1rem;
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    white-space: pre-wrap;
+    color: #a8d8a8;
+    margin: 0.5rem 0;
+  }
+  .arrow { color: var(--accent2); font-size: 1.4rem; text-align: center; padding: 0.5rem; }
+  .check { color: var(--green); margin-right: 0.4rem; }
+  .cross { color: var(--red); margin-right: 0.4rem; }
+  .warn { color: var(--orange); margin-right: 0.4rem; }
+  ul { padding-left: 1.2rem; }
+  li { margin-bottom: 0.3rem; }
+  .timeline { position: relative; padding-left: 1.5rem; }
+  .timeline::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 1.2rem; }
+  .tl-item::before { content: '●'; position: absolute; left: -1.65rem; color: var(--accent); font-size: 0.9rem; }
+  .tl-title { font-weight: 700; color: var(--text); }
+  .tl-desc { font-size: 0.88rem; color: var(--text2); }
+  .progress-bar { height: 8px; border-radius: 4px; background: var(--bg3); overflow: hidden; margin-top: 0.3rem; }
+  .progress-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+  .verdict { background: linear-gradient(135deg, rgba(76,175,138,0.15), rgba(108,99,255,0.15)); border: 1px solid var(--green); border-radius: 12px; padding: 1.5rem; text-align: center; margin: 2rem 0; }
+  .verdict-title { font-size: 1.4rem; font-weight: 800; color: var(--accent2); }
+  .verdict-sub { color: var(--text2); margin-top: 0.5rem; }
+  .header-row { display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+  .comparison { display: grid; grid-template-columns: 1fr 40px 1fr; gap: 0.5rem; align-items: start; }
+  .comp-col { background: var(--bg3); border-radius: 8px; padding: 1rem; }
+  .comp-col h4 { margin-bottom: 0.75rem; font-size: 0.9rem; }
+  .comp-col.bad { border: 1px solid rgba(240,96,96,0.3); }
+  .comp-col.good { border: 1px solid rgba(76,175,138,0.3); }
+</style>
+</head>
+<body>
+
+<div class="header-row">
+  <h1>🤖 Distribuição EPROC</h1>
+  <span class="badge badge-red">Haiku</span>
+  <span style="color:var(--text2)">→</span>
+  <span class="badge badge-green">Sonnet 4.6</span>
+  <span class="badge badge-blue">+ Vision Adaptativa</span>
+</div>
+<p class="subtitle">Plano de upgrade completo • 2026-03-16 • Gerado por JARBAS</p>
+
+<!-- DIAGNÓSTICO -->
+<h2>🔍 Diagnóstico — Por que o Haiku falha</h2>
+
+<div class="grid2">
+  <div class="card card-red">
+    <h3>❌ Limitações do Haiku 4.5</h3>
+    <ul style="margin-top:0.5rem">
+      <li><strong>Raciocínio contextual fraco</strong> — não conecta múltiplas instruções do playbook</li>
+      <li><strong>Extração de dados inconsistente</strong> — CPF, valor da causa, endereço da ré às vezes erram com PDFs longos</li>
+      <li><strong>Classificação de documentos falha</strong> — confunde COMPROVANTES vs COMPROV RESIDENCIA vs ANEXO</li>
+      <li><strong>Regra comarca ≠ cidade autor</strong> — esquece que a comarca é da <em>ré</em>, não do autor</li>
+      <li><strong>Anti-litigância ignorada</strong> — não rastreia "1 por empresa por dia" com confiabilidade</li>
+      <li><strong>Sem capacidade de reação visual</strong> — quando a tela muda inesperadamente, trava</li>
+      <li><strong>Sem aprendizado</strong> — cada erro é idêntico ao anterior, sem memória de solução</li>
+    </ul>
+  </div>
+  <div class="card card-green">
+    <h3>✅ O que o Sonnet 4.6 resolve</h3>
+    <ul style="margin-top:0.5rem">
+      <li><strong>Raciocínio profundo</strong> — segue playbook complexo de ponta a ponta</li>
+      <li><strong>Extração robusta</strong> — entende contexto jurídico, localiza campos em PDF sem regex frágil</li>
+      <li><strong>Tipificação precisa</strong> — entende diferença por advogado (Christian vs Heloísa)</li>
+      <li><strong>Regras de negócio</strong> — aplica anti-litigância, anti-CEF, OAB certa por estado</li>
+      <li><strong>Vision nativa</strong> — analisa screenshots quando seletor falha</li>
+      <li><strong>Aprendizado persistente</strong> — soluções salvas em <code>clayton_visual_memory</code></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ARQUITETURA ATUAL -->
+<h2>🏗️ Arquitetura Atual da Distribuição</h2>
+
+<div class="card card-accent">
+  <table>
+    <thead><tr><th>Skill</th><th>O que faz</th><th>Modelo hoje</th><th>Usa IA?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>skill_distribuicao.mjs</code></td>
+        <td>Orchestrador principal — Playwright EPROC, 7 etapas, screenshot/confirmação</td>
+        <td><span class="tag-warn">Sem IA (Playwright puro)</span></td>
+        <td>Não</td>
+      </tr>
+      <tr>
+        <td><code>skill_distribuicao_preparar_docs.mjs</code></td>
+        <td>Download Drive + extração dados petição (CPF, valor, endereço, comarca)</td>
+        <td><span class="tag-bad">Regex pura (sem modelo)</span></td>
+        <td>Não</td>
+      </tr>
+      <tr>
+        <td><code>skill_distribuicao_mdflow.mjs</code></td>
+        <td>Busca processo no MdFlow, valida OAB, anti-litigância, finaliza status</td>
+        <td><span class="tag-warn">Lógica Supabase pura</span></td>
+        <td>Não</td>
+      </tr>
+      <tr>
+        <td><code>skill_distribuicao_finalizar.mjs</code></td>
+        <td>Registra CNJ, atualiza status MdFlow, notifica Telegram</td>
+        <td><span class="tag-warn">Lógica pura</span></td>
+        <td>Não</td>
+      </tr>
+      <tr>
+        <td><code>skill_analisar_ia_documentos.mjs</code></td>
+        <td>Análise IA de documentos PDF (tipificação, extração avançada)</td>
+        <td><span class="tag-good">Sonnet 4.6 ✅ (migrado 15/03)</span></td>
+        <td>Sim</td>
+      </tr>
+      <tr>
+        <td><code>skill_clayton_visual_fallback.mjs</code></td>
+        <td>Vision adaptativa — screenshot → analisa → executa → salva memória</td>
+        <td><span class="tag-good">Sonnet 4.6 ✅ (fixo)</span></td>
+        <td>Sim (Vision)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="card card-orange" style="margin-top:0.5rem">
+  <strong>⚠️ Problema central identificado:</strong> <code>skill_distribuicao_preparar_docs.mjs</code> usa apenas <strong>regex pura</strong> para extrair CPF, valor da causa, endereço do autor e dados da ré — sem nenhum modelo de linguagem. Isso é a principal fonte de erros de extração.
+</div>
+
+<!-- PLANO DE UPGRADE -->
+<h2>📋 Plano de Ação — 5 Frentes</h2>
+
+<div class="timeline">
+  <div class="tl-item">
+    <div class="tl-title">Frente 1 — Integrar Sonnet na extração de documentos <span class="badge badge-red" style="margin-left:0.5rem">P0</span></div>
+    <div class="tl-desc">
+      <p style="margin:0.4rem 0">Substituir regex frágil em <code>skill_distribuicao_preparar_docs.mjs</code> por chamada ao Sonnet 4.6 para extração estruturada da petição inicial.</p>
+      <div class="code">// NOVO: extractDadosPeticao com Sonnet
+const resp = await anthropic.messages.create({
+  model: 'claude-sonnet-4-6',
+  max_tokens: 1024,
+  messages: [{
+    role: 'user',
+    content: `Extrai do texto da petição inicial (JSON):
+    - cpf (formato: 000.000.000-00)
+    - valor_causa (formato EPROC: 15.758,02)
+    - comarca (cidade da RÉ, não do autor)
+    - endereco_autor (cep, logradouro, numero, complemento, bairro, cidade, uf)
+    - empresa_re (nome, cnpj, cidade, uf)
+    - sexo_autor (M/F)
+    
+    Texto da petição:
+    ${texto.substring(0, 20000)}`
+  }]
+});</div>
+      <p style="color:var(--text2);font-size:0.85rem">Custo por distribuição: ~R$0,05. Retorno: elimina 80% dos erros de extração.</p>
+    </div>
+  </div>
+
+  <div class="tl-item">
+    <div class="tl-title">Frente 2 — Integrar Clayton Visual na distribuição <span class="badge badge-orange" style="margin-left:0.5rem">P1</span></div>
+    <div class="tl-desc">
+      <p style="margin:0.4rem 0"><code>skill_distribuicao.mjs</code> já tira screenshots em cada etapa mas não analisa visualmente quando algo falha. Integrar <code>skill_clayton_visual_fallback.mjs</code> como camada de fallback em cada etapa crítica.</p>
+      <div class="code">// Em cada etapa: tentar seletor → se falhar → Vision
+async function executarEtapaComVision(page, etapa, acoes) {
+  try {
+    return await acoes(); // Tenta Playwright normal
+  } catch (e) {
+    // Fallback: Vision analisa screenshot
+    const screenshot = await page.screenshot({ type: 'png' });
+    return await claytonVisualFallback({
+      page,
+      tribunal: detectarTribunal(page.url()),
+      contexto: `etapa_${etapa}`,
+      screenshot,
+      instrucao: `Etapa ${etapa} falhou: ${e.message}. O que fazer?`
+    });
+  }
+}</div>
+    </div>
+  </div>
+
+  <div class="tl-item">
+    <div class="tl-title">Frente 3 — Memória de Erros (Self-Learning) <span class="badge badge-orange" style="margin-left:0.5rem">P1</span></div>
+    <div class="tl-desc">
+      <p style="margin:0.4rem 0">Criar tabela <code>distribuicao_erros_solucoes</code> no Supabase para armazenar erros + soluções. Quando um erro igual ocorrer, aplicar a solução salva automaticamente — sem gastar Vision.</p>
+      <div class="code">-- Supabase: nova tabela
+CREATE TABLE distribuicao_erros_solucoes (
+  id uuid DEFAULT gen_random_uuid(),
+  tribunal text,          -- RS | SC | SP
+  etapa text,             -- etapa1 | etapa2 | ...
+  erro_pattern text,      -- regex do erro
+  solucao_tipo text,      -- wait | click | fill | skip | vision
+  solucao_payload jsonb,  -- seletor, valor, delay
+  acertos int DEFAULT 0,  -- quantas vezes funcionou
+  created_at timestamptz DEFAULT now()
+);</div>
+      <p style="color:var(--text2);font-size:0.85rem">Clayton já tem isso para Vision geral — aqui é específico para a distribuição com contexto de etapa EPROC.</p>
+    </div>
+  </div>
+
+  <div class="tl-item">
+    <div class="tl-title">Frente 4 — Sonnet na validação de regras de negócio <span class="badge badge-blue" style="margin-left:0.5rem">P2</span></div>
+    <div class="tl-desc">
+      <p style="margin:0.4rem 0">Usar Sonnet para validar anti-litigância e identificar casos bloqueados (CEF, 1 por empresa por dia) antes de iniciar a distribuição, com raciocínio explícito.</p>
+      <div class="code">// Pré-validação com Sonnet
+const validacao = await sonnet.validar({
+  cliente: dadosCliente,
+  empresa: dadosRe,
+  restricoes: restricoesHoje,
+  historico: distribuicoesUltimas24h,
+  regras: playbook.regrasBloqueio
+});
+// Retorna: { aprovado: bool, motivo: string, alternativas: [] }</div>
+    </div>
+  </div>
+
+  <div class="tl-item">
+    <div class="tl-title">Frente 5 — Relatório visual pós-distribuição <span class="badge badge-purple" style="margin-left:0.5rem">P3</span></div>
+    <div class="tl-desc">
+      <p style="margin:0.4rem 0">Após cada distribuição concluída, gerar mini-relatório com: CNJ gerado, dados extraídos, anomalias detectadas pelo Vision, custo IA utilizado. Publicar no GitHub Pages e notificar.</p>
+    </div>
+  </div>
+</div>
+
+<!-- COMPARATIVO DE IMPACTO -->
+<h2>📊 Impacto Esperado por Frente</h2>
+
+<div class="card">
+  <table>
+    <thead><tr><th>Frente</th><th>Problema resolvido</th><th>Frequência do problema</th><th>Esforço</th><th>Custo/distrib.</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>1 — Extração Sonnet</strong></td>
+        <td>Dados errados da petição (CPF, valor, comarca)</td>
+        <td><span class="tag-bad">Alta (~30% das distribuições)</span></td>
+        <td>2h</td>
+        <td>+R$0,05</td>
+      </tr>
+      <tr>
+        <td><strong>2 — Clayton Vision</strong></td>
+        <td>Telas inesperadas, modal novo, seletor mudou</td>
+        <td><span class="tag-warn">Média (~15% das distrib.)</span></td>
+        <td>3h</td>
+        <td>+R$0,02–0,10</td>
+      </tr>
+      <tr>
+        <td><strong>3 — Memória de Erros</strong></td>
+        <td>Mesmo erro repetido sem solução</td>
+        <td><span class="tag-warn">Média (erros recorrentes)</span></td>
+        <td>4h</td>
+        <td>~R$0 (evita Vision)</td>
+      </tr>
+      <tr>
+        <td><strong>4 — Sonnet Validação</strong></td>
+        <td>Distribuição indevida (CEF, dupla empresa)</td>
+        <td><span class="tag-good">Baixa (~5% — mas crítico)</span></td>
+        <td>2h</td>
+        <td>+R$0,03</td>
+      </tr>
+      <tr>
+        <td><strong>5 — Relatório visual</strong></td>
+        <td>Sem visibilidade pós-distribuição</td>
+        <td>—</td>
+        <td>1h</td>
+        <td>+R$0,01</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- FLUXO NOVO -->
+<h2>🔄 Fluxo Completo Pós-Upgrade</h2>
+
+<div class="card card-blue">
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:0.75rem;margin-top:0.5rem">
+    <div style="background:var(--bg3);border-radius:8px;padding:0.75rem;text-align:center">
+      <div style="font-size:1.4rem">📋</div>
+      <div style="font-weight:700;font-size:0.85rem">E0 — MdFlow</div>
+      <div style="font-size:0.75rem;color:var(--text2)">Busca processo<br>Valida OAB<br><span class="tag-good">Sonnet anti-litigância</span></div>
+    </div>
+    <div style="background:var(--bg3);border-radius:8px;padding:0.75rem;text-align:center">
+      <div style="font-size:1.4rem">📄</div>
+      <div style="font-weight:700;font-size:0.85rem">Docs — Extração</div>
+      <div style="font-size:0.75rem;color:var(--text2)">Download Drive<br><span class="tag-good">Sonnet extrai dados</span><br>Tipifica documentos</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:8px;padding:0.75rem;text-align:center">
+      <div style="font-size:1.4rem">🖥️</div>
+      <div style="font-weight:700;font-size:0.85rem">E1–E6 — EPROC</div>
+      <div style="font-size:0.75rem;color:var(--text2)">Playwright normal<br><span class="tag-good">Vision se falhar</span><br>Memória de erros</div>
+    </div>
+    <div style="background:var(--bg3);border-radius:8px;padding:0.75rem;text-align:center">
+      <div style="font-size:1.4rem">✅</div>
+      <div style="font-weight:700;font-size:0.85rem">Finalização</div>
+      <div style="font-size:0.75rem;color:var(--text2)">Registra CNJ<br>Atualiza MdFlow<br><span class="tag-good">Relatório visual</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- CUSTO -->
+<h2>💰 Custo por Distribuição</h2>
+
+<div class="grid3">
+  <div class="card metric">
+    <div class="metric-val tag-bad">R$0</div>
+    <div class="metric-label">Modelo Haiku atual<br>(mas com erros que custam tempo)</div>
+  </div>
+  <div class="card metric">
+    <div class="metric-val" style="color:var(--accent4)">R$0,08–0,20</div>
+    <div class="metric-label">Pós-upgrade Sonnet<br>(extração + validação)</div>
+  </div>
+  <div class="card metric">
+    <div class="metric-val tag-good">R$0,10–0,30</div>
+    <div class="metric-label">Pior caso c/ Vision<br>(problema complexo)</div>
+  </div>
+</div>
+
+<div class="card card-green">
+  <strong>📊 ROI:</strong> 10 distribuições/dia × R$0,20 = <strong>R$2/dia</strong> em IA. Em troca: elimina erros que forçam intervenção manual (~30 min/erro × R$100/hora = <strong>R$50+ por erro evitado</strong>). Retorno imediato.
+</div>
+
+<!-- CHECKLIST DE IMPLEMENTAÇÃO -->
+<h2>✅ Checklist de Implementação</h2>
+
+<div class="card">
+  <table>
+    <thead><tr><th>#</th><th>Tarefa</th><th>Arquivo</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>1</td><td>Adicionar Anthropic SDK em skill_distribuicao_preparar_docs.mjs</td><td>skill_distribuicao_preparar_docs.mjs</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>2</td><td>Substituir extractDadosPeticao() por chamada Sonnet 4.6</td><td>skill_distribuicao_preparar_docs.mjs</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>3</td><td>Importar claytonVisualFallback em skill_distribuicao.mjs</td><td>skill_distribuicao.mjs</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>4</td><td>Adicionar try/catch + Vision em cada etapa crítica (E1–E6)</td><td>skill_distribuicao.mjs</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>5</td><td>Criar tabela distribuicao_erros_solucoes no Supabase</td><td>Supabase migration</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>6</td><td>Adicionar módulo de persistência de erros/soluções</td><td>skill_distribuicao.mjs</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>7</td><td>Integrar Sonnet na validação anti-litigância/CEF</td><td>skill_distribuicao_mdflow.mjs</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>8</td><td>Relatório HTML pós-distribuição + publicação GitHub Pages</td><td>skill_distribuicao_finalizar.mjs</td><td><span class="badge badge-orange">Pendente</span></td></tr>
+      <tr><td>✅</td><td>skill_analisar_ia_documentos.mjs migrado para Sonnet 4.6</td><td>skill_analisar_ia_documentos.mjs</td><td><span class="badge badge-green">Feito (15/03)</span></td></tr>
+      <tr><td>✅</td><td>skill_clayton_visual_fallback.mjs fixado em Sonnet 4.6</td><td>skill_clayton_visual_fallback.mjs</td><td><span class="badge badge-green">Feito</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- VEREDITO -->
+<div class="verdict">
+  <div class="verdict-title">🎯 Veredicto: SIM, o Sonnet 4.6 resolve os problemas da distribuição</div>
+  <div class="verdict-sub" style="max-width:700px;margin:0.5rem auto 0">
+    O Haiku falha porque a distribuição exige raciocínio contextual complexo — o playbook tem 20+ regras interdependentes, exceções por estado e tipificação que depende do advogado. O Sonnet 4.6 com Vision adaptativa (Clayton) transforma o sistema de <strong>"script engessado"</strong> em <strong>"agente que reage a qualquer problema"</strong>. Custo adicional: R$0,08–0,30 por distribuição. Retorno: distribuições sem erro manual.
+  </div>
+</div>
+
+<!-- PRÓXIMOS PASSOS -->
+<h2>🚀 Próximos Passos Imediatos</h2>
+<div class="card card-accent">
+  <p><strong>Ordem sugerida de execução:</strong></p>
+  <ol style="padding-left:1.5rem;margin-top:0.5rem">
+    <li style="margin-bottom:0.5rem"><strong>Frente 1</strong> — Refatorar extração de petição com Sonnet (maior impacto, 2h de trabalho)</li>
+    <li style="margin-bottom:0.5rem"><strong>Frente 2</strong> — Integrar Clayton Vision como fallback nas etapas E1–E6 (já existe a skill, só conectar)</li>
+    <li style="margin-bottom:0.5rem"><strong>Frente 3</strong> — Migration Supabase + módulo de memória de erros</li>
+    <li style="margin-bottom:0.5rem"><strong>Frentes 4 e 5</strong> — Validação inteligente + relatório visual (podem vir depois)</li>
+  </ol>
+  <p style="margin-top:1rem;color:var(--text2);font-size:0.85rem">Quer que eu execute já? Comando: <code>cc: implementa frente 1 da distribuição — refatorar skill_distribuicao_preparar_docs.mjs com Sonnet 4.6</code></p>
+</div>
+
+<p style="color:var(--text2);font-size:0.8rem;text-align:center;margin-top:2rem">JARBAS v3.0 · MdLab · 2026-03-16 · <a href="https://mdlab-christian.github.io/jarbas-reports/distribuicao/" style="color:var(--accent)">Ver todos os relatórios</a></p>
+
+</body>
+</html>

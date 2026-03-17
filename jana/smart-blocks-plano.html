@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Blocks — Plano de Lapidação</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #0d1117; color: #e6edf3; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #1a1f2e 0%, #0d1117 100%); border-bottom: 1px solid #21262d; padding: 32px 40px; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .header .meta { color: #8b949e; font-size: 14px; display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+  .header .meta span { display: flex; align-items: center; gap: 6px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .badge-red { background: rgba(248,81,73,0.15); color: #f85149; border: 1px solid rgba(248,81,73,0.3); }
+  .badge-yellow { background: rgba(210,153,34,0.15); color: #d29922; border: 1px solid rgba(210,153,34,0.3); }
+  .badge-green { background: rgba(46,160,67,0.15); color: #3fb950; border: 1px solid rgba(46,160,67,0.3); }
+  .badge-blue { background: rgba(88,166,255,0.15); color: #58a6ff; border: 1px solid rgba(88,166,255,0.3); }
+  .badge-purple { background: rgba(188,140,255,0.15); color: #bc8cff; border: 1px solid rgba(188,140,255,0.3); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 40px; }
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 18px; font-weight: 700; color: #f0f6fc; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #21262d; display: flex; align-items: center; gap: 10px; }
+  .bugs-grid { display: grid; gap: 16px; }
+  .bug-card { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 20px; }
+  .bug-card.critical { border-left: 4px solid #f85149; }
+  .bug-card.moderate { border-left: 4px solid #d29922; }
+  .bug-card.minor { border-left: 4px solid #58a6ff; }
+  .bug-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+  .bug-title { font-size: 15px; font-weight: 600; color: #f0f6fc; }
+  .bug-desc { color: #8b949e; font-size: 14px; margin-bottom: 10px; }
+  .bug-section { margin-top: 10px; }
+  .bug-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #6e7681; margin-bottom: 4px; }
+  .code { font-family: 'Fira Code', 'Cascadia Code', monospace; font-size: 12.5px; background: #0d1117; border: 1px solid #21262d; border-radius: 6px; padding: 10px 14px; color: #79c0ff; overflow-x: auto; }
+  .code .highlight { color: #f85149; }
+  .code .fix { color: #3fb950; }
+  .plan-steps { display: flex; flex-direction: column; gap: 12px; }
+  .plan-step { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 18px 20px; display: flex; gap: 16px; align-items: flex-start; }
+  .plan-step:hover { border-color: #58a6ff40; }
+  .step-num { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+  .step-num.active { background: #1f6feb; color: #fff; }
+  .step-num.done { background: #238636; color: #fff; }
+  .step-num.pending { background: #21262d; color: #6e7681; }
+  .step-content { flex: 1; }
+  .step-title { font-size: 14px; font-weight: 600; color: #f0f6fc; margin-bottom: 4px; }
+  .step-desc { font-size: 13px; color: #8b949e; }
+  .step-tags { margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap; }
+  .loop-box { background: linear-gradient(135deg, #1a1f2e, #161b22); border: 1px solid #21262d; border-radius: 10px; padding: 24px; }
+  .loop-title { font-size: 16px; font-weight: 700; color: #bc8cff; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .loop-cycle { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 16px 0; }
+  .loop-item { background: #21262d; border-radius: 8px; padding: 8px 14px; font-size: 13px; color: #e6edf3; display: flex; align-items: center; gap: 6px; }
+  .loop-arrow { color: #58a6ff; font-size: 18px; }
+  .blocker-box { background: #161b22; border: 1px solid #d2992230; border-radius: 10px; padding: 20px; }
+  .blocker-title { font-size: 14px; font-weight: 600; color: #d29922; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .blocker-item { padding: 8px 12px; background: #0d1117; border-radius: 6px; font-size: 13px; color: #8b949e; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+  .spec-preview { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 24px; }
+  .spec-preview h3 { font-size: 15px; font-weight: 600; color: #f0f6fc; margin-bottom: 14px; }
+  .spec-item { padding: 10px 14px; border-left: 3px solid #21262d; margin-bottom: 8px; background: #0d1117; border-radius: 0 6px 6px 0; font-size: 13px; color: #8b949e; }
+  .spec-item strong { color: #f0f6fc; display: block; margin-bottom: 2px; }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; }
+  .summary-card { background: #161b22; border: 1px solid #21262d; border-radius: 10px; padding: 18px; text-align: center; }
+  .summary-num { font-size: 32px; font-weight: 700; margin-bottom: 4px; }
+  .summary-label { font-size: 12px; color: #6e7681; font-weight: 500; }
+  .footer { margin-top: 48px; padding: 24px 40px; border-top: 1px solid #21262d; text-align: center; color: #484f58; font-size: 13px; }
+  .workflow-flow { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 14px; background: #0d1117; border-radius: 8px; font-size: 12.5px; font-family: monospace; }
+  .wf-node { padding: 4px 10px; border-radius: 4px; color: #e6edf3; }
+  .wf-node.webhook { background: #1f6feb33; border: 1px solid #1f6feb55; color: #58a6ff; }
+  .wf-node.code { background: #23863633; border: 1px solid #23863655; color: #3fb950; }
+  .wf-node.error { background: #f8514933; border: 1px solid #f8514955; color: #f85149; }
+  .wf-node.exec { background: #bc8cff33; border: 1px solid #bc8cff55; color: #bc8cff; }
+  .wf-arrow { color: #484f58; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
+    <span style="font-size:28px;">🦊</span>
+    <h1>Smart Blocks — Plano de Lapidação</h1>
+    <span class="badge badge-yellow">📋 Modo /plan</span>
+  </div>
+  <div class="meta">
+    <span>🗓️ 17/03/2026 — 03:09</span>
+    <span>🔍 Recon completo: vídeo + código + n8n + Supabase</span>
+    <span>⏳ Aguardando validação de Christian</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- RESUMO -->
+  <div class="section">
+    <div class="section-title">📊 Diagnóstico Geral</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-num" style="color:#f85149;">4</div>
+        <div class="summary-label">Bugs críticos/moderados identificados</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-num" style="color:#d29922;">1</div>
+        <div class="summary-label">Workflow n8n com erro interno (500)</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-num" style="color:#3fb950;">3</div>
+        <div class="summary-label">Fixes de frontend (React)</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-num" style="color:#58a6ff;">16</div>
+        <div class="summary-label">Seções no wizard de blocos</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUGS -->
+  <div class="section">
+    <div class="section-title">🐛 Bugs Identificados (Root Cause Confirmado)</div>
+    <div class="bugs-grid">
+
+      <!-- BUG 1 -->
+      <div class="bug-card critical">
+        <div class="bug-header">
+          <span class="badge badge-red">🔴 Crítico</span>
+          <span class="bug-title">BUG-01 — Webhook olivia/gerar-manual retornando 500</span>
+          <span class="badge badge-purple">n8n</span>
+        </div>
+        <div class="bug-desc">
+          O frontend chama <code>callWebhook('olivia/gerar-manual')</code> que retorna <code>{"message":"Workflow execution failed"}</code>.
+          O historico no Supabase fica <strong>PENDENTE</strong> indefinidamente — nunca atualiza para SUCESSO/ERRO.
+          Polling de 3min esgota sem resposta. Usuário vê "Gerando..." por mais de 1 minuto sem feedback.
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Evidência</div>
+          <div class="code">
+POST /webhook/olivia/gerar-manual → HTTP 500<br>
+Response: {"message":"Workflow execution failed"}<br><br>
+<span class="highlight">olivia_historico id=1131dc9d status=PENDENTE (desde 05:36Z, nunca atualizado)</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Fluxo atual (com erro)</div>
+          <div class="workflow-flow">
+            <span class="wf-node webhook">Webhook olivia/gerar-manual</span>
+            <span class="wf-arrow">→</span>
+            <span class="wf-node code">Validar + Init</span>
+            <span class="wf-arrow">→</span>
+            <span class="wf-node error">❌ FALHA AQUI</span>
+            <span class="wf-arrow">→</span>
+            <span class="wf-node error">historico fica PENDENTE</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Fix</div>
+          <div class="code">
+1. Abrir o workflow n8n com path=olivia/gerar-manual<br>
+2. Verificar o nó "Validar + Init" — provável campo obrigatório faltando no payload<br>
+3. O payload enviado inclui: historico_id, blocos_ids, versao_id, tipo_peticao_id<br>
+<span class="fix">→ Inspecionar execução mais recente com erro e identificar o nó exato</span><br>
+<span class="fix">→ Corrigir a validação ou mapear campos corretamente</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUG 2 -->
+      <div class="bug-card critical">
+        <div class="bug-header">
+          <span class="badge badge-red">🔴 Crítico</span>
+          <span class="bug-title">BUG-02 — Blocos duplicados no Step 2</span>
+          <span class="badge badge-blue">Frontend + DB</span>
+        </div>
+        <div class="bug-desc">
+          Todos os blocos aparecem em pares (ou mais) no wizard. A query busca por <code>tag_ids</code> mas não filtra pela versão ativa do bloco (<code>bloco_grupo_id</code> → <code>active_version_id</code>).
+          No banco: um <code>bloco_grupo_id</code> com 1244+ registros todos com <code>version=1</code> — import histórico criou duplicatas.
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Root cause (SmartBlocksStep2Blocos.tsx)</div>
+          <div class="code">
+// Query atual — sem deduplicação por bloco_grupo_id:<br>
+.from('olivia_blocos_texto')<br>
+.select('id, titulo, conteudo, tag_ids')<br>
+.eq('organizacao_id', organizacao_id)<br>
+.is('deleted_at', null)<br>
+.eq('status', 'published')<br>
+<span class="highlight">// ← Falta: .eq('version', 1) OU deduplicar por bloco_grupo_id</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Fix</div>
+          <div class="code">
+<span class="fix">// Opção A (Frontend): deduplicar após busca por bloco_grupo_id:</span><br>
+const uniqueMap = new Map();<br>
+allBlocos.forEach(b => {<br>
+  const key = b.bloco_grupo_id || b.id;<br>
+  if (!uniqueMap.has(key)) uniqueMap.set(key, b);<br>
+});<br>
+return Array.from(uniqueMap.values());<br><br>
+<span class="fix">// Opção B (DB): query com DISTINCT ON bloco_grupo_id via RPC</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- BUG 3 -->
+      <div class="bug-card moderate">
+        <div class="bug-header">
+          <span class="badge badge-yellow">🟡 Moderado</span>
+          <span class="bug-title">BUG-03 — Preview de blocos renderiza HTML bruto</span>
+          <span class="badge badge-blue">Frontend</span>
+        </div>
+        <div class="bug-desc">
+          O preview do bloco exibe tags HTML como texto (<code>&lt;p&gt;&lt;span&gt;...&lt;/span&gt;&lt;/p&gt;</code>) porque usa renderização de texto puro.
+          Alguns blocos têm conteúdo em HTML (importados de Google Docs). A UX fica ilegível.
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Root cause (SmartBlocksStep2Blocos.tsx, linha 481)</div>
+          <div class="code">
+<span class="highlight">// PROBLEMA: renderiza como texto puro</span><br>
+{previewBloco?.conteudo}<br><br>
+<span class="fix">// FIX: detectar e renderizar HTML quando necessário</span><br>
+{isHtml(previewBloco?.conteudo)<br>
+  ? &lt;div dangerouslySetInnerHTML={{ __html: sanitize(previewBloco.conteudo) }} /&gt;<br>
+  : &lt;p className="whitespace-pre-wrap"&gt;{previewBloco.conteudo}&lt;/p&gt;<br>
+}
+          </div>
+        </div>
+      </div>
+
+      <!-- BUG 4 -->
+      <div class="bug-card moderate">
+        <div class="bug-header">
+          <span class="badge badge-yellow">🟡 Moderado</span>
+          <span class="bug-title">BUG-04 — Versões indistinguíveis no Select (Step 1)</span>
+          <span class="badge badge-blue">Frontend</span>
+        </div>
+        <div class="bug-desc">
+          O dropdown de versão exibe todas as versões com o mesmo texto ("Instituição Financeira - Cartão de Crédito").
+          Confirmado no banco: 3 registros com <code>nome</code> idêntico, versões 1, 2 e 3.
+          O código usa <code>v.nome ?? `v${v.versao}`</code> — como <code>nome</code> sempre está preenchido, nunca cai no fallback.
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Root cause (SmartBlocksStep1Identificacao.tsx, linha 74)</div>
+          <div class="code">
+<span class="highlight">// PROBLEMA: nome idêntico para todas as versões</span><br>
+{v.nome ?? (v.versao != null ? `v${v.versao}` : `Versão ${v.id.slice(0,8)}`)}<br><br>
+<span class="fix">// FIX: sempre mostrar número de versão</span><br>
+{v.versao != null ? `${v.nome} (v${v.versao})` : v.nome}
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- PLANO DE EXECUÇÃO -->
+  <div class="section">
+    <div class="section-title">🗺️ Plano de Execução (Loop de Lapidação)</div>
+    <div class="plan-steps">
+
+      <div class="plan-step">
+        <div class="step-num active">1</div>
+        <div class="step-content">
+          <div class="step-title">Diagnosticar e corrigir o Workflow n8n (olivia/gerar-manual)</div>
+          <div class="step-desc">Abrir o workflow diretamente no n8n UI via browser, ver o nó com erro, identificar o campo faltando no payload ou validação incorreta. Corrigir e testar com chamada direta.</div>
+          <div class="step-tags">
+            <span class="badge badge-red">P0 — bloqueante</span>
+            <span class="badge badge-purple">n8n</span>
+            <span class="badge badge-blue">~20min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">2</div>
+        <div class="step-content">
+          <div class="step-title">Fix BUG-04: Versões com label diferenciador</div>
+          <div class="step-desc">Alterar linha 74 do SmartBlocksStep1Identificacao.tsx. Testar no browser — verifica que o Select exibe "Instituição Financeira - Cartão de Crédito (v1)", "(v2)", "(v3)".</div>
+          <div class="step-tags">
+            <span class="badge badge-yellow">1 linha de código</span>
+            <span class="badge badge-blue">~5min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">3</div>
+        <div class="step-content">
+          <div class="step-title">Fix BUG-02: Deduplicar blocos por bloco_grupo_id</div>
+          <div class="step-desc">Adicionar lógica de deduplicação no useQuery dos blocos. Adicionar campo bloco_grupo_id ao select. Deduplicar mantendo apenas o de maior version por grupo. Verificar visualmente no wizard.</div>
+          <div class="step-tags">
+            <span class="badge badge-yellow">SmartBlocksStep2Blocos.tsx</span>
+            <span class="badge badge-blue">~15min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">4</div>
+        <div class="step-content">
+          <div class="step-title">Fix BUG-03: Preview renderizando HTML corretamente</div>
+          <div class="step-desc">Detectar se conteúdo começa com tag HTML. Usar dangerouslySetInnerHTML com sanitização (DOMPurify já no projeto ou strip simples). Aplicar também no campo de edição inline.</div>
+          <div class="step-tags">
+            <span class="badge badge-yellow">SmartBlocksStep2Blocos.tsx</span>
+            <span class="badge badge-blue">~10min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">5</div>
+        <div class="step-content">
+          <div class="step-title">Commit + Deploy (Lovable / GitHub)</div>
+          <div class="step-desc">Push das correções do frontend. Verificar se o preview atualiza automaticamente no Lovable.</div>
+          <div class="step-tags">
+            <span class="badge badge-green">git push</span>
+            <span class="badge badge-blue">~5min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">6</div>
+        <div class="step-content">
+          <div class="step-title">Teste E2E completo: processo → blocos → gerar petição</div>
+          <div class="step-desc">Navegar pelo browser até /olivia/gerador/smart-blocks. Usar processo 5239642-72.2025.8.21.0001. Verificar Step 1 (versões ok), Step 2 (sem duplicatas, preview ok), Step 3 (gerar → aguardar sucesso). Analisar o documento gerado.</div>
+          <div class="step-tags">
+            <span class="badge badge-green">E2E</span>
+            <span class="badge badge-blue">~30min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">7</div>
+        <div class="step-content">
+          <div class="step-title">Analisar petição gerada — qualidade e conformidade</div>
+          <div class="step-desc">Abrir o Google Doc gerado. Verificar: substituição de {{tags}}, blocos inseridos corretamente, formatação preservada, jurisprudências vinculadas, dados do processo corretos (cliente, réu, vara, valor).</div>
+          <div class="step-tags">
+            <span class="badge badge-purple">Google Docs</span>
+            <span class="badge badge-blue">~20min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">8</div>
+        <div class="step-content">
+          <div class="step-title">Gerar Spec Completa do Smart Blocks</div>
+          <div class="step-desc">Documentar: fluxo completo (Step 1→3), modelo de dados (olivia_modelos_grupo → olivia_modelos_peticao → olivia_blocos_texto), hierarquia de tags, vinculação de blocos por versão, workflow n8n, GAS, Google Drive. Servir como base do loop.</div>
+          <div class="step-tags">
+            <span class="badge badge-green">HTML report</span>
+            <span class="badge badge-blue">~20min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="plan-step">
+        <div class="step-num pending">9</div>
+        <div class="step-content">
+          <div class="step-title">🔁 Loop de Lapidação (até 100%)</div>
+          <div class="step-desc">Seguir spec como checklist. Para cada item: navegar no browser, identificar gap, corrigir (frontend/n8n/GAS), testar, marcar como ✅. Repetir até todos os itens 100%. Reportar progresso a cada etapa.</div>
+          <div class="step-tags">
+            <span class="badge badge-purple">loop contínuo</span>
+            <span class="badge badge-red">não para até 100%</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- LOOP -->
+  <div class="section">
+    <div class="section-title">🔁 Ciclo do Loop de Lapidação</div>
+    <div class="loop-box">
+      <div class="loop-title">♾️ Modo Loop Ativo (após validação do plano)</div>
+      <div class="loop-cycle">
+        <div class="loop-item">🔍 Navegar no browser</div>
+        <span class="loop-arrow">→</span>
+        <div class="loop-item">📋 Checar spec</div>
+        <span class="loop-arrow">→</span>
+        <div class="loop-item">🐛 Identificar gap/bug</div>
+        <span class="loop-arrow">→</span>
+        <div class="loop-item">🔧 Corrigir código/n8n</div>
+        <span class="loop-arrow">→</span>
+        <div class="loop-item">✅ Testar + validar</div>
+        <span class="loop-arrow">→</span>
+        <div class="loop-item">📊 Update para Christian</div>
+        <span class="loop-arrow">↩ repeat</span>
+      </div>
+      <p style="color:#8b949e; font-size:13px; margin-top:12px;">
+        O loop não para por timeout. Cada ciclo = 1 item da spec. Updates a cada etapa concluída.
+        O que não conseguir fazer automaticamente → lista para Christian amanhã cedo.
+      </p>
+    </div>
+  </div>
+
+  <!-- O QUE DEPENDE DE CHRISTIAN -->
+  <div class="section">
+    <div class="section-title">⚠️ O que pode precisar de você (lista para amanhã)</div>
+    <div class="blocker-box">
+      <div class="blocker-title">⏳ Possíveis blockers (faço o que puder, listo o resto)</div>
+      <div class="blocker-item">📜 <strong>Deploy do Google Apps Script</strong> — posso gerar o GAS atualizado, mas o deploy no Apps Script Editor requer sua conta Google. Vou preparar o código pronto para você só fazer Ctrl+S + Deploy.</div>
+      <div class="blocker-item">🔐 <strong>Credenciais Google OAuth no n8n</strong> — se o workflow usa OAuth do Google Docs/Drive e as credenciais estiverem expiradas, precisará reautenticar manualmente.</div>
+      <div class="blocker-item">🗃️ <strong>Limpeza de dados duplicados no banco</strong> — posso identificar e propor a query de limpeza, mas executar DELETE em produção nos blocos duplicados = P0 que confirmo antes.</div>
+    </div>
+  </div>
+
+  <!-- SPEC PREVIEW -->
+  <div class="section">
+    <div class="section-title">📄 Prévia da Spec (a ser gerada após validação)</div>
+    <div class="spec-preview">
+      <h3>Smart Blocks Spec v1.0 — Estrutura</h3>
+
+      <div class="spec-item">
+        <strong>1. Modelo de Dados</strong>
+        olivia_modelos_grupo → olivia_modelos_peticao (versões) → olivia_modelo_tags (junction) → olivia_tags → olivia_blocos_texto (por bloco_grupo_id + version)
+      </div>
+      <div class="spec-item">
+        <strong>2. Fluxo do Wizard (3 steps)</strong>
+        Step 1: buscar processo CNJ → selecionar tipo petição → selecionar modelo grupo → selecionar versão (com label v1/v2/v3) → advogado<br>
+        Step 2: carregar tags do modelo (junction table) → buscar blocos por tag_ids → deduplicar por bloco_grupo_id → agrupados por seção → seleção radio por seção<br>
+        Step 3: resumo → chamar webhook → polling olivia_historico → sucesso = link Google Doc
+      </div>
+      <div class="spec-item">
+        <strong>3. Workflow n8n (olivia/gerar-manual)</strong>
+        Webhook → Validar → Buscar blocos full-text → Montar prompt com contexto do processo → Chamar Claude → Salvar texto → Chamar GAS (sw-create-google-doc) → Atualizar historico com google_doc_url
+      </div>
+      <div class="spec-item">
+        <strong>4. Google Apps Script (GAS v4.0)</strong>
+        Copia modelo Google Doc → substitui {{BLOCO_N}} com conteúdo dos blocos selecionados (preservando formatação) → substitui {{tags}} com dados do processo → move para pasta → retorna URL
+      </div>
+      <div class="spec-item">
+        <strong>5. Critérios de Qualidade da Petição Gerada</strong>
+        ✅ Dados do processo corretos (cliente, réu, vara, valor, CNJ)<br>
+        ✅ Todos os blocos selecionados presentes, sem duplicação<br>
+        ✅ Jurisprudências vinculadas e citadas<br>
+        ✅ Tags substituídas ({{cliente_nome}}, {{empresa_reu}}, etc.)<br>
+        ✅ Formatação preservada (parágrafos, negritos, citações)
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#161b22; border:1px solid #21262d; border-radius:10px; padding:20px; margin-bottom:32px;">
+    <div style="font-size:15px; font-weight:600; color:#f0f6fc; margin-bottom:8px;">🎯 Próximo passo</div>
+    <div style="font-size:13px; color:#8b949e;">
+      ✅ Confirme este plano — ou ajuste o que quiser.<br>
+      Após confirmação: gero a <strong>Spec completa</strong> → entro no loop de lapidação → trabalho enquanto você dorme.<br>
+      Vou te mandar update a cada etapa concluída + relatório final de manhã.
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  🦊 JANA · MacBook Air M4 · MdLab LegalTech · gerado em 17/03/2026 03:09 GMT-3
+</div>
+
+</body>
+</html>

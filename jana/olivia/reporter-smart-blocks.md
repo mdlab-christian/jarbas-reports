@@ -259,3 +259,21 @@ VITE_N8N_WEBHOOK_SECRET=MdL1501@
 ---
 
 *Reporter gerado por JANA 🦊 — 2026-03-17 | Para unificação na análise completa da OlivIA*
+
+---
+
+## 11. Correções Aplicadas em 2026-03-17 (Deep Review)
+
+### Bugs corrigidos via código
+
+| # | Arquivo | Bug | Fix |
+|---|---|---|---|
+| 1 | `OliviaGeradorSmartBlocks.tsx` | `status: 'PROCESSANDO'` — viola constraint do banco (só aceita PENDENTE/SUCESSO/ERRO/ABANDONADO) | → `'PENDENTE'` |
+| 2 | `OliviaGeradorSmartBlocks.tsx` | `processo_id/modelo_id/versao_id/advogado_id` com fallback `''` (string vazia quebra validação UUID de FK no n8n) | → `null` |
+| 3 | n8n nó `A1b-CriarHistorico` (workflow `hyGajjic2kZBVGvW`) | Mesmo bug PROCESSANDO no fallback do workflow (quando historico_id não vem no payload) | → `'PENDENTE'` (atualizado via API n8n) |
+
+### Commits
+- `8e897e6a` — `fix(olivia/smart-blocks): status PENDENTE + null para IDs opcionais no webhook payload`
+
+### Observação sobre Step 2
+O `SmartBlocksStep2Blocos.tsx` existe mas **não é usado** no wizard atual — o Step 2 usa `ManualStep2Conteudo` com `disableDrag=true` via adapter. O arquivo pode ser removido para evitar confusão, ou ser adotado como substituição futura do Step 2 (tem UX mais simples: lista com checkbox).

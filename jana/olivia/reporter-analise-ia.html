@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporter — OLIVIA Análise IA</title>
+<style>
+  :root { --bg: #0d1117; --surface: #161b22; --border: #30363d; --text: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --green: #3fb950; --red: #f85149; --yellow: #d29922; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px; }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.8rem; color: var(--accent); margin-bottom: 4px; }
+  h2 { font-size: 1.3rem; color: var(--accent); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin: 32px 0 12px; }
+  h3 { font-size: 1.1rem; color: #79c0ff; margin: 20px 0 8px; }
+  h4 { font-size: 1rem; color: var(--muted); margin: 16px 0 6px; }
+  p { margin: 6px 0; color: var(--text); }
+  blockquote { border-left: 3px solid var(--accent); padding: 6px 12px; color: var(--muted); font-size: .9rem; margin: 8px 0; background: var(--surface); border-radius: 0 4px 4px 0; }
+  pre { background: #010409; border: 1px solid var(--border); border-radius: 6px; padding: 16px; overflow-x: auto; margin: 12px 0; }
+  code { font-family: 'SF Mono', Consolas, monospace; font-size: .85rem; color: #79c0ff; }
+  pre code { color: #e6edf3; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: .9rem; }
+  th { background: var(--surface); color: var(--accent); padding: 8px 12px; text-align: left; border: 1px solid var(--border); }
+  td { padding: 8px 12px; border: 1px solid var(--border); color: var(--text); }
+  tr:nth-child(even) td { background: #0d1117aa; }
+  li { margin: 4px 0 4px 20px; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  strong { color: #f0f6fc; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .badge-ok { color: var(--green); }
+  .badge-err { color: var(--red); }
+  .header-meta { color: var(--muted); font-size: .85rem; margin-bottom: 24px; }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Reporter: Módulo OLIVIA — Análise IA (V3 → V4)</h1>
+<blockquote>Gerado por JANA 🦊 em 2026-03-17 | Grupo: [JN] Analise IA (-5170047431)</blockquote>
+<br>
+<hr>
+<br>
+<h2>1. Contexto Geral</h2>
+<br>
+<p>Este relatório cobre o trabalho de <strong>revisão arquitetural, diagnóstico de regressões e planejamento da V4</strong> do módulo de <strong>Análise IA da Olivia</strong> — o motor que analisa documentos jurídicos (PDFs) de um processo e gera um relatório estratégico para o advogado.</p>
+<br>
+<p>O trabalho consistiu em:</p>
+<p>1. Documentar e auditar a <strong>V3 atual</strong> (workflow <code>8ntAvTGMhCfrlfRt</code>)</p>
+<p>2. Comparar com a <strong>V1 de referência</strong> (<code>TupOpRfZXkTHzzEuBOk7f</code>) para identificar regressões</p>
+<p>3. Gerar um <strong>plano técnico completo da V4</strong> com sprints priorizados</p>
+<p>4. Corrigir o <strong>endpoint do frontend</strong> que estava apontando para o path errado</p>
+<br>
+<hr>
+<br>
+<h2>2. Workflows N8n Envolvidos</h2>
+<br>
+<table>
+<tr><td>ID</td><td>Nome</td><td>Status</td><td>Função</td></tr>
+<thead><tr><th><code>8ntAvTGMhCfrlfRt</code></th><th>OLIVIA-ANALISE-V4</th><th>✅ Ativo</th><th>Workflow principal de análise — recebe webhook, processa docs, chama Claude, persiste resultado</th></tr></thead><tbody>
+<tr><td><code>TupOpRfZXkTHzzEuBOk7f</code></td><td>(V1 referência)</td><td>—</td><td>Versão antiga com Vision, Mistral OCR e Opus — usada como referência de qualidade</td></tr>
+</tbody></table>
+<br>
+<h3>Fluxo do <code>OLIVIA-ANALISE-V4</code> (nó a nó)</h3>
+<br>
+<pre><code>
+A. Entrada + Validação
+  WH-Analise           → Webhook POST /mdflow/olivia/analise
+  A1-LogWebhook-INSERT → Loga request em webhook_requests (Supabase)
+  A2-ValidatePayload   → Valida campos obrigatórios
+  A3-PayloadValido?    → Branch: válido → continua | inválido → Respond-Error
+  A4-INSERT-olivia_analises → Cria registro com status=PROCESSANDO
+  A-Respond-202        → Responde 202 imediatamente (async)
+
+B. Contexto do Processo
+  B1-HTTP-Processo     → Busca processo + dados no Supabase
+  B1-HTTP-AnaliseAnt   → Busca análises anteriores
+  B1-Process           → Consolida dados do processo
+  B2-HTTP-Tags         → fn_get_tags_and_blocos_for_context → tags/blocos relevantes
+  B2-Process           → Processa tags
+  B3-HTTP-Playbook     → fn_get_playbook_for_context → playbook jurídico
+  B3-Process           → Processa playbook
+  B4-UPDATE-Classificando → Atualiza status → CLASSIFICANDO
+
+C. Extração de Documentos
+  C1-SplitDocs         → Split array de docs
+  C2-Loop-Docs         → Loop por documento
+  C1b-HasDocs?         → Branch: tem docs → extrai | sem docs → pula
+  C3-FetchArquivo      → Signed URL do Supabase Storage (bucket: processos)
+  C3b-DownloadPDF      → Download do PDF
+  C4-ExtractPDF        → Extract text do PDF (nativo)
+  C5-FormatPDF         → Formata texto
+  C5b-NeedsVision?     → Branch: PDF escaneado/ruim → Vision | texto ok → continua
+  C6-GeminiVision      → Gemini 2.0 Flash Vision (fallback 1 para PDFs escaneados)
+  C7-MistralOCR        → Mistral OCR Latest (fallback 2)
+  C8-MergeVision       → Consolida resultado Vision/OCR
+  C5c-QualityOK        → Verifica qualidade do texto extraído
+
+D. Consolidação + RAG
+  D1-ConsolidarDocs    → Junta todos os docs processados
+  D2-UPDATE-50pct      → Atualiza progresso → 50%
+  D3-GerarEmbedding    → OpenAI Embeddings do texto consolidado
+  D4-BuscarRAG         → fn_rag_search → busca jurisprudências relevantes no banco
+  D4b-AggRAG           → Agrega resultados RAG
+  D5-MontarPacote      → Monta payload final para Claude
+
+E. Análise Claude
+  E1-UPDATE-60pct      → Atualiza progresso → 60%
+  E2-PrepararInput-Claude → Monta prompt completo
+  E3-Claude-Opus-HTTP  → POST api.anthropic.com/v1/messages (Opus)
+  E4-ParseResultado    → Parse do JSON retornado pelo Claude
+
+F. Persistência + Finalização
+  F1-PATCH-olivia_analises → Salva resultado completo
+  F2-UPDATE-processos  → Atualiza campos no processo
+  F3-UPDATE-100pct     → Status → CONCLUIDO, progresso → 100%
+  F4-LogWebhook-UPDATE → Log final
+  Error Trigger + ErrorHandler → Captura erros, salva status=ERRO
+</code></pre>
+<br>
+<hr>
+<br>
+<h2>3. Arquitetura e Lógica</h2>
+<br>
+<h3>Fluxo de Ponta a Ponta</h3>
+<br>
+<pre><code>
+Frontend (UploadProvasInline)
+  ↓ POST /webhook/mdflow/olivia/analise
+  ↓ { processo_id, organizacao_id, actor_user_id, documentos: [...] }
+  
+n8n OLIVIA-ANALISE-V4
+  ↓ Respond 202 → frontend inicia polling
+  ↓ Busca contexto (processo + tags + playbook + análises anteriores)
+  ↓ Loop por documento:
+       → Extract PDF (nativo)
+       → Se escaneado: Gemini Vision → Mistral OCR (triple fallback)
+  ↓ Consolida texto de todos os docs
+  ↓ Gera embedding → RAG search (jurisprudências)
+  ↓ Monta prompt → Claude Opus (análise final)
+  ↓ Parse resultado JSON
+  ↓ Persiste em olivia_analises + atualiza processos
+
+Frontend (polling olivia_analises)
+  ↓ a cada 3s até status=CONCLUIDO|ERRO
+  ↓ Exibe resultado
+</code></pre>
+<br>
+<h3>Modelo de IA</h3>
+<br>
+<li><strong>Claude Opus</strong> (claude-opus-4-6) — análise principal</li>
+<li><strong>Gemini 2.0 Flash</strong> — Vision/OCR de PDFs escaneados (fallback 1)</li>
+<li><strong>Mistral OCR Latest</strong> — OCR avançado (fallback 2)</li>
+<li><strong>OpenAI text-embedding-3-small</strong> — embeddings para RAG</li>
+<br>
+<h3>Tabelas Supabase Envolvidas</h3>
+<br>
+<table>
+<tr><td>Tabela</td><td>Uso</td></tr>
+<thead><tr><th><code>olivia_analises</code></th><th>Registro principal de cada análise (status, resultado, progresso, tokens, custo)</th></tr></thead><tbody>
+<tr><td><code>processos</code></td><td>Dados do processo jurídico — atualizado após análise</td></tr>
+<tr><td><code>webhook_requests</code></td><td>Log de todas as chamadas ao webhook</td></tr>
+<tr><td><code>olivia_blocos_texto</code></td><td>Blocos de texto para contexto</td></tr>
+<tr><td><code>clientes</code>, <code>leads</code></td><td>Dados do cliente e restrições</td></tr>
+</tbody></table>
+<br>
+<h3>Funções RPC (Supabase)</h3>
+<br>
+<table>
+<tr><td>Função</td><td>Uso</td></tr>
+<thead><tr><th><code>fn_get_tags_and_blocos_for_context</code></th><th>Retorna tags e blocos relevantes para o processo</th></tr></thead><tbody>
+<tr><td><code>fn_get_playbook_for_context</code></td><td>Retorna playbook jurídico aplicável</td></tr>
+<tr><td><code>fn_rag_search</code></td><td>Busca vetorial de jurisprudências</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>4. Arquivos Criados/Modificados</h2>
+<br>
+<h3>Frontend (~/beta-mdflow)</h3>
+<br>
+<table>
+<tr><td>Arquivo</td><td>Ação</td><td>Descrição</td></tr>
+<thead><tr><th><code>src/pages/olivia/components/gerador/steps/UploadProvasInline.tsx</code></th><th>✅ Corrigido</th><th>Fix endpoint: estava chamando path errado, corrigido para <code>mdflow/olivia/analise</code></th></tr></thead><tbody>
+<tr><td><code>src/hooks/olivia/useAnaliseIA.ts</code></td><td>—</td><td>Hook de polling da análise</td></tr>
+</tbody></table>
+<br>
+<h3>Commits Relevantes</h3>
+<br>
+<pre><code>
+68841187  fix(olivia/upload-provas): corrigir endpoint webhook → mdflow/olivia/analise (V4)
+</code></pre>
+<br>
+<h3>Relatórios HTML Gerados (~/jarbas-reports/jana/)</h3>
+<br>
+<table>
+<tr><td>Arquivo</td><td>Conteúdo</td></tr>
+<thead><tr><th><code>olivia-analise-v3-doc.html</code></th><th>Documentação completa da V3</th></tr></thead><tbody>
+<tr><td><code>olivia-analise-arquitetura-review.html</code></td><td>Review arquitetural V3 vs V1</td></tr>
+<tr><td><code>olivia-analise-comparativo.html</code></td><td>Comparativo V1 vs V3</td></tr>
+<tr><td><code>olivia-analise-v4-plano.html</code></td><td>Plano técnico da V4 (sprints)</td></tr>
+</tbody></table>
+<br>
+<p>URLs publicadas:</p>
+<li>https://mdlab-christian.github.io/jarbas-reports/jana/olivia-analise-v3-doc.html</li>
+<li>https://mdlab-christian.github.io/jarbas-reports/jana/olivia-analise-arquitetura-review.html</li>
+<li>https://mdlab-christian.github.io/jarbas-reports/jana/olivia-analise-v4-plano.html</li>
+<br>
+<hr>
+<br>
+<h2>5. Estado Atual</h2>
+<br>
+<h3>✅ Funcional</h3>
+<br>
+<li>Workflow <code>OLIVIA-ANALISE-V4</code> ativo no n8n</li>
+<li>Fluxo completo: webhook → contexto → extração → RAG → Claude → persistência</li>
+<li>Triple fallback de extração: PDF nativo → Gemini Vision → Mistral OCR</li>
+<li>Frontend: endpoint corrigido para <code>mdflow/olivia/analise</code></li>
+<li>Polling do frontend até CONCLUIDO/ERRO</li>
+<br>
+<h3>❌ Pendente / Bugs Conhecidos</h3>
+<br>
+<table>
+<tr><td>#</td><td>Problema</td><td>Impacto</td><td>Prioridade</td></tr>
+<thead><tr><th>P0</th><th><strong>Dados de restrição não injetados no prompt</strong></th><th>Claude analisa sem info de restrição (valor, orgão, contrato)</th><th>CRÍTICO</th></tr></thead><tbody>
+<tr><td>P0</td><td><strong>Tokens e custo sempre 0</strong> no banco</td><td>Sem observabilidade de uso/custo</td><td>ALTO</td></tr>
+<tr><td>P1</td><td><strong>Sonnet em vez de Opus</strong> (nó E3 possivelmente desatualizado)</td><td>Qualidade de análise reduzida</td><td>ALTO</td></tr>
+<tr><td>P1</td><td><strong>Triagem excessiva</strong> — confiança 0.5-0.7 gera perguntas desnecessárias</td><td>Experiência ruim</td><td>MÉDIO</td></tr>
+<tr><td>P2</td><td><strong>Playbook scope errado</strong> — "analise" em vez de "prova"</td><td>Contexto jurídico incorreto</td><td>MÉDIO</td></tr>
+<tr><td>P2</td><td><strong>Campo <code>relatorio_equipe</code> ausente</strong> — necessário para Express Etapa 2</td><td>Integração Express incompleta</td><td>MÉDIO</td></tr>
+</tbody></table>
+<br>
+<h3>🔄 Planejado (V4 Sprint 1)</h3>
+<br>
+<p>Ordem de execução recomendada pelo CC:</p>
+<p>1. HTTP Request headers (Supabase Auth)</p>
+<p>2. Injetar dados de restrição no prompt</p>
+<p>3. Confirmar/forçar Claude Opus</p>
+<p>4. PDF → Vision (triple fallback já presente, validar fluxo)</p>
+<p>5. Fix threshold triagem (0.5-0.7 → proposta, não pergunta)</p>
+<p>6. Integração Express (relatorio_equipe + 5 campos)</p>
+<p>7. Salvar tokens/custo</p>
+<br>
+<hr>
+<br>
+<h2>6. Decisões Arquiteturais</h2>
+<br>
+<table>
+<tr><td>Decisão</td><td>Razão</td></tr>
+<thead><tr><th><strong>Async 202 + polling</strong></th><th>PDFs grandes demoram >30s — resposta síncrona daria timeout</th></tr></thead><tbody>
+<tr><td><strong>Triple fallback Vision</strong></td><td>PDFs escaneados sem OCR = análise vazia silenciosa — inaceitável em contexto jurídico</td></tr>
+<tr><td><strong>Claude Vision nativo</strong> preferível a Gemini→Claude</td><td>Elimina perda de contexto na passagem de imagem entre modelos</td></tr>
+<tr><td><strong>Gemini File API</strong> para PDF→imagem</td><td>Blocker crítico: n8n não converte PDF em imagens nativamente</td></tr>
+<tr><td><strong>Classificação antes de extração</strong> (planejado V4)</td><td>Doc classificado = extração direcionada = qualidade maior</td></tr>
+<tr><td><strong>Resultados por doc no banco imediatamente</strong> (planejado)</td><td>Não acumular em memória — resiliência a timeouts</td></tr>
+<tr><td><strong>Confiança por bloco, não por documento</strong> (planejado)</td><td>Granularidade maior — bloco incerto não contamina doc inteiro</td></tr>
+<tr><td><strong>Deduplicação por MD5</strong> (planejado)</td><td>Evitar processar o mesmo doc duas vezes</td></tr>
+<tr><td><strong>RAG on-demand</strong> vs sempre ativo</td><td>Custo/latência — RAG só quando há jurisprudências relevantes</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>7. Integrações com Outros Sistemas</h2>
+<br>
+<table>
+<tr><td>Sistema</td><td>Integração</td><td>Detalhe</td></tr>
+<thead><tr><th><strong>Supabase</strong></th><th>DB + Storage + RPC</th><th>Tabelas: olivia_analises, processos, webhook_requests. Storage: bucket <code>processos</code> (PDFs)</th></tr></thead><tbody>
+<tr><td><strong>Anthropic Claude</strong></td><td>API direta (HTTP)</td><td>Opus para análise final. Header: x-api-key</td></tr>
+<tr><td><strong>Gemini</strong></td><td>API direta (HTTP)</td><td>Gemini 2.0 Flash para Vision de PDFs escaneados</td></tr>
+<tr><td><strong>Mistral</strong></td><td>API direta (HTTP)</td><td>Mistral OCR Latest como fallback 2 de extração</td></tr>
+<tr><td><strong>OpenAI</strong></td><td>API direta (HTTP)</td><td>text-embedding-3-small para RAG</td></tr>
+<tr><td><strong>Frontend (beta-mdflow)</strong></td><td>Webhook + Polling</td><td>POST webhook → polling <code>olivia_analises</code> a cada 3s</td></tr>
+<tr><td><strong>Módulo Express (Olivia)</strong></td><td>Integração planejada</td><td>relatorio_equipe + peticao_base + modelo_template — Sprint 1</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>8. Pontos de Atenção / Riscos / Débitos Técnicos</h2>
+<br>
+<h3>🚨 Riscos Críticos</h3>
+<br>
+<p>1. <strong>PDFs escaneados silenciosamente vazios</strong> — sem Vision ativo e validado, análise retorna string vazia sem erro → advogado recebe relatório inútil</p>
+<p>2. <strong>Restrições do cliente ausentes no prompt</strong> — Claude analisa o doc sem saber qual é a dívida real → estratégia jurídica incorreta</p>
+<p>3. <strong>Custo não registrado</strong> — sem observabilidade, impossible saber quanto está sendo gasto por análise/cliente</p>
+<br>
+<h3>⚠️ Débitos Técnicos</h3>
+<br>
+<p>1. <strong>V1 e V3 coexistindo</strong> — V1 (TupOpRfZXkTHzzEuBOk7f) ainda existe como referência mas não é o ativo. Risco de confusão.</p>
+<p>2. <strong>Edge function <code>olivia-smart-blocks</code></strong> no Supabase ainda tem código legado que não usa o n8n (substituída pelo workflow <code>hyGajjic2kZBVGvW</code>)</p>
+<p>3. <strong>Threshold de triagem hardcoded</strong> — deve virar configuração por organização</p>
+<p>4. <strong>Sem retry automático</strong> em caso de timeout da API Anthropic</p>
+<br>
+<h3>📋 Próximos Passos Recomendados</h3>
+<br>
+<p>1. Validar fluxo Vision de ponta a ponta com PDF escaneado real</p>
+<p>2. Injetar <code>restricao_orgao_nome</code>, <code>restricao_valor</code>, <code>restricao_contrato</code> no prompt do Claude</p>
+<p>3. Sprint 1 completo (ver seção 5 — Planejado)</p>
+<p>4. Deprecar/arquivar V1 após V4 validada</p>
+<br>
+<hr>
+<br>
+<p>*Gerado por JANA 🦊 | 2026-03-17 00:50 GMT-3*</p>
+<p>*Grupo: [JN] Analise IA | chat_id: -5170047431*</p>
+<br>
+</div>
+</body>
+</html>

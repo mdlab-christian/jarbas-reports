@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OLIVIA-ANALISE — Revisão Arquitetural Completa</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #212435;
+    --surface3: #272a3d;
+    --border: #2e3147;
+    --accent: #6366f1;
+    --accent2: #8b5cf6;
+    --green: #10b981;
+    --yellow: #f59e0b;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --cyan: #06b6d4;
+    --orange: #f97316;
+    --pink: #ec4899;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --font: 'Inter', system-ui, -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
+
+  .header {
+    background: linear-gradient(135deg, #1e0a3c 0%, #2d1b69 40%, #1a1f3a 100%);
+    border-bottom: 1px solid var(--accent2);
+    padding: 40px 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 70% 50%, rgba(139,92,246,0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .header-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.4);
+    color: #fca5a5; padding: 4px 12px; border-radius: 100px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.06em;
+    margin-bottom: 16px;
+  }
+  .header h1 { font-size: 30px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
+  .header h1 em { color: var(--accent2); font-style: normal; }
+  .header .subtitle { color: var(--muted); margin-top: 8px; font-size: 14px; max-width: 700px; }
+  .header-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .chip {
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 6px; padding: 4px 10px; font-size: 12px; color: var(--muted);
+  }
+  .chip strong { color: var(--text); }
+
+  .nav {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 48px; display: flex; gap: 0; overflow-x: auto;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .nav a {
+    padding: 14px 18px; color: var(--muted); text-decoration: none;
+    font-size: 13px; font-weight: 500; border-bottom: 2px solid transparent;
+    white-space: nowrap; transition: all 0.15s;
+  }
+  .nav a:hover { color: var(--text); }
+  .nav a.active { color: var(--accent2); border-color: var(--accent2); }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 48px; }
+  @media (max-width: 768px) {
+    .container { padding: 24px 20px; }
+    .header { padding: 24px 20px; }
+    .nav { padding: 0 16px; }
+  }
+
+  .section { margin-bottom: 56px; scroll-margin-top: 52px; }
+  .section-title {
+    font-size: 20px; font-weight: 700; color: var(--text);
+    margin-bottom: 24px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border); margin-left: 12px;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 24px; margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); margin-bottom: 14px;
+  }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 768px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 100px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+  }
+  .badge-green { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.3); color: var(--green); }
+  .badge-yellow { background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.3); color: var(--yellow); }
+  .badge-red { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: var(--red); }
+  .badge-blue { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); color: var(--blue); }
+  .badge-purple { background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3); color: var(--accent); }
+  .badge-orange { background: rgba(249,115,22,0.12); border: 1px solid rgba(249,115,22,0.3); color: var(--orange); }
+
+  .compare-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .compare-table th {
+    background: var(--surface2); color: var(--muted); text-align: left;
+    padding: 10px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em;
+    border-bottom: 1px solid var(--border);
+  }
+  .compare-table td { padding: 10px 14px; border-bottom: 1px solid rgba(46,49,71,0.5); vertical-align: top; }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table .col-feature { font-weight: 500; color: var(--text); width: 200px; }
+  .compare-table .col-old { color: var(--muted); }
+  .compare-table .col-new { }
+  .compare-table .col-rec { }
+
+  .issue {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 20px; margin-bottom: 12px;
+    display: flex; gap: 14px; align-items: flex-start;
+  }
+  .issue-icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+  .issue-body { flex: 1; }
+  .issue-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+  .issue-desc { font-size: 13px; color: var(--muted); }
+  .issue-fix { font-size: 12px; margin-top: 6px; padding: 6px 10px; border-radius: 6px; background: var(--surface2); border-left: 3px solid; }
+
+  .arch-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px 18px; font-size: 13px;
+  }
+  .arch-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 4px; }
+  .arch-val { font-weight: 600; color: var(--text); }
+  .arch-note { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .rec {
+    border-radius: 10px; padding: 18px 20px; margin-bottom: 12px;
+    border-left: 4px solid;
+  }
+  .rec-p0 { background: rgba(239,68,68,0.06); border-color: var(--red); }
+  .rec-p1 { background: rgba(245,158,11,0.06); border-color: var(--yellow); }
+  .rec-p2 { background: rgba(16,185,129,0.06); border-color: var(--green); }
+  .rec-p3 { background: rgba(99,102,241,0.06); border-color: var(--accent); }
+  .rec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .rec-title { font-size: 14px; font-weight: 700; }
+  .rec-body { font-size: 13px; color: var(--muted); }
+  .rec-impact { font-size: 12px; margin-top: 8px; font-weight: 500; }
+
+  pre {
+    background: #0c0e1a; border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 18px; overflow-x: auto; font-family: var(--mono);
+    font-size: 12px; line-height: 1.7; color: #cdd6f4; margin: 8px 0;
+  }
+
+  .metric {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 20px;
+  }
+  .metric-val { font-size: 26px; font-weight: 700; }
+  .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 2px; }
+
+  .flow-v {
+    display: flex; flex-direction: column; gap: 0;
+  }
+  .flow-step {
+    display: flex; gap: 0; position: relative;
+  }
+  .flow-col { display: flex; flex-direction: column; align-items: center; width: 36px; flex-shrink: 0; }
+  .flow-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .flow-line { width: 2px; flex: 1; min-height: 16px; background: var(--border); }
+  .flow-content { flex: 1; padding: 0 0 20px 14px; }
+  .flow-head { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; padding-top: 2px; }
+  .flow-name { font-size: 14px; font-weight: 600; }
+  .flow-desc { font-size: 13px; color: var(--muted); }
+
+  .tag-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); border: 1px solid var(--border); border-radius: 5px; padding: 3px 8px; font-size: 12px; color: var(--muted); }
+
+  .vs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 600px) { .vs-grid { grid-template-columns: 1fr; } }
+
+  .vs-col { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .vs-col.old { border-color: rgba(239,68,68,0.3); }
+  .vs-col.new { border-color: rgba(99,102,241,0.3); }
+  .vs-col.ideal { border-color: rgba(16,185,129,0.3); }
+  .vs-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+  .vs-title { font-size: 15px; font-weight: 700; }
+  .vs-list { display: flex; flex-direction: column; gap: 8px; }
+  .vs-item { font-size: 13px; display: flex; gap: 8px; }
+  .vs-item .ico { flex-shrink: 0; width: 16px; }
+
+  .footer {
+    background: var(--surface); border-top: 1px solid var(--border);
+    padding: 20px 48px; text-align: center;
+    font-size: 12px; color: var(--muted);
+  }
+
+  table.spec { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.spec th { background: var(--surface2); color: var(--muted); text-align: left; padding: 10px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+  table.spec td { padding: 10px 12px; border-bottom: 1px solid rgba(46,49,71,0.4); vertical-align: top; }
+  table.spec tr:last-child td { border-bottom: none; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-tag">🔬 DEEP REVIEW — 2026-03-16</div>
+  <h1>OLIVIA-ANALISE — <em>Revisão Arquitetural Completa</em></h1>
+  <div class="subtitle">Análise comparativa V1 (antigo) vs V3 (atual) + recomendações de arquitetura baseadas no uso real do Midas. O que funciona, o que não funciona na prática, e o que mudar agora para escalar.</div>
+  <div class="header-chips">
+    <div class="chip"><strong>V1 antigo:</strong> TupOpRfZXkTHzzEuBOk7f</div>
+    <div class="chip"><strong>V3 atual:</strong> 8ntAvTGMhCfrlfRt</div>
+    <div class="chip"><strong>Uso real:</strong> 100-150 docs/processo</div>
+    <div class="chip"><strong>Modelos estudados:</strong> Gemini 2.5, Claude Opus, Sonnet, Mistral OCR</div>
+    <div class="chip"><strong>Playbook:</strong> Jurídico + Controller (Mac Mini)</div>
+  </div>
+</div>
+
+<nav class="nav">
+  <a href="#comparativo" class="active">Comparativo V1 vs V3</a>
+  <a href="#problemas">Problemas Reais</a>
+  <a href="#arquitetura">Arquitetura Ideal</a>
+  <a href="#modelos">Modelos de IA</a>
+  <a href="#playbooks">Playbooks & RAG</a>
+  <a href="#frontend">Frontend & Express</a>
+  <a href="#recomendacoes">Recomendações</a>
+  <a href="#roadmap">Roadmap</a>
+</nav>
+
+<div class="container">
+
+  <!-- ===== COMPARATIVO ===== -->
+  <section class="section" id="comparativo">
+    <div class="section-title">⚖️ Comparativo V1 (antigo) vs V3 (atual)</div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">O que o V1 tinha que o V3 perdeu</div>
+
+      <div class="vs-grid">
+        <div class="vs-col old">
+          <div class="vs-header">
+            <span style="font-size:18px">⚰️</span>
+            <div class="vs-title" style="color:#fca5a5">V1 — OLIVIA-ANALISE (antigo)</div>
+          </div>
+          <div class="vs-list">
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Gemini Vision</strong> para extração de imagens — lê PDFs escaneados como imagens diretamente</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Mistral OCR fallback</strong> — quando Gemini Vision qualidade &lt; 30, usa Mistral OCR como terceira camada</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Classificação de documento por tipo</strong> — Gemini classifica fatura/tela_sistêmica/contrato/etc ANTES de extrair</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Triple fallback de extração:</strong> PDF nativo → Gemini Vision → Mistral OCR</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Claude Opus</strong> na análise final (não Sonnet) — mais raciocínio jurídico</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Dados de restrição do processo</strong> passados para Claude (orgão, valor, contrato, data)</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Playbook por scope "prova"</strong> e tipo de processo — mais específico que V3</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Sub-workflows</strong> (sw-log, sw-validate) — modular e reutilizável</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Switch por tipo de análise</strong> (PROVAS vs PROCESSO) — arquitetura multi-tipo</span></div>
+          </div>
+        </div>
+        <div class="vs-col new">
+          <div class="vs-header">
+            <span style="font-size:18px">🆕</span>
+            <div class="vs-title" style="color:#a5b4fc">V3 — OLIVIA-ANALISE-V3 (atual)</div>
+          </div>
+          <div class="vs-list">
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Tags + Blocos</strong> por categoria — IA seleciona blocos diretamente</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Perguntas de triagem</strong> geradas automaticamente (alimenta Gerador Express)</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Progresso granular</strong> (5→20→50→80→95→100%)</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Código mais limpo</strong> — sem sub-workflows, tudo inline</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>Bypass de docs</strong> correto com C1b-HasDocs?</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span><strong>analise_anterior</strong> injetada no contexto</span></div>
+            <div class="vs-item"><span class="ico">❌</span><span>Perdeu: Vision, Mistral OCR, classificação de doc, dados de restrição, Opus, switch de tipo</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Tabela comparativa — feature por feature</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th class="col-feature">Feature</th>
+            <th>V1 (antigo)</th>
+            <th>V3 (atual)</th>
+            <th>Recomendação</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="col-feature">Extração PDF nativo</td>
+            <td class="col-old">✅ ExtractFromFile</td>
+            <td>✅ ExtractFromFile</td>
+            <td class="col-rec"><span class="badge badge-green">Manter</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Vision para scans</td>
+            <td class="col-old">✅ Gemini 2.5 Pro Vision</td>
+            <td>❌ Ausente</td>
+            <td class="col-rec"><span class="badge badge-red">Reintroduzir — Claude Vision</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">OCR fallback</td>
+            <td class="col-old">✅ Mistral OCR Latest</td>
+            <td>❌ Ausente</td>
+            <td class="col-rec"><span class="badge badge-yellow">Manter Mistral ou trocar por Claude Vision</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Classificação de doc</td>
+            <td class="col-old">✅ Gemini classifica tipo</td>
+            <td>❌ Ausente</td>
+            <td class="col-rec"><span class="badge badge-yellow">Reintroduzir — fundamental para playbook correto</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Modelo de análise final</td>
+            <td class="col-old">✅ Claude Opus 4.6</td>
+            <td>⚠️ Claude Sonnet 4.6</td>
+            <td class="col-rec"><span class="badge badge-yellow">Voltar para Opus se qualidade for prioridade</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Dados de restrição</td>
+            <td class="col-old">✅ orgão, valor, contrato, data</td>
+            <td>⚠️ Parcial (vem do processo)</td>
+            <td class="col-rec"><span class="badge badge-yellow">Garantir que V3 passa restrições explicitamente</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Playbook por tipo</td>
+            <td class="col-old">✅ scope="prova", tipo_processo</td>
+            <td>⚠️ scope="analise"</td>
+            <td class="col-rec"><span class="badge badge-yellow">Revisar scope — "prova" é mais específico</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Tags → Blocos</td>
+            <td class="col-old">❌ Ausente</td>
+            <td>✅ Implementado</td>
+            <td class="col-rec"><span class="badge badge-green">Manter — é a evolução correta</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Perguntas de triagem</td>
+            <td class="col-old">❌ Ausente</td>
+            <td>✅ Geradas pelo Claude</td>
+            <td class="col-rec"><span class="badge badge-green">Manter — alimenta Gerador Express</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Switch tipo de análise</td>
+            <td class="col-old">✅ PROVAS vs PROCESSO</td>
+            <td>❌ Só PROVAS</td>
+            <td class="col-rec"><span class="badge badge-blue">Reintroduzir para escalar</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Tokens/custo rastreados</td>
+            <td class="col-old">⚠️ Tentativa (LangChain)</td>
+            <td>⚠️ Tentativa (zeros)</td>
+            <td class="col-rec"><span class="badge badge-red">Fix: usar HTTP Request direto</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Context window control</td>
+            <td class="col-old">⚠️ Menos explícito</td>
+            <td>✅ Budgets definidos (80k total, 15k/doc)</td>
+            <td class="col-rec"><span class="badge badge-green">Manter</span></td>
+          </tr>
+          <tr>
+            <td class="col-feature">Análise anterior</td>
+            <td class="col-old">✅ Sim</td>
+            <td>✅ Sim</td>
+            <td class="col-rec"><span class="badge badge-green">Ambos têm</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== PROBLEMAS REAIS ===== -->
+  <section class="section" id="problemas">
+    <div class="section-title">🔴 Problemas Reais na Prática</div>
+
+    <div class="issue" style="border-color: var(--red)">
+      <div class="issue-icon">📄</div>
+      <div class="issue-body">
+        <div class="issue-title" style="color:var(--red)">P1 — 70-80% dos documentos são PDFs escaneados</div>
+        <div class="issue-desc">No V3, quando o PDF não tem texto nativo, qualidade = 20 e o Claude analisa <strong>sem provas reais</strong>. A contestação, a tela sistêmica do Serasa, os contratos físicos — todos escaneados. O V3 simplesmente passa strings vazias para o Claude, que vai inventar ou gerar análise fraca.</div>
+        <div class="issue-fix" style="border-color:var(--red); color:var(--red)">
+          FIX: Reintroduzir fallback de Vision (Claude ou Gemini) + Mistral OCR como terceira camada. Sem isso, o workflow falha silenciosamente nos casos mais importantes.
+        </div>
+      </div>
+    </div>
+
+    <div class="issue" style="border-color: var(--red)">
+      <div class="issue-icon">📚</div>
+      <div class="issue-body">
+        <div class="issue-title" style="color:var(--red)">P2 — 100-150 documentos por processo</div>
+        <div class="issue-desc">O loop processa um PDF por vez, em série. 150 PDFs × (fetch URL + extração + possível Vision) = pode levar 10-20 minutos. Além disso, 150 docs × 15k chars = 2.25M chars → muito além do budget de 80k. O V3 silenciosamente ignora tudo acima do budget, sem avisar o usuário.</div>
+        <div class="issue-fix" style="border-color:var(--red); color:var(--red)">
+          FIX: Estratégia hierárquica — Claude analisa cada doc individualmente (mini-resumo estruturado) em paralelo, depois análise consolidada. Paralelizar extração com Promise.all. Budget aumentar ou estratégia de seleção inteligente dos docs mais relevantes.
+        </div>
+      </div>
+    </div>
+
+    <div class="issue" style="border-color: var(--yellow)">
+      <div class="issue-icon">🔗</div>
+      <div class="issue-body">
+        <div class="issue-title" style="color:var(--yellow)">P3 — Pipeline Gemini → Claude perde contexto</div>
+        <div class="issue-desc">No V1, Gemini extrai dados estruturados → Claude recebe JSON com campos isolados, não o texto original. Claude analisa o extrato de Gemini, não as provas reais. A cada handoff, o raciocínio fica mais raso. Claude Opus no final com input empobrecido é desperdício.</div>
+        <div class="issue-fix" style="border-color:var(--yellow); color:var(--yellow)">
+          FIX: Claude com Vision lê as provas diretamente (PDF as imagens). Elimina o intermediário Gemini → análise mais profunda com contexto original preservado.
+        </div>
+      </div>
+    </div>
+
+    <div class="issue" style="border-color: var(--yellow)">
+      <div class="issue-icon">🏷️</div>
+      <div class="issue-body">
+        <div class="issue-title" style="color:var(--yellow)">P4 — Triagem excessiva quando sem documentos ou docs ruins</div>
+        <div class="issue-desc">Se a IA não lê as provas (escaneadas), confiança em todos os blocos cai para &lt; 0.7. Resultado: 8-12 perguntas de triagem para o usuário responder. O usuário abre o resultado esperando resposta e encontra formulário. Experiência péssima.</div>
+        <div class="issue-fix" style="border-color:var(--yellow); color:var(--yellow)">
+          FIX: Lógica de confiança revisada — confiança 0.5-0.7 → preenche com melhor bloco + badge "verificar". Só gera pergunta se confiança &lt; 0.3 (realmente sem contexto). Modo "proposta + confirmação" em vez de perguntas abertas.
+        </div>
+      </div>
+    </div>
+
+    <div class="issue" style="border-color: var(--yellow)">
+      <div class="issue-icon">📊</div>
+      <div class="issue-body">
+        <div class="issue-title" style="color:var(--yellow)">P5 — Dados ricos do processo não chegam para o Claude</div>
+        <div class="issue-desc">O Supabase tem: <code>restricao_orgao_nome</code>, <code>restricao_valor</code>, <code>restricao_contrato</code>, <code>restricao_data</code>, <code>valor_causa</code>, <code>data_distribuicao</code>, e dados do cliente com restrições históricas. O V3 não injeta esses dados explicitamente no prompt do Claude. O V1 tinha <code>restricoes[]</code> estruturado. Sem esses dados, Claude não consegue cruzar valor da restrição com o que está na contestação.</div>
+        <div class="issue-fix" style="border-color:var(--yellow); color:var(--yellow)">
+          FIX: Injetar explicitamente no prompt: restricao_orgao, valor_apontamento, data_inclusao, contrato, restrições anteriores do cliente. Claude pode então verificar: "valor da contestação bate com o apontamento?"
+        </div>
+      </div>
+    </div>
+
+    <div class="issue" style="border-color: var(--blue)">
+      <div class="issue-icon">💾</div>
+      <div class="issue-body">
+        <div class="issue-title" style="color:var(--blue)">P6 — Claude não tem memória entre sessões</div>
+        <div class="issue-desc">Hoje o sistema usa GPT Agent só para armazenar thread_id porque Claude não tem threads. Isso é gambiarr a com ponto de falha adicional (GPT como intermediário).</div>
+        <div class="issue-fix" style="border-color:var(--blue); color:var(--blue)">
+          FIX: <code>olivia_analises</code> já é a memória. Injetar análises anteriores no contexto = Claude lembra via prompt, não via thread. Mais confiável. Eliminar dependência do GPT Agent para memória.
+        </div>
+      </div>
+    </div>
+
+    <div class="issue" style="border-color: var(--muted)">
+      <div class="issue-icon">📉</div>
+      <div class="issue-body">
+        <div class="issue-title">P7 — Tokens/custo sempre zero</div>
+        <div class="issue-desc">Nó Anthropic nativo do n8n não expõe <code>usage</code>. É impossível monitorar custo por análise ou por organização.</div>
+        <div class="issue-fix" style="border-color:var(--muted); color:var(--muted)">
+          FIX simples: substituir nó Anthropic por HTTP Request direto para <code>api.anthropic.com/v1/messages</code>. Response inclui <code>usage.input_tokens</code> e <code>usage.output_tokens</code>.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ARQUITETURA IDEAL ===== -->
+  <section class="section" id="arquitetura">
+    <div class="section-title">🏗️ Arquitetura Ideal — V4</div>
+
+    <div class="card" style="margin-bottom:20px">
+      <div class="card-title">Princípios da nova arquitetura</div>
+      <div class="grid-3">
+        <div class="arch-box">
+          <div class="arch-label">Princípio 1</div>
+          <div class="arch-val">Provas chegam intactas ao Claude</div>
+          <div class="arch-note">Sem intermediário. Claude lê as provas diretamente (Vision ou texto), não um resumo feito por outra IA.</div>
+        </div>
+        <div class="arch-box">
+          <div class="arch-label">Princípio 2</div>
+          <div class="arch-val">Processamento paralelo de docs</div>
+          <div class="arch-note">150 docs não bloqueiam o workflow. Cada doc tem seu mini-resumo gerado em paralelo, depois consolidação.</div>
+        </div>
+        <div class="arch-box">
+          <div class="arch-label">Princípio 3</div>
+          <div class="arch-val">Contexto rico do processo</div>
+          <div class="arch-note">Dados de restrição, histórico do cliente, análises anteriores — tudo injetado estruturalmente no prompt.</div>
+        </div>
+        <div class="arch-box">
+          <div class="arch-label">Princípio 4</div>
+          <div class="arch-val">Playbook on-demand correto</div>
+          <div class="arch-note">Playbook por tipo de empresa (banco/fintech/varejo/telecom) + tipo de prova (fatura/contrato/tela_sistêmica). Injetado completo.</div>
+        </div>
+        <div class="arch-box">
+          <div class="arch-label">Princípio 5</div>
+          <div class="arch-val">Triagem cirúrgica</div>
+          <div class="arch-note">Só gera pergunta quando realmente não sabe (confiança &lt; 0.3). Confiança média → propõe bloco + marca para confirmação.</div>
+        </div>
+        <div class="arch-box">
+          <div class="arch-label">Princípio 6</div>
+          <div class="arch-val">Relatório para a equipe</div>
+          <div class="arch-note">Output inclui relatório de provas completo para o Gerador Express Etapa 2 — equipe não precisa ler os documentos.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Fluxo V4 — proposto</div>
+      <div class="flow-v">
+
+        <div class="flow-step">
+          <div class="flow-col">
+            <div class="flow-dot" style="background:rgba(99,102,241,0.2);border:2px solid var(--accent);color:var(--accent)">A</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-head">
+              <div class="flow-name">Recepção + Validação</div>
+              <span class="badge badge-purple">Igual V3</span>
+            </div>
+            <div class="flow-desc">Webhook → Log → Validate → INSERT olivia_analises (status: PROCESSANDO, 5%) → Respond 202</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-col">
+            <div class="flow-dot" style="background:rgba(6,182,212,0.2);border:2px solid var(--cyan);color:var(--cyan)">B</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-head">
+              <div class="flow-name">Contexto Rico</div>
+              <span class="badge badge-blue">Melhorado</span>
+            </div>
+            <div class="flow-desc">Processo + empresa + categoria + cliente + <strong>restrições explícitas (orgão/valor/contrato/data)</strong> + tags + blocos + playbook por <code>scope="prova"</code> + <code>tipo_processo</code> + análise anterior. Update 20%.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-col">
+            <div class="flow-dot" style="background:rgba(245,158,11,0.2);border:2px solid var(--yellow);color:var(--yellow)">C</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-head">
+              <div class="flow-name">Extração com Triple Fallback</div>
+              <span class="badge badge-red">Novo</span>
+            </div>
+            <div class="flow-desc">
+              Para cada doc (em loop/paralelo):<br>
+              <strong>1.</strong> PDF nativo → qualidade ≥ 60? → OK<br>
+              <strong>2.</strong> Fallback Vision (Claude Sonnet ou Gemini 2.5) → qualidade ≥ 30? → OK<br>
+              <strong>3.</strong> Fallback Mistral OCR → qualidade final<br>
+              <strong>+</strong> Classificação de tipo por Gemini (fatura/tela_sistêmica/contrato/extrato/etc)<br>
+              Update 50%. Consolidar docs com qualidade média.
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-col">
+            <div class="flow-dot" style="background:rgba(139,92,246,0.2);border:2px solid var(--accent2);color:var(--accent2)">D</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-head">
+              <div class="flow-name">RAG + Embedding</div>
+              <span class="badge badge-purple">Igual V3</span>
+            </div>
+            <div class="flow-desc">Gerar embedding → fn_rag_search top 8 jurisprudências + petições relevantes. Montar pacote completo.</div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-col">
+            <div class="flow-dot" style="background:rgba(16,185,129,0.2);border:2px solid var(--green);color:var(--green)">E</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-head">
+              <div class="flow-name">Análise Claude Opus</div>
+              <span class="badge badge-red">Novo: Opus + HTTP direto</span>
+            </div>
+            <div class="flow-desc">
+              <strong>HTTP Request direto</strong> para api.anthropic.com (pega usage real).<br>
+              Modelo: <strong>claude-opus-4-5</strong> ou <strong>claude-opus-4-6</strong> (qualidade máxima).<br>
+              Prompt: identidade OlivIA + legislação + playbook específico + restricoes + docs + tags + jurisprudência.<br>
+              Output: JSON com resultado + <strong>relatorio_equipe</strong> (novo campo) + tags_resolvidas + triagem cirúrgica.
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-col">
+            <div class="flow-dot" style="background:rgba(59,130,246,0.2);border:2px solid var(--blue);color:var(--blue)">F</div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-head">
+              <div class="flow-name">Persistência + Notificação</div>
+              <span class="badge badge-blue">Melhorado</span>
+            </div>
+            <div class="flow-desc">Salvar resultado + tokens_reais + custo_real. Atualizar processos.ia_resumo + chance_sucesso_ia. UPDATE 100%. Fechar webhook_requests. <strong>Notificação push opcional para o usuário.</strong></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== MODELOS ===== -->
+  <section class="section" id="modelos">
+    <div class="section-title">🧠 Estratégia de Modelos de IA</div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">A grande questão: Claude Opus sozinho ou pipeline multi-modelo?</div>
+      <div style="font-size:14px; margin-bottom:16px; color:var(--muted)">
+        Você estruturou o pipeline meses atrás com Gemini Vision → Claude como intermediário. Com os modelos de hoje, isso pode ser simplificado drasticamente.
+      </div>
+
+      <div class="vs-grid">
+        <div class="vs-col" style="border-color:rgba(139,92,246,0.3)">
+          <div class="vs-header">
+            <span style="font-size:18px">🔄</span>
+            <div class="vs-title" style="color:var(--accent2)">Pipeline atual (V1/V3)</div>
+          </div>
+          <div class="vs-list">
+            <div class="vs-item"><span class="ico">1️⃣</span><span>PDF nativo</span></div>
+            <div class="vs-item"><span class="ico">2️⃣</span><span>Gemini Vision extrai → JSON</span></div>
+            <div class="vs-item"><span class="ico">3️⃣</span><span>Mistral OCR fallback</span></div>
+            <div class="vs-item"><span class="ico">4️⃣</span><span>Claude Opus analisa JSON resumido</span></div>
+            <div class="vs-item"><span class="ico">⚠️</span><span style="color:var(--yellow)">Perda de contexto a cada handoff</span></div>
+            <div class="vs-item"><span class="ico">⚠️</span><span style="color:var(--yellow)">Claude vê resumo, não prova original</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span style="color:var(--green)">Funciona com volumes grandes (cada AI faz sua parte)</span></div>
+          </div>
+        </div>
+        <div class="vs-col ideal">
+          <div class="vs-header">
+            <span style="font-size:18px">⚡</span>
+            <div class="vs-title" style="color:var(--green)">Pipeline ideal (V4)</div>
+          </div>
+          <div class="vs-list">
+            <div class="vs-item"><span class="ico">1️⃣</span><span>PDF → converte páginas em imagens (se scan)</span></div>
+            <div class="vs-item"><span class="ico">2️⃣</span><span><strong>Claude Sonnet Vision</strong> — mini-análise de cada doc (paralelo)</span></div>
+            <div class="vs-item"><span class="ico">3️⃣</span><span><strong>Claude Opus</strong> — análise final com todos os mini-resumos + contexto rico</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span style="color:var(--green)">Claude lê as provas originais, não resumo</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span style="color:var(--green)">Qualidade máxima na análise jurídica</span></div>
+            <div class="vs-item"><span class="ico">⚠️</span><span style="color:var(--yellow)">Custo maior (Opus é ~5x Sonnet)</span></div>
+            <div class="vs-item"><span class="ico">✅</span><span style="color:var(--green)">Menos dependências externas (sem Gemini API)</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Comparação de modelos para cada tarefa</div>
+      <table class="spec">
+        <thead>
+          <tr>
+            <th>Tarefa</th>
+            <th>V1 usava</th>
+            <th>Recomendado V4</th>
+            <th>Por quê</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Classificar tipo do doc</td>
+            <td>Gemini 2.5 (max_tokens: 100)</td>
+            <td><strong>Gemini Flash</strong> ou Claude Haiku</td>
+            <td>Tarefa simples, cheap, rápido. Não precisa de Gemini Pro.</td>
+          </tr>
+          <tr>
+            <td>Extração de texto nativo</td>
+            <td>ExtractFromFile</td>
+            <td><strong>ExtractFromFile</strong></td>
+            <td>Gratuito, rápido, funciona bem para PDF digital.</td>
+          </tr>
+          <tr>
+            <td>Extração de scan/imagem</td>
+            <td>Gemini 2.5 Pro Vision</td>
+            <td><strong>Claude Sonnet Vision</strong> ou Gemini Flash Vision</td>
+            <td>Claude Vision lê PDFs diretamente (sem converter). Qualidade superior.</td>
+          </tr>
+          <tr>
+            <td>OCR de último recurso</td>
+            <td>Mistral OCR Latest</td>
+            <td><strong>Mistral OCR</strong> (manter como fallback)</td>
+            <td>Mistral OCR é especializado, ótimo para documentos pesados. Manter.</td>
+          </tr>
+          <tr>
+            <td>Mini-análise por documento</td>
+            <td>Não tinha</td>
+            <td><strong>Claude Sonnet 4.6</strong></td>
+            <td>Barato por chamada, paralelizável, gera mini-resumo estruturado para a análise final.</td>
+          </tr>
+          <tr>
+            <td>Análise jurídica final</td>
+            <td>Claude Opus 4.6</td>
+            <td><strong>Claude Opus 4.5+</strong></td>
+            <td>Qualidade é prioridade. Opus tem raciocínio jurídico superior, escrita melhor. Usa uma vez, no final.</td>
+          </tr>
+          <tr>
+            <td>RAG embedding</td>
+            <td>OpenAI ada-002</td>
+            <td><strong>OpenAI ada-002</strong></td>
+            <td>Funciona bem, barato, sem necessidade de trocar.</td>
+          </tr>
+          <tr>
+            <td>Geração de petição (futuro)</td>
+            <td>Não neste workflow</td>
+            <td><strong>Claude Opus</strong></td>
+            <td>Se o workflow evoluir para gerar petição completa, Opus é obrigatório.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:16px; border-color: rgba(16,185,129,0.3)">
+      <div class="card-title" style="color:var(--green)">💡 Resposta à sua pergunta: Claude Opus faz tudo sozinho?</div>
+      <div style="font-size:14px; line-height:1.7; color:var(--muted)">
+        <strong style="color:var(--text)">Sim, tecnicamente. E é a melhor opção para o seu caso.</strong><br><br>
+        Claude Opus 4+ tem Vision nativo — você envia as páginas do PDF como imagens, ele lê sem OCR intermediário. Para 5-10 docs por processo é viável. Para 150 docs, a estratégia é:<br><br>
+        <strong style="color:var(--text)">Fase 1 (paralela):</strong> Claude Sonnet Vision lê cada doc → gera mini-resumo estruturado (tipo do doc, dados extraídos, relevância jurídica, qualidade). Custo: ~$0.01-0.02/doc.<br>
+        <strong style="color:var(--text)">Fase 2 (única):</strong> Claude Opus recebe todos os mini-resumos + contexto completo → análise jurídica final, tags→blocos, triagem, relatório. Custo: ~$0.30-0.80 por análise.<br><br>
+        Isso é <strong style="color:var(--green)">melhor que Gemini→Claude</strong> porque: (1) mesmo ecossistema Anthropic, (2) sem perda de contexto, (3) Opus analisa o que Sonnet extraiu com fidelidade.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PLAYBOOKS ===== -->
+  <section class="section" id="playbooks">
+    <div class="section-title">📖 Playbooks, RAG e Conhecimento</div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Como o playbook jurídico deve alimentar o workflow</div>
+      <div style="font-size:14px; color:var(--muted); margin-bottom:16px">
+        Estudei o <code>playbook_juridico.md</code> do Mac Mini. Ele tem a lógica exata de análise por tipo de réu e tipo de prova. <strong style="color:var(--text)">Isso precisa estar no prompt da OlivIA.</strong>
+      </div>
+      <table class="spec">
+        <thead>
+          <tr><th>Tipo de réu</th><th>Tripé de análise</th><th>O que OlivIA deve verificar</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Banco/Fintech</strong></td>
+            <td>Relação jurídica + Contratação específica + Origem do débito</td>
+            <td>Assinatura rastreável? IP/geolocalização no aceite eletrônico? Valor do apontamento = memória de cálculo? Prova de desembolso?</td>
+          </tr>
+          <tr>
+            <td><strong>Mercado Pago</strong></td>
+            <td>Cadastro marketplace ≠ contratação de crédito</td>
+            <td>Selfie nítida? Fator facial com certificação? Plataforma de compras vs crédito são distintas?</td>
+          </tr>
+          <tr>
+            <td><strong>Boa Vista SCPC</strong></td>
+            <td>Solidariedade + responsabilidade objetiva</td>
+            <td>Verificou existência do débito antes de inscrever? CDC art. 14?</td>
+          </tr>
+          <tr>
+            <td><strong>Telecom/Energia</strong></td>
+            <td>Contrato não reconhecido ou débito de terceiro</td>
+            <td>Comunicação prévia obrigatória? ANATEL? CDC art. 42?</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Problema atual: playbook genérico vs específico</div>
+      <div class="grid-2">
+        <div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:8px">V3 busca playbook por <code>scope="analise"</code> e <code>categoria_empresa_id</code></div>
+          <pre>fn_get_playbook({
+  p_scope: "analise",           // ← genérico
+  p_categoria_empresa_id: "..."
+})</pre>
+          <div style="font-size:12px; color:var(--yellow); margin-top:8px">⚠️ "analise" não diferencia análise de provas de análise processual</div>
+        </div>
+        <div>
+          <div style="font-size:13px; color:var(--muted); margin-bottom:8px">V1 busca por <code>scope="prova"</code>, <code>tipo_processo</code> E <code>categoria_empresa_id</code></div>
+          <pre>fn_get_playbook({
+  p_scope: "prova",             // ← específico
+  p_tipo_processo: "...",       // ← filtra por tipo
+  p_categoria_empresa_id: "..."
+})</pre>
+          <div style="font-size:12px; color:var(--green); margin-top:8px">✅ Melhor granularidade — playbook de restrição ≠ de cobrança indevida</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">RAG — o que está certo e o que pode melhorar</div>
+      <div style="font-size:14px; margin-bottom:12px">
+        <strong>O que funciona:</strong> embedding da query com tipo+empresa+tags → fn_rag_search top 8. Boa abordagem.
+      </div>
+      <div style="font-size:14px; margin-bottom:12px; color:var(--muted)">
+        <strong style="color:var(--text)">O que pode melhorar:</strong>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:13px;">
+        <div style="background:var(--surface2); border-radius:8px; padding:12px 14px;">
+          💡 <strong>Jurisprudência por tipo de réu</strong> — filtrar RAG por categoria da empresa, não só score geral. Súmula 385 só é relevante quando há negativação preexistente; não mandar sempre.
+        </div>
+        <div style="background:var(--surface2); border-radius:8px; padding:12px 14px;">
+          💡 <strong>Manual de análise de documentos via RAG</strong> — você mencionou que a ideia era a IA receber instrução on-demand de como analisar cada tipo de doc. Isso pode ser implementado: ao classificar o documento como "fatura", o RAG busca o chunk de "como analisar faturas" do playbook jurídico. Ideia poderosa — vale implementar.
+        </div>
+        <div style="background:var(--surface2); border-radius:8px; padding:12px 14px;">
+          💡 <strong>Petições similares ganhas</strong> — se o RAG incluir peças jurídicas de processos similares ganhos, OlivIA pode identificar padrões de argumentação bem-sucedidos.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FRONTEND ===== -->
+  <section class="section" id="frontend">
+    <div class="section-title">🖥️ Frontend, Gerador Express e Relatório</div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div class="card-title">Como a análise serve o Gerador Express</div>
+      <div style="font-size:14px; color:var(--muted); margin-bottom:16px">
+        O Gerador Express usa o resultado da análise para pular etapas manuais. Mapeamento atual vs ideal:
+      </div>
+      <table class="spec">
+        <thead>
+          <tr><th>Etapa Express</th><th>O que precisa</th><th>V3 entrega?</th><th>V4 deve entregar</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Etapa 1 — Processo</td>
+            <td>processo_id, modelo, tipo_petição</td>
+            <td>✅ Sim</td>
+            <td>✅ Mesmo</td>
+          </tr>
+          <tr>
+            <td>Etapa 2 — Triagem</td>
+            <td>Perguntas pré-respondidas pela IA</td>
+            <td>⚠️ Gera perguntas, não respostas</td>
+            <td>✅ Perguntas + respostas sugeridas baseadas nas provas</td>
+          </tr>
+          <tr>
+            <td>Etapa 2 — Relatório de provas</td>
+            <td>Relatório completo para equipe ver sem ler docs</td>
+            <td>❌ Não tem campo específico</td>
+            <td>✅ Campo <code>relatorio_equipe</code> com tudo estruturado</td>
+          </tr>
+          <tr>
+            <td>Etapa 3 — Estrutura</td>
+            <td>Tags com blocos pré-selecionados</td>
+            <td>✅ analise_tags com bloco_id</td>
+            <td>✅ + modo proposta/confirmação para confiança média</td>
+          </tr>
+          <tr>
+            <td>Geração final</td>
+            <td>Instruções adicionais contextualizadas</td>
+            <td>⚠️ Parcial</td>
+            <td>✅ <code>instrucoes_gerador</code> geradas pela OlivIA</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Relatório de provas — O que a equipe precisa ver (novo campo relatorio_equipe)</div>
+      <pre>{
+  "relatorio_equipe": {
+    "resumo_executivo": "Texto para a equipe ler em 30 segundos",
+    "documentos": [
+      {
+        "nome": "fatura_bradesco.pdf",
+        "tipo": "fatura",
+        "o_que_prova": "Fatura de março/2024, valor R$1.456,54",
+        "qualidade": 85,
+        "problemas": ["Endereço diverge do comprovante de residência"],
+        "relevancia": "ALTA"
+      }
+    ],
+    "cruzamento_restricao": {
+      "valor_apontamento": "R$1.456,54",
+      "valor_na_fatura": "R$1.456,54",
+      "bate": true,
+      "data_restricao_vs_fatura": "Restrição em 15/04, fatura vence 10/04 — coerente"
+    },
+    "forcas_da_contestacao": ["string"],
+    "vulnerabilidades": ["string"],
+    "documentos_que_faltam": ["string"],
+    "chance_sucesso": 2,
+    "instrucoes_gerador": "Usar bloco de Mercado Pago + ênfase na selfie sem nitidez"
+  }
+}</pre>
+    </div>
+  </section>
+
+  <!-- ===== RECOMENDAÇÕES ===== -->
+  <section class="section" id="recomendacoes">
+    <div class="section-title">✅ Recomendações por Prioridade</div>
+
+    <div class="rec rec-p0">
+      <div class="rec-header">
+        <span class="badge badge-red">P0 — Crítico</span>
+        <div class="rec-title">Reintroduzir Vision + OCR (Gemini Vision ou Claude Vision + Mistral fallback)</div>
+      </div>
+      <div class="rec-body">
+        Sem isso, 70-80% dos documentos chegam vazios para o Claude. A análise é inútil. Prioridade máxima antes de qualquer outra coisa.
+      </div>
+      <div class="rec-impact" style="color:var(--red)">Impacto: sem Vision, o workflow funciona em dev mas falha na prática com clientes reais.</div>
+    </div>
+
+    <div class="rec rec-p0">
+      <div class="rec-header">
+        <span class="badge badge-red">P0 — Crítico</span>
+        <div class="rec-title">Injetar dados de restrição explicitamente no prompt (orgão, valor, contrato, data)</div>
+      </div>
+      <div class="rec-body">
+        Claude não consegue cruzar "valor da contestação = valor do apontamento?" sem ter o valor do apontamento. O Supabase tem esses dados em <code>processos</code>. É só uma linha a mais no B1-Process.
+      </div>
+      <div class="rec-impact" style="color:var(--red)">Impacto: análise jurídica incompleta sem isso — é o dado mais básico de um caso de negativação indevida.</div>
+    </div>
+
+    <div class="rec rec-p1">
+      <div class="rec-header">
+        <span class="badge badge-yellow">P1 — Alta</span>
+        <div class="rec-title">Voltar Claude Opus para análise final (não Sonnet)</div>
+      </div>
+      <div class="rec-body">
+        Você disse que qualidade é prioridade. O V1 usava Opus — e fazia isso corretamente. V3 mudou para Sonnet, provavelmente para economizar. A diferença em raciocínio jurídico e qualidade de escrita é significativa.
+      </div>
+      <div class="rec-impact" style="color:var(--yellow)">Impacto: análise mais rasa, triagem de menor qualidade, menor confiança nos blocos selecionados.</div>
+    </div>
+
+    <div class="rec rec-p1">
+      <div class="rec-header">
+        <span class="badge badge-yellow">P1 — Alta</span>
+        <div class="rec-title">Adicionar campo relatorio_equipe ao schema de saída</div>
+      </div>
+      <div class="rec-body">
+        O objetivo declarado é que a equipe não precise ler os documentos. Mas o V3 não tem um relatório de provas estruturado — só tem análise. O Gerador Express Etapa 2 precisa disso explicitamente.
+      </div>
+      <div class="rec-impact" style="color:var(--yellow)">Impacto: equipe ainda precisa abrir os PDFs para entender o caso. Derrota o propósito.</div>
+    </div>
+
+    <div class="rec rec-p1">
+      <div class="rec-header">
+        <span class="badge badge-yellow">P1 — Alta</span>
+        <div class="rec-title">Classificar tipo de documento antes de extrair</div>
+      </div>
+      <div class="rec-body">
+        Saber que é uma "fatura" antes de extrair permite: (1) aplicar template de extração específico, (2) buscar playbook correto para aquele tipo, (3) gerar análise especializada. O V1 fazia isso com Gemini (100 tokens, custo mínimo).
+      </div>
+      <div class="rec-impact" style="color:var(--yellow)">Impacto: análise genérica de todos os docs vs análise especializada por tipo.</div>
+    </div>
+
+    <div class="rec rec-p2">
+      <div class="rec-header">
+        <span class="badge badge-green">P2 — Normal</span>
+        <div class="rec-title">Revisão do threshold de triagem (confiança média → proposta, não pergunta)</div>
+      </div>
+      <div class="rec-body">
+        Confiança 0.5-0.7 → preenche bloco + flag "verificar". Só gera pergunta aberta se confiança &lt; 0.3. Reduz drasticamente o número de perguntas sem perder cobertura.
+      </div>
+    </div>
+
+    <div class="rec rec-p2">
+      <div class="rec-header">
+        <span class="badge badge-green">P2 — Normal</span>
+        <div class="rec-title">Corrigir tokens/custo (HTTP Request direto para Anthropic)</div>
+      </div>
+      <div class="rec-body">
+        Fix de 5 minutos. Substitui o nó Anthropic nativo por um HTTP Request que retorna usage completo. Necessário para monitoramento de custo por organização.
+      </div>
+    </div>
+
+    <div class="rec rec-p3">
+      <div class="rec-header">
+        <span class="badge badge-purple">P3 — Evolução</span>
+        <div class="rec-title">Estratégia hierárquica para 100-150 docs (fase 1: mini-resumos paralelos)</div>
+      </div>
+      <div class="rec-body">
+        Para volumes grandes: Sonnet Vision em paralelo para cada doc → mini-resumo estruturado → Opus analisa os resumos + docs mais relevantes completos. Escalável, rápido, sem explodir o contexto.
+      </div>
+    </div>
+
+    <div class="rec rec-p3">
+      <div class="rec-header">
+        <span class="badge badge-purple">P3 — Evolução</span>
+        <div class="rec-title">RAG on-demand por tipo de documento (manual de análise)</div>
+      </div>
+      <div class="rec-body">
+        Ao classificar doc como "fatura", o RAG busca o chunk "como analisar faturas" do playbook jurídico e injeta no prompt. Assim a OlivIA sempre tem o guia correto para cada tipo de prova — on-demand, como você idealizou.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ROADMAP ===== -->
+  <section class="section" id="roadmap">
+    <div class="section-title">🗓️ Roadmap de Lapidação</div>
+
+    <div class="card">
+      <div class="card-title">Sprint 1 — Lapidação crítica (hoje/amanhã)</div>
+      <table class="spec">
+        <thead>
+          <tr><th>#</th><th>Ação</th><th>Onde</th><th>Esforço</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>1</td>
+            <td>Reintroduzir fallback Vision no loop C — quando qualidade &lt; 60, chamar Claude Vision ou Gemini Vision</td>
+            <td>n8n — entre C5 e D1</td>
+            <td>~2h</td>
+          </tr>
+          <tr>
+            <td>2</td>
+            <td>Reintroduzir Mistral OCR como terceiro fallback (quando Vision qualidade &lt; 30)</td>
+            <td>n8n — após Vision</td>
+            <td>~1h</td>
+          </tr>
+          <tr>
+            <td>3</td>
+            <td>Injetar restricao_orgao, restricao_valor, restricao_contrato, restricao_data no pacote B1</td>
+            <td>n8n — B1-Process</td>
+            <td>~30min</td>
+          </tr>
+          <tr>
+            <td>4</td>
+            <td>Trocar Sonnet → Opus no E3 (via HTTP Request direto + captura de usage)</td>
+            <td>n8n — E3</td>
+            <td>~45min</td>
+          </tr>
+          <tr>
+            <td>5</td>
+            <td>Revisar threshold de triagem no system prompt — confiança 0.5-0.7 → proposta, não pergunta</td>
+            <td>n8n — E2 prompt</td>
+            <td>~30min</td>
+          </tr>
+          <tr>
+            <td>6</td>
+            <td>Adicionar campo <code>relatorio_equipe</code> ao schema de saída do Claude</td>
+            <td>n8n — E2 prompt + E4 parse</td>
+            <td>~45min</td>
+          </tr>
+          <tr>
+            <td>7</td>
+            <td>Ajustar busca de playbook: scope="prova", adicionar tipo_processo como filtro</td>
+            <td>n8n — B3-HTTP-Playbook</td>
+            <td>~20min</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title">Sprint 2 — Melhorias (próxima semana)</div>
+      <table class="spec">
+        <thead>
+          <tr><th>#</th><th>Ação</th><th>Impacto</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Classificação de tipo de documento por Gemini Flash antes da extração</td><td>Alto — análise especializada por tipo</td></tr>
+          <tr><td>2</td><td>RAG on-demand por tipo de doc (chunk de playbook específico para fatura/tela/contrato)</td><td>Alto — OlivIA sempre tem o manual correto</td></tr>
+          <tr><td>3</td><td>Frontend: exibir relatorio_equipe na Etapa 2 do Express</td><td>Alto — equipe não precisa abrir PDFs</td></tr>
+          <tr><td>4</td><td>Switch de tipo de análise (PROVAS vs PROCESSO) para futuras evoluções</td><td>Médio — estrutura para escalar</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top:16px; border-color: rgba(139,92,246,0.3)">
+      <div class="card-title" style="color:var(--accent2)">Sprint 3 — Visão de futuro</div>
+      <div style="font-size:14px; color:var(--muted);">
+        <div style="margin-bottom:10px">🚀 <strong style="color:var(--text)">Estratégia hierárquica para 150 docs:</strong> Sonnet Vision em paralelo (mini-resumos) → Opus análise final. Suporte real a volume alto.</div>
+        <div style="margin-bottom:10px">🚀 <strong style="color:var(--text)">Geração de petição integrada:</strong> se a análise for boa o suficiente (confiança alta, docs lidos, playbook aplicado), Opus gera rascunho da petição diretamente — equipe só revisa.</div>
+        <div style="margin-bottom:10px">🚀 <strong style="color:var(--text)">Memória via Supabase (sem GPT):</strong> olivia_analises como fonte única de memória — elimina dependência do GPT Agent para thread_id.</div>
+        <div>🚀 <strong style="color:var(--text)">Dashboard de custo por organização:</strong> tokens reais rastreados → billing por uso de IA por cliente.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<div class="footer">
+  Gerado por JANA 🦊 · Deep review baseado em: workflow V1 TupOpRfZXkTHzzEuBOk7f + V3 8ntAvTGMhCfrlfRt + playbook_juridico.md (Mac Mini) + playbooks/olivia.md · 2026-03-16
+</div>
+
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav a');
+  window.addEventListener('scroll', () => {
+    let current = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 80) current = s.id; });
+    navLinks.forEach(a => { a.classList.toggle('active', a.getAttribute('href') === '#' + current); });
+  });
+</script>
+</body>
+</html>

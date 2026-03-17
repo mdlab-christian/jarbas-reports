@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reporter — Smart Blocks (OlivIA)</title>
+<style>
+  :root { --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a; --text: #e2e8f0; --muted: #8892a4; --primary: #6366f1; --green: #22c55e; --yellow: #eab308; --red: #ef4444; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 15px; line-height: 1.7; padding: 2rem; }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 2rem; color: var(--primary); border-bottom: 2px solid var(--primary); padding-bottom: .5rem; margin-bottom: 1.5rem; }
+  h2 { font-size: 1.4rem; color: #a5b4fc; margin: 2rem 0 1rem; border-left: 4px solid var(--primary); padding-left: .75rem; }
+  h3 { font-size: 1.1rem; color: #c7d2fe; margin: 1.5rem 0 .5rem; }
+  h4 { font-size: 1rem; color: var(--muted); margin: 1rem 0 .5rem; }
+  p { margin: .5rem 0; }
+  blockquote { border-left: 3px solid var(--primary); padding: .5rem 1rem; background: #1e2235; margin: 1rem 0; color: var(--muted); font-style: italic; border-radius: 0 4px 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 13px; }
+  td, th { border: 1px solid var(--border); padding: .5rem .75rem; text-align: left; }
+  tr:first-child td { background: #1e2235; font-weight: 600; color: var(--primary); }
+  tr:nth-child(even) td { background: #15182280; }
+  code { background: #1e2235; color: #a5f3fc; padding: .1em .4em; border-radius: 4px; font-size: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+  pre { background: #12151f; border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; overflow-x: auto; margin: 1rem 0; }
+  pre code { background: none; padding: 0; color: #e2e8f0; font-size: 13px; }
+  li { margin: .3rem 0 .3rem 1.5rem; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  strong { color: #f8fafc; }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .meta { color: var(--muted); font-size: 13px; margin-bottom: 2rem; }
+  .badge-ok { color: var(--green); }
+  .badge-warn { color: var(--yellow); }
+  .badge-err { color: var(--red); }
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Reporter — Módulo Smart Blocks (OlivIA)</h1>
+<blockquote>Gerado por JANA 🦊 em 2026-03-17 | Conversa: [JN] Smart blocks</blockquote>
+<br>
+<hr>
+<br>
+<h2>1. Contexto Geral</h2>
+<br>
+<p>O <strong>Smart Blocks</strong> é um dos modos de geração de petições da OlivIA.</p>
+<p>Ao contrário do Modo Express (Claude gera o texto do zero) e do Modo Manual (o usuário monta bloco a bloco manualmente), o Smart Blocks:</p>
+<br>
+<li>Permite ao usuário <strong>selecionar blocos de texto pré-cadastrados</strong> (tabela <code>olivia_blocos_texto</code>)</li>
+<li>Associa esses blocos a um <strong>processo jurídico, advogado e modelo de petição</strong></li>
+<li>Dispara um <strong>workflow n8n assíncrono</strong> que monta o documento final no Google Docs via JARBAS (Google Apps Script)</li>
+<li>Retorna o link do Google Doc pronto para o advogado revisar/baixar</li>
+<br>
+<p>O módulo foi desenvolvido ao longo de múltiplas sessões de 16–17/03/2026 e está <strong>funcional em dev</strong>, com integração completa ao workflow n8n.</p>
+<br>
+<hr>
+<br>
+<h2>2. Workflows N8n Envolvidos</h2>
+<br>
+<h3>Workflow Principal: <code>final-olivia-smartblocks</code></h3>
+<table>
+<tr><td>Campo</td><td>Valor</td></tr>
+</table>
+<p>|---|---|</p>
+<table>
+<tr><td><strong>ID</strong></td><td><code>hyGajjic2kZBVGvW</code></td></tr>
+<tr><td><strong>Nome</strong></td><td><code>final-olivia-smartblocks</code></td></tr>
+<tr><td><strong>Status</strong></td><td>✅ Ativo</td></tr>
+<tr><td><strong>Endpoint</strong></td><td><code>POST {N8N_WEBHOOK_URL}/olivia/gerar-manual</code></td></tr>
+<tr><td><strong>Autenticação</strong></td><td>Header <code>mdflow: MdL1501@</code></td></tr>
+<tr><td><strong>Modo</strong></td><td>Assíncrono — responde 202 imediatamente, processa em background</td></tr>
+</table>
+<br>
+<h4>Nós do Workflow:</h4>
+<br>
+<table>
+<tr><td>Nó</td><td>ID interno</td><td>Tipo</td><td>Função</td></tr>
+</table>
+<p>|---|---|---|---|</p>
+<table>
+<tr><td>WH-SmartBlocks</td><td><code>webhook</code></td><td>Webhook</td><td>Recebe POST do frontend</td></tr>
+<tr><td>A1-Validate</td><td><code>validate</code></td><td>Code</td><td>Valida campos obrigatórios: <code>request_id</code>, <code>organizacao_id</code>, <code>actor_user_id</code>, <code>blocos_ids</code></td></tr>
+<tr><td>A1b-CriarHistorico</td><td><code>a1b-criar-historico</code></td><td>Code</td><td>Cria (ou reutiliza) registro em <code>olivia_historico</code> com <code>status=PROCESSANDO</code></td></tr>
+<tr><td>A1c-MergeHistorico</td><td><code>a1c-merge-historico</code></td><td>Code</td><td>Merge do <code>historico_id</code> no payload validado</td></tr>
+<tr><td>A-Respond202</td><td><code>respond202</code></td><td>RespondToWebhook</td><td>Responde 202 imediatamente ao frontend (não bloqueia)</td></tr>
+<tr><td>B1-BuscarProcesso</td><td><code>b1-processo</code></td><td>Code</td><td>Busca dados do processo se <code>processo_id</code> presente</td></tr>
+<tr><td>B1b-BuscarAdvogado</td><td><code>b1b-advogado</code></td><td>HTTP Request</td><td>Busca advogado no Supabase (<code>/rest/v1/advogados</code>)</td></tr>
+<tr><td>B1c-BuscarCliente</td><td><code>b1c-cliente</code></td><td>HTTP Request</td><td>Busca cliente no Supabase (<code>/rest/v1/clientes</code>)</td></tr>
+<tr><td>B1d-BuscarEmpresa</td><td><code>b1d-empresa</code></td><td>HTTP Request</td><td>Busca empresa no Supabase (<code>/rest/v1/empresas</code>)</td></tr>
+<tr><td>B1e-BuscarModelo</td><td><code>b1e-modelo</code></td><td>HTTP Request</td><td>Busca modelo no Supabase (<code>/rest/v1/olivia_modelos_peticao</code>)</td></tr>
+<tr><td>B2-BuscarBlocos</td><td><code>b2-blocos</code></td><td>HTTP Request</td><td>Busca blocos no Supabase (<code>/rest/v1/olivia_blocos_texto</code>)</td></tr>
+<tr><td>B2b-AgregaBlocos</td><td><code>b2b-agregador</code></td><td>Code</td><td>Agrega todos os blocos em um único item</td></tr>
+<tr><td>B3-BuscarJuris</td><td><code>b3-juris</code></td><td>Code</td><td>Busca jurisprudências — condicional (só se <code>jurisprudencias_ids</code> não vazio)</td></tr>
+<tr><td>B-MergeAll</td><td><code>b-merge-all</code></td><td>Merge</td><td>Une dados de B1, B2, B3</td></tr>
+<tr><td>C1-MontarPayloadGAS</td><td><code>c1-montar</code></td><td>Code</td><td>Monta payload para JARBAS: <code>titulo_documento</code>, <code>google_folder_id</code>, <code>peticao_html</code>, <code>modelo.google_doc_id</code></td></tr>
+<tr><td>C2-ChamarJARBAS</td><td><code>c2-gas</code></td><td>HTTP Request</td><td>POST para <code>https://jarbas.jarbas-mdlab.com/olivia/criar-doc</code> (Google Apps Script via JARBAS)</td></tr>
+<tr><td>C3-CheckGAS</td><td><code>c3-check</code></td><td>If</td><td>Verifica se JARBAS retornou sucesso</td></tr>
+<tr><td>D1-SalvarSucesso</td><td><code>d1-sucesso</code></td><td>HTTP Request</td><td>PATCH <code>olivia_historico</code> → <code>status=SUCESSO</code>, salva <code>google_doc_url</code></td></tr>
+<tr><td>D2-SalvarErroGAS</td><td><code>d2-erro</code></td><td>HTTP Request</td><td>PATCH <code>olivia_historico</code> → <code>status=ERRO</code> (falha no GAS)</td></tr>
+<tr><td>E-ErrorTrigger</td><td><code>err-trigger</code></td><td>ErrorTrigger</td><td>Captura erros globais não tratados</td></tr>
+<tr><td>E1-SalvarErroGlobal</td><td><code>err-handler</code></td><td>Code</td><td>PATCH <code>olivia_historico</code> → <code>status=ERRO</code> com detalhes do nó que falhou</td></tr>
+</table>
+<br>
+<hr>
+<br>
+<h2>3. Arquitetura e Lógica Implementada</h2>
+<br>
+<h3>Fluxo Completo End-to-End</h3>
+<br>
+<pre><code>
+Usuário (Browser) → Frontend React → n8n Webhook → JARBAS (GAS) → Google Docs
+                                           ↓
+                                    olivia_historico (Supabase)
+                                           ↑
+                              Frontend polling (3s) → exibe link
+</code></pre>
+<br>
+<h3>Detalhamento do Fluxo Frontend</h3>
+<br>
+<p>1. <strong>Step 1 — Identificação</strong> (<code>SmartBlocksStep1Identificacao</code>)</p>
+<p>   - Seleção de processo (busca por CNJ ou nome do cliente)</p>
+<p>   - Seleção de tipo de petição (<code>olivia_tipos_peticao</code>)</p>
+<p>   - Seleção de modelo (<code>olivia_modelos_grupo</code>, filtrado por tipo + categoria empresa)</p>
+<p>   - Seleção de versão (<code>olivia_modelos_peticao</code> publicadas do grupo selecionado)</p>
+<p>   - Seleção de advogado responsável</p>
+<br>
+<p>2. <strong>Step 2 — Seleção de Blocos</strong> (<code>SmartBlocksStep2Blocos</code> via <code>ManualStep2Conteudo</code>)</p>
+<p>   - Exibe blocos de texto do banco agrupados por tag</p>
+<p>   - Checkbox por bloco (sem drag-and-drop — spec §32)</p>
+<p>   - Preview inline via Sheet lateral</p>
+<p>   - Seleção de jurisprudências (opcional)</p>
+<p>   - Campo de instruções finais livres</p>
+<br>
+<p>3. <strong>Step 3 — Gerar</strong> (<code>SmartBlocksStep3Gerar</code>)</p>
+<p>   - Resumo do que será gerado</p>
+<p>   - Botão "Gerar Documento"</p>
+<p>   - Ao clicar:</p>
+<p>     - INSERT em <code>olivia_historico</code> com <code>status=PENDENTE</code> (constraint do banco)</p>
+<p>     - POST para n8n <code>olivia/gerar-manual</code></p>
+<p>     - n8n responde 202</p>
+<p>     - Polling a cada 3s em <code>olivia_historico</code> (máx 2min)</p>
+<p>     - Status <code>SUCESSO</code> → exibe link Google Doc</p>
+<p>     - Status <code>ERRO</code> → mensagem de erro + botão "Tentar novamente"</p>
+<br>
+<h3>Recovery Banner (D6)</h3>
+<li>Ao selecionar um processo, verifica se existe geração anterior com <code>status=SUCESSO</code> em <code>olivia_historico</code></li>
+<li>Se existir, exibe banner com data + link do doc anterior</li>
+<li>Botão "Retomar" → vai direto para Step 3 com o resultado anterior</li>
+<li>Botão "Ignorar" → descarta o banner</li>
+<br>
+<h3>Dirty State Guard (§12.4)</h3>
+<li>Se houver blocos selecionados e o usuário tentar sair antes de gerar, exibe <code>AlertDialog</code> de confirmação</li>
+<li><code>beforeunload</code> também acionado para fechar aba/navegar fora</li>
+<br>
+<hr>
+<br>
+<h2>4. Arquivos Criados / Modificados</h2>
+<br>
+<h3>Frontend (<code>~/beta-mdflow/src/</code>)</h3>
+<br>
+<table>
+<tr><td>Arquivo</td><td>Status</td><td>Descrição</td></tr>
+</table>
+<p>|---|---|---|</p>
+<table>
+<tr><td><code>pages/olivia/components/gerador/OliviaGeradorSmartBlocks.tsx</code></td><td>✅ Modificado</td><td>Orquestrador principal — wizard de 3 steps, recovery D6, dirty state, integração n8n via <code>callWebhook</code></td></tr>
+<tr><td><code>pages/olivia/components/gerador/smart-blocks/SmartBlocksStep1Identificacao.tsx</code></td><td>✅ Modificado</td><td>Step 1 — seleção de processo, tipo, modelo, versão, advogado; painel de informações do processo</td></tr>
+<tr><td><code>pages/olivia/components/gerador/smart-blocks/SmartBlocksStep2Blocos.tsx</code></td><td>✅ Modificado</td><td>Step 2 — seleção de blocos (checkbox, sem drag), preview sheet, jurisprudências</td></tr>
+<tr><td><code>hooks/olivia/useSmartBlocks.ts</code></td><td>⚠️ Legado</td><td>Hook antigo que chama a edge function <code>olivia-smart-blocks</code> — <strong>não mais usado</strong> pelo wizard principal (substituído pelo <code>callWebhook</code> direto)</td></tr>
+<tr><td><code>lib/webhook.ts</code></td><td>✅ Usado</td><td>Helper <code>callWebhook</code> — POST para n8n com timeout, trata 202 assíncrono</td></tr>
+</table>
+<br>
+<h3>Edge Function Supabase (<code>~/beta-mdflow/supabase/functions/</code>)</h3>
+<br>
+<table>
+<tr><td>Arquivo</td><td>Status</td><td>Descrição</td></tr>
+</table>
+<p>|---|---|---|</p>
+<table>
+<tr><td><code>olivia-smart-blocks/index.ts</code></td><td>⚠️ Legado/Obsoleto</td><td>Edge function que busca blocos e substitui placeholders localmente — <strong>NÃO conectada ao n8n</strong>. Não é mais chamada pelo fluxo principal. Pode ser removida ou arquivada.</td></tr>
+</table>
+<br>
+<h3>Conhecimento Compartilhado (<code>~/jarbas-network/shared/</code>)</h3>
+<br>
+<table>
+<tr><td>Arquivo</td><td>Status</td><td>Descrição</td></tr>
+</table>
+<p>|---|---|---|</p>
+<table>
+<tr><td><code>workflow-ids.md</code></td><td>✅ Criado</td><td>Mapa de IDs de workflows n8n — Smart Blocks: <code>hyGajjic2kZBVGvW</code></td></tr>
+</table>
+<br>
+<h3>Auth Context (<code>~/beta-mdflow/src/contexts/</code>)</h3>
+<br>
+<table>
+<tr><td>Arquivo</td><td>Status</td><td>Descrição</td></tr>
+</table>
+<p>|---|---|---|</p>
+<table>
+<tr><td><code>auth_context.tsx</code></td><td>✅ Corrigido</td><td><strong>Bug de redirect pós-login</strong> — <code>flushSync</code> adicionado para forçar commit do estado antes do <code>navigate('/homepage')</code>. Corrige loop de redirect <code>ProtectedRoute → /login?redirect=/homepage</code></td></tr>
+</table>
+<br>
+<hr>
+<br>
+<h2>5. Estado Atual</h2>
+<br>
+<h3>✅ Funcional</h3>
+<li>Wizard completo: Step 1, Step 2, Step 3</li>
+<li>Integração com n8n: <code>callWebhook('olivia/gerar-manual')</code> funcionando</li>
+<li>Workflow n8n <code>hyGajjic2kZBVGvW</code> ativo no Railway</li>
+<li>Polling de <code>olivia_historico</code> para acompanhar resultado</li>
+<li>Recovery Banner D6 (geração anterior)</li>
+<li>Dirty state guard (§12.4)</li>
+<li>Bug de redirect pós-login corrigido via <code>flushSync</code></li>
+<li>Step 1: painel de dados do processo enriquecido (campos de restrição para empresas)</li>
+<li><code>workflow-ids.md</code> criado em <code>jarbas-network/shared/</code></li>
+<br>
+<h3>⏳ Pendente / Não testado</h3>
+<li><strong>Teste E2E completo</strong> do fluxo (o browser automatizado não conseguiu abrir dropdowns Radix em headless — não foi possível testar o fluxo completo via automação)</li>
+<li>Verificar se o JARBAS endpoint <code>https://jarbas.jarbas-mdlab.com/olivia/criar-doc</code> está respondendo corretamente</li>
+<li>Confirmar que o <code>google_doc_url</code> é salvo corretamente no <code>olivia_historico</code> pelo n8n no step D1</li>
+<li>Testar comportamento com <code>processo_id</code> ausente (petição avulsa)</li>
+<br>
+<h3>⚠️ Bugs Conhecidos / Riscos</h3>
+<li><strong>Edge function <code>olivia-smart-blocks</code> obsoleta</strong> — ainda deployada no Supabase, pode confundir. Deve ser removida ou documentada como legado.</li>
+<li><strong><code>useSmartBlocks</code> hook não usado</strong> — pode ser removido para evitar confusão</li>
+<li><strong><code>OliviaGeradorSmartBlocks.tsx.bak</code></strong> existe no repo — arquivo de backup que deve ser removido</li>
+<li><strong>Polling sem Realtime</strong> — o polling é por intervalo (3s). Se o Supabase Realtime estiver disponível, seria mais eficiente usar subscription em <code>olivia_historico</code></li>
+<li><strong>Timeout de 2min</strong> no polling pode ser curto se o JARBAS/GAS demorar mais</li>
+<br>
+<hr>
+<br>
+<h2>6. Decisões Arquiteturais</h2>
+<br>
+<table>
+<tr><td>Decisão</td><td>Escolha</td><td>Motivo</td></tr>
+</table>
+<p>|---|---|---|</p>
+<table>
+<tr><td>Fluxo de geração</td><td>Assíncrono via n8n (202 + polling)</td><td>Evita timeout HTTP; geração pode demorar >60s</td></tr>
+<tr><td>Criação do historico_id</td><td>Frontend insere antes de chamar n8n</td><td>Permite polling imediato; n8n usa o ID recebido</td></tr>
+<tr><td>Substituição de placeholders</td><td>n8n (não edge function)</td><td>Workflow tem acesso a todos os dados do processo via joins Supabase</td></tr>
+<tr><td>Step 2 sem drag</td><td><code>disableDrag=true</code> no <code>ManualStep2Conteudo</code></td><td>Spec §32 — Smart Blocks não tem reordenação</td></tr>
+<tr><td>Versão obrigatória no Step 1</td><td><code>versao_id</code> no state</td><td>Spec §32 — modelo versionado é requisito</td></tr>
+<tr><td>Recovery Banner</td><td>Query em <code>olivia_historico</code> por <code>processo_id</code></td><td>UX: evita re-gerar documento que já existe para o mesmo processo</td></tr>
+<tr><td><code>callWebhook</code> direto</td><td>Substituiu chamada ao JARBAS/GAS direto</td><td>n8n é o orquestrador central; JARBAS é chamado pelo n8n, não pelo frontend</td></tr>
+</table>
+<br>
+<hr>
+<br>
+<h2>7. Integrações com Outros Sistemas</h2>
+<br>
+<h3>Supabase (banco MdFlow — <code>qdivfairxhdihaqqypgb</code>)</h3>
+<br>
+<table>
+<tr><td>Tabela</td><td>Operação</td><td>Quem faz</td></tr>
+</table>
+<p>|---|---|---|</p>
+<table>
+<tr><td><code>olivia_historico</code></td><td>INSERT (status=PENDENTE)</td><td>Frontend (Step 3)</td></tr>
+<tr><td><code>olivia_historico</code></td><td>PATCH (status=SUCESSO/ERRO + google_doc_url)</td><td>n8n (D1/D2/E1)</td></tr>
+<tr><td><code>olivia_historico</code></td><td>SELECT (polling)</td><td>Frontend (Step 3)</td></tr>
+<tr><td><code>olivia_blocos_texto</code></td><td>SELECT (por IDs selecionados)</td><td>n8n (B2)</td></tr>
+<tr><td><code>olivia_tipos_peticao</code></td><td>SELECT</td><td>Frontend (Step 1)</td></tr>
+<tr><td><code>olivia_modelos_grupo</code></td><td>SELECT (filtrado por tipo + categoria)</td><td>Frontend (Step 1)</td></tr>
+<tr><td><code>olivia_modelos_peticao</code></td><td>SELECT (versões publicadas do grupo)</td><td>Frontend (Step 1)</td></tr>
+<tr><td><code>processos</code></td><td>SELECT (busca + dados do processo)</td><td>Frontend (Step 1) + n8n (B1)</td></tr>
+<tr><td><code>advogados</code></td><td>SELECT</td><td>Frontend (Step 1) + n8n (B1b)</td></tr>
+<tr><td><code>clientes</code></td><td>SELECT</td><td>n8n (B1c)</td></tr>
+<tr><td><code>empresas</code></td><td>SELECT</td><td>n8n (B1d)</td></tr>
+</table>
+<br>
+<h3>n8n (Railway — <code>https://primary-production-e209.up.railway.app</code>)</h3>
+<li>Endpoint: <code>POST /webhook/olivia/gerar-manual</code></li>
+<li>Autenticação: Header <code>mdflow: MdL1501@</code></li>
+<li>Workflow ID: <code>hyGajjic2kZBVGvW</code></li>
+<br>
+<h3>JARBAS (Google Apps Script via domínio próprio)</h3>
+<li>URL: <code>https://jarbas.jarbas-mdlab.com/olivia/criar-doc</code></li>
+<li>Chamado pelo n8n (nó C2-ChamarJARBAS)</li>
+<li>Responsável por: criar Google Doc na pasta configurada, copiar template, substituir conteúdo, retornar URL</li>
+<br>
+<h3>Google Drive</h3>
+<li>Pasta destino dos documentos: <code>1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ</code></li>
+<li>Hardcoded no frontend como <code>GOOGLE_FOLDER_ID</code></li>
+<br>
+<hr>
+<br>
+<h2>8. Pontos de Atenção / Riscos / Débitos Técnicos</h2>
+<br>
+<h3>🔴 P1 — Ação Necessária</h3>
+<p>1. <strong>Testar fluxo E2E</strong> em dev — confirmar que n8n chama JARBAS e google_doc_url é salvo</p>
+<p>2. <strong>Remover <code>OliviaGeradorSmartBlocks.tsx.bak</code></strong> do repo</p>
+<p>3. <strong>Edge function <code>olivia-smart-blocks</code></strong> — decidir: remover deploy ou manter como fallback documentado</p>
+<br>
+<h3>🟡 P2 — Melhoria Recomendada</h3>
+<p>4. <strong>Substituir polling por Realtime</strong> — <code>supabase.channel().on('postgres_changes')</code> em <code>olivia_historico</code></p>
+<p>5. <strong><code>useSmartBlocks</code> hook</strong> — remover ou adaptar para uso como utilitário de preview (não de geração)</p>
+<p>6. <strong><code>GOOGLE_FOLDER_ID</code> hardcoded</strong> — mover para config por organização (multi-tenant)</p>
+<p>7. <strong>Timeout do polling</strong> — aumentar de 2min para 3-4min para cobrir GAS lento</p>
+<br>
+<h3>🟢 P3 — Nice to Have</h3>
+<p>8. <strong>Indicador de progresso</strong> durante polling — atualmente só "Gerando..." sem feedback granular</p>
+<p>9. <strong>Modo avulso testado</strong> — fluxo sem processo selecionado (campo opcional) não foi validado</p>
+<p>10. <strong>Testes automatizados</strong> — os dropdowns Radix/Shadcn não abrem em Playwright headless — considerar testes com <code>@playwright/test</code> em modo headed ou usar <code>page.evaluate</code> para selecionar valores</p>
+<br>
+<hr>
+<br>
+<h2>9. Commits Relevantes (Histórico)</h2>
+<br>
+<table>
+<tr><td>Hash</td><td>Mensagem</td><td>Impacto</td></tr>
+</table>
+<p>|---|---|---|</p>
+<table>
+<tr><td><code>29f94d95</code></td><td>fix: P1 polling bug + Step2 bugs de tipo</td><td>Substituiu fluxo JARBAS direto por <code>callWebhook</code> n8n; corrigiu tipos em Step2</td></tr>
+<tr><td><code>f7d4cf31</code></td><td>fix: polling correto com historico_id no webhook</td><td>historico_id passado corretamente no payload n8n</td></tr>
+<tr><td><code>d3a8e1ec</code></td><td>fix: status inicial PENDENTE</td><td>Constraint do banco requeria PENDENTE, não PROCESSANDO</td></tr>
+<tr><td><code>d9d7ad10</code></td><td>fix: modelo_id→olivia_modelos_grupo, versao_id nullable</td><td>FK correta para grupo de modelos</td></tr>
+<tr><td><code>fcdaba1e</code></td><td>merge: resolve conflict OliviaGeradorSmartBlocks</td><td>Resolução de conflito de merge</td></tr>
+<tr><td><code>973c6645</code></td><td>chore: add workflow-ids.md</td><td>Registro do ID do workflow n8n</td></tr>
+</table>
+<br>
+<hr>
+<br>
+<h2>10. Variáveis de Ambiente Relevantes</h2>
+<br>
+<pre><code>
+VITE_N8N_WEBHOOK_URL=https://primary-production-e209.up.railway.app/webhook
+VITE_N8N_WEBHOOK_SECRET=MdL1501@
+</code></pre>
+<br>
+<hr>
+<br>
+<p>*Reporter gerado por JANA 🦊 — 2026-03-17 | Para unificação na análise completa da OlivIA*</p>
+<br>
+</div>
+</body>
+</html>

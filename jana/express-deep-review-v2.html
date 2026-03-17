@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Express — Deep Review v2 | JANA 🦊</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3348;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --primary: #6366f1;
+    --success: #22c55e;
+    --warning: #f59e0b;
+    --danger: #ef4444;
+    --info: #38bdf8;
+    --purple: #a78bfa;
+    --accent: #f472b6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  a { color: var(--primary); }
+
+  .hero { background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 60%); padding: 48px 32px 36px; border-bottom: 1px solid var(--border); }
+  .hero h1 { font-size: 28px; font-weight: 700; background: linear-gradient(to right, #818cf8, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .hero .subtitle { margin-top: 6px; color: var(--accent); font-size: 13px; font-weight: 600; }
+  .hero .meta { margin-top: 10px; color: var(--muted); font-size: 13px; display: flex; gap: 24px; flex-wrap: wrap; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Cards de status */
+  .status-bar { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 40px; }
+  .s-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .s-card .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px; }
+  .s-card .val { font-size: 22px; font-weight: 700; }
+  .s-card .sub { font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .c-ok { color: #22c55e; } .c-warn { color: #f59e0b; } .c-err { color: #ef4444; } .c-info { color: #38bdf8; } .c-accent { color: #f472b6; }
+
+  .section { margin-bottom: 44px; }
+  .section-title { font-size: 17px; font-weight: 700; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+  /* Architecture flow */
+  .flow { display: flex; align-items: stretch; gap: 0; flex-wrap: wrap; margin: 20px 0; }
+  .flow-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; min-width: 120px; text-align: center; }
+  .flow-node .fn-title { font-size: 12px; font-weight: 700; }
+  .flow-node .fn-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .flow-node.new { border-color: var(--accent); background: #2d1030; }
+  .flow-node.new .fn-title { color: var(--accent); }
+  .flow-node.changed { border-color: var(--warning); background: #1f1500; }
+  .flow-node.changed .fn-title { color: var(--warning); }
+  .flow-node.ok { border-color: var(--success); }
+  .flow-node.ok .fn-title { color: var(--success); }
+  .flow-arrow { display: flex; align-items: center; padding: 0 10px; color: var(--muted); font-size: 18px; }
+
+  /* Finding cards */
+  .finding { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .finding-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; }
+  .b-new { background: #4a0a3a; color: #f9a8d4; }
+  .b-changed { background: #78350f; color: #fcd34d; }
+  .b-ok { background: #14532d; color: #86efac; }
+  .b-info { background: #0c4a6e; color: #7dd3fc; }
+  .finding h3 { font-size: 15px; font-weight: 600; }
+  .finding p, .finding li { color: var(--muted); font-size: 13px; line-height: 1.7; }
+  .finding ul { padding-left: 20px; margin-top: 8px; }
+  .finding li { margin-bottom: 4px; }
+  .detail { background: var(--surface2); border-radius: 8px; padding: 14px; margin-top: 12px; font-size: 13px; }
+  .detail code { font-family: monospace; color: var(--purple); font-size: 12px; }
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-size: 12px; overflow-x: auto; color: #e2e8f0; font-family: 'JetBrains Mono', monospace; margin-top: 12px; white-space: pre-wrap; }
+
+  /* Plan steps */
+  .plan-steps { counter-reset: step; }
+  .plan-step { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 18px 18px 58px; margin-bottom: 12px; position: relative; }
+  .plan-step::before { counter-increment: step; content: counter(step); position: absolute; left: 16px; top: 16px; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: white; text-align: center; line-height: 28px; }
+  .plan-step.n8n::before { background: #7c3aed; }
+  .plan-step.fe::before { background: #0369a1; }
+  .plan-step.arch::before { background: #b45309; }
+  .plan-step.both::before { background: #be185d; }
+  .plan-step h3 { font-size: 14px; font-weight: 600; margin-bottom: 5px; }
+  .plan-step p { color: var(--muted); font-size: 13px; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin-left: 6px; }
+  .tag-fe { background: #1e3a5f; color: #93c5fd; }
+  .tag-n8n { background: #2d1b69; color: #c4b5fd; }
+  .tag-arch { background: #3d2b00; color: #fcd34d; }
+  .tag-new { background: #4a0a3a; color: #f9a8d4; }
+
+  /* Schema */
+  .schema-box { background: #0d1117; border: 1px solid var(--border); border-radius: 10px; padding: 16px; font-size: 12px; font-family: monospace; line-height: 1.7; overflow-x: auto; }
+  .sk { color: #79c0ff; } /* key */
+  .sv { color: #a5f3fc; } /* value string */
+  .sn { color: #f97316; } /* new */
+  .sc { color: #6b7280; } /* comment */
+
+  /* Timeline decision */
+  .decision-list { list-style: none; }
+  .decision-list li { display: flex; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .decision-list li:last-child { border-bottom: none; }
+  .d-icon { font-size: 20px; min-width: 28px; }
+  .d-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--accent); margin-bottom: 3px; }
+  .d-text { font-size: 13px; color: var(--muted); }
+  .d-text strong { color: var(--text); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: var(--surface2); color: var(--muted); text-align: left; padding: 10px 14px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+  td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+  .status-ok { color: var(--success); font-weight: 600; }
+  .status-warn { color: var(--warning); font-weight: 600; }
+  .status-err { color: var(--danger); font-weight: 600; }
+  .status-new { color: var(--accent); font-weight: 600; }
+
+  footer { text-align: center; padding: 32px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>⚡ Express — Deep Review v2</h1>
+  <div class="subtitle">Decisões recebidas → Arquitetura atualizada</div>
+  <div class="meta">
+    <span>🦊 JANA | MacBook Air M4</span>
+    <span>📅 2026-03-16</span>
+    <span>✅ D1, D2, D3 definidas</span>
+    <span>📋 Modo /plan ativo</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- Decisões recebidas -->
+  <div class="section">
+    <div class="section-title">✅ Decisões Definidas pelo Christian</div>
+    <ul class="decision-list">
+      <li>
+        <div class="d-icon">🔧</div>
+        <div>
+          <div class="d-label">D1 — Workflow correto</div>
+          <div class="d-text"><strong>8ntAvTGMhCfrlfRt</strong> é o ANALISE-V3 ativo e correto. GPbWwsoeBfBfi7oL (inativo) pode ser descartado.</div>
+        </div>
+      </li>
+      <li>
+        <div class="d-icon">🏗️</div>
+        <div>
+          <div class="d-label">D2 — Estrutura: Opção B confirmada</div>
+          <div class="d-text"><strong>Injetar gerador Smart Blocks dentro da ANALISE-V3.</strong> Quando a análise de provas roda, ela já gera uma versão prévia da petição. O usuário visualiza como ficaria a petição + responde perguntas com mais contexto. A petição usa o modelo como esqueleto + pode criar novas tags além das engessadas no modelo.</div>
+        </div>
+      </li>
+      <li>
+        <div class="d-icon">⚡</div>
+        <div>
+          <div class="d-label">D3 — Trigger da análise</div>
+          <div class="d-text"><strong>Ao avançar do Step 1 para o Step 2</strong>, disparar a ANALISE-V3 automaticamente com uma tela de loading. O usuário não precisa fazer upload manual — a análise roda sempre.</div>
+        </div>
+      </li>
+      <li>
+        <div class="d-icon">📄</div>
+        <div>
+          <div class="d-label">Regra Express — Evolução Smart Blocks</div>
+          <div class="d-text">
+            Express = Smart Blocks melhorado. O modelo de petição é sempre o <strong>esqueleto base</strong>.<br>
+            Diferencial: além das tags fixas do modelo, o agente pode <strong>criar novas tags</strong> e posicioná-las onde quiser no documento.<br>
+            O agente responde em <strong>JSON por bloco de texto</strong>. O Google Apps Script substitui tag→bloco.<br>
+            <strong>Jurisprudências: apenas do banco de dados do escritório</strong> — sem externas.
+          </div>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="status-bar">
+    <div class="s-card">
+      <div class="label">Mudanças na ANALISE-V3</div>
+      <div class="val c-accent">3</div>
+      <div class="sub">E2, F3, novo nó E5-GerarPeticaoBase</div>
+    </div>
+    <div class="s-card">
+      <div class="label">Mudanças no Express (n8n)</div>
+      <div class="val c-warn">2</div>
+      <div class="sub">B3-MontarPrompt, B9-AppsScript</div>
+    </div>
+    <div class="s-card">
+      <div class="label">Mudanças no Frontend</div>
+      <div class="val c-info">3</div>
+      <div class="sub">Step1→Step2 loading, StepTriagem, StepConclusao</div>
+    </div>
+    <div class="s-card">
+      <div class="label">Schema JSON novo</div>
+      <div class="val c-ok">1</div>
+      <div class="sub">peticao_base no resultado da análise</div>
+    </div>
+    <div class="s-card">
+      <div class="label">Risco</div>
+      <div class="val" style="color:var(--warning)">Médio</div>
+      <div class="sub">ANALISE-V3 mais pesada (análise + geração)</div>
+    </div>
+  </div>
+
+  <!-- Nova arquitetura -->
+  <div class="section">
+    <div class="section-title">🏗️ Nova Arquitetura — Express v2</div>
+
+    <p style="color:var(--muted); font-size:13px; margin-bottom:16px">Fluxo completo do usuário após as mudanças:</p>
+
+    <div class="flow">
+      <div class="flow-node ok">
+        <div class="fn-title">Step 1</div>
+        <div class="fn-sub">Identificação<br>processo + modelo</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node new">
+        <div class="fn-title">Loading ⚡</div>
+        <div class="fn-sub">ANALISE-V3<br>dispara automático</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node new">
+        <div class="fn-title">Step 2</div>
+        <div class="fn-sub">Triagem + Preview<br>petição base visível</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok">
+        <div class="fn-title">Step 3</div>
+        <div class="fn-sub">Estrutura/Outline</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok">
+        <div class="fn-title">Step 4</div>
+        <div class="fn-sub">Revisão final</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok">
+        <div class="fn-title">Step 5</div>
+        <div class="fn-sub">Conclusão</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node changed">
+        <div class="fn-title">Express Redator</div>
+        <div class="fn-sub">JSON por bloco<br>→ Apps Script</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok">
+        <div class="fn-title">Google Docs</div>
+        <div class="fn-sub">formatação jurídica</div>
+      </div>
+    </div>
+
+    <p style="color:var(--muted); font-size:12px; margin-top:12px">🩷 <strong>rosa</strong> = novo &nbsp;|&nbsp; 🟡 <strong>amarelo</strong> = modificado &nbsp;|&nbsp; 🟢 <strong>verde</strong> = já funciona</p>
+  </div>
+
+  <!-- O que muda na ANALISE-V3 -->
+  <div class="section">
+    <div class="section-title">🔬 Mudanças na OLIVIA-ANALISE-V3 (8ntAvTGMhCfrlfRt)</div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-new">🆕 Novo nó</span>
+        <h3>E5-GerarPeticaoBase — Gera petição prévia dentro da análise</h3>
+      </div>
+      <p>Após E4-ParseResultado, inserir um novo nó que usa o resultado da análise + o modelo de petição para gerar uma <strong>versão base da petição</strong> já com os blocos das tags resolvidas substituídos.</p>
+      <div class="detail">
+        <p><strong>Lógica:</strong></p>
+        <ul style="margin-top:8px; padding-left:18px; color: var(--text)">
+          <li>Busca o <code>conteudo_template</code> do modelo ativo (como o Express faz em B2)</li>
+          <li>Para cada tag com confiança ≥ 0.7: substitui a tag pelo conteúdo do bloco escolhido</li>
+          <li>Tags com confiança &lt; 0.7: mantém como placeholder <code>{{TAG_NOME}}</code> para o usuário preencher</li>
+          <li>Pode criar novos blocos de texto para lacunas não cobertas pelo modelo e posicioná-los</li>
+          <li>Salva em <code>olivia_analises.resultado.peticao_base</code> (campo novo no JSONB)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-changed">✏️ Modificado</span>
+        <h3>E2-PrepararInput-Claude — Adicionar instrução de geração de petição base</h3>
+      </div>
+      <p>O system prompt da OlivIA precisa receber instrução adicional para além da análise probatória, também retornar a estrutura de petição no JSON de saída.</p>
+      <div class="detail">
+        <p><strong>Adicionar ao schema de saída:</strong></p>
+        <pre><span class="sc">// Campo novo no JSON de retorno da OlivIA:</span>
+"peticao_base": {
+  "blocos_resolvidos": [
+    {
+      "tag_id": "uuid",
+      "tag_nome": "nome da tag",
+      "posicao": 1,            <span class="sc">// ordem no documento</span>
+      "bloco_id": "uuid",      <span class="sc">// null se tag nova criada pelo agente</span>
+      "titulo_secao": "string",
+      "conteudo_html": "HTML do bloco de texto substituído",
+      "tag_nova": false,       <span class="sc">// true = criado pelo agente (não existe no banco)</span>
+      "justificativa": "por que este conteúdo aqui"
+    }
+  ],
+  "tags_novas_criadas": [
+    {
+      "tag_nome": "nome da tag nova",
+      "posicao_entre": ["tag_id_anterior", "tag_id_posterior"],
+      "conteudo_html": "conteúdo gerado pelo agente"
+    }
+  ],
+  "instrucao_gas": "instrução para o Google Apps Script de como montar o documento"
+}</pre>
+        <p style="margin-top:10px"><strong>Regra de jurisprudência:</strong> OlivIA só pode referenciar jurisprudências presentes no <code>&lt;jurisprudencia_rag&gt;</code> do prompt — que vem do nosso banco via RAG. Sem invenção.</p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-changed">✏️ Modificado</span>
+        <h3>F3-UPDATE-100pct — Salvar peticao_base no resultado</h3>
+      </div>
+      <p>O PATCH final em <code>olivia_analises</code> precisa incluir o campo <code>peticao_base</code> no JSONB <code>resultado</code>, para que o Step 2 do frontend possa renderizar o preview da petição.</p>
+    </div>
+  </div>
+
+  <!-- O que muda no Express n8n -->
+  <div class="section">
+    <div class="section-title">⚙️ Mudanças no prod-olivia-express (8yeCpY5EaEP5XQ9e)</div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-changed">✏️ Modificado</span>
+        <h3>B3-MontarPrompt — Injetar peticao_base da análise + restringir jurisprudência</h3>
+      </div>
+      <p>Quando <code>analise_resultado.peticao_base</code> existe no payload, injetar no prompt do redator como contexto de partida. O redator não começa do zero — ele parte da petição base e enriquece.</p>
+      <div class="detail">
+        <p><strong>Adicionar no user prompt:</strong></p>
+        <pre><span class="sc">// Se analise_resultado?.peticao_base existe:</span>
+&lt;peticao_base_analise&gt;
+Esta é a versão preliminar gerada na análise de provas.
+Use como ponto de partida. Você pode enriquecer, reorganizar e adicionar blocos novos.
+${JSON.stringify(analise_resultado.peticao_base)}
+&lt;/peticao_base_analise&gt;
+
+<span class="sc">// Regra de jurisprudência — OBRIGATÓRIA:</span>
+&lt;regra_jurisprudencia&gt;
+SOMENTE use jurisprudências presentes em &lt;jurisprudencias_fornecidas&gt; e &lt;conhecimento_institucional&gt;.
+NÃO invente ou cite jurisprudências externas ao banco fornecido.
+&lt;/regra_jurisprudencia&gt;</pre>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-changed">✏️ Modificado</span>
+        <h3>B4-ChamarRedator — Resposta em JSON por bloco + novas tags</h3>
+      </div>
+      <p>O redator Express agora retorna JSON estruturado por bloco (não seções genéricas). O sistema_prompt precisa instruir para retornar no formato de substituição compatível com o Apps Script.</p>
+      <div class="detail">
+        <pre><span class="sc">// Output esperado do redator (modificar system prompt do agent olivia_peticao):</span>
+{
+  "blocos": [
+    {
+      "tag_id": "uuid | null",      <span class="sc">// null se tag nova</span>
+      "tag_nova": false,
+      "tag_nome": "string",
+      "posicao": 1,
+      "titulo_secao": "string",
+      "conteudo_html": "&lt;p&gt;...&lt;/p&gt;" <span class="sc">// HTML com formatação jurídica</span>
+    }
+  ],
+  "titulo_peticao": "string",
+  "observacoes_finais": "string"
+}</pre>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-changed">✏️ Modificado</span>
+        <h3>B9-AppsScript — Substituição tag→bloco HTML no Google Docs</h3>
+      </div>
+      <p>O Apps Script precisa receber os blocos em ordem e montar o documento substituindo cada placeholder no template. O conteúdo em HTML deve ser convertido para formatação nativa do Google Docs.</p>
+    </div>
+  </div>
+
+  <!-- O que muda no Frontend -->
+  <div class="section">
+    <div class="section-title">🖥️ Mudanças no Frontend</div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-new">🆕 Novo</span>
+        <h3>Tela de loading Step1 → Step2</h3>
+      </div>
+      <p>Ao clicar "Avançar" no Step 1, disparar a ANALISE-V3 automaticamente e exibir loading com progresso em tempo real (polling em <code>olivia_analises</code>). Só avança para o Step 2 quando análise chega a 100%.</p>
+      <div class="detail">
+        <p><strong>Estados do loading:</strong> <code>Iniciando análise...</code> → <code>Carregando contexto...</code> → <code>Analisando documentos...</code> → <code>Gerando petição base...</code> → <code>Pronto ✓</code></p>
+      </div>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-changed">✏️ Modificado</span>
+        <h3>StepTriagem — Preview da petição base + triagem contextual</h3>
+      </div>
+      <p>O Step 2 agora exibe lado a lado:</p>
+      <ul>
+        <li><strong>Esquerda:</strong> preview da petição base gerada na análise (somente leitura)</li>
+        <li><strong>Direita:</strong> perguntas de triagem apenas para as tags com confiança &lt; 0.7</li>
+      </ul>
+      <p style="margin-top:8px">Tags com confiança ≥ 0.7 já estão pré-preenchidas e aparecerão apenas para revisão rápida.</p>
+    </div>
+
+    <div class="finding">
+      <div class="finding-header">
+        <span class="badge b-changed">✏️ Modificado</span>
+        <h3>StepConclusao — Remover Google Drive do botão "Gerar 2x"</h3>
+      </div>
+      <p>O botão de segunda geração não deve criar um novo Google Doc. Apenas reger o texto e atualizar o Doc existente (ou gerar novo com sufixo v2). A ser detalhado quando Christian especificar.</p>
+    </div>
+  </div>
+
+  <!-- Plano de execução -->
+  <div class="section">
+    <div class="section-title">📋 Plano de Execução</div>
+    <div class="plan-steps">
+
+      <div class="plan-step n8n">
+        <h3>ANALISE-V3 — Modificar E2 + adicionar E5 + atualizar F3 <span class="tag tag-n8n">N8N</span> <span class="tag tag-new">PROMPT CC →</span></h3>
+        <p>Prompt para a conversa do workflow de análise IA (gerado abaixo). OlivIA retorna <code>peticao_base</code> no JSON, com blocos resolvidos e tags novas criadas. F3 salva tudo em <code>olivia_analises.resultado</code>.</p>
+      </div>
+
+      <div class="plan-step fe">
+        <h3>Frontend — Loading automático Step1→Step2 <span class="tag tag-fe">Frontend</span></h3>
+        <p>Hook <code>useWizardTabs</code>: ao chamar <code>nextStep()</code> no Step 1, disparar análise e exibir loading com polling. Só libera o Step 2 quando <code>status === CONCLUIDA</code>. Salvar <code>analise_id</code> + <code>analise_resultado</code> no wizardState.</p>
+      </div>
+
+      <div class="plan-step fe">
+        <h3>Frontend — StepTriagem com preview da petição base <span class="tag tag-fe">Frontend</span></h3>
+        <p>Usar <code>analise_resultado.peticao_base.blocos_resolvidos</code> para renderizar preview à esquerda. Usar <code>perguntas_triagem</code> (confiança &lt; 0.7) para formulário à direita. Pré-preencher <code>respostas</code> com tags de confiança alta.</p>
+      </div>
+
+      <div class="plan-step n8n">
+        <h3>Express n8n — B3 + B4 + system prompt do agent <span class="tag tag-n8n">N8N</span></h3>
+        <p>B3 injeta <code>peticao_base</code> e regra de jurisprudência. B4 usa novo format JSON por bloco. Atualizar system prompt do agent <code>olivia_peticao</code> no Supabase (<code>ai_agents_config</code>) para instruir output por bloco HTML.</p>
+      </div>
+
+      <div class="plan-step both">
+        <h3>Apps Script — Conversão HTML → Google Docs com formatação jurídica <span class="tag tag-n8n">N8N</span></h3>
+        <p>B9 recebe JSON de blocos HTML em ordem. Apps Script monta o documento aplicando formatação (h1/h2 = títulos em negrito, p = parágrafos com espaçamento jurídico, b/strong = negrito). Garantir que a estrutura Smart Blocks seja preservada visualmente.</p>
+      </div>
+
+      <div class="plan-step fe">
+        <h3>StepConclusao — Ajuste botão 2x <span class="tag tag-fe">Frontend</span></h3>
+        <p>Remover Google Drive do fluxo de segunda geração. Detalhar comportamento com Christian.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Status por camada atualizado -->
+  <div class="section">
+    <div class="section-title">📊 Status Atualizado por Camada</div>
+    <table>
+      <thead>
+        <tr><th>Camada</th><th>Status Atual</th><th>Após as mudanças</th><th>Complexidade</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>ANALISE-V3 (n8n)</strong></td>
+          <td class="status-warn">⚠️ Só análise</td>
+          <td class="status-new">🆕 Análise + geração de petição base</td>
+          <td>Alta (novo nó E5 + schema novo)</td>
+        </tr>
+        <tr>
+          <td><strong>Frontend Step 1→2</strong></td>
+          <td class="status-warn">⚠️ Análise manual</td>
+          <td class="status-new">🆕 Loading automático + polling</td>
+          <td>Média (hook + loading UI)</td>
+        </tr>
+        <tr>
+          <td><strong>Frontend StepTriagem</strong></td>
+          <td class="status-warn">⚠️ Sem preview</td>
+          <td class="status-new">🆕 Preview petição + triagem contextual</td>
+          <td>Alta (layout novo)</td>
+        </tr>
+        <tr>
+          <td><strong>Express n8n (B3/B4)</strong></td>
+          <td class="status-warn">⚠️ Sem base análise</td>
+          <td class="status-ok">✅ Parte da petição base + JSON por bloco</td>
+          <td>Média</td>
+        </tr>
+        <tr>
+          <td><strong>Google Docs / Apps Script</strong></td>
+          <td class="status-warn">⚠️ Formato não confirmado</td>
+          <td class="status-ok">✅ HTML → formatação jurídica</td>
+          <td>Média</td>
+        </tr>
+        <tr>
+          <td><strong>Jurisprudências</strong></td>
+          <td class="status-warn">⚠️ Sem restrição explícita</td>
+          <td class="status-ok">✅ Apenas do banco (regra no prompt)</td>
+          <td>Baixa</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<footer>
+  JANA 🦊 — MacBook Air M4 | JARBAS Network | MdLab LegalTech<br>
+  Deep Review v2 — 2026-03-16 | 📋 Modo /plan ativo — aguardando mais inputs do Christian
+</footer>
+
+</body>
+</html>

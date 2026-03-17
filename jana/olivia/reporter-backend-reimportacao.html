@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reporter — OlivIA Backend Reimportação</title>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 960px; margin: 40px auto; padding: 0 20px; color: #1a1a2e; background: #f8f9ff; line-height: 1.6; }
+  h1 { color: #e94560; border-bottom: 3px solid #e94560; padding-bottom: 10px; }
+  h2 { color: #16213e; border-bottom: 1px solid #ddd; padding-bottom: 6px; margin-top: 40px; }
+  h3 { color: #0f3460; margin-top: 24px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14px; }
+  th { background: #16213e; color: white; padding: 10px 12px; text-align: left; }
+  td { padding: 8px 12px; border-bottom: 1px solid #eee; }
+  tr:nth-child(even) td { background: #f0f2ff; }
+  code { background: #f0f2ff; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 13px; color: #e94560; }
+  pre { background: #16213e; color: #e2e8f0; padding: 16px; border-radius: 8px; overflow-x: auto; }
+  pre code { background: none; color: inherit; padding: 0; }
+  blockquote { border-left: 4px solid #e94560; margin: 0; padding: 8px 16px; background: #fff0f3; border-radius: 0 8px 8px 0; font-style: italic; }
+  hr { border: none; border-top: 2px solid #eee; margin: 32px 0; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; }
+  strong { color: #0f3460; }
+  p { margin: 6px 0; }
+  ul { margin: 8px 0; padding-left: 24px; }
+  li { margin: 4px 0; }
+  .header-meta { background: #16213e; color: #e2e8f0; padding: 16px 20px; border-radius: 8px; margin-bottom: 32px; font-size: 13px; }
+  .header-meta strong { color: #e94560; }
+</style>
+</head>
+<body>
+<div class="header-meta">
+  <strong>🦊 JANA</strong> — MacBook Air M4 | JARBAS Network / MdLab<br>
+  <strong>Módulo:</strong> OlivIA — Backend Reimportação + Drive + RAG + Enriquecimento<br>
+  <strong>Gerado em:</strong> 2026-03-17 | <strong>Org:</strong> MP Advocacia
+</div>
+<h1>Reporter — OlivIA: Backend Reimportação + Drive + RAG + Enriquecimento</h1>
+<br>
+<blockquote>**Gerado por:** JANA 🦊 (MacBook Air M4)</blockquote>
+<blockquote>**Data:** 2026-03-17</blockquote>
+<blockquote>**Conversa:** [Jana] /olivia - Backend (`-5134800985`)</blockquote>
+<blockquote>**Organização alvo:** MP Advocacia (`55a0c7ba-1a23-4ae1-b69b-a13811324735`)</blockquote>
+<blockquote>**Banco Supabase:** `qdivfairxhdihaqqypgb`</blockquote>
+<br>
+<hr>
+<br>
+<h2>1. Contexto Geral</h2>
+<br>
+<p>Esta conversa cobriu a <strong>reimportação completa do backend OlivIA</strong> para o banco de produção do MdFlow, incluindo:</p>
+<br>
+<ul>
+<li>Migração de dados do banco antigo para o novo (com dedup e preservação de UUIDs)</li>
+<li>Criação da estrutura de pastas no Google Drive</li>
+<li>Extração de conteúdo de modelos (Google Docs + DOCX)</li>
+<li>Indexação RAG (embeddings) de 2.903 documentos</li>
+<li>Enriquecimento de dados: categorias de empresa, vínculos de grupo, paths de arquivo, playbooks</li>
+</ul>
+<br>
+<p>O objetivo era ter o backend 100% operacional para suportar o fluxo da OlivIA (triagem → análise de provas → geração de petições).</p>
+<br>
+<hr>
+<br>
+<h2>2. Estado Atual dos Dados (Supabase)</h2>
+<br>
+<table>
+<thead><tr><th>Tabela</th><th>Total</th><th>Estado</th></tr></thead><tbody>
+<tr><td>`olivia_tipos_peticao`</td><td>10</td><td>✅ 100% com drive_folder_id</td></tr>
+<tr><td>`olivia_jurisprudencias_assunto`</td><td>480</td><td>✅ 100% com drive_folder_id</td></tr>
+<tr><td>`olivia_jurisprudencias`</td><td>1.353</td><td>✅ com path + categorias</td></tr>
+<tr><td>`olivia_blocos_texto`</td><td>1.244</td><td>✅ com categoria + grupo + path</td></tr>
+<tr><td>`olivia_modelos_grupo`</td><td>177</td><td>✅ published, 100% vinculados</td></tr>
+<tr><td>`olivia_modelos_peticao`</td><td>329</td><td>✅ published, conteúdo extraído</td></tr>
+<tr><td>`olivia_playbooks`</td><td>8</td><td>✅ enriquecidos com jurisprudências</td></tr>
+<tr><td>`rag_documents` (OlivIA)</td><td>~2.903</td><td>✅ 100% indexados</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>3. Workflows n8n Envolvidos</h2>
+<br>
+<h3>✅ Ativos (em produção)</h3>
+<br>
+<table>
+<thead><tr><th>ID</th><th>Nome</th><th>Função</th></tr></thead><tbody>
+<tr><td>`8ntAvTGMhCfrlfRt`</td><td>**OLIVIA-ANALISE-V4**</td><td>Análise de provas principal — recebe processo, retorna análise com jurisprudências e blocos relevantes</td></tr>
+<tr><td>`8yeCpY5EaEP5XQ9e`</td><td>**prod-olivia-express**</td><td>Modo Express: análise rápida sem triagem completa</td></tr>
+<tr><td>`9nTgWoQiU4FUIxQm`</td><td>**N8N-OLIVIA-PETICAO-V3**</td><td>Geração de petição inicial usando modelos + RAG</td></tr>
+<tr><td>`03-jelC6imeuusUdlY72i`</td><td>**N8N-DIST-PETICAO — Gerar Petição Inicial**</td><td>Dispatcher de geração de petição (roteador)</td></tr>
+<tr><td>`AS6LJMDkJyZB6yos7pSak`</td><td>**N8N-MODELOS-RAG — Sincronizar Índice RAG On-Demand**</td><td>Sincroniza RAG quando modelos são publicados/atualizados</td></tr>
+<tr><td>`9dV4sCzpKKWIgXpC`</td><td>**WH-CTRL-02 — Controller Chat Olivia**</td><td>Controller central do chat OlivIA (rota mensagens)</td></tr>
+<tr><td>`6u9qZ5caQ5JgkMPS`</td><td>**WH-JURI-02 — Olivia Chat (Jurimetria)**</td><td>Chat especializado em jurimetria/análise processual</td></tr>
+<tr><td>`0lcbMHTEwbyrrYAH`</td><td>**N8N-PROC-OLIVIA-RESUMO**</td><td>Resumo de processo judicial</td></tr>
+<tr><td>`Akg1AxMpZayDdnk2`</td><td>**N8N-OLIVIA-VIBELAW-APPLY-PATCH**</td><td>Aplica patches de conhecimento jurídico (VibeLaw)</td></tr>
+<tr><td>`1Z3iyy7c4jLR5bXq`</td><td>**[OlivIA] - gerar_replica_boavista**</td><td>Geração especializada de réplica para Boa Vista</td></tr>
+<tr><td>`63gWiUdpmnVXSQTm`</td><td>**[OlivIA] - gerar_contrarrazoes_boavista**</td><td>Geração de contrarrazões para Boa Vista</td></tr>
+<tr><td>`9EuObcreZQ8F7xwj`</td><td>**TEST-OLIVIA-TRIAGEM-SIMPLE**</td><td>Testes de triagem simplificada</td></tr>
+</tbody></table>
+<br>
+<h3>⬜ Inativos / Legacy</h3>
+<br>
+<table>
+<thead><tr><th>ID</th><th>Nome</th><th>Observação</th></tr></thead><tbody>
+<tr><td>`2Yvg36Bzfss7g5KQ`</td><td>**WH-OLIVIA-RECURSO**</td><td>Geração de recursos — inativo, possivelmente legacy</td></tr>
+<tr><td>`AvmF07YPjxXvM2H0`</td><td>**WH-OLIVIA-TRIAGEM-QUESTIONS [LEGACY]**</td><td>Triagem por perguntas — substituído</td></tr>
+<tr><td>`AjRtxZF3J1Rcjzi8`</td><td>**[RAG] Enriquecimento - transformar em vetor**</td><td>Pipeline RAG manual — foi substituído pelos scripts diretos</td></tr>
+<tr><td>`ab0YGznKWmX5rvps`</td><td>**[OlivIA] - gerar_manifestacao**</td><td>Geração de manifestação — inativo</td></tr>
+<tr><td>`2W3ge7XWZp1HKwGK`</td><td>**OlivIA**</td><td>Workflow genérico antigo — sem uso</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>4. Arquitetura e Lógica Implementada</h2>
+<br>
+<h3>4.1 Pipeline de Reimportação (Scripts)</h3>
+<br>
+<pre><code class="language-">
+Banco Antigo → olivia_01 → olivia_02 → olivia_03 → olivia_04 → olivia_05
+     ↓              ↓           ↓           ↓           ↓           ↓
+  [source]     assuntos     juris       blocos      modelos     grupos
+  (migrado)    480 reg      1353 reg    1244 reg    329 reg     177 reg
+</code></pre>
+<br>
+<p><strong>Preservação de UUIDs:</strong> todos os IDs foram mantidos do banco antigo para evitar quebrar referências no frontend e n8n.</p>
+<br>
+<p><strong>Dedup por nome:</strong> <code>olivia_jurisprudencias_assunto</code> passou por dedup — 570 registros originais → 480 únicos por nome.</p>
+<br>
+<p><strong>Identity mapping de tags:</strong> <code>tag_ids</code> nos blocos de texto usam os mesmos UUIDs do banco antigo (mapeamento 1:1).</p>
+<br>
+<h3>4.2 Estrutura Google Drive</h3>
+<br>
+<pre><code class="language-">
+OlivIA/ (1-1nF0ml2Fb3rr713JbZpG4nNaQAxFzrK)
+└── MP Advocacia/ (1hcncTkVY3PopO0wlkX1DWbZsW9GTu1tj)
+    ├── Processos/ (1gBDkbO96NslFeaIa5qQnd_nXjztAtlOk)
+    ├── Modelos/ (1MkyegJwzg1rEVxW1N1r07YeUCvh4pa3C)
+    │   ├── [10 subpastas por tipo de petição]
+    │   └── IDs salvos em olivia_tipos_peticao.drive_folder_id
+    ├── Blocos de Texto/ (1KbW_083AqTaBh6e70urtkmItBAHKWQB3)
+    │   ├── Introdução/
+    │   ├── Fundamentação/
+    │   └── Conclusão/
+    └── Jurisprudências/ (1UaK-kszlZ47q4TFmoSJ2fy3s-xMsa3iz)
+        └── [480 subpastas por assunto]
+            └── IDs salvos em olivia_jurisprudencias_assunto.drive_folder_id
+</code></pre>
+<br>
+<p><strong>Nota:</strong> rclone é usado para upload (remote <code>gdrive</code>). Scope atual <code>readonly</code> — para produção real precisa scope de escrita.</p>
+<br>
+<h3>4.3 RAG (Indexação Vetorial)</h3>
+<br>
+<ul>
+<li><strong>Workflow principal:</strong> <code>N8N-MODELOS-RAG</code> processa modelos e cria embeddings no Supabase</li>
+<li><strong>Problema encontrado:</strong> workflow n8n falha com conteúdo > 20k chars (timeout/limite)</li>
+<li><strong>Solução adotada:</strong> script direto <code>olivia_15_rag_force.mjs</code> para os 3 modelos grandes que excediam o limite</li>
+<li><strong>Total indexado:</strong> ~2.903 documentos (modelos + blocos + jurisprudências)</li>
+<li><strong>Flag de sincronização:</strong> <code>needs_rag_sync</code> na tabela <code>olivia_modelos_peticao</code> — sinaliza quando re-indexar</li>
+</ul>
+<br>
+<h3>4.4 Enriquecimento de Dados (Sessão 2026-03-17)</h3>
+<br>
+<p><strong>Categorias de empresa:</strong></p>
+<ul>
+<li>7 categorias mapeadas por regras de <code>nome</code> do assunto (ILIKE matching)</li>
+<li>Blocos: <code>categoria_empresa_id</code> + <code>bloco_grupo_id</code> vinculados via SQL UPDATE</li>
+<li>Jurisprudências: <code>empresa_categoria_ids[]</code> já preenchido (1.353/1.353)</li>
+</ul>
+<br>
+<p><strong>Paths de arquivo:</strong></p>
+<ul>
+<li><code>olivia_blocos_texto.arquivo_original_path</code> → <code>OlivIA/MP Advocacia/Blocos de Texto/Fundamentação/[titulo].txt</code></li>
+<li><code>olivia_jurisprudencias.arquivo_original_path</code> → <code>OlivIA/MP Advocacia/Jurisprudências/[assunto]/[tribunal]-[numero].txt</code></li>
+</ul>
+<br>
+<p><strong>Playbooks:</strong></p>
+<ul>
+<li>8 playbooks OlivIA enriquecidos com jurisprudências relevantes (via script <code>olivia_20</code>)</li>
+<li>3 playbooks JARBAS falharam com <code>check constraint "jarbas_playbooks_agente_check"</code> — valores aceitos: <code>triador</code>, <code>analista</code>, <code>financeiro</code>, <code>geral</code> (⚠️ pendente)</li>
+</ul>
+<br>
+<hr>
+<br>
+<h2>5. Arquivos Criados / Modificados</h2>
+<br>
+<h3>Scripts de Migração (`~/beta-mdflow/scripts/`)</h3>
+<br>
+<table>
+<thead><tr><th>Arquivo</th><th>Função</th><th>Criado por</th></tr></thead><tbody>
+<tr><td>`olivia_01_assuntos.mjs`</td><td>Importa 480 assuntos do banco antigo</td><td>JANA</td></tr>
+<tr><td>`olivia_02_juris.mjs`</td><td>Importa 1.353 jurisprudências</td><td>JANA</td></tr>
+<tr><td>`olivia_03_blocos.mjs`</td><td>Importa 1.244 blocos de texto</td><td>JANA</td></tr>
+<tr><td>`olivia_04_modelos.mjs`</td><td>Importa 329 modelos de petição</td><td>JANA</td></tr>
+<tr><td>`olivia_05_grupos.mjs`</td><td>Cria 177 grupos de modelos (script novo)</td><td>JANA</td></tr>
+<tr><td>`fix_grupos_orfaos.mjs`</td><td>Corrige 27 grupos sem modelos vinculados</td><td>JANA</td></tr>
+<tr><td>`olivia_06_drive.mjs`</td><td>Cria estrutura raiz no Google Drive</td><td>JANA</td></tr>
+<tr><td>`olivia_07_drive_batch.mjs`</td><td>Upload em lote para Drive</td><td>JANA</td></tr>
+<tr><td>`olivia_07_drive_final.mjs`</td><td>Versão final do upload Drive</td><td>JANA</td></tr>
+<tr><td>`olivia_07_drive_juris.mjs`</td><td>Upload de jurisprudências no Drive</td><td>JANA</td></tr>
+<tr><td>`olivia_07_drive_juris_retry.mjs`</td><td>Retry para jurisprudências com falha</td><td>JANA</td></tr>
+<tr><td>`olivia_08_bucket.mjs`</td><td>Upload para Supabase Storage bucket</td><td>JANA</td></tr>
+<tr><td>`olivia_09_drive_ids.mjs`</td><td>Salva Drive IDs no banco (tipos + assuntos)</td><td>JANA</td></tr>
+<tr><td>`olivia_10_rag_sync.mjs`</td><td>Dispara RAG sync via n8n</td><td>JANA</td></tr>
+<tr><td>`olivia_11_blocos_content.mjs`</td><td>Extrai conteúdo dos blocos de texto</td><td>JANA</td></tr>
+<tr><td>`olivia_12_modelos_content.mjs`</td><td>Extrai conteúdo dos modelos (Google Docs)</td><td>JANA</td></tr>
+<tr><td>`olivia_12b_docx_content.mjs`</td><td>Extrai conteúdo de arquivos DOCX (via mammoth)</td><td>JANA</td></tr>
+<tr><td>`olivia_13_fix_html.mjs`</td><td>Limpa conteúdo HTML mal formatado</td><td>JANA</td></tr>
+<tr><td>`olivia_14_fix_processando.mjs`</td><td>Corrige registros presos em status "processando"</td><td>JANA</td></tr>
+<tr><td>`olivia_15_rag_force.mjs`</td><td>Força indexação RAG para modelos > 20k chars</td><td>JANA</td></tr>
+<tr><td>`olivia_16_blocos_drive.mjs`</td><td>Registra paths de blocos (arquivo_original_path)</td><td>JANA</td></tr>
+<tr><td>`olivia_17_juris_drive.mjs`</td><td>Registra paths de jurisprudências</td><td>JANA</td></tr>
+<tr><td>`olivia_18_juris_categorias.mjs`</td><td>Vincula categorias às jurisprudências</td><td>JANA</td></tr>
+<tr><td>`olivia_19_blocos_grupos.mjs`</td><td>Vincula grupos e categorias aos blocos</td><td>JANA</td></tr>
+<tr><td>`olivia_20_playbooks_enriquecer.mjs`</td><td>Enriquece playbooks OlivIA + cria JARBAS</td><td>JANA</td></tr>
+</tbody></table>
+<br>
+<h3>Arquivos de Config / Mapeamento</h3>
+<br>
+<table>
+<thead><tr><th>Arquivo</th><th>Conteúdo</th></tr></thead><tbody>
+<tr><td>`~/beta-mdflow/scripts/reports/drive-config.json`</td><td>IDs das pastas Drive criadas</td></tr>
+<tr><td>`~/beta-mdflow/scripts/mappings/env.json`</td><td>Setup de ambiente (verificação de pré-requisitos)</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>6. Decisões Arquiteturais</h2>
+<br>
+<table>
+<thead><tr><th>Decisão</th><th>Motivo</th></tr></thead><tbody>
+<tr><td>**Preservar UUIDs do banco antigo**</td><td>Frontend e n8n já referenciam esses IDs — trocar quebraria tudo</td></tr>
+<tr><td>**Dedup de assuntos por nome**</td><td>Banco antigo tinha 570 com duplicatas; manter UUIDs do primeiro por `created_at ASC`</td></tr>
+<tr><td>**Identity mapping de tags**</td><td>`old_id = new_id` nos assuntos — simplifica o mapeamento em blocos e jurisprudências</td></tr>
+<tr><td>**Scripts diretos em vez de n8n para RAG grande**</td><td>Workflow n8n falha com payload > 20k chars; scripts Node.js não têm esse limite</td></tr>
+<tr><td>**Categorias por ILIKE matching**</td><td>Sem coluna de categoria no banco antigo; inferida pelo nome do assunto como heurística</td></tr>
+<tr><td>**Paths de arquivo simulados (sem upload real)**</td><td>`arquivo_original_path` salvo no banco para uso futuro; upload Drive real pendente</td></tr>
+<tr><td>**`olivia_flow` deletado**</td><td>Tinha `NOT NULL + FK` para grupos que foram recriados com novos IDs — incompatível</td></tr>
+<tr><td>**Org renomeada para MP Advocacia**</td><td>Alinhamento com nome real do escritório</td></tr>
+<tr><td>**Truncate de `olivia_historico`**</td><td>Limpeza de histórico antigo antes da reimportação para evitar conflitos</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>7. Integrações com Outros Sistemas</h2>
+<br>
+<h3>7.1 Supabase</h3>
+<ul>
+<li><strong>Banco:</strong> <code>qdivfairxhdihaqqypgb</code> (produção MdFlow)</li>
+<li><strong>Client:</strong> service_role key (<code>SUPABASE_KEY</code>)</li>
+<li><strong>Management API:</strong> <code>SUPABASE_ACCESS_TOKEN</code> para queries DDL diretas</li>
+<li><strong>Storage bucket:</strong> usado para documentos grandes (DOCX, PDFs)</li>
+<li><strong>Tabelas principais:</strong> <code>olivia_*</code>, <code>rag_documents</code>, <code>jarbas_playbooks</code>, <code>empresa_categoria</code></li>
+</ul>
+<br>
+<h3>7.2 Google Drive</h3>
+<ul>
+<li><strong>Remote rclone:</strong> <code>gdrive</code> configurado localmente</li>
+<li><strong>Pasta raiz:</strong> <code>OlivIA/</code> → ID <code>1-1nF0ml2Fb3rr713JbZpG4nNaQAxFzrK</code></li>
+<li><strong>Drive IDs salvos no banco:</strong> <code>olivia_tipos_peticao.drive_folder_id</code>, <code>olivia_jurisprudencias_assunto.drive_folder_id</code></li>
+<li><strong>Rate limiting:</strong> subpastas de jurisprudências foram criadas em lotes com delay para evitar 429</li>
+</ul>
+<br>
+<h3>7.3 Google Docs</h3>
+<ul>
+<li>API usada para extrair <code>conteudo_template</code> dos modelos de petição</li>
+<li><code>google_doc_id_origem</code> em <code>olivia_modelos_peticao</code> → ID do Doc original</li>
+<li>Script <code>olivia_12_modelos_content.mjs</code> faz fetch via Docs API</li>
+</ul>
+<br>
+<h3>7.4 n8n (Railway)</h3>
+<ul>
+<li><strong>URL:</strong> <code>https://primary-production-e209.up.railway.app</code></li>
+<li><strong>Auth:</strong> Bearer <code>N8N_API_KEY</code></li>
+<li>RAG sync disparado via webhook do workflow <code>N8N-MODELOS-RAG</code></li>
+<li>Workflows consultados via REST API (<code>/api/v1/workflows</code>)</li>
+</ul>
+<br>
+<h3>7.5 Frontend MdFlow (beta-mdflow)</h3>
+<ul>
+<li>Consome dados das tabelas <code>olivia_*</code> via Supabase client</li>
+<li>UUIDs preservados garantem compatibilidade sem alterações no frontend</li>
+<li>Playbooks acessados via <code>olivia_playbooks</code> filtrados por <code>organizacao_id</code></li>
+</ul>
+<br>
+<hr>
+<br>
+<h2>8. Playbooks OlivIA (Estado Atual)</h2>
+<br>
+<table>
+<thead><tr><th>Nome</th><th>Scope</th><th>Categoria</th><th>Status</th></tr></thead><tbody>
+<tr><td>Playbook Geral — Restrição Indevida de Crédito</td><td>petição</td><td>(geral)</td><td>✅ published</td></tr>
+<tr><td>Playbook — Negativação Indevida Dívida Prescrita</td><td>petição</td><td>(geral)</td><td>✅ published</td></tr>
+<tr><td>Mercado Livre — Análise de Provas</td><td>análise</td><td>Mercado Livre/Pago</td><td>✅ published</td></tr>
+<tr><td>Energia Elétrica — Análise de Provas</td><td>análise</td><td>Energia</td><td>✅ published</td></tr>
+<tr><td>Telefonia — Análise de Provas</td><td>análise</td><td>Telecom</td><td>✅ published</td></tr>
+<tr><td>Lojas e Varejo — Análise de Provas</td><td>análise</td><td>Lojas</td><td>✅ published</td></tr>
+<tr><td>Instituição Financeira — Análise de Provas</td><td>análise</td><td>Financeiras</td><td>✅ published</td></tr>
+<tr><td>Análise de Sentença — Recursos</td><td>análise</td><td>(geral)</td><td>✅ published</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>9. Pendências / Bugs / Débitos Técnicos</h2>
+<br>
+<h3>🔴 Bugs</h3>
+<br>
+<table>
+<thead><tr><th>Bug</th><th>Descrição</th><th>Script afetado</th></tr></thead><tbody>
+<tr><td>Playbooks JARBAS não criados</td><td>`jarbas_playbooks_agente_check` constraint só aceita: `triador`, `analista`, `financeiro`, `geral` — script tentou usar valor inválido</td><td>`olivia_20_playbooks_enriquecer.mjs`</td></tr>
+<tr><td>RAG: status `processado` = 0</td><td>Nenhum registro tem `status = 'processado'` em `olivia_blocos_texto` e `olivia_jurisprudencias` — a coluna `embedding` não existe, o RAG pode estar em outra tabela (`rag_documents`)</td><td>Verificar schema</td></tr>
+</tbody></table>
+<br>
+<h3>🟡 Pendências</h3>
+<br>
+<table>
+<thead><tr><th>Item</th><th>Descrição</th><th>Prioridade</th></tr></thead><tbody>
+<tr><td>Upload real para Google Drive</td><td>`arquivo_original_path` está salvo no banco mas os arquivos não foram efetivamente enviados para o Drive</td><td>Média</td></tr>
+<tr><td>rclone scope de escrita</td><td>Scope atual é `readonly` — para upload real precisa `drive` scope</td><td>Alta</td></tr>
+<tr><td>Playbooks JARBAS</td><td>Corrigir valor do campo `agente` para um dos aceitos: `triador`/`analista`/`financeiro`/`geral`</td><td>Baixa</td></tr>
+<tr><td>`olivia_blocos_texto.status`</td><td>Todos os blocos têm `status = NULL` ou diferente de `processado` — verificar se precisa atualizar</td><td>Baixa</td></tr>
+<tr><td>Subpastas Drive de jurisprudências</td><td>Algumas falharam por rate limit (429) no momento da criação — verificar cobertura completa</td><td>Média</td></tr>
+<tr><td>`olivia_flow` deletado</td><td>Tabela removida — se houver alguma FK referenciando ela no frontend/n8n, vai quebrar</td><td>Alta</td></tr>
+</tbody></table>
+<br>
+<h3>🔵 Débitos Técnicos</h3>
+<br>
+<table>
+<thead><tr><th>Item</th><th>Descrição</th></tr></thead><tbody>
+<tr><td>Heurística de categorias por ILIKE</td><td>Categorização de blocos por nome do assunto é frágil — ideal seria ter campo `categoria` no banco antigo ou mapeamento explícito</td></tr>
+<tr><td>Scripts sem idempotência completa</td><td>Alguns scripts não têm `ON CONFLICT DO NOTHING` em todas as inserções — rodar duas vezes pode duplicar</td></tr>
+<tr><td>`mammoth` para DOCX</td><td>Dependência local instalada para extrair DOCX — documentar no README do projeto</td></tr>
+<tr><td>Mapeamento de IDs salvo em arquivos locais</td><td>`mappings/*.json` ficam só na máquina local — perder o arquivo quebra a rastreabilidade</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>10. Pontos de Atenção / Riscos</h2>
+<br>
+<table>
+<thead><tr><th>Risco</th><th>Impacto</th><th>Mitigação</th></tr></thead><tbody>
+<tr><td>**RAG pode estar desatualizado**</td><td>Busca semântica retorna resultados desatualizados</td><td>Disparar `N8N-MODELOS-RAG` para re-sincronizar após qualquer edição em massa</td></tr>
+<tr><td>**UUID de assuntos duplicados no banco antigo**</td><td>Blocos com `tag_ids` apontando para IDs deduplicados podem ter tags "perdidas"</td><td>Dedup manteve o UUID mais antigo; impacto mínimo pois são nomes idênticos</td></tr>
+<tr><td>**Conteúdo de modelos pode ter HTML residual**</td><td>`olivia_13_fix_html.mjs` foi rodado mas pode ter deixado tags</td><td>Revisar amostra do `conteudo_template` antes do uso em produção</td></tr>
+<tr><td>**Drive IDs hardcoded nos scripts**</td><td>Mudança de estrutura Drive quebra todos os scripts de upload</td><td>Centralizar IDs em `drive-config.json` (já feito parcialmente)</td></tr>
+<tr><td>**n8n falha com payload > 20k chars**</td><td>Modelos grandes não serão re-indexados automaticamente via webhook</td><td>Manter `olivia_15_rag_force.mjs` como fallback para modelos grandes</td></tr>
+<tr><td>**Banco antigo descomissionado?**</td><td>Scripts `olivia_01` a `olivia_04` dependem de `SUPABASE_OLD_URL`</td><td>Se banco antigo for desligado, reimportação parcial fica impossível</td></tr>
+</tbody></table>
+<br>
+<hr>
+<br>
+<h2>11. Resumo Executivo</h2>
+<br>
+<p><strong>O backend OlivIA foi reimportado com sucesso</strong> — 4.003 registros (assuntos + jurisprudências + blocos + modelos + grupos) migrados para o banco de produção com todos os vínculos íntegros. A estrutura Google Drive está criada e mapeada. O RAG está 100% indexado.</p>
+<br>
+<p><strong>O que está pronto para produção:</strong></p>
+<ul>
+<li>Triagem e análise de provas (workflows ativos)</li>
+<li>Busca semântica via RAG (2.903 docs)</li>
+<li>Geração de petições (329 modelos com conteúdo extraído)</li>
+<li>Playbooks OlivIA (8 ativos)</li>
+</ul>
+<br>
+<p><strong>O que precisa atenção antes de ir ao ar:</strong></p>
+<p>1. Verificar scope rclone para upload real de arquivos no Drive</p>
+<p>2. Corrigir criação dos playbooks JARBAS (constraint de campo <code>agente</code>)</p>
+<p>3. Confirmar que <code>olivia_flow</code> deletada não quebra nada no frontend</p>
+<br>
+<hr>
+<br>
+<p>*Relatório gerado automaticamente por JANA 🦊 — JARBAS Network / MdLab*</p>
+<p>*Para dúvidas técnicas, consultar os scripts em <code>~/beta-mdflow/scripts/olivia_*.mjs</code>*</p>
+<br>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM — Aba Auditoria: Implementação</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', system-ui, sans-serif; background: #12100e; color: #f2efe8; line-height: 1.6; padding: 2rem; }
+    h1 { font-family: 'Manrope', system-ui, sans-serif; font-size: 1.75rem; color: #20c997; margin-bottom: 0.25rem; }
+    h2 { font-family: 'Manrope', system-ui, sans-serif; font-size: 1.1rem; color: #20c997; margin: 2rem 0 0.75rem; border-bottom: 1px solid #3a3530; padding-bottom: 0.5rem; }
+    h3 { font-size: 0.9rem; color: #f2efe8; margin: 1rem 0 0.4rem; font-weight: 600; }
+    p, li { font-size: 0.875rem; color: #9e978a; }
+    strong { color: #f2efe8; }
+    code { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: #1a1714; padding: 0.1em 0.4em; border-radius: 4px; color: #20c997; }
+    pre { background: #1a1714; border: 1px solid #3a3530; border-radius: 8px; padding: 1rem; overflow-x: auto; margin: 0.75rem 0; }
+    pre code { background: none; padding: 0; color: #f2efe8; }
+    .meta { font-size: 0.8rem; color: #9e978a; margin-bottom: 2rem; }
+    .card { background: #1a1714; border: 1px solid #3a3530; border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+    .badge { display: inline-block; padding: 0.15em 0.6em; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-green { background: rgba(32,201,151,0.15); color: #20c997; border: 1px solid rgba(32,201,151,0.3); }
+    .badge-red { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+    .badge-yellow { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+    .badge-blue { background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+    .state-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .state-card { background: #211e1a; border: 1px solid #3a3530; border-radius: 8px; padding: 1rem; }
+    .state-card h3 { color: #20c997; margin-top: 0; }
+    ul { padding-left: 1.25rem; }
+    li { margin-bottom: 0.3rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #3a3530; color: #9e978a; font-weight: 500; }
+    td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #1a1714; color: #f2efe8; }
+    td code { font-size: 0.78rem; }
+  </style>
+</head>
+<body>
+  <h1>CRM — Aba Auditoria</h1>
+  <p class="meta">Implementação: CrmAuditoriaPanel | Data: 2026-03-17 | Commit: feat(crm)</p>
+
+  <h2>Fluxo Implementado</h2>
+  <div class="card">
+    <p>Uma nova aba <strong>"Auditoria"</strong> foi adicionada ao <code>ClienteDrawer</code> quando <code>context="crm"</code>. Posição: após "Restrições", antes de "Documentos". O painel encapsula o ciclo completo de consulta CPF via <strong>apifull_115</strong>, sem duplicar lógica das Auditorias.</p>
+  </div>
+
+  <h2>Estados do Componente</h2>
+  <div class="state-grid">
+    <div class="state-card">
+      <h3>Estado 1 — Nunca Auditado</h3>
+      <p>Sem auditoria vinculada ao lead. Exibe ícone Shield, CPF mascarado (read-only) e botão <strong>"Consultar CPF Completo"</strong> que chama <code>rpc_disparar_auditoria</code> com <code>p_bureaus: ["apifull_115"]</code>.</p>
+    </div>
+    <div class="state-card">
+      <h3>Estado 2 — Processando</h3>
+      <p>Progress bar animada incrementando 1.42%/s até 85%, com timer elapsed. Realtime + polling 5s via <code>useAuditoriaStatus</code>. Ao concluir, pula para resultado.</p>
+    </div>
+    <div class="state-card">
+      <h3>Estado 3a — Sem Restrições</h3>
+      <p><span class="badge badge-green">✅ Nenhuma restrição</span> Banner verde. Botões: "Baixar Comprovante PDF" + "Nova Consulta". Link para histórico.</p>
+    </div>
+    <div class="state-card">
+      <h3>Estado 3b — Com Restrições</h3>
+      <p><span class="badge badge-red">⚠️ X restrições</span> Banner vermelho com contagem e valor total. Botões: "Cadastrar Restrições + Baixar PDF" → abre <code>CadastrarRestricoesDrawer</code> sem navegar da página. "Baixar PDF" separado.</p>
+    </div>
+    <div class="state-card">
+      <h3>Estado: Falha</h3>
+      <p><span class="badge badge-red">Consulta falhou</span> Mostra mensagem de erro da auditoria. Botão "Tentar novamente" reseta para Estado 1.</p>
+    </div>
+    <div class="state-card">
+      <h3>Estado 4 — Já Auditado</h3>
+      <p>Ao abrir o drawer para um lead com auditoria existente, carrega automaticamente o resultado mais recente (<code>useLeadAuditoria</code> query). Link "Ver no histórico" para <code>/auditorias?tab=historico</code>.</p>
+    </div>
+  </div>
+
+  <h2>Arquivos Modificados</h2>
+  <table>
+    <thead>
+      <tr><th>Arquivo</th><th>Ação</th><th>Descrição</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>src/components/crm/CrmAuditoriaPanel.tsx</code></td>
+        <td><span class="badge badge-green">CRIADO</span></td>
+        <td>Componente principal. 220 linhas. Hooks internos + 5 estados visuais.</td>
+      </tr>
+      <tr>
+        <td><code>src/components/shared/cliente_drawer/ClienteDrawer.tsx</code></td>
+        <td><span class="badge badge-yellow">MODIFICADO</span></td>
+        <td>Import + TabsTrigger "Auditoria" + TabsContent condicional (<code>isCrm && lead?.id</code>).</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Integração com Auditorias</h2>
+  <div class="card">
+    <h3>Componentes reutilizados (zero duplicação)</h3>
+    <ul>
+      <li><code>useAuditoriaStatus</code> — realtime + polling 5s para status da auditoria</li>
+      <li><code>CadastrarRestricoesDrawer</code> — review + save restrições com match de empresas</li>
+    </ul>
+    <h3 style="margin-top: 1rem">RPC chamada</h3>
+    <pre><code>rpc_disparar_auditoria({
+  p_organizacao_id,
+  p_user_id,
+  p_cpf,
+  p_lead_id: leadId,
+  p_bureaus: ['apifull_115']
+}) → { auditoria_id: string }</code></pre>
+    <h3>Download PDF</h3>
+    <pre><code>resultado_json.pdf_urls['apifull_115']
+  ?? pdf_urls['apifull']
+  ?? Object.values(pdf_urls).find(Boolean)
+  ?? fallback: /auditorias/pdf/{id}</code></pre>
+    <h3>Regra crítica respeitada</h3>
+    <p>Nenhum arquivo em <code>src/pages/auditorias/</code> foi alterado. Apenas imports de componentes/hooks existentes.</p>
+  </div>
+
+  <h2>Query Keys</h2>
+  <table>
+    <thead><tr><th>Key</th><th>Uso</th></tr></thead>
+    <tbody>
+      <tr><td><code>['lead-auditoria', leadId]</code></td><td>Última auditoria do lead — invalidada após conclusão</td></tr>
+      <tr><td><code>['crm-lead-detail', leadId]</code></td><td>Dados do lead — invalidado após conclusão e após cadastrar restrições</td></tr>
+      <tr><td><code>['restricoes']</code></td><td>Lista de restrições — invalidada após cadastrar</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Validação</h2>
+  <div class="card">
+    <ul>
+      <li><span class="badge badge-green">✅</span> <strong>npx tsc --noEmit</strong> — zero erros</li>
+      <li><span class="badge badge-green">✅</span> <strong>npm run build</strong> — passou (9.55s)</li>
+      <li><span class="badge badge-green">✅</span> <strong>git push origin main</strong> — commit <code>27e40616</code></li>
+      <li><span class="badge badge-green">✅</span> Nenhum arquivo em /auditorias alterado</li>
+      <li><span class="badge badge-green">✅</span> ModalAuditar mantido intacto</li>
+    </ul>
+  </div>
+</body>
+</html>

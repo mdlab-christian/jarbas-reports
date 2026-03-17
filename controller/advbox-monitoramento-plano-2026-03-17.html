@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano — Painel Advbox na Aba Monitoramento (Controller)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #0f1117; color: #e2e8f0; font-family: 'Inter', -apple-system, sans-serif; padding: 32px; max-width: 1100px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 32px; }
+  
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; margin-bottom: 14px; display: flex; align-items: center; gap-8px; gap: 8px; }
+  .section-title span { display: inline-block; width: 20px; height: 20px; background: #1e293b; border-radius: 4px; text-align: center; line-height: 20px; font-size: 12px; }
+
+  /* ── Cards de KPI no topo ─────────────────────────────────────────── */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .kpi-card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; }
+  .kpi-label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  .kpi-value { font-size: 28px; font-weight: 700; color: #f8fafc; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+  .kpi-card.good .kpi-value { color: #22c55e; }
+  .kpi-card.warn .kpi-value { color: #f59e0b; }
+  .kpi-card.bad .kpi-value { color: #ef4444; }
+
+  /* ── Score de confiança do dia ───────────────────────────────────── */
+  .confianca-bar-wrap { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 20px; }
+  .confianca-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .confianca-title { font-size: 13px; font-weight: 600; color: #f8fafc; }
+  .confianca-badge { background: #052e16; border: 1px solid #16a34a; color: #22c55e; font-size: 11px; padding: 2px 10px; border-radius: 99px; font-weight: 600; }
+  .bar-outer { height: 12px; background: #0f172a; border-radius: 99px; overflow: hidden; }
+  .bar-inner { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #16a34a, #22c55e); transition: width 0.6s ease; }
+  .confianca-legenda { display: flex; justify-content: space-between; font-size: 11px; color: #64748b; margin-top: 6px; }
+
+  /* ── Histórico de dias ───────────────────────────────────────────── */
+  .historico-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .dia-card { background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 10px; text-align: center; }
+  .dia-card .data { font-size: 10px; color: #64748b; margin-bottom: 6px; }
+  .dia-card .score-circle { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; margin: 0 auto 6px; }
+  .dia-card .stats { font-size: 10px; color: #94a3b8; }
+  .dia-card .stats span { display: block; }
+  .score-alto { background: #052e16; color: #22c55e; border: 2px solid #16a34a; }
+  .score-medio { background: #451a03; color: #f59e0b; border: 2px solid #d97706; }
+  .score-baixo { background: #2d0a0a; color: #ef4444; border: 2px solid #dc2626; }
+  .score-vazio { background: #1e293b; color: #475569; border: 2px solid #334155; }
+
+  /* ── Lista de relatórios ─────────────────────────────────────────── */
+  .relatorio-row { display: flex; align-items: center; gap: 12px; background: #1e293b; border: 1px solid #334155; border-radius: 8px; padding: 12px 14px; margin-bottom: 8px; }
+  .relatorio-icon { width: 32px; height: 32px; border-radius: 6px; background: #0f172a; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .relatorio-info { flex: 1; min-width: 0; }
+  .relatorio-nome { font-size: 13px; font-weight: 500; color: #f8fafc; }
+  .relatorio-desc { font-size: 11px; color: #64748b; margin-top: 2px; }
+  .relatorio-meta { text-align: right; flex-shrink: 0; }
+  .relatorio-data { font-size: 11px; color: #94a3b8; }
+  .badge-ok { background: #052e16; border: 1px solid #16a34a; color: #22c55e; font-size: 10px; padding: 2px 8px; border-radius: 99px; }
+  .badge-warn { background: #451a03; border: 1px solid #d97706; color: #f59e0b; font-size: 10px; padding: 2px 8px; border-radius: 99px; }
+
+  /* ── Plano de implementação ──────────────────────────────────────── */
+  .etapa { display: flex; gap: 14px; margin-bottom: 20px; }
+  .etapa-num { width: 28px; height: 28px; background: #1e293b; border: 1px solid #334155; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; color: #94a3b8; flex-shrink: 0; margin-top: 2px; }
+  .etapa-body { flex: 1; }
+  .etapa-titulo { font-size: 14px; font-weight: 600; color: #f8fafc; margin-bottom: 4px; }
+  .etapa-desc { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+  .tag { display: inline-block; background: #1e3a5f; color: #60a5fa; font-size: 10px; padding: 1px 7px; border-radius: 4px; margin-right: 4px; font-family: monospace; }
+
+  /* ── Schema info ─────────────────────────────────────────────────── */
+  .schema-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .schema-table th { text-align: left; padding: 8px 10px; background: #0f172a; color: #64748b; font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .schema-table td { padding: 8px 10px; border-bottom: 1px solid #1e293b; color: #cbd5e1; }
+  .schema-table tr:last-child td { border-bottom: none; }
+  code { background: #1e293b; padding: 1px 6px; border-radius: 3px; font-family: monospace; font-size: 11px; color: #93c5fd; }
+
+  .divider { border: none; border-top: 1px solid #1e293b; margin: 24px 0; }
+  
+  .note { background: #0c1a2e; border: 1px solid #1e3a5f; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #93c5fd; line-height: 1.6; }
+  .note strong { color: #60a5fa; }
+</style>
+</head>
+<body>
+
+<h1>📊 Painel Advbox — Aba Monitoramento (Controller)</h1>
+<p class="subtitle">Plano de implementação para validação · 2026-03-17</p>
+
+<!-- ── PREVIEW DO RESULTADO FINAL ─────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title"><span>👁</span> Preview — Como vai ficar</div>
+
+  <!-- KPIs topo -->
+  <div class="kpi-row">
+    <div class="kpi-card good">
+      <div class="kpi-label">Confiança Hoje</div>
+      <div class="kpi-value">94%</div>
+      <div class="kpi-sub">↑ 2pts vs ontem</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Advbox (total)</div>
+      <div class="kpi-value">5.842</div>
+      <div class="kpi-sub">processos</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">JARBAS capturou</div>
+      <div class="kpi-value">5.741</div>
+      <div class="kpi-sub">processos</div>
+    </div>
+    <div class="kpi-card warn">
+      <div class="kpi-label">Gaps detectados</div>
+      <div class="kpi-value">101</div>
+      <div class="kpi-sub">em análise</div>
+    </div>
+  </div>
+
+  <!-- Barra de confiança do dia -->
+  <div class="confianca-bar-wrap" style="margin-bottom:16px;">
+    <div class="confianca-header">
+      <span class="confianca-title">Score de Confiança — Hoje (17/03)</span>
+      <span class="confianca-badge">94% · Ótimo</span>
+    </div>
+    <div class="bar-outer">
+      <div class="bar-inner" style="width:94%;"></div>
+    </div>
+    <div class="confianca-legenda">
+      <span>0%</span><span>50%</span><span>100%</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── HISTÓRICO 7 DIAS ─────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title"><span>📅</span> Histórico — Últimos 7 dias</div>
+  <div class="historico-grid">
+    <div class="dia-card">
+      <div class="data">11/03</div>
+      <div class="score-circle score-alto">97%</div>
+      <div class="stats"><span>✅ 5.841</span><span>❌ 3 gaps</span></div>
+    </div>
+    <div class="dia-card">
+      <div class="data">12/03</div>
+      <div class="score-circle score-alto">95%</div>
+      <div class="stats"><span>✅ 5.800</span><span>❌ 12 gaps</span></div>
+    </div>
+    <div class="dia-card">
+      <div class="data">13/03</div>
+      <div class="score-circle score-medio">78%</div>
+      <div class="stats"><span>✅ 5.601</span><span>❌ 98 gaps</span></div>
+    </div>
+    <div class="dia-card">
+      <div class="data">14/03</div>
+      <div class="score-circle score-alto">92%</div>
+      <div class="stats"><span>✅ 5.720</span><span>❌ 42 gaps</span></div>
+    </div>
+    <div class="dia-card">
+      <div class="data">15/03</div>
+      <div class="score-circle score-alto">96%</div>
+      <div class="stats"><span>✅ 5.810</span><span>❌ 8 gaps</span></div>
+    </div>
+    <div class="dia-card">
+      <div class="data">16/03</div>
+      <div class="score-circle score-alto">92%</div>
+      <div class="stats"><span>✅ 5.700</span><span>❌ 42 gaps</span></div>
+    </div>
+    <div class="dia-card">
+      <div class="data">17/03</div>
+      <div class="score-circle score-alto">94%</div>
+      <div class="stats"><span>✅ 5.741</span><span>❌ 101 gaps</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── RELATÓRIOS ───────────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title"><span>📄</span> Relatórios Disponíveis</div>
+
+  <div class="relatorio-row">
+    <div class="relatorio-icon">📊</div>
+    <div class="relatorio-info">
+      <div class="relatorio-nome">Relatório Diário — 17/03/2026</div>
+      <div class="relatorio-desc">Cobertura completa · 5.741 processos · score 94% · 101 gaps</div>
+    </div>
+    <div class="relatorio-meta">
+      <div class="relatorio-data">Hoje, 06:00</div>
+      <div style="margin-top:4px;"><span class="badge-ok">Disponível</span></div>
+    </div>
+  </div>
+
+  <div class="relatorio-row">
+    <div class="relatorio-icon">⚠️</div>
+    <div class="relatorio-info">
+      <div class="relatorio-nome">Relatório de Gaps — 17/03/2026</div>
+      <div class="relatorio-desc">101 processos sem captura · lista completa de CNJs · causa raiz</div>
+    </div>
+    <div class="relatorio-meta">
+      <div class="relatorio-data">Hoje, 06:00</div>
+      <div style="margin-top:4px;"><span class="badge-warn">Atenção</span></div>
+    </div>
+  </div>
+
+  <div class="relatorio-row">
+    <div class="relatorio-icon">📉</div>
+    <div class="relatorio-info">
+      <div class="relatorio-nome">Relatório de Divergências — 13/03/2026</div>
+      <div class="relatorio-desc">Dia com score baixo (78%) · 98 gaps · causa: TJRS instável</div>
+    </div>
+    <div class="relatorio-meta">
+      <div class="relatorio-data">13/03, 06:00</div>
+      <div style="margin-top:4px;"><span class="badge-ok">Disponível</span></div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ── PLANO DE IMPLEMENTAÇÃO ──────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title"><span>🔧</span> Plano de Implementação</div>
+
+  <div class="etapa">
+    <div class="etapa-num">1</div>
+    <div class="etapa-body">
+      <div class="etapa-titulo">Novo componente: <code>ControllerAdvboxPainel.tsx</code></div>
+      <div class="etapa-desc">
+        Criado acima da lista de processos monitorados, antes do <code>JarbasCard</code>.<br>
+        Faz query na tabela <code>advbox_sync_log</code> já existente no banco.
+        <br><br>
+        <span class="tag">advbox_sync_log</span>
+        <span class="tag">score_cobertura</span>
+        <span class="tag">total_advbox</span>
+        <span class="tag">total_jarbas</span>
+        <span class="tag">gaps_reais</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="etapa">
+    <div class="etapa-num">2</div>
+    <div class="etapa-body">
+      <div class="etapa-titulo">Seção 1 — KPIs + Score do Dia (topo)</div>
+      <div class="etapa-desc">
+        4 cards em linha: <strong>Confiança hoje</strong> · <strong>Total Advbox</strong> · <strong>JARBAS capturou</strong> · <strong>Gaps</strong><br>
+        Abaixo: barra de progresso colorida (verde ≥90%, amarelo ≥70%, vermelho &lt;70%)<br>
+        Dados: última entrada do <code>advbox_sync_log</code> por <code>organizacao_id</code>
+      </div>
+    </div>
+  </div>
+
+  <div class="etapa">
+    <div class="etapa-num">3</div>
+    <div class="etapa-body">
+      <div class="etapa-titulo">Seção 2 — Histórico 7 dias</div>
+      <div class="etapa-desc">
+        Grid 7 colunas, um card por dia com: data, círculo colorido com % do score, contagem de capturados e gaps.<br>
+        Query: <code>advbox_sync_log</code> últimos 7 dias por <code>organizacao_id</code><br>
+        Dias sem dados mostram cinza ("Sem sync")
+      </div>
+    </div>
+  </div>
+
+  <div class="etapa">
+    <div class="etapa-num">4</div>
+    <div class="etapa-body">
+      <div class="etapa-titulo">Seção 3 — Relatórios disponíveis</div>
+      <div class="etapa-desc">
+        Lista de relatórios gerados (cada entrada do <code>advbox_sync_log</code> com <code>status = 'concluido'</code>).<br>
+        Cada linha: ícone + nome do relatório + data + badge (ok/atenção) + botão "Ver detalhes"<br>
+        Clique abre modal com o JSON <code>detalhes</code> formatado (divergências, lista de gaps por tribunal)
+      </div>
+    </div>
+  </div>
+
+  <div class="etapa">
+    <div class="etapa-num">5</div>
+    <div class="etapa-body">
+      <div class="etapa-titulo">Integração com <code>ControllerMonitoramento.tsx</code></div>
+      <div class="etapa-desc">
+        Adicionar <code>&lt;ControllerAdvboxPainel organizacao_id={organizacao_id} /&gt;</code><br>
+        Posicionar <strong>antes</strong> do <code>JarbasCard</code> atual (topo da aba)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── SCHEMA ────────────────────────────────────────────────────────── -->
+<div class="section">
+  <div class="section-title"><span>🗄</span> Tabela usada: <code>advbox_sync_log</code></div>
+  <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; overflow:hidden;">
+    <table class="schema-table">
+      <thead>
+        <tr><th>Coluna</th><th>Tipo</th><th>Uso no painel</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>score_cobertura</code></td><td>numeric</td><td>Barra de confiança + círculo histórico</td></tr>
+        <tr><td><code>total_advbox</code></td><td>integer</td><td>KPI "Total Advbox"</td></tr>
+        <tr><td><code>total_jarbas</code></td><td>integer</td><td>KPI "JARBAS capturou"</td></tr>
+        <tr><td><code>gaps_reais</code></td><td>integer</td><td>KPI "Gaps detectados"</td></tr>
+        <tr><td><code>iniciado_em</code></td><td>timestamptz</td><td>Data dos cards do histórico</td></tr>
+        <tr><td><code>status</code></td><td>text</td><td>Filtrar só syncs concluídos</td></tr>
+        <tr><td><code>detalhes</code></td><td>jsonb</td><td>Modal "Ver detalhes" do relatório</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="note">
+  <strong>Nota:</strong> A tabela <code>advbox_sync_log</code> já existe no banco e tem a estrutura ideal.
+  Não são necessárias migrations.<br>
+  Quando o banco não tiver dados (primeiro uso), o painel mostra estado vazio com instrução para rodar o primeiro sync.
+</div>
+
+<hr class="divider">
+<p style="font-size:11px; color:#475569; text-align:center;">JARBAS · Plano Controller Advbox · 2026-03-17 · Aguardando validação de Christian</p>
+
+</body>
+</html>

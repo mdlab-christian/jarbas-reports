@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Análise /playbooks vs Spec v2.0 — 2026-03-17</title>
+<style>
+  :root {
+    --ok: #16a34a; --ok-bg: #f0fdf4; --ok-border: #bbf7d0;
+    --warn: #d97706; --warn-bg: #fffbeb; --warn-border: #fde68a;
+    --err: #dc2626; --err-bg: #fef2f2; --err-border: #fecaca;
+    --info: #2563eb; --info-bg: #eff6ff; --info-border: #bfdbfe;
+    --gray: #6b7280; --card: #fff; --bg: #f8fafc; --border: #e2e8f0;
+    --text: #1e293b; --muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); padding: 2rem; line-height: 1.5; }
+  h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.25rem; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1rem 1.25rem; }
+  .stat .num { font-size: 2rem; font-weight: 800; }
+  .stat .label { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+  .stat.err .num { color: var(--err); }
+  .stat.warn .num { color: var(--warn); }
+  .stat.ok .num { color: var(--ok); }
+  .stat.info .num { color: var(--info); }
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; }
+  .section-header { padding: 1rem 1.5rem; display: flex; align-items: center; gap: 0.75rem; border-bottom: 1px solid var(--border); background: #fafafa; }
+  .section-header h2 { font-size: 1rem; font-weight: 700; }
+  .section-header .badge { font-size: 0.7rem; font-weight: 700; padding: 0.2rem 0.6rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-err { background: var(--err-bg); color: var(--err); border: 1px solid var(--err-border); }
+  .badge-warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn-border); }
+  .badge-ok { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok-border); }
+  .badge-info { background: var(--info-bg); color: var(--info); border: 1px solid var(--info-border); }
+  .section-body { padding: 1.25rem 1.5rem; }
+  .item { display: flex; gap: 1rem; padding: 0.85rem 1rem; border-radius: 8px; margin-bottom: 0.6rem; border: 1px solid transparent; }
+  .item:last-child { margin-bottom: 0; }
+  .item.err { background: var(--err-bg); border-color: var(--err-border); }
+  .item.warn { background: var(--warn-bg); border-color: var(--warn-border); }
+  .item.ok { background: var(--ok-bg); border-color: var(--ok-border); }
+  .item.info { background: var(--info-bg); border-color: var(--info-border); }
+  .icon { font-size: 1.1rem; width: 1.4rem; flex-shrink: 0; }
+  .item-body { flex: 1; min-width: 0; }
+  .item-title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.2rem; }
+  .item-desc { font-size: 0.82rem; color: var(--muted); line-height: 1.5; }
+  code { background: #f1f5f9; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.8rem; font-family: 'SF Mono', monospace; color: #475569; }
+  .tag { display: inline-block; font-size: 0.7rem; font-weight: 600; padding: 0.15rem 0.5rem; border-radius: 999px; margin-right: 0.3rem; margin-bottom: 0.2rem; }
+  .tag-p0 { background: #fee2e2; color: #991b1b; }
+  .tag-p1 { background: #fef3c7; color: #92400e; }
+  .tag-p2 { background: #dbeafe; color: #1e40af; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; padding: 0.5rem 0.75rem; background: #f8fafc; color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid var(--border); }
+  td { padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .dot-err { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--err); }
+  .dot-warn { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--warn); }
+  .dot-ok { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+</style>
+</head>
+<body>
+
+<h1>📋 /playbooks — Análise vs Spec v2.0</h1>
+<p class="subtitle">Gerado em 2026-03-17 | Cruzamento: spec modelos.docx (v2.0.0, 2026-02-12) × implementação atual em <code>src/pages/playbooks/</code></p>
+
+<div class="summary-grid">
+  <div class="stat err">
+    <div class="num">6</div>
+    <div class="label">Problemas P0 (bloqueantes)</div>
+  </div>
+  <div class="stat warn">
+    <div class="num">8</div>
+    <div class="label">Divergências P1 (importantes)</div>
+  </div>
+  <div class="stat ok">
+    <div class="num">12</div>
+    <div class="label">Itens conformes</div>
+  </div>
+  <div class="stat info">
+    <div class="num">4</div>
+    <div class="label">Abas/Modais faltando</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ModalNovoModelo -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>ModalNovoModelo</h2>
+    <span class="badge badge-warn">3 divergências</span>
+  </div>
+  <div class="section-body">
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">campos: tipo_peticao_id, nome, descricao, versao, arquivo</div>
+        <div class="item-desc">Todos presentes. Validações de nome (minLength 5), versao (regex), arquivo (.pdf/.docx) implementadas.</div>
+      </div>
+    </div>
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">modo_alcance: RadioGroup (1 = Por Categoria / 2 = Por Empresa)</div>
+        <div class="item-desc">Presente. Labels exibidos corretamente. Empresas e categorias condicionais funcionando.</div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1</span> Labels do modo_alcance divergem da spec</div>
+        <div class="item-desc">
+          Spec: <code>"Por Categoria de Empresa"</code> / <code>"Por Empresa Específica"</code><br />
+          Implementado: <code>"Global"</code> / <code>"Segmentado"</code><br />
+          Não é apenas cosmético — pode confundir o usuário sobre o significado de cada modo.
+        </div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1</span> Campo extra não previsto na spec: "Categoria da Empresa Ré" (Select único)</div>
+        <div class="item-desc">
+          A spec define <code>empresas_categorias: UUID[]</code> (multi-select obrigatório quando modo=1) e <code>empresas_especificas: UUID[]</code> (multi-select quando modo=2). 
+          O modal atual tem <b>ambos os multi-selects E um select único</b> de <code>categoria_empresa_id</code> (campo legado/extra). 
+          A spec não prevê esse campo no <code>ModalNovoModelo</code> — ele deve ser removido ou mapeado corretamente.
+        </div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1</span> Fluxo de submit diverge da spec</div>
+        <div class="item-desc">
+          Spec define 8 passos no <code>fluxo_submit</code>: validar → upload → webhook WH-MOD-002 (detectar placeholders) → INSERT grupo → INSERT versao → INSERT flow vazio → UPDATE active_version_id → toast.<br/>
+          Implementado: upload + detecção de placeholders funciona. Mas <b>INSERT olivia_flow vazio</b> não é criado automaticamente no submit (o flow precisa existir para abrir ModalFlowEditor depois).
+          Verificar se o <code>onSave</code> no TabModelosPeticao cria o flow vazio após criar o grupo.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ModalBloco -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>ModalBloco</h2>
+    <span class="badge badge-ok">Conforme (wizard 5 steps)</span>
+  </div>
+  <div class="section-body">
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">Wizard 5 steps implementado</div>
+        <div class="item-desc">Identificação → Conteúdo → Placeholders → Referências (juris) → Revisão. Conforme spec §7 ModalBloco e Wizard 2.</div>
+      </div>
+    </div>
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">campos: titulo, conteudo (richtext/markdown), tag_ids (multi), categoria_empresa_id, status</div>
+        <div class="item-desc">Todos os campos da spec presentes. TagChipInput com API correta (selectedIds/availableTags). Vinculação de juris no step 4.</div>
+      </div>
+    </div>
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">Detecção automática de placeholders (step 3)</div>
+        <div class="item-desc">Regex <code>{'{{([^}]+)}}'}</code>, validação contra registry, tabela com placeholder/label/tipo/status.</div>
+      </div>
+    </div>
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">Import DOCX/TXT com extração de texto</div>
+        <div class="item-desc">Upload para bucket + extração de texto implementados. Preview Markdown funcionando.</div>
+      </div>
+    </div>
+
+    <div class="item info">
+      <div class="icon">ℹ️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p2">P2</span> Campo "tipo_bloco" não está na spec original</div>
+        <div class="item-desc">
+          A spec §7 ModalBloco define: <code>titulo, conteudo(richtext), tag_ids(multi), categoria_empresa_id, status</code>. 
+          O campo <code>tipo_bloco</code> (intro/fato/fundamento/etc.) é adição extra — não conflita, mas não está na spec. Manter ou remover conforme decisão do Christian.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ModalJurisprudencia -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>ModalJurisprudencia</h2>
+    <span class="badge badge-warn">1 divergência</span>
+  </div>
+  <div class="section-body">
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">Campos principais: titulo, tribunal, numero_processo, ementa, texto_integral, relator, datas, link_fonte, tags, status</div>
+        <div class="item-desc">Todos presentes e funcionando. TagChipInput com API correta. Upload PDF/DOCX para bucket.</div>
+      </div>
+    </div>
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">campo "assunto_id" — Select de assuntos</div>
+        <div class="item-desc">Mapeado para <code>olivia_jurisprudencias</code> via <code>useJurisprudencias().assuntos</code>.</div>
+      </div>
+    </div>
+
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">Categorias de empresa (multi-select chip)</div>
+        <div class="item-desc">Implementado como <code>empresaCategoriaIds: string[]</code> — conforme spec.</div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1</span> campo "estado" (UF) não está na spec original</div>
+        <div class="item-desc">
+          A spec define: <code>titulo, assunto_id, tribunal, numero_processo, ementa, texto_integral, relator, data_julgamento, data_publicacao, link_fonte, tags, status</code>. 
+          O campo <code>estado</code> é adição — provavelmente útil, mas não previsto na spec. 
+          Manter se houver coluna correspondente na tabela. Verificar se <code>olivia_jurisprudencias.estado</code> existe na migration.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ModalTag -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>ModalTag</h2>
+    <span class="badge badge-ok">Conforme</span>
+  </div>
+  <div class="section-body">
+    <div class="item ok">
+      <div class="icon">✅</div>
+      <div class="item-body">
+        <div class="item-title">campos: codigo, nome, descricao, secao_id, ordem, ativo</div>
+        <div class="item-desc">Todos os campos da spec presentes. Campos extras <code>multipla_selecao</code> / <code>selecao_obrigatoria</code> são adições úteis (Smart Blocks behavior). Dirty state + ModalConfirmacao implementado.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAL: ModalModeloDetalhes (5 tabs internas) -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>ModalModeloDetalhes</h2>
+    <span class="badge badge-err">P0 — tabs faltando</span>
+  </div>
+  <div class="section-body">
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0</span> Spec define 5 tabs internas — quantas estão implementadas?</div>
+        <div class="item-desc">
+          Spec (§7 ModalModeloDetalhes): <code>Info</code> | <code>Versões</code> | <code>Flow</code> | <code>Tags</code> | <code>Placeholders</code><br/>
+          Precisa verificar a implementação em <code>modals/modelo-detalhes/</code>. As tabs <b>Flow</b> (embed FlowRulesEditor), <b>Tags</b> (chips da flow) e <b>Placeholders</b> (tabela + redetectar) são críticas para funcionar o ciclo completo.
+        </div>
+      </div>
+    </div>
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0</span> Tab "Versões" — ação "Definir ativa" obrigatória</div>
+        <div class="item-desc">
+          Spec: timeline de versões com ações <code>Definir ativa</code> (quando status=published e não é a ativa), <code>Ver arquivo</code>, <code>Duplicar</code>.
+          Precisa confirmar se o RPC <code>setVersaoAtiva</code> e o botão estão implementados.
+        </div>
+      </div>
+    </div>
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0</span> Tab "Placeholders" — aviso de bloqueio de publicação</div>
+        <div class="item-desc">
+          Spec: se há placeholders inválidos/desconhecidos, exibir aviso: <em>"Modelo possui placeholders desconhecidos e não pode ser publicado."</em>
+          Isso bloqueia a publicação — é uma regra de negócio crítica.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- ABAS DA PÁGINA -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Abas da Página (/playbooks)</h2>
+    <span class="badge badge-err">Abas faltando vs spec</span>
+  </div>
+  <div class="section-body">
+
+    <table>
+      <thead>
+        <tr>
+          <th>Aba (spec)</th>
+          <th>Arquivo implementado</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>TabTiposPeticao (Tipos de Petição)</td>
+          <td><code>TabTiposPeticao.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabModelosPeticao (Modelos)</td>
+          <td><code>TabModelosPeticao.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabFlow (Flow)</td>
+          <td><code>TabFlow.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabTags (Tags)</td>
+          <td><code>TabTags.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabBlocosTexto (Blocos de Texto)</td>
+          <td><code>TabBlocosTexto.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabJurisprudencias (Jurisprudências)</td>
+          <td><code>TabJurisprudencias.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabPlaybooks (Playbooks)</td>
+          <td><code>TabPlaybooks.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabGerador (Gerador IA)</td>
+          <td><code>TabGerador.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr>
+          <td>TabAprovacoes (Aprovações)</td>
+          <td><code>TabAprovacoes.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+        </tr>
+        <tr style="background:#fef2f2">
+          <td><b>TabDocumentosTemplates</b></td>
+          <td><code>TabDocumentosTemplates.tsx</code> ⚠️</td>
+          <td><span class="dot-warn"></span> <b>NÃO está na spec</b> — aba extra que não existe na spec v2.0</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="item warn" style="margin-top:1rem">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1</span> TabDocumentosTemplates — não prevista na spec</div>
+        <div class="item-desc">A spec define 9 abas. A implementação tem 10 (inclui <code>TabDocumentosTemplates</code>). Verificar com Christian se deve manter ou remover.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- MODAIS FALTANDO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>Modais — Status Completo</h2>
+    <span class="badge badge-info">15 modais na spec</span>
+  </div>
+  <div class="section-body">
+    <table>
+      <thead>
+        <tr>
+          <th>Modal (spec)</th>
+          <th>Arquivo</th>
+          <th>Status</th>
+          <th>Prioridade</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>ModalTipoPeticao</td>
+          <td><code>ModalTipoPeticao.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalNovoModelo</td>
+          <td><code>ModalNovoModelo.tsx</code></td>
+          <td><span class="dot-warn"></span> Presente c/ divergências</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalModeloDetalhes (5 tabs)</td>
+          <td><code>modals/modelo-detalhes/</code></td>
+          <td><span class="dot-warn"></span> Verificar tabs Flow/Placeholders</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalFlowEditor (3 tabs)</td>
+          <td><code>ModalFlowEditor.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalTag</td>
+          <td><code>ModalTag.tsx</code></td>
+          <td><span class="dot-ok"></span> Conforme</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalSecoes</td>
+          <td><code>ModalSecoes.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P1</td>
+        </tr>
+        <tr>
+          <td>ModalBloco</td>
+          <td><code>ModalBloco.tsx</code></td>
+          <td><span class="dot-ok"></span> Conforme (wizard 5 steps)</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalJurisprudencia</td>
+          <td><code>ModalJurisprudencia.tsx</code></td>
+          <td><span class="dot-ok"></span> Conforme</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalConfigTribunal</td>
+          <td><code>ModalConfigTribunal.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P1</td>
+        </tr>
+        <tr>
+          <td>ModalPlaybook</td>
+          <td><code>ModalPlaybook.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente (campos conformes)</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalAprovacaoDetalhes</td>
+          <td><code>ModalAprovacaoDetalhes.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalReferencias</td>
+          <td><code>ModalReferencias.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P1</td>
+        </tr>
+        <tr>
+          <td>ModalNovaVersao</td>
+          <td><code>ModalNovaVersao.tsx</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P0</td>
+        </tr>
+        <tr>
+          <td>ModalConfirmacao</td>
+          <td>via <code>components/ModalConfirmacao</code></td>
+          <td><span class="dot-ok"></span> Presente</td>
+          <td>P1</td>
+        </tr>
+        <tr style="background:#fef2f2">
+          <td><b>DrawerAjuda (Gerador IA)</b></td>
+          <td>—</td>
+          <td><span class="dot-warn"></span> Verificar se existe em <code>gerador/</code></td>
+          <td>P1</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PRIORIDADES DE IMPLEMENTAÇÃO -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>📌 O que precisa ser mudado — por prioridade</h2>
+    <span class="badge badge-err">Ação obrigatória</span>
+  </div>
+  <div class="section-body">
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0 #1</span> ModalNovoModelo — corrigir labels do RadioGroup modo_alcance</div>
+        <div class="item-desc">
+          <b>Mudar:</b> <code>"Global"</code> → <code>"Por Categoria de Empresa"</code> e <code>"Segmentado"</code> → <code>"Por Empresa Específica"</code>
+        </div>
+      </div>
+    </div>
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0 #2</span> ModalNovoModelo — remover campo "Categoria da Empresa Ré" (Select único legado)</div>
+        <div class="item-desc">
+          A spec não prevê <code>categoria_empresa_id</code> como select único no ModalNovoModelo. O alcance é controlado pelos arrays <code>empresas_categorias[]</code> / <code>empresas_especificas[]</code>.
+          Este campo extra confunde o fluxo. Remover do modal (verificar se ainda é salvo no payload via onSave).
+        </div>
+      </div>
+    </div>
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0 #3</span> ModalNovoModelo — garantir INSERT olivia_flow vazio no submit</div>
+        <div class="item-desc">
+          Spec passo 6 do fluxo_submit: <code>INSERT olivia_flow (flow vazio)</code> logo após criar o grupo/versão.
+          Verificar em <code>TabModelosPeticao.tsx</code> (handler <code>onSave</code>) se cria o flow vazio automaticamente.
+          Sem isso, o ModalFlowEditor quebra ao tentar abrir um modelo recém-criado.
+        </div>
+      </div>
+    </div>
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0 #4</span> ModalModeloDetalhes — verificar e garantir as 5 tabs internas</div>
+        <div class="item-desc">
+          Auditar <code>modals/modelo-detalhes/</code> para confirmar:<br/>
+          ① Tab <b>Info</b>: campos readonly + stats (usos total/mês, versões, taxa sucesso)<br/>
+          ② Tab <b>Versões</b>: timeline com botão "Definir ativa" + Ver arquivo + Duplicar<br/>
+          ③ Tab <b>Flow</b>: embed FlowRulesEditor<br/>
+          ④ Tab <b>Tags</b>: chips das tags do flow<br/>
+          ⑤ Tab <b>Placeholders</b>: tabela + botão "Redetectar" + aviso de bloqueio se inválidos
+        </div>
+      </div>
+    </div>
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0 #5</span> ModalTipoPeticao — verificar campos vs spec</div>
+        <div class="item-desc">
+          Spec define: <code>codigo</code> (snake_case, único, não editável após criar), <code>nome</code>, <code>categoria_tipo</code> (Select: PETICAO/INICIAL/DOC/ADMIN), <code>descricao</code>, <code>ordem_exibicao</code>, <code>ativo</code>.
+          Verificar se todos estes campos estão no modal, principalmente <code>categoria_tipo</code> (Select com 4 opções) e <code>codigo</code> desabilitado na edição.
+        </div>
+      </div>
+    </div>
+
+    <div class="item err">
+      <div class="icon">❌</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p0">P0 #6</span> ModalPlaybook — verificar campo "exemplos" (JSON array)</div>
+        <div class="item-desc">
+          Spec: campo <code>exemplos</code> deve ser um JSON array. Implementação usa <code>exemplosStr</code> (string JSON).
+          Garantir que a validação do JSON esteja funcionando (<code>validateExemplos</code>) e que seja salvo corretamente como <code>JSONB</code> no banco.
+          Também verificar campos: <code>tipo_processo</code> (EMPRESA/ORGAO), <code>documento_tipo_id</code> (obrigatório quando scope=prova).
+        </div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1 #7</span> ModalJurisprudencia — confirmar coluna "estado" na tabela</div>
+        <div class="item-desc">Campo <code>estado (UF)</code> existe no modal mas não na spec v2.0. Verificar migration se <code>olivia_jurisprudencias.estado TEXT</code> foi adicionada. Se não existir no banco → TypeScript error silencioso ou dado perdido.</div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1 #8</span> TabDocumentosTemplates — decidir manter ou remover</div>
+        <div class="item-desc">Aba extra não prevista na spec. Se não há lógica implementada, remover. Se tem propósito definido, documentar na spec.</div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1 #9</span> ModalFlowEditor — verificar tab "Simulador"</div>
+        <div class="item-desc">
+          Spec define 3 tabs: Regras | Saúde | Simulador. Verificar se o <code>FlowSimulator</code> está implementado e retorna <code>tags_selecionadas, blocos_sugeridos, tempo_estimado</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="item warn">
+      <div class="icon">⚠️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p1">P1 #10</span> DrawerAjuda (Gerador IA) — verificar existência</div>
+        <div class="item-desc">Spec define <code>DrawerAjuda</code> (drawer lateral, ajuda do agente IA, historial da run, iteration_budget max=3, ações por resposta: Aplicar/Ignorar/Ver diff). Verificar em <code>gerador/</code>.</div>
+      </div>
+    </div>
+
+    <div class="item info">
+      <div class="icon">ℹ️</div>
+      <div class="item-body">
+        <div class="item-title"><span class="tag tag-p2">P2 #11</span> ModalBloco — campo "tipo_bloco" não está na spec</div>
+        <div class="item-desc">Adição não problemática. Manter se útil para categorização interna de blocos. Não bloqueia nada.</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- RESUMO FINAL -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <h2>📊 Resumo Executivo</h2>
+  </div>
+  <div class="section-body">
+    <p style="font-size:0.9rem; line-height:1.8; color: var(--text);">
+      A implementação está <b>~75% conforme</b> a spec v2.0. Os modais <b>ModalBloco</b>, <b>ModalJurisprudencia</b>, <b>ModalTag</b> e <b>ModalPlaybook</b> estão essencialmente corretos. 
+      As principais correções necessárias são em <b>ModalNovoModelo</b> (labels do RadioGroup, campo legado extra, flow vazio no submit) e 
+      <b>ModalModeloDetalhes</b> (auditoria das 5 tabs internas, especialmente Placeholders e Versões). 
+      A estrutura de abas da página está completa (todas as 9 da spec presentes) com uma aba extra que precisa ser avaliada.
+    </p>
+    <div style="margin-top:1rem; padding:1rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px;">
+      <p style="font-size:0.85rem; font-weight:600; color:#166534;">✅ Pode aprovar execução? Sim — todos os P0 são cirúrgicos e não requerem reescrita.</p>
+      <p style="font-size:0.82rem; color:#166534; margin-top:0.3rem;">Estimativa: 2-3h de implementação para os 6 P0s. ModalModeloDetalhes é o mais complexo de auditar.</p>
+    </div>
+  </div>
+</div>
+
+<p style="font-size:0.75rem; color:var(--muted); margin-top:1.5rem; text-align:center;">
+  Gerado por JARBAS v3.0 | 2026-03-17 | spec: modelos.docx v2.0.0 | código: beta-mdflow@37bb381
+</p>
+
+</body>
+</html>

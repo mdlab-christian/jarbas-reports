@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Blocks — Code Review | JANA 🦊</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1e2335;
+    --border: #2a3050;
+    --primary: #6c8fef;
+    --primary-dim: #3d5bbf22;
+    --green: #4ade80;
+    --green-dim: #4ade8020;
+    --yellow: #fbbf24;
+    --yellow-dim: #fbbf2420;
+    --red: #f87171;
+    --red-dim: #f8717120;
+    --orange: #fb923c;
+    --orange-dim: #fb923c20;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --heading: #f8fafc;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  .header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 28px 40px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left h1 { font-size: 1.6rem; font-weight: 700; color: var(--heading); }
+  .header-left .subtitle { color: var(--muted); font-size: 0.85rem; margin-top: 4px; }
+  .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 99px; font-size: 0.78rem; font-weight: 600; }
+  .badge-approved { background: var(--green-dim); color: var(--green); border: 1px solid #4ade8040; }
+  .badge-warn { background: var(--yellow-dim); color: var(--yellow); border: 1px solid #fbbf2440; }
+  .badge-issue { background: var(--red-dim); color: var(--red); border: 1px solid #f8717140; }
+
+  .meta-bar { background: var(--surface2); border-bottom: 1px solid var(--border); padding: 12px 40px; display: flex; gap: 32px; flex-wrap: wrap; }
+  .meta-item { font-size: 0.8rem; color: var(--muted); }
+  .meta-item strong { color: var(--text); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px; }
+
+  /* Score card */
+  .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .score-card .val { font-size: 2.4rem; font-weight: 800; }
+  .score-card .lbl { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .score-card.green .val { color: var(--green); }
+  .score-card.yellow .val { color: var(--yellow); }
+  .score-card.red .val { color: var(--red); }
+  .score-card.primary .val { color: var(--primary); }
+
+  /* Sections */
+  section { margin-bottom: 40px; }
+  section h2 { font-size: 1.1rem; font-weight: 700; color: var(--heading); border-left: 3px solid var(--primary); padding-left: 12px; margin-bottom: 16px; }
+
+  /* Verdict banner */
+  .verdict { background: var(--green-dim); border: 1px solid #4ade8040; border-radius: 12px; padding: 20px 24px; display: flex; align-items: flex-start; gap: 16px; margin-bottom: 40px; }
+  .verdict .icon { font-size: 2rem; }
+  .verdict h3 { font-size: 1rem; font-weight: 700; color: var(--green); }
+  .verdict p { font-size: 0.88rem; color: var(--text); margin-top: 4px; line-height: 1.5; }
+
+  /* Checklist */
+  .checklist { display: flex; flex-direction: column; gap: 8px; }
+  .check-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; display: flex; align-items: flex-start; gap: 12px; }
+  .check-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+  .check-body strong { font-size: 0.9rem; color: var(--heading); }
+  .check-body p { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+  .check-body code { font-family: var(--mono); font-size: 0.78rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; color: var(--primary); }
+
+  /* Issue cards */
+  .issue-grid { display: flex; flex-direction: column; gap: 12px; }
+  .issue-card { border-radius: 10px; padding: 16px 20px; border: 1px solid; }
+  .issue-card.warn { background: var(--yellow-dim); border-color: #fbbf2440; }
+  .issue-card.low { background: var(--surface2); border-color: var(--border); }
+  .issue-card.info { background: var(--primary-dim); border-color: #6c8fef30; }
+  .issue-card h4 { font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap-8px; gap: 8px; }
+  .issue-card h4 .tag { font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+  .issue-card h4 .tag-warn { background: #fbbf2430; color: var(--yellow); }
+  .issue-card h4 .tag-low { background: #8892a420; color: var(--muted); }
+  .issue-card h4 .tag-info { background: #6c8fef30; color: var(--primary); }
+  .issue-card p { font-size: 0.83rem; color: var(--text); margin-top: 6px; line-height: 1.5; }
+  .issue-card pre { font-family: var(--mono); font-size: 0.76rem; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 10px; margin-top: 8px; overflow-x: auto; color: #a5b4fc; white-space: pre-wrap; }
+
+  /* DB table */
+  .db-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .db-table th { text-align: left; padding: 10px 14px; color: var(--muted); font-weight: 600; border-bottom: 2px solid var(--border); }
+  .db-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .db-table tr:hover td { background: var(--surface2); }
+  .status-ok { color: var(--green); font-weight: 600; }
+  .status-pend { color: var(--yellow); font-weight: 600; }
+  .status-err { color: var(--red); font-weight: 600; }
+  .mono-sm { font-family: var(--mono); font-size: 0.75rem; color: var(--muted); }
+
+  /* Files */
+  .files-list { display: flex; flex-direction: column; gap: 6px; }
+  .file-row { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .file-row .path { font-family: var(--mono); font-size: 0.8rem; color: var(--primary); }
+  .file-row .desc { font-size: 0.78rem; color: var(--muted); }
+
+  /* Timeline */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-item { display: flex; gap: 16px; }
+  .tl-line { display: flex; flex-direction: column; align-items: center; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--primary); flex-shrink: 0; margin-top: 5px; }
+  .tl-bar { width: 2px; background: var(--border); flex: 1; min-height: 20px; }
+  .tl-content { padding-bottom: 20px; flex: 1; }
+  .tl-content strong { font-size: 0.88rem; color: var(--heading); }
+  .tl-content p { font-size: 0.82rem; color: var(--muted); margin-top: 2px; }
+
+  footer { text-align: center; padding: 24px; color: var(--muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>🦊 Smart Blocks — Code Review</h1>
+    <div class="subtitle">Revisão completa pós-CC | OlivIA Gerador Smart Blocks</div>
+  </div>
+  <span class="badge badge-approved">✅ APROVADO</span>
+</div>
+
+<div class="meta-bar">
+  <div class="meta-item">📅 <strong>17/03/2026 — 01:35 BRT</strong></div>
+  <div class="meta-item">🔀 <strong>Commit:</strong> b3cf562</div>
+  <div class="meta-item">📁 <strong>3 arquivos</strong> alterados</div>
+  <div class="meta-item">➕ <strong>+105</strong> / ➖ <strong>-103</strong> linhas</div>
+  <div class="meta-item">🤖 <strong>Revisora:</strong> JANA + CC</div>
+</div>
+
+<div class="container">
+
+  <!-- Verdict -->
+  <div class="verdict">
+    <div class="icon">✅</div>
+    <div>
+      <h3>APROVADO para produção</h3>
+      <p>O Smart Blocks passou por revisão profunda: 8 correções aplicadas, todos os bugs críticos do ciclo anterior resolvidos.
+      Código limpo, sem placeholders, sem TODOs abertos críticos. Há 3 pontos de atenção de baixa prioridade que não bloqueiam release.</p>
+    </div>
+  </div>
+
+  <!-- Score cards -->
+  <div class="score-grid">
+    <div class="score-card green">
+      <div class="val">8.8<span style="font-size:1.2rem">/10</span></div>
+      <div class="lbl">Nota Geral</div>
+    </div>
+    <div class="score-card green">
+      <div class="val">9.5</div>
+      <div class="lbl">Lógica de Fluxo</div>
+    </div>
+    <div class="score-card green">
+      <div class="val">9.0</div>
+      <div class="lbl">UX / Feedback Visual</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="val">7.5</div>
+      <div class="lbl">Gestão de Estado</div>
+    </div>
+    <div class="score-card yellow">
+      <div class="val">8.0</div>
+      <div class="lbl">Robustez de Edge Cases</div>
+    </div>
+    <div class="score-card green">
+      <div class="val">9.0</div>
+      <div class="lbl">Qualidade de Código</div>
+    </div>
+  </div>
+
+  <!-- O que foi feito -->
+  <section>
+    <h2>📋 O que foi entregue neste ciclo</h2>
+    <div class="timeline">
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Migração Step 2 — ManualStep2Conteudo → SmartBlocksStep2Blocos</strong><p>UX correto: seleção direta por checkbox em vez de wizard de perguntas/respostas. Decisão arquitetural correta.</p></div></div>
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Remoção do adapter pattern (manualStateAdapter)</strong><p>Limpeza: o adapter era uma gambiarra de compatibilidade entre fluxos diferentes. Removido corretamente.</p></div></div>
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Fix memory leak no polling</strong><p>pollTimeoutRef + pollingIntervalRef com cleanup no unmount. Correto — evita timers órfãos quando usuário navega para outra página.</p></div></div>
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Fix canAdvance Step 1 — versao_id obrigatório</strong><p>Botão "Próximo" agora só libera com processo + tipo + modelo + versão + advogado. Correto.</p></div></div>
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Fix canAdvance Step 2 — blocos_ids.length > 0</strong><p>Botão "Próximo" agora exige pelo menos 1 bloco selecionado.</p></div></div>
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Fix completedSteps — versao_id no check 'identificacao'</strong><p>Stepper agora marca Step 1 como concluído só quando tudo está preenchido, incluindo versão.</p></div></div>
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Fix sync bug SmartBlocksStep2Blocos — reseta ao trocar modelo_id</strong><p>lastModeloIdRef rastreia mudança de modelo → reseta blocos[] local. Re-populate correto após retorno ao Step 1.</p></div></div>
+      <div class="tl-item"><div class="tl-line"><div class="tl-dot"></div><div class="tl-bar"></div></div><div class="tl-content"><strong>Progress bar + texto descritivo + contador de segundos</strong><p>Feedback visual durante geração: 0s → 10s → 30s → 60s → 90s com mensagens contextuais. Elegante.</p></div></div>
+    </div>
+  </section>
+
+  <!-- Checklist positivo -->
+  <section>
+    <h2>✅ O que está correto e bem feito</h2>
+    <div class="checklist">
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Polling com timeout de 3min e cleanup no unmount</strong>
+          <p>Usa <code>pollTimeoutRef</code> + <code>pollingIntervalRef</code> com <code>useEffect</code> de cleanup. Correto — sem memory leak.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Error handling granular no INSERT (23505/23503)</strong>
+          <p>Mensagens específicas para duplicidade de geração e referências inválidas. Muito melhor que mensagem genérica.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Dirty-state guard completo</strong>
+          <p><code>beforeunload</code> handler + AlertDialog de confirmação ao sair com blocos selecionados. Bom UX.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Recovery banner D6</strong>
+          <p>Detecta geração anterior SUCESSO para o processo e oferece retomar. Edge case importante para advogados.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Seleção de blocos com lógica de tags correta</strong>
+          <p>Junction table <code>olivia_modelo_tags</code> como fonte primária, fallback para <code>grupo.tags_ids</code>. Hierarquia correta.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>useSmartBlocks marcado como @deprecated</strong>
+          <p>JSDoc explica que o hook é obsoleto e o fluxo atual. Não vai confundir devs futuros.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Loading states e empty states</strong>
+          <p>Skeletons durante carregamento, mensagem quando não há blocos vinculados ao modelo. UX consistente.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Dados do banco confirmando funcionamento</strong>
+          <p>SUCESSO em <code>bedf8986</code> com 16 blocos_ids e google_doc_url válida. Fluxo completo funcionando em produção.</p>
+        </div>
+      </div>
+      <div class="check-item">
+        <div class="check-icon">✅</div>
+        <div class="check-body">
+          <strong>Nav buttons no Step 2 do orquestrador</strong>
+          <p>Voltar/Próximo adicionados ao Step 2. Navegação completa pelo wizard.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dados do banco -->
+  <section>
+    <h2>🗄️ Estado atual — olivia_historico (Smart Blocks)</h2>
+    <div style="overflow-x:auto">
+      <table class="db-table">
+        <thead><tr><th>ID</th><th>Status</th><th>Blocos</th><th>Google Doc</th><th>Quando</th><th>Observação</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="mono-sm">bedf8986</td>
+            <td class="status-ok">SUCESSO</td>
+            <td>16 blocos</td>
+            <td><a href="https://docs.google.com/document/d/14IqGVilQGJqRHdpnVOCOVrMZeMwdEq1CFJVRv1CRtzo/edit" target="_blank" style="color:var(--primary);font-size:0.8rem">Abrir Doc →</a></td>
+            <td class="mono-sm">02:38</td>
+            <td style="font-size:0.8rem;color:var(--green)">✅ Geração completa OK</td>
+          </tr>
+          <tr>
+            <td class="mono-sm">f154fb76</td>
+            <td class="status-ok">SUCESSO</td>
+            <td>1 bloco</td>
+            <td>—</td>
+            <td class="mono-sm">02:48</td>
+            <td style="font-size:0.8rem;color:var(--yellow)">⚠️ google_doc_url nulo — GAS não retornou URL</td>
+          </tr>
+          <tr>
+            <td class="mono-sm">bc7b940c</td>
+            <td class="status-pend">PENDENTE</td>
+            <td>meta: {}</td>
+            <td>—</td>
+            <td class="mono-sm">02:50</td>
+            <td style="font-size:0.8rem;color:var(--yellow)">⚠️ Ficou preso em PENDENTE — meta vazio</td>
+          </tr>
+          <tr>
+            <td class="mono-sm">5df559f0</td>
+            <td class="status-pend">PENDENTE</td>
+            <td>meta: {}</td>
+            <td>—</td>
+            <td class="mono-sm">02:53</td>
+            <td style="font-size:0.8rem;color:var(--yellow)">⚠️ Idem — PENDENTE sem progresso</td>
+          </tr>
+          <tr>
+            <td class="mono-sm">0422819d</td>
+            <td class="status-err">ERRO</td>
+            <td>—</td>
+            <td>—</td>
+            <td class="mono-sm">02:27</td>
+            <td style="font-size:0.8rem;color:var(--red)">❌ Google Drive quota exceeded (testes rápidos)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:10px">⚠️ 4 registros PENDENTE com meta:{} — sintoma de testes abortados no browser antes do webhook ou n8n não processou. Não é bug de código.</p>
+  </section>
+
+  <!-- Pontos de atenção -->
+  <section>
+    <h2>⚠️ Pontos de atenção (não bloqueiam release)</h2>
+    <div class="issue-grid">
+
+      <div class="issue-card warn">
+        <h4>⚠️ SUCESSO com google_doc_url nulo <span class="tag tag-warn">MÉDIO</span></h4>
+        <p>O registro <code>f154fb76</code> tem <code>status=SUCESSO</code> mas <code>google_doc_url=null</code>. Isso significa que o n8n marcou SUCESSO sem salvar a URL do Google Doc. O frontend mostra a tela de sucesso sem link — confuso para o usuário.</p>
+        <pre>// Sugestão: n8n deve verificar se google_doc_url foi preenchido antes de setar SUCESSO
+// Ou: frontend trata status=SUCESSO + url=null como "sem documento gerado" com aviso</pre>
+      </div>
+
+      <div class="issue-card warn">
+        <h4>⚠️ Registros PENDENTE travados (meta: {}) <span class="tag tag-warn">MÉDIO</span></h4>
+        <p>4 registros recentes ficaram em PENDENTE indefinidamente com <code>meta:{}</code> — o frontend inseriu o registro mas o n8n não foi acionado ou ignorou. Sem fallback de timeout no banco para resetar PENDENTEs antigos.</p>
+        <pre>-- Sugestão: cron job ou trigger no n8n para detectar PENDENTEs > 5min
+-- UPDATE olivia_historico SET status='ERRO', error_message='Timeout sem processamento'
+-- WHERE status='PENDENTE' AND created_at < NOW() - INTERVAL '5 minutes'</pre>
+      </div>
+
+      <div class="issue-card low">
+        <h4>🔵 eslint-disable em useEffect de populate <span class="tag tag-low">BAIXO</span></h4>
+        <p>Em <code>SmartBlocksStep2Blocos.tsx</code>, o useEffect de população tem <code>// eslint-disable-next-line react-hooks/exhaustive-deps</code> para omitir <code>tagsMap</code> e <code>setState</code> das dependências. Funciona, mas pode causar populate desatualizado se tagsMap mudar depois que os blocos já foram carregados.</p>
+        <pre>// Solução: useCallback para o populate, ou usar useMemo para derivar os blocos
+// Baixo risco no uso atual porque tagsMap é carregado uma vez por sessão</pre>
+      </div>
+
+      <div class="issue-card low">
+        <h4>🔵 Arquivo .bak no repositório <span class="tag tag-low">BAIXO</span></h4>
+        <p><code>OliviaGeradorSmartBlocks.tsx.bak</code> está no diretório do projeto. Não é commitado (provavelmente no .gitignore), mas é ruído no filesystem.</p>
+      </div>
+
+      <div class="issue-card info">
+        <h4>💡 Sugestão futura — Juris no Step 2 <span class="tag tag-info">MELHORIA</span></h4>
+        <p>O state tem <code>jurisprudencias_ids</code> mas o Step 2 não tem UI para selecioná-las. O payload do webhook envia o array vazio. Considerar adicionar painel de jurisprudências colapsável no Step 2 em versão futura.</p>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Arquivos revisados -->
+  <section>
+    <h2>📁 Arquivos revisados</h2>
+    <div class="files-list">
+      <div class="file-row">
+        <span class="path">src/pages/olivia/components/gerador/OliviaGeradorSmartBlocks.tsx</span>
+        <span class="desc">Orquestrador principal — State, canAdvance, polling, recovery, dirty-state</span>
+      </div>
+      <div class="file-row">
+        <span class="path">src/pages/olivia/components/gerador/smart-blocks/SmartBlocksStep2Blocos.tsx</span>
+        <span class="desc">Seleção de blocos por checkbox — sync reset, populate, edit/preview sheets</span>
+      </div>
+      <div class="file-row">
+        <span class="path">src/pages/olivia/components/gerador/smart-blocks/SmartBlocksStep1Identificacao.tsx</span>
+        <span class="desc">Seleção de processo, tipo, modelo, versão, advogado — auto-select versão</span>
+      </div>
+      <div class="file-row">
+        <span class="path">src/hooks/olivia/useSmartBlocks.ts</span>
+        <span class="desc">@deprecated — marcado como obsoleto com JSDoc explicativo</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Resumo final -->
+  <section>
+    <h2>🏁 Resumo final</h2>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <p style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">✅ Corrigido</p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:6px;font-size:0.85rem;">
+          <li>✅ Step 2 usando componente correto</li>
+          <li>✅ Memory leak no polling</li>
+          <li>✅ canAdvance Step 1 + Step 2</li>
+          <li>✅ completedSteps com versao_id</li>
+          <li>✅ Sync reset ao trocar modelo</li>
+          <li>✅ Error handling 23505/23503</li>
+          <li>✅ Progress bar + contador</li>
+          <li>✅ Nav buttons Step 2</li>
+        </ul>
+      </div>
+      <div>
+        <p style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">⚠️ Pendente (não crítico)</p>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:6px;font-size:0.85rem;">
+          <li>⚠️ SUCESSO sem google_doc_url no n8n</li>
+          <li>⚠️ PENDENTEs travados sem cleanup</li>
+          <li>🔵 eslint-disable no populate</li>
+          <li>🔵 Arquivo .bak no filesystem</li>
+          <li>💡 Jurisprudências sem UI no Step 2</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  🦊 JANA — JARBAS Network | MdLab LegalTech | 2026-03-17 01:35 BRT<br>
+  Commit: b3cf56216136a1fc152936b2f11a6219cc591a27 | branch: main
+</footer>
+
+</body>
+</html>

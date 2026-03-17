@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JANA + JARBAS × Claude Code — Paralelização</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3250;
+    --accent: #6c63ff;
+    --accent2: #ff6b6b;
+    --accent3: #43d9ad;
+    --text: #e2e4f0;
+    --muted: #7a7f9e;
+    --jana: #ff9f43;
+    --jarbas: #54a0ff;
+    --cc: #5f27cd;
+    --cc-light: #a29bfe;
+    --green: #43d9ad;
+    --red: #ff6b6b;
+    --yellow: #ffd32a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
+
+  .hero {
+    background: linear-gradient(135deg, #0f1117 0%, #1a1220 50%, #0f1117 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 32px 40px;
+    text-align: center;
+  }
+  .hero h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+  .hero h1 span.jana { color: var(--jana); }
+  .hero h1 span.jarbas { color: var(--jarbas); }
+  .hero h1 span.cc { color: var(--cc-light); }
+  .hero p { color: var(--muted); font-size: 1.05rem; max-width: 600px; margin: 0 auto; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+  .section { margin-bottom: 48px; }
+  .section-title {
+    font-size: 1.2rem; font-weight: 700; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+    border-bottom: 1px solid var(--border); padding-bottom: 12px;
+  }
+  .section-title .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* Verdict cards */
+  .verdict-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+  @media (max-width: 640px) { .verdict-grid { grid-template-columns: 1fr; } }
+  .verdict-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .verdict-card.pro { border-left: 3px solid var(--green); }
+  .verdict-card.con { border-left: 3px solid var(--red); }
+  .verdict-card h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+  .verdict-card.pro h3 { color: var(--green); }
+  .verdict-card.con h3 { color: var(--red); }
+  .verdict-card ul { list-style: none; }
+  .verdict-card ul li { padding: 5px 0; font-size: 0.9rem; color: var(--muted); }
+  .verdict-card ul li::before { content: "• "; color: inherit; }
+  .verdict-card.pro ul li::before { color: var(--green); }
+  .verdict-card.con ul li::before { color: var(--red); }
+
+  /* Architecture flow */
+  .arch-flow {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 32px; margin-bottom: 24px;
+  }
+  .flow-row {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 8px;
+  }
+  .flow-box {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 16px; font-size: 0.85rem;
+    text-align: center; white-space: nowrap;
+  }
+  .flow-box.jana { border-color: var(--jana); color: var(--jana); }
+  .flow-box.jarbas { border-color: var(--jarbas); color: var(--jarbas); }
+  .flow-box.cc { border-color: var(--cc-light); color: var(--cc-light); background: #1e1840; }
+  .flow-box.monitor { border-color: var(--yellow); color: var(--yellow); }
+  .flow-box.result { border-color: var(--green); color: var(--green); }
+  .flow-box.task { border-color: var(--muted); color: var(--text); font-size: 0.8rem; min-width: 160px; }
+  .arrow { color: var(--muted); font-size: 1.2rem; padding: 0 8px; flex-shrink: 0; }
+  .flow-label { color: var(--muted); font-size: 0.75rem; margin: 4px 0 12px 0; }
+
+  .parallel-block {
+    border: 1px dashed var(--border); border-radius: 12px;
+    padding: 20px; margin: 16px 0; position: relative;
+  }
+  .parallel-label {
+    position: absolute; top: -10px; left: 16px;
+    background: var(--bg); padding: 0 8px;
+    font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .parallel-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 16px; margin-top: 4px;
+  }
+  @media (max-width: 640px) { .parallel-row { grid-template-columns: 1fr; } }
+  .parallel-agent {
+    background: var(--surface2); border-radius: 8px; padding: 14px;
+    font-size: 0.85rem;
+  }
+  .parallel-agent .agent-name {
+    font-weight: 700; font-size: 0.8rem; text-transform: uppercase;
+    letter-spacing: 0.06em; margin-bottom: 8px;
+  }
+  .parallel-agent .agent-name.jana { color: var(--jana); }
+  .parallel-agent .agent-name.jarbas { color: var(--jarbas); }
+  .parallel-agent .task-item {
+    display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px;
+    color: var(--muted); font-size: 0.82rem;
+  }
+  .cc-badge {
+    display: inline-block; background: #1e1840; border: 1px solid var(--cc-light);
+    color: var(--cc-light); border-radius: 4px; font-size: 0.7rem;
+    padding: 1px 6px; margin-left: 6px;
+  }
+
+  /* Skill spec */
+  .spec-table { width: 100%; border-collapse: collapse; }
+  .spec-table th {
+    background: var(--surface2); color: var(--muted); font-size: 0.75rem;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .spec-table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 0.88rem; vertical-align: top; }
+  .spec-table tr:last-child td { border-bottom: none; }
+  .spec-table tr:hover td { background: var(--surface2); }
+  .tag {
+    display: inline-block; border-radius: 4px; font-size: 0.72rem;
+    padding: 2px 8px; font-weight: 600;
+  }
+  .tag.high { background: #2d1b1b; color: var(--red); }
+  .tag.med { background: #2a2a14; color: var(--yellow); }
+  .tag.low { background: #1b2d24; color: var(--green); }
+  .tag.cc-tag { background: #1e1840; color: var(--cc-light); }
+
+  /* Monitor spec */
+  .monitor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .monitor-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px;
+  }
+  .monitor-card .card-icon { font-size: 1.4rem; margin-bottom: 8px; }
+  .monitor-card h4 { font-size: 0.9rem; font-weight: 700; margin-bottom: 6px; }
+  .monitor-card p { font-size: 0.82rem; color: var(--muted); }
+
+  /* Recommendation */
+  .recommendation {
+    background: linear-gradient(135deg, #1a2040, #1e1840);
+    border: 1px solid var(--accent);
+    border-radius: 16px; padding: 28px 32px;
+    margin-bottom: 24px;
+  }
+  .recommendation h3 { font-size: 1.1rem; color: var(--cc-light); margin-bottom: 12px; }
+  .recommendation p { color: var(--text); font-size: 0.92rem; line-height: 1.7; margin-bottom: 10px; }
+  .recommendation .highlight { color: var(--jana); font-weight: 600; }
+  .recommendation .highlight.j { color: var(--jarbas); }
+
+  /* Code block */
+  .code-block {
+    background: #0d1117; border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 20px; font-family: 'Fira Code', monospace;
+    font-size: 0.82rem; overflow-x: auto; color: #c9d1d9; line-height: 1.7;
+  }
+  .code-block .cm { color: #8b949e; }
+  .code-block .kw { color: var(--cc-light); }
+  .code-block .str { color: var(--green); }
+  .code-block .fn { color: var(--jana); }
+
+  .badge-new {
+    background: #1b2d24; color: var(--green); border: 1px solid var(--green);
+    border-radius: 4px; font-size: 0.7rem; padding: 1px 6px; margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1><span class="jana">JANA</span> + <span class="jarbas">JARBAS</span> × <span class="cc">Claude Code</span></h1>
+  <p>Arquitetura de paralelização — dois agentes, um Claude Code, zero sobrecarga</p>
+</div>
+
+<div class="container">
+
+  <!-- Veredicto -->
+  <div class="section">
+    <div class="section-title">
+      <div class="dot" style="background: var(--accent3)"></div>
+      Viabilidade — Minha Análise
+    </div>
+
+    <div class="verdict-grid">
+      <div class="verdict-card pro">
+        <h3>✅ Pontos fortes</h3>
+        <ul>
+          <li>Paralelismo real — JANA e JARBAS cada um spawna seu CC</li>
+          <li>Nenhuma sobrecarga de contexto no agente principal</li>
+          <li>CC faz o trabalho pesado (arquivos, código longo)</li>
+          <li>Monitoramento de subagentes já existe via <code>subagents()</code></li>
+          <li>Tarefa grande → dividida → cada metade vai para um agente</li>
+          <li>Feedback proativo ao Christian durante execução</li>
+        </ul>
+      </div>
+      <div class="verdict-card con">
+        <h3>⚠️ Cuidados necessários</h3>
+        <ul>
+          <li>CC pode travar silenciosamente — precisa de timeout + retry</li>
+          <li>Divisão de tarefas precisa ser determinística (não ambígua)</li>
+          <li>Dependência entre subtarefas quebra o paralelismo</li>
+          <li>Custo dobra se ambos spawnam CC para a mesma coisa</li>
+          <li>Skill precisa saber quando <em>não</em> paralelizar</li>
+          <li>Merging de resultados pode ser complexo</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Arquitetura -->
+  <div class="section">
+    <div class="section-title">
+      <div class="dot" style="background: var(--jana)"></div>
+      Arquitetura Proposta
+    </div>
+
+    <div class="arch-flow">
+
+      <div class="flow-row">
+        <div class="flow-box task">Tarefa grande chega</div>
+        <div class="arrow">→</div>
+        <div class="flow-box monitor">Planner<br><small>divide subtarefas</small></div>
+        <div class="arrow">→</div>
+        <div class="flow-box monitor">Router<br><small>JANA vs JARBAS</small></div>
+      </div>
+      <div class="flow-label" style="margin-left: 0">↓ subtarefas distribuídas por domínio ou carga</div>
+
+      <div class="parallel-block">
+        <div class="parallel-label">execução paralela</div>
+        <div class="parallel-row">
+          <div class="parallel-agent">
+            <div class="agent-name jana">🦊 JANA (MacBook Air)</div>
+            <div class="task-item">→ Frontend, Supabase, lapidação <span class="cc-badge">CC</span></div>
+            <div class="task-item">→ Spawna CC com subtarefa A</div>
+            <div class="task-item">→ Monitora + faz updates</div>
+            <div class="task-item">→ Entrega resultado parcial</div>
+          </div>
+          <div class="parallel-agent">
+            <div class="agent-name jarbas">🦞 JARBAS (Mac Mini)</div>
+            <div class="task-item">→ n8n, jurídico, Olivia <span class="cc-badge">CC</span></div>
+            <div class="task-item">→ Spawna CC com subtarefa B</div>
+            <div class="task-item">→ Monitora + faz updates</div>
+            <div class="task-item">→ Entrega resultado parcial</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-row" style="justify-content: center; margin-top: 8px">
+        <div class="flow-box monitor">Merger<br><small>consolida resultados</small></div>
+        <div class="arrow">→</div>
+        <div class="flow-box result">✅ Entrega final<br><small>para o Christian</small></div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Monitoramento CC -->
+  <div class="section">
+    <div class="section-title">
+      <div class="dot" style="background: var(--cc-light)"></div>
+      Módulo de Monitoramento Claude Code <span class="badge-new">crítico</span>
+    </div>
+
+    <div class="monitor-grid">
+      <div class="monitor-card">
+        <div class="card-icon">⏱️</div>
+        <h4>Timeout ativo</h4>
+        <p>Se CC não responde em N minutos → cancelar e notificar. Nunca travar silenciosamente.</p>
+      </div>
+      <div class="monitor-card">
+        <div class="card-icon">📡</div>
+        <h4>Poll com backoff</h4>
+        <p>Checar status a cada 30s no início, depois 60s. Não ficar em loop apertado — respeita rate limit.</p>
+      </div>
+      <div class="monitor-card">
+        <div class="card-icon">🔁</div>
+        <h4>Retry inteligente</h4>
+        <p>Se CC trava (sem output): reiniciar com contexto resumido. Máx 2 tentativas antes de escalar.</p>
+      </div>
+      <div class="monitor-card">
+        <div class="card-icon">📊</div>
+        <h4>Progress streaming</h4>
+        <p>CC envia checkpoints intermediários via arquivo. Agente lê e repassa ao Christian.</p>
+      </div>
+      <div class="monitor-card">
+        <div class="card-icon">🚨</div>
+        <h4>Escalação automática</h4>
+        <p>Se CC falha 2x: agente executa diretamente sem CC. Degradação graceful.</p>
+      </div>
+      <div class="monitor-card">
+        <div class="card-icon">💾</div>
+        <h4>Checkpoint de estado</h4>
+        <p>Antes de spawnar CC: salvar estado em memory/. Se CC morrer, retomar de onde parou.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Roteamento de tarefas -->
+  <div class="section">
+    <div class="section-title">
+      <div class="dot" style="background: var(--yellow)"></div>
+      Lógica de Roteamento — Quando paralelizar?
+    </div>
+
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th>Tipo de tarefa</th>
+          <th>Estratégia</th>
+          <th>Quem spawna CC</th>
+          <th>Paraleliza?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Lapidação de página (frontend)</td>
+          <td>JANA assume inteira</td>
+          <td><span style="color: var(--jana)">JANA</span></td>
+          <td><span class="tag low">não — domínio único</span></td>
+        </tr>
+        <tr>
+          <td>Review de workflow n8n</td>
+          <td>JARBAS assume inteiro</td>
+          <td><span style="color: var(--jarbas)">JARBAS</span></td>
+          <td><span class="tag low">não — domínio único</span></td>
+        </tr>
+        <tr>
+          <td>Feature nova (frontend + backend)</td>
+          <td>JANA = UI, JARBAS = API/DB</td>
+          <td>Ambos</td>
+          <td><span class="tag cc-tag">✅ paraleliza</span></td>
+        </tr>
+        <tr>
+          <td>Multi-review (5+ workflows)</td>
+          <td>Dividir por lote</td>
+          <td>Ambos</td>
+          <td><span class="tag cc-tag">✅ paraleliza</span></td>
+        </tr>
+        <tr>
+          <td>Bug crítico (P0) em produção</td>
+          <td>Direto — sem CC</td>
+          <td>Nenhum</td>
+          <td><span class="tag high">🚫 velocidade > paralelismo</span></td>
+        </tr>
+        <tr>
+          <td>Geração de relatório HTML grande</td>
+          <td>JANA gera HTML, JARBAS coleta dados</td>
+          <td>Ambos</td>
+          <td><span class="tag cc-tag">✅ paraleliza</span></td>
+        </tr>
+        <tr>
+          <td>Refactor de codebase</td>
+          <td>Dividir por módulo/pasta</td>
+          <td>Ambos</td>
+          <td><span class="tag cc-tag">✅ paraleliza</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Skill spec -->
+  <div class="section">
+    <div class="section-title">
+      <div class="dot" style="background: var(--accent)"></div>
+      O que a skill precisaria ter
+    </div>
+
+    <table class="spec-table">
+      <thead>
+        <tr>
+          <th>Módulo</th>
+          <th>Função</th>
+          <th>Prioridade</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Planner</strong></td>
+          <td>Recebe tarefa → analisa dependências → divide em subtarefas independentes</td>
+          <td><span class="tag high">P0 — sem isso, nada funciona</span></td>
+        </tr>
+        <tr>
+          <td><strong>Router</strong></td>
+          <td>Decide qual subtarefa vai para JANA, qual vai para JARBAS (por domínio + carga)</td>
+          <td><span class="tag high">P0</span></td>
+        </tr>
+        <tr>
+          <td><strong>CC Spawner</strong></td>
+          <td>Monta o prompt do CC, spawna, salva session ID + checkpoint</td>
+          <td><span class="tag high">P0</span></td>
+        </tr>
+        <tr>
+          <td><strong>Monitor Loop</strong></td>
+          <td>Poll de status com backoff, timeout, retry, escalação</td>
+          <td><span class="tag high">P0 — é o coração da skill</span></td>
+        </tr>
+        <tr>
+          <td><strong>Progress Reporter</strong></td>
+          <td>Envia updates ao Christian durante execução (a cada etapa ou N minutos)</td>
+          <td><span class="tag med">P1</span></td>
+        </tr>
+        <tr>
+          <td><strong>Merger</strong></td>
+          <td>Consolida resultados de JANA + JARBAS em entrega única</td>
+          <td><span class="tag med">P1</span></td>
+        </tr>
+        <tr>
+          <td><strong>Cost Guard</strong></td>
+          <td>Estima custo antes de spawnar CC em paralelo; bloqueia se > threshold</td>
+          <td><span class="tag med">P1</span></td>
+        </tr>
+        <tr>
+          <td><strong>State Store</strong></td>
+          <td>Salva estado em memory/ antes de spawnar; retoma se agente reinicia</td>
+          <td><span class="tag low">P2</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Recomendação final -->
+  <div class="recommendation">
+    <h3>💡 Minha recomendação</h3>
+    <p>
+      É <strong>viável e faz muito sentido</strong> — especialmente para features que cruzam frontend + backend, 
+      multi-reviews e refactors grandes. O <span class="highlight">ganho real</span> não é só velocidade: 
+      é que cada agente fica no seu domínio e o CC é usado como ferramenta, não como orquestrador.
+    </p>
+    <p>
+      O ponto crítico é o <span class="highlight">monitor loop</span> — se o CC travar sem aviso e ninguém perceber, 
+      a tarefa fica em limbo. Precisa de timeout agressivo (8-10min) + retry automático + escalação.
+    </p>
+    <p>
+      Sugestão de implementação: começar com uma versão simples — 
+      <span class="highlight">skill-cc-paralelo</span> — que faz só o Planner + Spawner + Monitor básico. 
+      Depois iteramos com Cost Guard e Merger mais sofisticado.
+    </p>
+    <p>
+      <strong>Resposta curta:</strong> <span class="highlight j">mantém o que tá</span> para tarefas de domínio único. 
+      <span class="highlight">Adiciona o paralelo</span> como camada nova para tarefas cross-domínio — não substitui, complementa.
+    </p>
+  </div>
+
+  <!-- Próximos passos -->
+  <div class="section">
+    <div class="section-title">
+      <div class="dot" style="background: var(--green)"></div>
+      Próximos passos (se quiser seguir)
+    </div>
+    <table class="spec-table">
+      <thead>
+        <tr><th>#</th><th>Etapa</th><th>Esforço</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1</td><td>Criar <code>skill-cc-paralelo/SKILL.md</code> com Planner + Router + Spawner + Monitor</td><td>~2h CC</td></tr>
+        <tr><td>2</td><td>Testar com tarefa real (ex: feature nova MdFlow)</td><td>~30min</td></tr>
+        <tr><td>3</td><td>Afinar monitor loop (timeout, retry, escalação)</td><td>~1h</td></tr>
+        <tr><td>4</td><td>Adicionar Cost Guard integrado</td><td>~1h</td></tr>
+        <tr><td>5</td><td>Documentar casos de uso no AGENTS.md de ambos</td><td>~20min</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer">
+  JANA 🦊 × JARBAS 🦞 × Claude Code — JARBAS Network | MdLab | 2026-03-16
+</div>
+
+</body>
+</html>

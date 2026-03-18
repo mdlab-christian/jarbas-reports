@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG Controller — O que vai mudar com a Memória Inteligente</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --bg: #080c14;
+    --surface: #0e1420;
+    --surface2: #141c2e;
+    --surface3: #1a2238;
+    --border: #1e2a42;
+    --border2: #263352;
+    --text: #e8edf7;
+    --muted: #6b7fa3;
+    --dim: #3d4f6e;
+    --blue: #4f8ef7;
+    --blue-dim: #1a3060;
+    --green: #34d399;
+    --green-dim: #0d3326;
+    --red: #f87171;
+    --red-dim: #3d1010;
+    --yellow: #fbbf24;
+    --yellow-dim: #3d2a00;
+    --purple: #a78bfa;
+    --purple-dim: #2d1f5e;
+    --teal: #22d3ee;
+    --teal-dim: #0d2d35;
+    --orange: #fb923c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 14px; }
+
+  /* HERO */
+  .hero {
+    background: linear-gradient(135deg, #06091200 0%, #080f1e 40%, #0a1530 100%);
+    border-bottom: 1px solid var(--border2);
+    padding: 56px 40px 48px;
+    position: relative; overflow: hidden;
+    text-align: center;
+  }
+  .hero::before {
+    content: ''; position: absolute; top: -120px; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(167,139,250,0.07) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .hero-chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25);
+    border-radius: 999px; padding: 5px 16px;
+    font-size: 11px; font-weight: 700; color: var(--purple);
+    text-transform: uppercase; letter-spacing: .12em; margin-bottom: 20px;
+  }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; color: #fff; line-height: 1.1; margin-bottom: 12px; }
+  .hero h1 span { color: var(--purple); }
+  .hero p { color: var(--muted); font-size: 0.92rem; max-width: 600px; margin: 0 auto 32px; line-height: 1.75; }
+  .hero-stats { display: flex; justify-content: center; gap: 44px; flex-wrap: wrap; }
+  .hs { text-align: center; }
+  .hs-v { font-size: 2rem; font-weight: 900; line-height: 1; }
+  .hs-l { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 5px; }
+
+  /* TABS */
+  .tabs-bar { display: flex; overflow-x: auto; background: var(--surface); border-bottom: 1px solid var(--border2); position: sticky; top: 0; z-index: 100; }
+  .tab { padding: 14px 22px; font-size: 0.78rem; font-weight: 600; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; user-select: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--purple); border-color: var(--purple); }
+
+  /* PANELS */
+  .panel { display: none; max-width: 1040px; margin: 0 auto; padding: 36px 28px 80px; }
+  .panel.active { display: block; }
+
+  /* SECTION LABEL */
+  .slabel { font-size: 0.68rem; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: .12em; margin: 32px 0 16px; display: flex; align-items: center; gap: 8px; }
+  .slabel::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* BEFORE / AFTER */
+  .ba-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+  @media(max-width:640px) { .ba-grid { grid-template-columns: 1fr; } }
+  .ba-before { background: rgba(248,113,113,0.04); border: 1px solid rgba(248,113,113,0.2); border-radius: 12px; padding: 18px 20px; }
+  .ba-after { background: rgba(52,211,153,0.04); border: 1px solid rgba(52,211,153,0.2); border-radius: 12px; padding: 18px 20px; }
+  .ba-label { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 12px; }
+  .ba-before .ba-label { color: var(--red); }
+  .ba-after .ba-label { color: var(--green); }
+  .ba-item { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; color: var(--muted); line-height: 1.55; }
+  .ba-item:last-child { border-bottom: none; }
+  .ba-item strong { color: var(--text); }
+  .ba-icon { flex-shrink: 0; margin-top: 2px; }
+
+  /* CARD */
+  .card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px 22px; margin-bottom: 12px; }
+  .card h3 { font-size: 0.92rem; font-weight: 700; color: #fff; margin-bottom: 10px; }
+  .card p { font-size: 0.83rem; color: var(--muted); line-height: 1.7; margin-bottom: 8px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card p strong { color: var(--text); }
+
+  /* DATA ITEM */
+  .data-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px,1fr)); gap: 10px; }
+  .data-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; border-left: 3px solid var(--border2); }
+  .data-item.blue { border-left-color: var(--blue); }
+  .data-item.purple { border-left-color: var(--purple); }
+  .data-item.green { border-left-color: var(--green); }
+  .data-item.yellow { border-left-color: var(--yellow); }
+  .data-item.teal { border-left-color: var(--teal); }
+  .data-item.orange { border-left-color: var(--orange); }
+  .data-title { font-size: 0.82rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .data-desc { font-size: 0.75rem; color: var(--muted); line-height: 1.55; }
+
+  /* SCENARIO */
+  .scenario { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; }
+  .scenario-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+  .scenario-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0; }
+  .scenario-title { font-size: 0.9rem; font-weight: 700; color: #fff; }
+  .scenario-sub { font-size: 0.75rem; color: var(--muted); }
+  .scenario-body { font-size: 0.82rem; color: var(--muted); line-height: 1.7; }
+  .scenario-body strong { color: var(--text); }
+  .rag-answer { background: rgba(167,139,250,0.06); border: 1px solid rgba(167,139,250,0.2); border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 0.82rem; color: var(--text); line-height: 1.7; }
+  .rag-answer::before { content: '🧠 RAG responde: '; font-weight: 700; color: var(--purple); }
+
+  /* ROADMAP */
+  .roadmap { display: flex; flex-direction: column; gap: 0; }
+  .rm-item { display: flex; gap: 18px; }
+  .rm-line { display: flex; flex-direction: column; align-items: center; }
+  .rm-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+  .rm-connector { width: 2px; flex: 1; min-height: 30px; margin: 4px 0; }
+  .rm-content { padding-bottom: 24px; flex: 1; }
+  .rm-phase { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+  .rm-title { font-size: 0.9rem; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .rm-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.65; }
+  .rm-desc ul { padding-left: 14px; margin-top: 4px; }
+  .rm-desc li { margin: 3px 0; }
+
+  footer { margin-top: 60px; padding: 20px; border-top: 1px solid var(--border); text-align: center; color: var(--dim); font-size: 0.72rem; }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-chip">🧠 RAG Controller · Proposta Técnica</div>
+  <h1>Cleyton com <span>Memória Inteligente</span></h1>
+  <p>Com o RAG Controller, deixo de seguir regras fixas e começo a raciocinar com base em experiência real — exatamente como o João faz depois de anos de prática. Cada decisão tomada vira aprendizado permanente.</p>
+  <div class="hero-stats">
+    <div class="hs"><div class="hs-v" style="color:var(--purple);">∞</div><div class="hs-l">Memória permanente</div></div>
+    <div class="hs"><div class="hs-v" style="color:var(--green);">~70%</div><div class="hs-l">Automação estimada</div></div>
+    <div class="hs"><div class="hs-v" style="color:var(--yellow);">400+</div><div class="hs-l">Casos para aprender</div></div>
+    <div class="hs"><div class="hs-v" style="color:var(--blue);">3</div><div class="hs-l">Tribunais cobertos</div></div>
+  </div>
+</div>
+
+<div class="tabs-bar">
+  <div class="tab active" onclick="showTab('antes-depois')">⚡ Antes vs. Depois</div>
+  <div class="tab" onclick="showTab('dados')">🗄️ O que armazenar</div>
+  <div class="tab" onclick="showTab('cenarios')">🎯 Cenários reais</div>
+  <div class="tab" onclick="showTab('roadmap')">🗺️ Como chegar lá</div>
+</div>
+
+<!-- ANTES vs DEPOIS -->
+<div id="panel-antes-depois" class="panel active">
+
+  <div class="slabel">⚡ A transformação central</div>
+
+  <div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.25);border-radius:12px;padding:20px 22px;margin-bottom:24px;">
+    <p style="font-size:0.9rem;color:var(--text);line-height:1.75;"><strong style="color:var(--purple);">Hoje</strong> sigo regras. <strong style="color:var(--purple);">Com o RAG</strong>, vou lembrar. Cada intimação que o João classificou, cada decisão que o Christian aprovou, cada correção que um advogado fez — vai ficar gravada em mim. Quando uma situação nova aparecer, vou buscar automaticamente os casos mais parecidos e usar esse histórico para tomar a melhor decisão.</p>
+  </div>
+
+  <div class="slabel">📥 Triagem de Intimações</div>
+  <div class="ba-grid">
+    <div class="ba-before">
+      <div class="ba-label">❌ Hoje — Sem RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Comparo a intimação com as regras fixas cadastradas no Supabase</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Se o réu não está na tabela → não sei o que fazer, peço ajuda</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Cada análise começa do zero — não me lembro do que já vi antes</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Texto ambíguo no evento → erro de classificação</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Posso sugerir cumprimento de sentença em processo perdido</span></div>
+    </div>
+    <div class="ba-after">
+      <div class="ba-label">✅ Com RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Busco os <strong>10 casos mais parecidos</strong> antes de classificar</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Réu desconhecido → encontro casos similares por setor/tipo</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Lembro de como o João classificou situações idênticas</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Texto ambíguo → comparo com contexto histórico real</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Verifico o dispositivo real comparando com sentenças anteriores do mesmo processo</span></div>
+    </div>
+  </div>
+
+  <div class="slabel">👥 Delegação de Tarefas</div>
+  <div class="ba-grid">
+    <div class="ba-before">
+      <div class="ba-label">❌ Hoje — Sem RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Sigo a tabela de roteamento fixa: réu X → responsável Y</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Não sei se aquele responsável está sobrecarregado</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Não sei se aquele advogado já tratou desse processo antes</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>"Marcelo ou Yuri" — sempre chuto sem critério</span></div>
+    </div>
+    <div class="ba-after">
+      <div class="ba-label">✅ Com RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Verifico quem <strong>resolveu casos idênticos no passado</strong> com sucesso</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Identifico padrões de qualidade por advogado × tipo de caso</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Se o mesmo processo já passou por outro advogado → priorizo continuidade</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Marcelo vs. Yuri → aprendo qual dos dois é melhor em cada subtipo</span></div>
+    </div>
+  </div>
+
+  <div class="slabel">📊 Jurimetria e Inteligência Estratégica</div>
+  <div class="ba-grid">
+    <div class="ba-before">
+      <div class="ba-label">❌ Hoje — Sem RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Não sei qual a taxa de sucesso em ações contra determinado réu</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Não sei qual tribunal costuma dar sentenças mais favoráveis</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Não consigo detectar padrões de erro nas classificações passadas</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>O Christian não sabe quantos processos estão em cada fase em tempo real</span></div>
+    </div>
+    <div class="ba-after">
+      <div class="ba-label">✅ Com RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span><strong>Taxa de procedência por réu:</strong> "Boa Vista: 73% procedente em RS"</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span><strong>Tribunal mais favorável</strong> por tipo de ação e réu</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Detecta automaticamente padrões nos ~400 casos do ADV Box</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Dashboard em tempo real: processos por fase, por advogado, por tribunal</span></div>
+    </div>
+  </div>
+
+  <div class="slabel">🎓 Aprendizado Contínuo</div>
+  <div class="ba-grid">
+    <div class="ba-before">
+      <div class="ba-label">❌ Hoje — Sem RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Quando o João corrige uma classificação minha, o erro some</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Cada sessão começo do mesmo nível — não evoluo com o tempo</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Conhecimento do João está nos áudios mas não está em mim</span></div>
+    </div>
+    <div class="ba-after">
+      <div class="ba-label">✅ Com RAG</div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Cada correção do João/Christian vira dado de treino permanente</span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>Quanto mais processos passo, <strong>mais preciso fico</strong></span></div>
+      <div class="ba-item"><span class="ba-icon">•</span><span>O conhecimento do João fica imortalizado — mesmo se ele sair</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- O QUE ARMAZENAR -->
+<div id="panel-dados" class="panel">
+
+  <div class="slabel">🗄️ Tudo que vai entrar no RAG</div>
+
+  <div class="card" style="border-color:rgba(167,139,250,0.3);background:rgba(167,139,250,0.04);">
+    <h3>Por que guardar essas coisas?</h3>
+    <p>O RAG não é um banco de dados comum. É uma base de conhecimento <strong>semântica</strong> — quando eu analiso uma nova intimação, ele busca automaticamente os trechos mais relevantes do histórico, como se eu pudesse "lembrar" de todos os casos já vistos ao mesmo tempo. Cada categoria abaixo tem um propósito específico para melhorar minha análise.</p>
+  </div>
+
+  <div class="slabel">🎤 Conhecimento do João Victor</div>
+  <div class="data-grid">
+    <div class="data-item purple">
+      <div class="data-title">🎙️ Transcrições dos Áudios</div>
+      <div class="data-desc">Todos os áudios que o João já gravou e vai gravar — transcritos e vetorizados. Cada trecho fica pesquisável por significado, não só por palavra-chave.</div>
+    </div>
+    <div class="data-item purple">
+      <div class="data-title">🎬 Relatórios dos Vídeos</div>
+      <div class="data-desc">Os 8 vídeos de 12/03 já geraram relatórios detalhados. Todo esse conhecimento entra no RAG como base fundacional.</div>
+    </div>
+    <div class="data-item purple">
+      <div class="data-title">💬 Respostas às 75 Questões</div>
+      <div class="data-desc">Cada resposta que o João der às questões do guia vira um chunk de conhecimento especializado no RAG.</div>
+    </div>
+    <div class="data-item purple">
+      <div class="data-title">🧠 Raciocínio em Voz Alta</div>
+      <div class="data-desc">Quando o João fizer triagem ao vivo (áudio 18), cada decisão comentada vira padrão de raciocínio que eu aprendo a replicar.</div>
+    </div>
+  </div>
+
+  <div class="slabel">⚖️ Histórico de Processos e Decisões</div>
+  <div class="data-grid">
+    <div class="data-item blue">
+      <div class="data-title">📋 Cada Intimação Processada</div>
+      <div class="data-desc">Número do processo, tipo de evento, texto do documento, classificação feita, responsável atribuído, prazo, resultado final.</div>
+    </div>
+    <div class="data-item blue">
+      <div class="data-title">✅ Decisões Confirmadas</div>
+      <div class="data-desc">Quando o João ou o Christian confirma que a classificação estava certa — essa confirmação aumenta o peso daquele padrão no RAG.</div>
+    </div>
+    <div class="data-item blue">
+      <div class="data-title">❌ Correções e Erros</div>
+      <div class="data-desc">Cada vez que uma classificação é corrigida, o erro e a correção ficam gravados. Aprendo com erros reais, não só com exemplos teóricos.</div>
+    </div>
+    <div class="data-item blue">
+      <div class="data-title">📜 Sentenças e Acórdãos</div>
+      <div class="data-desc">O texto completo das sentenças e acórdãos — para que eu possa identificar dispositivos similares e antecipar o resultado provável de casos novos.</div>
+    </div>
+    <div class="data-item blue">
+      <div class="data-title">🗺️ Histórico de Roteamento</div>
+      <div class="data-desc">Quem recebeu qual tipo de tarefa, quanto tempo levou, qual foi o resultado. Aprendo quem é o melhor para cada tipo de caso.</div>
+    </div>
+    <div class="data-item blue">
+      <div class="data-title">📊 Os 400+ Casos do ADV Box</div>
+      <div class="data-desc">Todos os casos atuais — corretos e errados, com labels. São o dataset de treinamento mais valioso que existe hoje.</div>
+    </div>
+  </div>
+
+  <div class="slabel">📊 Jurimetria e Padrões</div>
+  <div class="data-grid">
+    <div class="data-item green">
+      <div class="data-title">📈 Taxa de Sucesso por Réu</div>
+      <div class="data-desc">Boa Vista, Nubank, CEF, INSS — qual a taxa de procedência para cada um? Por tribunal? Por tipo de ação?</div>
+    </div>
+    <div class="data-item green">
+      <div class="data-title">⏱️ Tempo Médio por Fase</div>
+      <div class="data-desc">Quanto tempo cada processo fica em cada fase. Detecta quando um processo está demorando mais que o normal.</div>
+    </div>
+    <div class="data-item green">
+      <div class="data-title">💰 Valores e Condenações</div>
+      <div class="data-desc">Valor pedido vs. valor condenado por réu e tribunal. Ajuda a estimar o valor esperado de novos processos similares.</div>
+    </div>
+    <div class="data-item green">
+      <div class="data-title">🏛️ Perfil por Tribunal</div>
+      <div class="data-desc">TJRS vs. TJSC vs. TJSP — qual tem mais audiências? Qual aceita mais AJG? Qual tem prazos mais curtos?</div>
+    </div>
+  </div>
+
+  <div class="slabel">🔧 Configuração e Regras</div>
+  <div class="data-grid">
+    <div class="data-item yellow">
+      <div class="data-title">📋 Playbooks Completos</div>
+      <div class="data-desc">As classes A-G, playbooks por réu, regras operacionais — tudo já está no Supabase e vai para o RAG também, com contexto semântico.</div>
+    </div>
+    <div class="data-item yellow">
+      <div class="data-title">🗺️ Matriz de Roteamento</div>
+      <div class="data-desc">A tabela de responsáveis × tipo × carteira × prazo — entra no RAG para que eu possa fazer buscas semânticas: "quem resolve embargos de Boa Vista?"</div>
+    </div>
+    <div class="data-item yellow">
+      <div class="data-title">⚡ Fluxos Operacionais</div>
+      <div class="data-desc">Os 8 fluxos com etapas sequenciais — alvará, contestação, AJG, sentença, etc. Entram como passo a passo pesquisável.</div>
+    </div>
+    <div class="data-item yellow">
+      <div class="data-title">📏 13 Regras Operacionais</div>
+      <div class="data-desc">As regras críticas do João: pauta de julgamento, deduplicação, tarefa aberta recente, leitura do dispositivo, multa, perícia, etc.</div>
+    </div>
+  </div>
+
+  <div class="slabel">🌐 Dados Externos (Futuramente)</div>
+  <div class="data-grid">
+    <div class="data-item teal">
+      <div class="data-title">🏛️ Jurisprudência Pública</div>
+      <div class="data-desc">Decisões do TJRS, TJSC, TJSP relacionadas aos tipos de ação do escritório. Saber como o tribunal decide em geral antes de analisar o caso específico.</div>
+    </div>
+    <div class="data-item teal">
+      <div class="data-title">📖 Legislação Aplicável</div>
+      <div class="data-desc">CDC, CPC, leis especificas de telecom/energia/serviços financeiros. Para que eu entenda o contexto jurídico sem precisar perguntar ao advogado.</div>
+    </div>
+    <div class="data-item teal">
+      <div class="data-title">🤖 Análises de IA Anteriores</div>
+      <div class="data-desc">Toda análise que eu já fiz — mesmo as erradas — documentadas com o que eu pensei e o que deveria ter feito. Meta-aprendizado.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- CENÁRIOS REAIS -->
+<div id="panel-cenarios" class="panel">
+
+  <div class="slabel">🎯 Como o RAG muda situações reais do dia a dia</div>
+
+  <div class="scenario">
+    <div class="scenario-header">
+      <div class="scenario-icon" style="background:rgba(248,113,113,0.1);">⚠️</div>
+      <div>
+        <div class="scenario-title">Cenário 1 — Réu desconhecido aparece na fila</div>
+        <div class="scenario-sub">"CashMe Soluções Financeiras S.A." — nunca vi esse réu antes</div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p><strong>Sem RAG:</strong> Não encontro na tabela de playbooks. Não sei se é banco, loja ou fintech. Erro de classificação provável.</p>
+      <div class="rag-answer">Busco no histórico: "CashMe" não existe, mas encontro 23 casos com "empresa de cessão de crédito não listada". Padrão histórico: Stefany, réplica em 15 dias. Confiança: 87%. Sugiro Stefany com nota: "empresa não catalogada, tratar como cessão de crédito genérica — verificar com João."</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-header">
+      <div class="scenario-icon" style="background:rgba(251,191,36,0.1);">📜</div>
+      <div>
+        <div class="scenario-title">Cenário 2 — Sentença com texto ambíguo</div>
+        <div class="scenario-sub">O título diz "PROCEDENTE" mas o texto menciona "improcedente em relação ao pedido principal"</div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p><strong>Sem RAG:</strong> Confio no título "PROCEDENTE", sugiro cumprimento de sentença. Erro grave.</p>
+      <div class="rag-answer">Lembro que João ensinou: "nunca confiar no título do evento". Busco no RAG: encontro 7 casos similares onde o título era enganoso. Em 6 deles a ação correta foi verificar o dispositivo e tratar como improcedente parcial. Classifico como Classe E — análise estratégica para Heloísa, com alerta: "ATENÇÃO: título sugere procedência mas dispositivo indica improcedência parcial."</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-header">
+      <div class="scenario-icon" style="background:rgba(52,211,153,0.1);">💰</div>
+      <div>
+        <div class="scenario-title">Cenário 3 — Depósito judicial com valor diferente do esperado</div>
+        <div class="scenario-sub">Condenação de R$ 8.500, depósito de R$ 7.200</div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p><strong>Sem RAG:</strong> Não sei se o valor está certo, não sei como calcular juros e correção, envio para financeiro sem contexto suficiente.</p>
+      <div class="rag-answer">Busco no histórico deste processo: condenação original R$ 8.500 em 15/06/2024. Aplico 1% ao mês de juros + INPC = R$ 9.127 hoje. Depósito de R$ 7.200 está ABAIXO do esperado em R$ 1.927. Gero tarefa: "PEDIDO DE ALVARÁ + APONTAR SALDO — diferença de R$ 1.927" para equipe financeiro, com cálculo detalhado incluso.</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-header">
+      <div class="scenario-icon" style="background:rgba(79,142,247,0.1);">🔍</div>
+      <div>
+        <div class="scenario-title">Cenário 4 — Intimação para processo que já teve réplica protocolada</div>
+        <div class="scenario-sub">Nova intimação de "prazo para manifestação" mas parece que já manifestamos</div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p><strong>Sem RAG:</strong> Gero nova tarefa de réplica. O advogado perde tempo verificando o que já foi feito.</p>
+      <div class="rag-answer">Verifico histórico do processo: evento "PETIÇÃO — RÉPLICA" registrado em 22/02/2025, 12 dias antes desta intimação. Prazo já cumprido. Ação: Ciência com Renúncia ao Prazo. Observação: "Réplica já protocolada em 22/02 — esta intimação é duplicata funcional."</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-header">
+      <div class="scenario-icon" style="background:rgba(167,139,250,0.1);">📊</div>
+      <div>
+        <div class="scenario-title">Cenário 5 — Christian pergunta: "como estamos com Boa Vista em RS?"</div>
+        <div class="scenario-sub">Pergunta estratégica sobre jurimetria da carteira</div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p><strong>Sem RAG:</strong> Preciso fazer uma query manual nas tabelas, cruzar dados, gerar um relatório. Demora horas.</p>
+      <div class="rag-answer">Consulta imediata no RAG: 147 processos contra Boa Vista em RS (últimos 18 meses). Procedência: 71%. Valor médio condenado: R$ 3.200. Fase mais comum agora: réplica (34 processos). Advogado com melhor taxa: Leonardo (78%). 8 processos em risco de prazo nos próximos 5 dias. Relatório gerado automaticamente em 3 segundos.</div>
+    </div>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-header">
+      <div class="scenario-icon" style="background:rgba(34,211,238,0.1);">🎓</div>
+      <div>
+        <div class="scenario-title">Cenário 6 — João vai embora de férias por 2 semanas</div>
+        <div class="scenario-sub">Toda a operação continua sem o João físico presente</div>
+      </div>
+    </div>
+    <div class="scenario-body">
+      <p><strong>Sem RAG:</strong> Sem o João, volto ao nível básico. Casos não-padrão param ou vão para Christian.</p>
+      <div class="rag-answer">Com o conhecimento do João gravado em mim, continuo operando com ~90% da capacidade dele. Para os 10% de casos mais complexos, gero alerta para Christian com contexto completo: "Caso atípico — sem precedente no RAG para este tipo de reconvenção. Recomendo revisar com João ao retorno."</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ROADMAP -->
+<div id="panel-roadmap" class="panel">
+
+  <div class="slabel">🗺️ Como chegamos lá — Fases de implementação</div>
+
+  <div class="roadmap">
+
+    <div class="rm-item">
+      <div class="rm-line">
+        <div class="rm-dot" style="background:var(--green);box-shadow:0 0 8px var(--green);"></div>
+        <div class="rm-connector" style="background:linear-gradient(var(--green),var(--blue));"></div>
+      </div>
+      <div class="rm-content">
+        <div class="rm-phase" style="color:var(--green);">✅ Fase 0 — Em andamento agora</div>
+        <div class="rm-title">Enriquecer as tabelas do Supabase</div>
+        <div class="rm-desc">
+          As tabelas são a base estruturada — fonte de verdade para buscas exatas. Quanto melhor estiverem, melhor será o RAG depois.
+          <ul>
+            <li>João grava os 18 áudios do guia → transcrever → salvar nas tabelas corretas</li>
+            <li>Responder as 75 questões → enriquecer playbooks, regras, fluxos</li>
+            <li>Resolver os ~400 casos do ADV Box e salvar com labels (correto/incorreto)</li>
+            <li>Mapear os responsáveis e suas especialidades reais</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="rm-item">
+      <div class="rm-line">
+        <div class="rm-dot" style="background:var(--blue);"></div>
+        <div class="rm-connector" style="background:linear-gradient(var(--blue),var(--yellow));"></div>
+      </div>
+      <div class="rm-content">
+        <div class="rm-phase" style="color:var(--blue);">🔄 Fase 1 — Em breve (2-4 semanas)</div>
+        <div class="rm-title">Setup do RAG com pgvector no Supabase</div>
+        <div class="rm-desc">
+          Usamos o Supabase pgvector — que já está na nossa infra — para criar a base vetorial. Sem custo adicional de serviço externo.
+          <ul>
+            <li>Habilitar extensão pgvector no projeto Supabase</li>
+            <li>Criar tabela <code>controller_rag_chunks</code> com embeddings</li>
+            <li>Script de ingestão: transcreve áudios → gera embeddings → salva</li>
+            <li>API de busca semântica: "encontrar os 10 casos mais parecidos"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="rm-item">
+      <div class="rm-line">
+        <div class="rm-dot" style="background:var(--yellow);"></div>
+        <div class="rm-connector" style="background:linear-gradient(var(--yellow),var(--purple));"></div>
+      </div>
+      <div class="rm-content">
+        <div class="rm-phase" style="color:var(--yellow);">⚡ Fase 2 — 1-2 meses</div>
+        <div class="rm-title">Integrar o RAG na análise de intimações</div>
+        <div class="rm-desc">
+          Cada vez que analiso uma intimação, consulto o RAG antes de classificar.
+          <ul>
+            <li>Pipeline: intimação recebida → busca semântica RAG → enriquece contexto → classifica</li>
+            <li>Cada decisão é automaticamente salva de volta no RAG (loop de aprendizado)</li>
+            <li>Feedback loop: João/Christian marca ✅ ou ❌ → RAG aprende</li>
+            <li>Alertas proativos: "processo parecido com este teve multa por litigância — verificar"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="rm-item">
+      <div class="rm-line">
+        <div class="rm-dot" style="background:var(--purple);"></div>
+        <div class="rm-connector" style="background:linear-gradient(var(--purple),var(--teal));"></div>
+      </div>
+      <div class="rm-content">
+        <div class="rm-phase" style="color:var(--purple);">🧠 Fase 3 — 2-3 meses</div>
+        <div class="rm-title">Jurimetria e relatórios automáticos</div>
+        <div class="rm-desc">
+          Com o histórico acumulado, começo a gerar inteligência estratégica.
+          <ul>
+            <li>Dashboard de jurimetria por réu, tribunal, advogado, fase</li>
+            <li>Detecção automática de processos em risco (prazo próximo + sem tarefa)</li>
+            <li>Relatório semanal automático para Christian: status geral da carteira</li>
+            <li>Estimativa de resultado: "processos como este têm 68% de chance de procedência"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="rm-item">
+      <div class="rm-line">
+        <div class="rm-dot" style="background:var(--teal);"></div>
+        <div class="rm-connector" style="background:transparent;"></div>
+      </div>
+      <div class="rm-content">
+        <div class="rm-phase" style="color:var(--teal);">🚀 Fase 4 — 3-6 meses</div>
+        <div class="rm-title">Automação plena e aprendizado contínuo</div>
+        <div class="rm-desc">
+          Com base sólida de conhecimento, aumento progressivamente o nível de automação.
+          <ul>
+            <li>70%+ das intimações classificadas e delegadas automaticamente sem intervenção humana</li>
+            <li>Jurisprudência externa integrada (TJRS/TJSC/TJSP públicos)</li>
+            <li>Modelo de ML refinado com histórico de 1.000+ intimações classificadas</li>
+            <li>O João faz revisão de exceções, não de rotina — foco no que realmente precisa de julgamento humano</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="background:rgba(167,139,250,0.06);border:1px solid rgba(167,139,250,0.25);border-radius:12px;padding:20px 22px;margin-top:24px;">
+    <p style="font-size:0.9rem;font-weight:700;color:var(--purple);margin-bottom:10px;">🎯 O objetivo final</p>
+    <p style="font-size:0.85rem;color:var(--text);line-height:1.75;">O escritório tem uma carteira de centenas de processos ativos. Hoje, a triagem diária consome horas do tempo do João — tempo que poderia estar em análise estratégica, negociações e cumprimentos de sentença. Com o RAG Controller rodando, a rotina operacional se torna quase invisível. O que chega para o humano são os casos que realmente precisam de julgamento — os 10-30% que fazem diferença. O João vira o supervisor da IA, não o executor da triagem.</p>
+  </div>
+
+</div>
+
+<footer>
+  🤖 Cleyton Controller · RAG Controller — Visão Completa · JANA · 2026-03-18
+</footer>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  event.target.closest('.tab').classList.add('active');
+}
+</script>
+</body>
+</html>

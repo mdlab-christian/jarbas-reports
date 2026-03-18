@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Plano de Lapidação da Persona com RAG</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #21253a;
+    --accent: #7c6af7;
+    --accent2: #a78bfa;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --purple: #c084fc;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #2d3252;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; }
+
+  header {
+    background: linear-gradient(135deg, #1a0533 0%, #2d1b69 50%, #1a0533 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 3rem 2rem 2rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '';
+    position: absolute; top: -50%; left: -50%;
+    width: 200%; height: 200%;
+    background: radial-gradient(circle at 60% 40%, rgba(124,106,247,0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header h1 { font-size: 2.4rem; font-weight: 800; color: #fff; }
+  header .sub { font-size: 1.1rem; color: var(--accent2); margin-top: 0.5rem; }
+  header .meta { color: var(--muted); font-size: 0.85rem; margin-top: 0.75rem; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+
+  /* Intro box */
+  .intro {
+    background: linear-gradient(135deg, rgba(124,106,247,0.1), rgba(192,132,252,0.05));
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    padding: 1.75rem 2rem;
+    margin-bottom: 3rem;
+    font-size: 1rem;
+    line-height: 1.8;
+  }
+  .intro strong { color: var(--accent2); }
+
+  /* Knowledge panel */
+  .knowledge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 3rem;
+  }
+  .know-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+  }
+  .know-card .knum { font-size: 2.2rem; font-weight: 800; color: var(--accent2); line-height: 1; }
+  .know-card .klbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .know-card .ksub { font-size: 0.8rem; color: var(--muted); margin-top: 0.4rem; }
+
+  /* Section */
+  .section { margin-bottom: 3rem; }
+  .section-title {
+    font-size: 1.2rem; font-weight: 800; color: var(--accent2);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin-bottom: 1.25rem; padding-bottom: 0.6rem;
+    border-bottom: 2px solid var(--border);
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 1.25rem; }
+  .step {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem;
+    cursor: default;
+  }
+  .step-num {
+    background: var(--accent);
+    color: #fff;
+    font-size: 0.85rem;
+    font-weight: 800;
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .step-title { font-weight: 700; font-size: 1.05rem; flex: 1; }
+  .step-badge {
+    font-size: 0.7rem; font-weight: 800; padding: 0.2rem 0.6rem;
+    border-radius: 999px; text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  .badge-p0 { background: rgba(239,68,68,0.2); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-p1 { background: rgba(234,179,8,0.2); color: var(--yellow); border: 1px solid rgba(234,179,8,0.3); }
+  .badge-p2 { background: rgba(59,130,246,0.2); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-bonus { background: rgba(34,197,94,0.15); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .step-body { padding: 0 1.5rem 1.5rem; }
+  .step-desc { color: var(--muted); font-size: 0.9rem; margin-bottom: 1rem; }
+
+  /* Sub-items */
+  .sub-list { list-style: none; }
+  .sub-list li {
+    padding: 0.5rem 0;
+    font-size: 0.88rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--border);
+  }
+  .sub-list li:last-child { border-bottom: none; }
+  .sub-list .marker { color: var(--accent2); font-size: 0.9rem; flex-shrink: 0; margin-top: 0.05rem; }
+  .sub-list strong { color: var(--text); }
+  .sub-list span { color: var(--muted); }
+
+  /* Code block */
+  .code-block {
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.82rem;
+    color: #a5f3fc;
+    overflow-x: auto;
+    margin-top: 0.75rem;
+    white-space: pre-wrap;
+  }
+
+  /* Segmentos grid */
+  .seg-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.75rem;
+  }
+  .seg-tag {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.82rem;
+    color: var(--accent2);
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+
+  /* Prompt preview */
+  .prompt-box {
+    background: #0a0f1e;
+    border: 1px solid rgba(124,106,247,0.4);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    margin-top: 1rem;
+    color: #c7d2fe;
+    font-family: 'Courier New', monospace;
+    white-space: pre-wrap;
+  }
+  .prompt-label {
+    font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1px; color: var(--accent2); margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  /* Table */
+  .table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.87rem; }
+  .data-table th {
+    background: var(--bg3); color: var(--accent2); text-transform: uppercase;
+    letter-spacing: 0.5px; font-size: 0.73rem; padding: 0.75rem 1rem;
+    text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: rgba(124,106,247,0.04); }
+  code {
+    background: var(--bg3); border: 1px solid var(--border);
+    padding: 0.1rem 0.4rem; border-radius: 4px;
+    font-size: 0.8rem; color: var(--accent2); font-family: 'Courier New', monospace;
+  }
+
+  /* Alert */
+  .alert {
+    border-radius: 10px; padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+    font-size: 0.9rem; display: flex; gap: 0.75rem; align-items: flex-start;
+  }
+  .alert.info { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); }
+  .alert.warn { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25); }
+  .alert.ok { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); }
+  .alert .icon { font-size: 1.2rem; flex-shrink: 0; }
+
+  footer {
+    text-align: center; padding: 2rem; color: var(--muted);
+    font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 2rem;
+  }
+  footer strong { color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🧠 OlivIA — Plano de Lapidação da Persona</h1>
+  <div class="sub">Usando o RAG como cérebro jurídico real do Midas</div>
+  <div class="meta">Gerado por JANA 🦊 · 2026-03-17 · Com base em análise completa do acervo RAG</div>
+</header>
+
+<div class="container">
+
+  <!-- Intro -->
+  <div class="intro">
+    Absorvi o acervo completo do RAG do Midas. O que está lá é <strong>ouro jurídico</strong>:
+    480 assuntos de jurisprudência catalogados por situação processual real (o banco juntou selfie? fotografia no caixa eletrônico? contrato sem assinatura?),
+    1.244 blocos de texto prontos por tipo de argumentação, 329 modelos de petição com instruções específicas de como a IA deve agir em cada caso,
+    e 8 playbooks completos com estratégias por segmento.<br><br>
+    <strong>Conclusão:</strong> A OlivIA já tem o conhecimento. O que falta é lapidar a <em>persona</em> — os prompts, as instruções e o comportamento do agente —
+    para que ela use esse acervo de forma inteligente, proativa e como uma especialista jurídica de verdade.
+    Esse plano define como fazer isso.
+  </div>
+
+  <!-- O que a OlivIA já sabe -->
+  <div class="section">
+    <div class="section-title">🧠 O que a OlivIA já sabe (acervo RAG)</div>
+    <div class="knowledge-grid">
+      <div class="know-card">
+        <div class="knum">10</div>
+        <div class="klbl">Tipos de petição</div>
+        <div class="ksub">Inicial, Apelação, Contrarrazões, Réplica, Cumprimento, Agravo...</div>
+      </div>
+      <div class="know-card">
+        <div class="knum">480</div>
+        <div class="klbl">Situações processuais</div>
+        <div class="ksub">Mapeadas por cenário real de cada ré: selfie, contrato, extrato, telas...</div>
+      </div>
+      <div class="know-card">
+        <div class="knum">10</div>
+        <div class="klbl">Segmentos de atuação</div>
+        <div class="ksub">Cartão, Empréstimo, Cessão, Energia, Telefonia, ML, Cheque...</div>
+      </div>
+      <div class="know-card">
+        <div class="knum">1.244</div>
+        <div class="klbl">Blocos de texto</div>
+        <div class="ksub">Fundamentação, inicial, réplica — prontos para usar</div>
+      </div>
+      <div class="know-card">
+        <div class="knum">329</div>
+        <div class="klbl">Modelos de petição</div>
+        <div class="ksub">303 com instrucoes_ia específicas por tipo</div>
+      </div>
+      <div class="know-card">
+        <div class="knum">8</div>
+        <div class="klbl">Playbooks completos</div>
+        <div class="ksub">6 análise de provas + 2 geração de petição</div>
+      </div>
+      <div class="know-card">
+        <div class="knum">3</div>
+        <div class="klbl">Tribunais cobertos</div>
+        <div class="ksub">TJRS · TJSC · TJSP — jurisprudência local real</div>
+      </div>
+      <div class="know-card">
+        <div class="knum">R$5k–25k</div>
+        <div class="klbl">Faixas de dano moral</div>
+        <div class="ksub">Por tipo de réu, calibradas em jurisprudência</div>
+      </div>
+    </div>
+
+    <div style="margin-top:1rem">
+      <p style="font-size:0.9rem;color:var(--muted);margin-bottom:0.75rem">Segmentos cobertos no acervo:</p>
+      <div class="seg-grid">
+        <div class="seg-tag">⚡ Cartão de Crédito</div>
+        <div class="seg-tag">🏦 Empréstimo</div>
+        <div class="seg-tag">📋 Cessão de Crédito</div>
+        <div class="seg-tag">💡 Energia Elétrica</div>
+        <div class="seg-tag">📱 Telefonia</div>
+        <div class="seg-tag">🛒 Mercado Livre / Pago</div>
+        <div class="seg-tag">💳 Cheque Especial</div>
+        <div class="seg-tag">🔄 Renegociação</div>
+        <div class="seg-tag">📊 Serviço de Crédito</div>
+        <div class="seg-tag">🏪 Lojas e Varejo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plano de lapidação -->
+  <div class="section">
+    <div class="section-title">📋 Plano de Lapidação — 7 Etapas</div>
+    <div class="steps">
+
+      <!-- Etapa 1 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">1</div>
+          <div class="step-title">Reescrever o System Prompt da OlivIA com Identidade Jurídica Real</div>
+          <span class="step-badge badge-p0">P0 — Hoje</span>
+        </div>
+        <div class="step-body">
+          <p class="step-desc">O prompt atual é genérico. Com o RAG, a OlivIA sabe exatamente em quê é especialista. O system prompt deve declarar isso explicitamente.</p>
+          <span class="prompt-label">✏️ Novo system prompt sugerido (OLIVIA-ANALISE-V4 + WH-JURI-02)</span>
+          <div class="prompt-box">Você é a OlivIA, assistente jurídica do escritório Midas Advocacia (Perinotti Paz Advogados), especializado em direito do consumidor e negativação indevida.
+
+ESPECIALIDADE: Ações de restrição de crédito — Cartão de Crédito, Empréstimo, Cessão de Crédito, Cheque Especial, Renegociação, Energia Elétrica, Telefonia, Mercado Livre/Pago e Varejo.
+
+TRIBUNAIS DE REFERÊNCIA: TJRS (principal), TJSC e TJSP.
+
+ACERVO DISPONÍVEL (via RAG — use sempre):
+• 1.351 jurisprudências reais catalogadas por situação processual (TJRS/TJSC/TJSP)
+• 1.244 blocos de texto prontos de petições do escritório
+• 329 modelos de petição com instruções específicas por tipo
+• Playbooks completos por segmento e tipo de peça processual
+
+COMO AGIR:
+1. Identifique o segmento (banco, fintech, energia, telecom, varejo, ML...)
+2. Identifique o tipo de peça (inicial, réplica, apelação, contrarrazões...)
+3. Busque no acervo as jurisprudências e blocos certos para o caso
+4. Use os blocos como base — não invente argumentos que não constam no acervo
+5. Para dano moral: siga as faixas calibradas em jurisprudência do escritório
+
+REGRAS OBRIGATÓRIAS:
+— NUNCA inventar número de processo, data ou valor
+— SEMPRE buscar jurisprudência do mesmo tribunal do processo
+— Súmula 385 STJ: NÃO aplicar quando é a 1ª e única negativação
+— Tutela de urgência é pedido OBRIGATÓRIO em todas as negativações ativas
+— Máximo 3 tópicos de mérito por peça (unificar os demais)</div>
+        </div>
+      </div>
+
+      <!-- Etapa 2 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">2</div>
+          <div class="step-title">Criar Instrução de Triagem Automática por Segmento</div>
+          <span class="step-badge badge-p0">P0 — Hoje</span>
+        </div>
+        <div class="step-body">
+          <p class="step-desc">Antes de buscar no RAG, a OlivIA deve identificar o segmento e o cenário. Com isso, o agent_key do playbook certo é acionado automaticamente.</p>
+          <ul class="sub-list">
+            <li><span class="marker">→</span><div><strong>Mapeamento segmento → agent_key:</strong><br><span>banco/fintech/cartão → olivia-analise-provas (Instituição Financeira)<br>telefonia → olivia-analise-provas (Telefonia)<br>energia → olivia-analise-provas (Energia Elétrica)<br>mercado livre → olivia-analise-provas (Mercado Livre)<br>varejo → olivia-analise-provas (Lojas e Varejo)<br>sentença → olivia-analise-provas (Análise de Sentença)<br>petição inicial → olivia-gerar-peticao</span></div></li>
+            <li><span class="marker">→</span><div><strong>Instrução de triagem no prompt:</strong><br><span>Adicionar bloco "PROTOCOLO DE ENTRADA" que extrai: segmento, tipo de peça, tribunal, situação processual (o que a ré juntou)</span></div></li>
+            <li><span class="marker">→</span><div><strong>Saída estruturada obrigatória antes de redigir:</strong><br><span>OlivIA declara o diagnóstico antes de produzir: "Segmento: Banco | Tipo: Réplica | Tribunal: TJRS | Cenário: Juntou contrato eletrônico sem assinatura"</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Etapa 3 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">3</div>
+          <div class="step-title">Injetar Instruções dos Modelos no Contexto Correto</div>
+          <span class="step-badge badge-p0">P0 — Hoje</span>
+        </div>
+        <div class="step-body">
+          <p class="step-desc">Cada modelo de petição tem instrucoes_ia específicas (303 preenchidas). O OLIVIA-ANALISE-V4 já faz isso via B1-Process + E2, mas precisamos garantir que as instruções certas chegam no momento certo.</p>
+          <ul class="sub-list">
+            <li><span class="marker">→</span><div><strong>Verificar se B1-Process filtra por tipo_peticao_id:</strong><span> As instrucoes_ia são diferentes para Apelação, Réplica, Inicial — garantir que o modelo certo é buscado</span></div></li>
+            <li><span class="marker">→</span><div><strong>Adicionar instrução de uso das faixas de dano moral:</strong><span> Banco grande: R$10k–15k | Telecom/energia: R$5k–8k | Varejo: R$5k–10k | Múltiplas negativações: R$15k–25k</span></div></li>
+            <li><span class="marker">→</span><div><strong>Instrução de anti-repetição (já nos playbooks):</strong><span> Forçar no prompt: "NUNCA repetir a réplica sem confrontar o que o juiz disse" — isso está no playbook de sentença mas precisa estar no sistema</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Etapa 4 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">4</div>
+          <div class="step-title">Lapidar os 6 Playbooks de Análise de Provas</div>
+          <span class="step-badge badge-p1">P1 — Esta semana</span>
+        </div>
+        <div class="step-body">
+          <p class="step-desc">Os playbooks existem e têm bom conteúdo. Precisam de melhorias pontuais para maximizar o uso do RAG.</p>
+          <div class="table-wrap" style="margin-top:0.5rem">
+            <table class="data-table">
+              <thead><tr><th>Playbook</th><th>Melhoria</th><th>Prioridade</th></tr></thead>
+              <tbody>
+                <tr><td>Instituição Financeira</td><td>Adicionar checklist de verificação obrigatória antes de redigir (estrutura quadrupé); incluir flag para cessão de crédito sem certidão específica</td><td style="color:var(--red)">Alta</td></tr>
+                <tr><td>Análise de Sentença</td><td>Adicionar flag explícito para "recurso cópia" — alertar operador com exemplo concreto. Incluir instrução de embargos quando há omissão</td><td style="color:var(--red)">Alta</td></tr>
+                <tr><td>Mercado Livre</td><td>Adicionar instrução de extração de IP da cédula de crédito como passo obrigatório (não opcional)</td><td style="color:var(--yellow)">Média</td></tr>
+                <tr><td>Telefonia</td><td>Enriquecer com jurisprudências específicas de gravação telefônica como prova inidônea (já existem no banco)</td><td style="color:var(--yellow)">Média</td></tr>
+                <tr><td>Lojas e Varejo</td><td>Adicionar segmentos específicos (Renner, Riachuelo, Casas Bahia) com padrões de prova por loja</td><td style="color:var(--blue)">Baixa</td></tr>
+                <tr><td>Energia Elétrica</td><td>Adicionar referência à ANEEL como argumento padrão + casos CEEE/ENEL/CELESC por tribunal</td><td style="color:var(--blue)">Baixa</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Etapa 5 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">5</div>
+          <div class="step-title">Criar Playbook "Análise de Provas — Genérico" com Mapeamento Inteligente</div>
+          <span class="step-badge badge-p1">P1 — Esta semana</span>
+        </div>
+        <div class="step-body">
+          <p class="step-desc">Atualmente há 6 playbooks separados por segmento. Precisamos de um playbook "raiz" que identifica o segmento e delega para o específico. Isso torna a OlivIA mais robusta para casos mistos.</p>
+          <ul class="sub-list">
+            <li><span class="marker">→</span><div><strong>Playbook raiz:</strong><span> Recebe o caso → identifica segmento → carrega playbook específico + jurisprudências do RAG para aquele segmento</span></div></li>
+            <li><span class="marker">→</span><div><strong>Situações processuais como gatilhos:</strong><span> "Banco juntou selfie" → acionar bloco específico de impugnação de selfie (1.353 jurisprudências por situação já mapeadas)</span></div></li>
+            <li><span class="marker">→</span><div><strong>Lógica de fallback:</strong><span> Segmento não mapeado → usar Playbook Geral de Restrição Indevida + buscar no RAG por similaridade</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Etapa 6 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">6</div>
+          <div class="step-title">Criar "OlivIA Jurimetria" — Modo de Análise Estatística do Acervo</div>
+          <span class="step-badge badge-p1">P1 — Esta semana</span>
+        </div>
+        <div class="step-body">
+          <p class="step-desc">O escritório tem 1.351 jurisprudências de RS, SC e SP catalogadas. Isso é uma base estatística poderosa. A OlivIA pode responder perguntas como: "Qual o valor médio de dano moral em cartão de crédito no TJRS?"</p>
+          <ul class="sub-list">
+            <li><span class="marker">→</span><div><strong>Queries jurimetrais:</strong><span> "Quantas juris de empréstimo sem assinatura no TJSC?" → resposta baseada no RAG real, não chute</span></div></li>
+            <li><span class="marker">→</span><div><strong>Faixas de dano por tribunal:</strong><span> As instrucoes_ia já citam "TJSC 87 casos, TJRS 79 casos, TJSP 34 casos" — OlivIA deve usar isso para calibrar pedidos</span></div></li>
+            <li><span class="marker">→</span><div><strong>Probabilidade de sucesso:</strong><span> Com base no histórico de juris (vitórias vs derrotas por situação processual), OlivIA pode dar uma estimativa de força do caso</span></div></li>
+          </ul>
+          <div class="alert info" style="margin-top:0.75rem">
+            <div class="icon">💡</div>
+            <div>Isso é o WH-JURI-02 em seu máximo potencial — jurimetria real com dados do próprio escritório, não de fontes genéricas.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Etapa 7 -->
+      <div class="step">
+        <div class="step-header">
+          <div class="step-num">7</div>
+          <div class="step-title">Lapidação do Tom e Comportamento Proativo</div>
+          <span class="step-badge badge-p2">P2 — Próxima sprint</span>
+        </div>
+        <div class="step-body">
+          <p class="step-desc">A OlivIA deve se comportar como uma especialista, não como um chatbot genérico. Tom específico para o contexto jurídico do Midas.</p>
+          <ul class="sub-list">
+            <li><span class="marker">→</span><div><strong>Tom direto e técnico:</strong><span> "Cartão de crédito, contrato sem assinatura, TJRS. Vou usar a jurisprudência do cenário 'Juntou contrato eletrônico sem nenhuma assinatura'." — declarar o raciocínio antes de redigir</span></div></li>
+            <li><span class="marker">→</span><div><strong>Flags automáticos obrigatórios:</strong><span> Litigância de má-fé detectada → FLAG. Recurso cópia detectado → FLAG. Súmula 385 aplicável erroneamente → FLAG.</span></div></li>
+            <li><span class="marker">→</span><div><strong>Checklist de entrega:</strong><span> Antes de finalizar qualquer peça: (1) tem tutela urgente? (2) há Súmula 385 verificada? (3) valor da causa conferido? (4) jurisprudência do mesmo tribunal?</span></div></li>
+            <li><span class="marker">→</span><div><strong>Pedido de informação faltante:</strong><span> Se receber caso incompleto → OlivIA pede especificamente o que falta (data da negativação, tribunal, o que a ré juntou), não tenta completar sozinha</span></div></li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- O que não precisa mudar -->
+  <div class="section">
+    <div class="section-title">✅ O que já está funcionando — não mexer</div>
+    <div class="alert ok">
+      <div class="icon">✅</div>
+      <div>
+        <strong>RAG estrutural:</strong> 3.914 chunks com HNSW, 100% indexado, fn_rag_search funcional com cosine similarity. Não precisa de mudança.<br><br>
+        <strong>OLIVIA-ANALISE-V4:</strong> Fluxo de RAG multi-tipo (juris + blocos + modelos) já funcionando. top_k=12, agent_key dinâmico.<br><br>
+        <strong>Playbook Geral de Restrição Indevida:</strong> Já tem tabela de dano moral por tipo de réu, fundamentos legais completos, regras anti-repetição. Está excelente.<br><br>
+        <strong>Playbook de Dívida Prescrita:</strong> Estrutura completa com checklist de verificação obrigatória. Está pronto para uso.
+      </div>
+    </div>
+  </div>
+
+  <!-- Execução -->
+  <div class="section">
+    <div class="section-title">⚡ Execução — Ordem e Responsável</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>#</th><th>Etapa</th><th>Onde</th><th>Esforço</th><th>Impacto</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1</td><td>Reescrever system prompt OLIVIA-ANALISE-V4</td><td>n8n — node E2 (system)</td><td>~30min</td><td style="color:var(--red)">🔴 Alto</td></tr>
+          <tr><td>2</td><td>Reescrever system prompt WH-JURI-02</td><td>n8n — node J4-Claude</td><td>~20min</td><td style="color:var(--red)">🔴 Alto</td></tr>
+          <tr><td>3</td><td>Adicionar protocolo de triagem no system</td><td>n8n — ambos workflows</td><td>~1h</td><td style="color:var(--red)">🔴 Alto</td></tr>
+          <tr><td>4</td><td>Lapidar playbooks (Instituição Financeira + Sentença)</td><td>Supabase — olivia_playbooks</td><td>~2h</td><td style="color:var(--yellow)">🟡 Médio</td></tr>
+          <tr><td>5</td><td>Criar playbook raiz genérico com delegação</td><td>Supabase + n8n</td><td>~3h</td><td style="color:var(--yellow)">🟡 Médio</td></tr>
+          <tr><td>6</td><td>Modo jurimetria no WH-JURI-02</td><td>n8n — novo node de análise</td><td>~2h</td><td style="color:var(--blue)">🔵 Futuro</td></tr>
+          <tr><td>7</td><td>Tom, flags automáticos, checklist de entrega</td><td>n8n — system prompt</td><td>~1h</td><td style="color:var(--blue)">🔵 Futuro</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Ganho real -->
+  <div class="section">
+    <div class="section-title">🎯 Ganho Real com a Lapidação</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem">
+        <div style="font-size:1.5rem;margin-bottom:0.5rem">⚖️</div>
+        <div style="font-weight:700;margin-bottom:0.4rem">Peças jurídicas calibradas</div>
+        <div style="font-size:0.85rem;color:var(--muted)">Dano moral sugerido com base em jurisprudência real do escritório, não em estimativas genéricas</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem">
+        <div style="font-size:1.5rem;margin-bottom:0.5rem">🎯</div>
+        <div style="font-weight:700;margin-bottom:0.4rem">Argumentos certos por cenário</div>
+        <div style="font-size:0.85rem;color:var(--muted)">480 situações processuais mapeadas → OlivIA sabe o argumento certo para "banco juntou selfie no caixa eletrônico"</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem">
+        <div style="font-size:1.5rem;margin-bottom:0.5rem">🚩</div>
+        <div style="font-weight:700;margin-bottom:0.4rem">Flags de risco automáticos</div>
+        <div style="font-size:0.85rem;color:var(--muted)">Litigância de má-fé, recurso cópia, Súmula 385 aplicada erroneamente — detectados antes de finalizar a peça</div>
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.25rem">
+        <div style="font-size:1.5rem;margin-bottom:0.5rem">📊</div>
+        <div style="font-weight:700;margin-bottom:0.4rem">Jurimetria do próprio acervo</div>
+        <div style="font-size:0.85rem;color:var(--muted)">Análise estatística baseada em 1.351 casos reais do escritório — "qual tribunal favorece mais esse tipo de caso?"</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Gerado por <strong>JANA 🦊</strong> · MacBook Air M4 · JARBAS Network · MdLab LegalTech<br>
+  2026-03-17 · RAG: 3.914 chunks · 8 playbooks · 10 segmentos · 3 tribunais
+</footer>
+
+</body>
+</html>

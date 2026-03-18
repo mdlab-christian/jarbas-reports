@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Controller IA — Avaliação de Evolução | 2026-03-18</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+
+  .header {
+    background: linear-gradient(135deg, #1a1f2e 0%, #0f1117 100%);
+    border-bottom: 1px solid #2d3748;
+    padding: 32px 40px;
+  }
+  .header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .badge-jana { background: #f97316; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; letter-spacing: 0.5px; }
+  .badge-data { background: #1e293b; color: #94a3b8; font-size: 11px; padding: 3px 10px; border-radius: 20px; }
+  h1 { font-size: 26px; font-weight: 700; color: #f1f5f9; margin-bottom: 6px; }
+  .subtitle { color: #64748b; font-size: 14px; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  /* KPIs */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+  .kpi-card {
+    background: #1a1f2e;
+    border: 1px solid #2d3748;
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .kpi-card.green { border-color: #22c55e40; background: #0d1f17; }
+  .kpi-card.orange { border-color: #f9731640; background: #1f1209; }
+  .kpi-card.blue { border-color: #3b82f640; background: #0d1629; }
+  .kpi-card.yellow { border-color: #eab30840; background: #1a1600; }
+  .kpi-value { font-size: 36px; font-weight: 800; margin-bottom: 4px; }
+  .kpi-card.green .kpi-value { color: #22c55e; }
+  .kpi-card.orange .kpi-value { color: #f97316; }
+  .kpi-card.blue .kpi-value { color: #3b82f6; }
+  .kpi-card.yellow .kpi-value { color: #eab308; }
+  .kpi-label { font-size: 12px; color: #64748b; font-weight: 500; }
+
+  /* Seções */
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 16px; font-weight: 700; color: #f1f5f9;
+    margin-bottom: 16px; display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .icon { font-size: 18px; }
+
+  /* Comparação antes/depois */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
+  .compare-card {
+    border-radius: 12px; padding: 20px;
+    border: 1px solid;
+  }
+  .compare-card.before { background: #1f0d0d; border-color: #7f1d1d40; }
+  .compare-card.after  { background: #0d1f17; border-color: #14532d40; }
+  .compare-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+  }
+  .compare-card.before .compare-label { color: #f87171; }
+  .compare-card.after  .compare-label { color: #4ade80; }
+  .compare-card ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .compare-card li { font-size: 13px; color: #cbd5e1; padding: 8px 12px; border-radius: 8px; background: #ffffff08; }
+  .compare-card.before li::before { content: "✗ "; color: #f87171; }
+  .compare-card.after  li::before { content: "✓ "; color: #4ade80; }
+
+  /* Tabela de intimações novas */
+  .intimacoes-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .intimacoes-table th {
+    background: #1e293b; color: #64748b; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 10px 14px; text-align: left; border-bottom: 1px solid #2d3748;
+  }
+  .intimacoes-table td { padding: 10px 14px; border-bottom: 1px solid #1e293b; vertical-align: middle; }
+  .intimacoes-table tr:hover td { background: #1a1f2e; }
+  .tipo-pill {
+    display: inline-block; font-size: 10px; font-weight: 700;
+    padding: 2px 8px; border-radius: 20px; white-space: nowrap;
+  }
+  .tipo-prazo    { background: #7c3aed20; color: #a78bfa; border: 1px solid #7c3aed40; }
+  .tipo-julgado  { background: #0284c720; color: #38bdf8; border: 1px solid #0284c740; }
+  .tipo-tj       { background: #22c55e20; color: #4ade80; border: 1px solid #22c55e40; }
+  .tipo-contad   { background: #f9731620; color: #fb923c; border: 1px solid #f9731640; }
+  .tipo-decisao  { background: #eab30820; color: #fbbf24; border: 1px solid #eab30840; }
+  .tipo-citacao  { background: #ec489920; color: #f472b6; border: 1px solid #ec489940; }
+  .tipo-outro    { background: #47556920; color: #94a3b8; border: 1px solid #47556940; }
+
+  .risco-pill { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .risco-alto  { background: #7f1d1d40; color: #f87171; border: 1px solid #f8717140; }
+  .risco-medio { background: #78350f40; color: #fbbf24; border: 1px solid #fbbf2440; }
+  .risco-baixo { background: #14532d40; color: #4ade80; border: 1px solid #4ade8040; }
+
+  .ia-ok { color: #22c55e; font-size: 13px; font-weight: 600; }
+
+  /* Análise final */
+  .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .analysis-card {
+    background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 20px;
+  }
+  .analysis-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 14px; color: #f1f5f9; }
+  .analysis-card ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+  .analysis-card li { font-size: 13px; color: #94a3b8; padding: 8px 12px; background: #0f1117; border-radius: 8px; }
+  .analysis-card.wins { border-color: #22c55e30; }
+  .analysis-card.wins li::before { content: "🟢 "; }
+  .analysis-card.gaps { border-color: #f9731630; }
+  .analysis-card.gaps li::before { content: "🟡 "; }
+
+  /* Categorias */
+  .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 28px; }
+  .cat-card {
+    background: #1a1f2e; border: 1px solid #2d3748; border-radius: 10px; padding: 16px;
+  }
+  .cat-name { font-size: 12px; font-weight: 700; margin-bottom: 6px; }
+  .cat-count { font-size: 28px; font-weight: 800; color: #f1f5f9; }
+  .cat-desc { font-size: 11px; color: #64748b; margin-top: 4px; }
+  .bar { height: 4px; background: #2d3748; border-radius: 4px; margin-top: 10px; }
+  .bar-fill { height: 4px; border-radius: 4px; }
+
+  .footer {
+    text-align: center; color: #475569; font-size: 12px;
+    padding: 24px; border-top: 1px solid #1e293b; margin-top: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <span class="badge-jana">🦊 JANA</span>
+    <span class="badge-data">2026-03-18 · 06:36</span>
+  </div>
+  <h1>Controller IA — Avaliação de Evolução</h1>
+  <p class="subtitle">Impacto do treinamento com João Victor + nova estrutura de playbooks e roteamento</p>
+</div>
+
+<div class="container">
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card green">
+      <div class="kpi-value">100%</div>
+      <div class="kpi-label">Taxa de processamento IA</div>
+    </div>
+    <div class="kpi-card blue">
+      <div class="kpi-value">89</div>
+      <div class="kpi-label">Intimações novas hoje</div>
+    </div>
+    <div class="kpi-card orange">
+      <div class="kpi-value">575</div>
+      <div class="kpi-label">Total processadas (histórico)</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-value">50</div>
+      <div class="kpi-label">Tipos distintos detectados</div>
+    </div>
+  </div>
+
+  <!-- Antes vs Depois -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⚡</span> Antes vs Depois do Treinamento</div>
+    <div class="compare-grid">
+      <div class="compare-card before">
+        <div class="compare-label">✗ ANTES (sem treinamento)</div>
+        <ul>
+          <li>Título genérico em todas: "Conclusos para decisão/despacho"</li>
+          <li>Sem identificação de partes (réu, autor)</li>
+          <li>Sem valor da causa no título</li>
+          <li>Sem classificação do tipo de evento</li>
+          <li>Sem diferenciação entre urgente e rotineiro</li>
+          <li>Controller precisava abrir cada intimação para entender</li>
+          <li>Sem identificação de carteira (Boa Vista, Mercado Pago…)</li>
+        </ul>
+      </div>
+      <div class="compare-card after">
+        <div class="compare-label">✓ AGORA (pós treinamento João)</div>
+        <ul>
+          <li>Título descritivo e único por evento (50 variações diferentes)</li>
+          <li>Réu identificado no título: Boa Vista, Mercado Pago, Nu Pagamentos…</li>
+          <li>Valor da causa embutido: "R$ 45.156,75", "R$ 15.734,09"…</li>
+          <li>Tipo de evento detectado: prazo decorrido, julgado, TJ, contadoria…</li>
+          <li>Nível de risco atribuído a 100% das intimações</li>
+          <li>Visão imediata na listagem — sem precisar abrir cada card</li>
+          <li>Ação recomendada embutida no título</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Categorias detectadas -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📂</span> Categorias Detectadas pela IA (hoje)</div>
+    <div class="cat-grid">
+      <div class="cat-card">
+        <div class="cat-name" style="color:#a78bfa;">⏱ PRAZO DECORRIDO</div>
+        <div class="cat-count">56</div>
+        <div class="cat-desc">Réu sem manifestação / prazo fatal / expirado</div>
+        <div class="bar"><div class="bar-fill" style="width:63%; background:#7c3aed;"></div></div>
+      </div>
+      <div class="cat-card">
+        <div class="cat-name" style="color:#38bdf8;">⚖️ COMUNICAÇÃO DE JULGADO</div>
+        <div class="cat-count">16</div>
+        <div class="cat-desc">Decisões e acórdãos recebidos</div>
+        <div class="bar"><div class="bar-fill" style="width:18%; background:#0284c7;"></div></div>
+      </div>
+      <div class="cat-card">
+        <div class="cat-name" style="color:#4ade80;">🏆 TRÂNSITO EM JULGADO</div>
+        <div class="cat-count">4</div>
+        <div class="cat-desc">Cumprimento de sentença a iniciar</div>
+        <div class="bar"><div class="bar-fill" style="width:5%; background:#22c55e;"></div></div>
+      </div>
+      <div class="cat-card">
+        <div class="cat-name" style="color:#fb923c;">🧮 CONTADORIA</div>
+        <div class="cat-count">4</div>
+        <div class="cat-desc">Cálculos de custas e pareceres</div>
+        <div class="bar"><div class="bar-fill" style="width:5%; background:#f97316;"></div></div>
+      </div>
+      <div class="cat-card">
+        <div class="cat-name" style="color:#fbbf24;">📋 DECISÃO PROFERIDA</div>
+        <div class="cat-count">3</div>
+        <div class="cat-desc">Dano moral, negativação indevida</div>
+        <div class="bar"><div class="bar-fill" style="width:3%; background:#eab308;"></div></div>
+      </div>
+      <div class="cat-card">
+        <div class="cat-name" style="color:#94a3b8;">🔄 OUTROS</div>
+        <div class="cat-count">6</div>
+        <div class="cat-desc">Suspensão, alvará, petição, citação</div>
+        <div class="bar"><div class="bar-fill" style="width:7%; background:#475569;"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Amostra das intimações novas -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📋</span> Amostra das Intimações de Hoje (89 total)</div>
+    <div style="border:1px solid #2d3748; border-radius:12px; overflow:hidden;">
+      <table class="intimacoes-table">
+        <thead>
+          <tr>
+            <th>Título gerado pela IA</th>
+            <th>Tipo</th>
+            <th>Risco</th>
+            <th>IA</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Decorrido prazo — verificar se réu contestou ou prazo expirou</td><td><span class="tipo-pill tipo-prazo">Prazo</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Comunicação de julgado recebida — processo contra Boa Vista R$21.193,79</td><td><span class="tipo-pill tipo-julgado">Julgado</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Trânsito em julgado — R$20.665,13 — iniciar cumprimento de sentença</td><td><span class="tipo-pill tipo-tj">Trânsito</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Contadoria realizou cálculo de custas — R$ 16.480,83</td><td><span class="tipo-pill tipo-contad">Contadoria</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Decisão proferida — dano moral R$16.211,82 (TJSC Joinville)</td><td><span class="tipo-pill tipo-decisao">Decisão</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Intimação eletrônica de despacho/decisão — dano moral Mercado Pago</td><td><span class="tipo-pill tipo-decisao">Decisão</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Trânsito em julgado — iniciar cumprimento de sentença R$36.417,95</td><td><span class="tipo-pill tipo-tj">Trânsito</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Carta devolvida sem cumprimento — verificar nova forma de citação</td><td><span class="tipo-pill tipo-citacao">Citação</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Depósito judicial confirmado R$12.036,63 — O Boticário</td><td><span class="tipo-pill tipo-tj">Depósito</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Alvará eletrônico R$1.221,71 — cumprimento de sentença vs Boa Vista</td><td><span class="tipo-pill tipo-tj">Alvará</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Suspensão levantada — autos retomam andamento normal</td><td><span class="tipo-pill tipo-outro">Suspensão</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Certidão de prazo encerrado — verificar se réu quedou inerte</td><td><span class="tipo-pill tipo-prazo">Prazo</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Cumprimento de sentença extinto — R$1.700,00 — Nu Pagamentos</td><td><span class="tipo-pill tipo-tj">Ext.</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Decorrido prazo — réu Boa Vista se manifestou</td><td><span class="tipo-pill tipo-prazo">Prazo</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+          <tr><td>Processo suspenso/sobrestado por conflito de competência</td><td><span class="tipo-pill tipo-outro">Outro</span></td><td><span class="risco-pill risco-medio">Médio</span></td><td><span class="ia-ok">✓</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:12px; color:#475569; margin-top:8px; text-align:right;">+ 74 intimações adicionais com o mesmo padrão de qualidade</p>
+  </div>
+
+  <!-- Análise: Wins e Gaps -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔍</span> Avaliação Honesta</div>
+    <div class="analysis-grid">
+      <div class="analysis-card wins">
+        <h3>✅ O que avançou</h3>
+        <ul>
+          <li>Títulos descritivos e únicos — fim do título genérico repetido</li>
+          <li>Identificação de carteira/réu no título sem abrir o card</li>
+          <li>Valor da causa visível na listagem</li>
+          <li>100% das intimações processadas pela IA (sem fila)</li>
+          <li>50 tipos de eventos distintos reconhecidos em 1 lote</li>
+          <li>Estrutura de playbooks já sustenta roteamento por tipo</li>
+          <li>Categorias claras: prazo / julgado / TJ / contadoria / decisão</li>
+        </ul>
+      </div>
+      <div class="analysis-card gaps">
+        <h3>🟡 O que ainda pode evoluir</h3>
+        <ul>
+          <li>resumo_ia ainda null — precisa preencher o campo de resumo completo</li>
+          <li>ia_classificacao null — classificação formal ainda não gravada</li>
+          <li>tipo_evento null — campo não preenchido no banco (só no título)</li>
+          <li>urgente/importante todos false — sem triagem de prioridade ainda</li>
+          <li>Risco sempre "médio" — sem diferenciação alto/baixo por evento</li>
+          <li>Roteamento automático para responsável ainda manual</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Gerado por JANA 🦊 · JARBAS Network · 2026-03-18 · Supabase: qdivfairxhdihaqqypgb
+</div>
+
+</body>
+</html>

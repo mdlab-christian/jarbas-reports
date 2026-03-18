@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARBAS Network — Arquitetura de Agentes v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+  
+  .header { background: linear-gradient(135deg, #1a1d2e 0%, #16213e 100%); border-bottom: 1px solid #2d3748; padding: 32px 40px; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #fff; }
+  .header p { color: #94a3b8; margin-top: 6px; font-size: 14px; }
+  .badge { display: inline-block; background: #f97316; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle; }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Problem */
+  .problem-box { background: #1e1b2e; border: 1px solid #7c3aed44; border-left: 4px solid #7c3aed; border-radius: 10px; padding: 20px 24px; margin-bottom: 32px; }
+  .problem-box h2 { color: #a78bfa; font-size: 16px; margin-bottom: 10px; }
+  .problem-box p { color: #94a3b8; font-size: 14px; line-height: 1.7; }
+
+  /* Section titles */
+  .section-title { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-title span { font-size: 20px; }
+
+  /* Current state */
+  .current-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 40px; }
+  .machine-card { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 12px; padding: 20px; }
+  .machine-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .machine-card .sub { color: #64748b; font-size: 12px; margin-bottom: 14px; }
+  .agent-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #0f1117; border-radius: 8px; margin-bottom: 8px; border: 1px solid #1e293b; }
+  .agent-emoji { font-size: 20px; }
+  .agent-info h4 { font-size: 13px; font-weight: 600; }
+  .agent-info p { font-size: 11px; color: #64748b; }
+  .overload-badge { margin-left: auto; background: #ef444420; color: #ef4444; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid #ef444440; }
+  .ok-badge { margin-left: auto; background: #22c55e20; color: #22c55e; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; border: 1px solid #22c55e40; }
+
+  /* Arrow */
+  .arrow-section { text-align: center; margin: 8px 0 32px; }
+  .arrow-section .arrow { font-size: 32px; color: #f97316; }
+  .arrow-section p { color: #64748b; font-size: 13px; margin-top: 4px; }
+
+  /* New arch */
+  .new-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+  .new-machine { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 12px; overflow: hidden; }
+  .new-machine-header { background: #16213e; padding: 14px 20px; border-bottom: 1px solid #2d3748; display: flex; align-items: center; gap: 10px; }
+  .new-machine-header .hw { font-size: 13px; color: #94a3b8; }
+  .new-machine-header h3 { font-size: 15px; font-weight: 700; }
+  .users-list { padding: 16px; }
+  .user-card { border: 1px solid #2d3748; border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; transition: border-color 0.2s; }
+  .user-card:hover { border-color: #4b5563; }
+  .user-card.primary { border-color: #3b82f640; background: #1e293b; }
+  .user-card .user-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .user-card .user-header .emoji { font-size: 18px; }
+  .user-card .user-header h4 { font-size: 13px; font-weight: 700; }
+  .user-card .user-header .role { margin-left: auto; font-size: 10px; padding: 2px 7px; border-radius: 4px; font-weight: 700; }
+  .role.gestor { background: #3b82f620; color: #3b82f6; border: 1px solid #3b82f640; }
+  .role.agent { background: #10b98120; color: #10b981; border: 1px solid #10b98140; }
+  .user-card .user-desc { font-size: 11px; color: #64748b; line-height: 1.5; }
+  .user-card .user-skills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+  .skill-tag { background: #1e293b; color: #94a3b8; font-size: 10px; padding: 2px 7px; border-radius: 4px; border: 1px solid #334155; }
+
+  /* Comparison table */
+  .comparison { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 12px; overflow: hidden; margin-bottom: 40px; }
+  .comparison table { width: 100%; border-collapse: collapse; }
+  .comparison th { background: #16213e; padding: 12px 16px; font-size: 12px; text-align: left; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+  .comparison td { padding: 12px 16px; font-size: 13px; border-top: 1px solid #1e293b; }
+  .comparison .check { color: #22c55e; font-weight: 700; }
+  .comparison .cross { color: #ef4444; font-weight: 700; }
+
+  /* Impact */
+  .impact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 40px; }
+  .impact-card { background: #1a1d2e; border: 1px solid #2d3748; border-radius: 10px; padding: 18px; text-align: center; }
+  .impact-card .icon { font-size: 28px; margin-bottom: 8px; }
+  .impact-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .impact-card p { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+  /* Steps */
+  .steps { margin-bottom: 40px; }
+  .step { display: flex; gap: 16px; margin-bottom: 16px; }
+  .step-num { min-width: 32px; height: 32px; background: #f97316; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; margin-top: 2px; }
+  .step-content h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .step-content p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+  .step-content code { background: #1e293b; color: #f97316; padding: 1px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+
+  /* Footer */
+  .footer { border-top: 1px solid #1e293b; padding-top: 20px; color: #475569; font-size: 12px; text-align: center; }
+
+  @media (max-width: 768px) {
+    .current-grid, .new-grid, .impact-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦊🦞 JARBAS Network — Arquitetura de Agentes v2 <span class="badge">PROPOSTA</span></h1>
+  <p>Plano de expansão para agentes isolados por usuário macOS | Gerado por JANA • 2026-03-18</p>
+</div>
+
+<div class="container">
+
+  <!-- Problema -->
+  <div class="problem-box">
+    <h2>⚠️ Problema Atual</h2>
+    <p>JANA e JARBAS estão sobrecarregados porque <strong>múltiplos usuários e tarefas competem pela mesma instância OpenClaw</strong>. Quando um agente está em meio a uma tarefa longa (lapidação, Claude Code, análise jurídica), todas as outras mensagens ficam na fila — travando o atendimento. O gargalo não é hardware — é isolamento de processo.</p>
+  </div>
+
+  <!-- Estado Atual -->
+  <div class="section-title"><span>📍</span> Estado Atual — Tudo Centralizado</div>
+  <div class="current-grid">
+    <div class="machine-card">
+      <h3>💻 MacBook Air M4</h3>
+      <div class="sub">16GB RAM · JANA · porta 18789</div>
+      <div class="agent-row">
+        <div class="agent-emoji">🦊</div>
+        <div class="agent-info">
+          <h4>JANA</h4>
+          <p>Dev, frontend, Supabase, lapidações</p>
+        </div>
+        <div class="overload-badge">SOBRECARREGADA</div>
+      </div>
+      <div class="agent-row">
+        <div class="agent-emoji">🎨</div>
+        <div class="agent-info">
+          <h4>Olivia (via JARBAS)</h4>
+          <p>Atendimento WhatsApp — compartilhado</p>
+        </div>
+        <div class="overload-badge">SEM ISOLAMENTO</div>
+      </div>
+    </div>
+    <div class="machine-card">
+      <h3>🖥️ Mac Mini M4</h3>
+      <div class="sub">24GB RAM · JARBAS · 24/7 · porta 18788</div>
+      <div class="agent-row">
+        <div class="agent-emoji">🦞</div>
+        <div class="agent-info">
+          <h4>JARBAS</h4>
+          <p>Jurídico, n8n, Olivia, operação 24/7</p>
+        </div>
+        <div class="overload-badge">SOBRECARREGADO</div>
+      </div>
+      <div class="agent-row">
+        <div class="agent-emoji">⚖️</div>
+        <div class="agent-info">
+          <h4>Controller (via JARBAS)</h4>
+          <p>Análise de processos — sem isolamento</p>
+        </div>
+        <div class="overload-badge">SEM ISOLAMENTO</div>
+      </div>
+      <div class="agent-row">
+        <div class="agent-emoji">📊</div>
+        <div class="agent-info">
+          <h4>Distribuição (via JARBAS)</h4>
+          <p>Lotes, distribuição — compartilhado</p>
+        </div>
+        <div class="overload-badge">SEM ISOLAMENTO</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Seta -->
+  <div class="arrow-section">
+    <div class="arrow">↓</div>
+    <p>Proposta: cada agente com seu próprio usuário macOS + instância OpenClaw isolada</p>
+  </div>
+
+  <!-- Nova Arquitetura -->
+  <div class="section-title"><span>🚀</span> Nova Arquitetura — Agentes Isolados</div>
+  <div class="new-grid">
+
+    <div class="new-machine">
+      <div class="new-machine-header">
+        <div>
+          <div class="hw">💻 MacBook Air M4 · 16GB</div>
+          <h3>Agentes de Desenvolvimento</h3>
+        </div>
+      </div>
+      <div class="users-list">
+
+        <div class="user-card primary">
+          <div class="user-header">
+            <div class="emoji">🦊</div>
+            <h4>jana (usuário atual)</h4>
+            <div class="role gestor">GESTORA</div>
+          </div>
+          <div class="user-desc">Dev, frontend, React/TS, Supabase, lapidações, code review. Gestora dos agentes do MacBook.</div>
+          <div class="user-skills">
+            <span class="skill-tag">Claude Code</span>
+            <span class="skill-tag">Supabase</span>
+            <span class="skill-tag">lapidações</span>
+            <span class="skill-tag">spec</span>
+          </div>
+        </div>
+
+        <div class="user-card">
+          <div class="user-header">
+            <div class="emoji">🎨</div>
+            <h4>olivia</h4>
+            <div class="role agent">AGENTE</div>
+          </div>
+          <div class="user-desc">Atendimento WhatsApp em tempo real. Isolada garante que nunca trava por lapidação da JANA rodando em paralelo.</div>
+          <div class="user-skills">
+            <span class="skill-tag">WhatsApp</span>
+            <span class="skill-tag">atendimento</span>
+            <span class="skill-tag">MdZap</span>
+            <span class="skill-tag">leads</span>
+          </div>
+        </div>
+
+        <div class="user-card">
+          <div class="user-header">
+            <div class="emoji">🧪</div>
+            <h4>dev-agent <span style="color:#475569;font-size:11px;font-weight:400;">(opcional)</span></h4>
+            <div class="role agent">AGENTE</div>
+          </div>
+          <div class="user-desc">Agente dedicado a testes E2E, automações de QA, Claude Code de longa duração. Não bloqueia JANA.</div>
+          <div class="user-skills">
+            <span class="skill-tag">E2E</span>
+            <span class="skill-tag">playwright</span>
+            <span class="skill-tag">testes</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="new-machine">
+      <div class="new-machine-header">
+        <div>
+          <div class="hw">🖥️ Mac Mini M4 · 24GB · 24/7</div>
+          <h3>Agentes Jurídicos & Operação</h3>
+        </div>
+      </div>
+      <div class="users-list">
+
+        <div class="user-card primary">
+          <div class="user-header">
+            <div class="emoji">🦞</div>
+            <h4>jarbas (usuário atual)</h4>
+            <div class="role gestor">GESTOR</div>
+          </div>
+          <div class="user-desc">Orquestração jurídica, n8n, handoffs, decisões estratégicas. Gestor dos agentes do Mac Mini.</div>
+          <div class="user-skills">
+            <span class="skill-tag">n8n</span>
+            <span class="skill-tag">orquestração</span>
+            <span class="skill-tag">handoffs</span>
+            <span class="skill-tag">financeiro</span>
+          </div>
+        </div>
+
+        <div class="user-card">
+          <div class="user-header">
+            <div class="emoji">⚖️</div>
+            <h4>clayton</h4>
+            <div class="role agent">AGENTE</div>
+          </div>
+          <div class="user-desc">Controller jurídico — análise de processos, intimações, distribuição de lotes. Roda 24/7 sem bloquear JARBAS.</div>
+          <div class="user-skills">
+            <span class="skill-tag">processos</span>
+            <span class="skill-tag">intimações</span>
+            <span class="skill-tag">OAB</span>
+            <span class="skill-tag">distribuição</span>
+          </div>
+        </div>
+
+        <div class="user-card">
+          <div class="user-header">
+            <div class="emoji">📊</div>
+            <h4>midas-agent</h4>
+            <div class="role agent">AGENTE</div>
+          </div>
+          <div class="user-desc">Operação Midas — financeiro, cobranças, repasses, relatórios. Isolado do jurídico para evitar travamentos cruzados.</div>
+          <div class="user-skills">
+            <span class="skill-tag">financeiro</span>
+            <span class="skill-tag">cobranças</span>
+            <span class="skill-tag">repasses</span>
+            <span class="skill-tag">Midas</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- Comparação -->
+  <div class="section-title"><span>📊</span> Comparação: Antes vs Depois</div>
+  <div class="comparison" style="margin-bottom: 40px;">
+    <table>
+      <thead>
+        <tr>
+          <th>Cenário</th>
+          <th>Atual (centralizado)</th>
+          <th>Proposta (isolado)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Olivia atende enquanto JANA lapidam</td>
+          <td><span class="cross">✗ Trava na fila</span></td>
+          <td><span class="check">✓ Paralelo real</span></td>
+        </tr>
+        <tr>
+          <td>Clayton processa processos 24/7</td>
+          <td><span class="cross">✗ Depende do JARBAS</span></td>
+          <td><span class="check">✓ Instância própria</span></td>
+        </tr>
+        <tr>
+          <td>Falha de um agente</td>
+          <td><span class="cross">✗ Afeta todos</span></td>
+          <td><span class="check">✓ Isolado por usuário</span></td>
+        </tr>
+        <tr>
+          <td>Contexto por agente</td>
+          <td><span class="cross">✗ Misturado</span></td>
+          <td><span class="check">✓ 200k tokens cada</span></td>
+        </tr>
+        <tr>
+          <td>Permissões por agente</td>
+          <td><span class="cross">✗ Tudo ou nada</span></td>
+          <td><span class="check">✓ macOS ACL por usuário</span></td>
+        </tr>
+        <tr>
+          <td>Custo de implementação</td>
+          <td>—</td>
+          <td><span class="check">✓ Baixo — mesmo hardware</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Impacto -->
+  <div class="section-title"><span>💡</span> Impacto Real</div>
+  <div class="impact-grid">
+    <div class="impact-card">
+      <div class="icon">⚡</div>
+      <h4>Paralelismo Verdadeiro</h4>
+      <p>5 agentes rodando simultaneamente sem bloquear uns aos outros — cada um com sua fila própria.</p>
+    </div>
+    <div class="impact-card">
+      <div class="icon">🛡️</div>
+      <h4>Isolamento de Falhas</h4>
+      <p>Clayton trava? JARBAS e Olivia continuam. Contexto de cada agente independente.</p>
+    </div>
+    <div class="impact-card">
+      <div class="icon">🔑</div>
+      <h4>Permissões Granulares</h4>
+      <p>Olivia acessa só WhatsApp. Clayton só jurídico. JANA só dev. Segurança por design.</p>
+    </div>
+  </div>
+
+  <!-- Plano de Implementação -->
+  <div class="section-title"><span>🗺️</span> Plano de Implementação</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <h4>Criar usuários macOS</h4>
+        <p>No MacBook Air: <code>sudo sysadminctl -addUser olivia</code>. No Mac Mini: <code>sudo sysadminctl -addUser clayton</code> e <code>sudo sysadminctl -addUser midas-agent</code>. Cada um com home própria (<code>/Users/olivia</code>, etc.).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <h4>Criar bots Telegram no BotFather</h4>
+        <p>Um bot por agente: <code>@Olivia_mdbot</code>, <code>@Clayton_mdbot</code>, <code>@MidasAgent_mdbot</code>. Cada um com token próprio.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <h4>Instalar OpenClaw por usuário</h4>
+        <p>Login como cada usuário macOS → <code>openclaw setup</code> com conta OpenClaw própria + bot token do agente. Workspace isolado em <code>~/.openclaw/workspace-[nome]/</code>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <h4>Criar SOUL.md por agente</h4>
+        <p>Identidade, permissões e escopo de cada agente. Clayton só lê tabelas jurídicas. Olivia só acessa WhatsApp/leads. Credenciais mínimas por função.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <h4>Configurar gestão JARBAS + JANA</h4>
+        <p>JARBAS gestora dos agentes do Mac Mini via <code>ssh mac-mini -l clayton</code>. JANA gestora dos agentes do MacBook. Handoffs via tabela <code>jarbas_handoffs</code> do Supabase.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-content">
+        <h4>Prioridade sugerida de implementação</h4>
+        <p><strong>1º Olivia</strong> (maior impacto — atendimento em tempo real já congestionado) → <strong>2º Clayton</strong> (processos jurídicos 24/7) → <strong>3º Midas-agent</strong> (financeiro isolado) → depois avaliar dev-agent.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    Gerado por JANA 🦊 · JARBAS Network · MdLab LegalTech · 2026-03-18
+  </div>
+
+</div>
+</body>
+</html>

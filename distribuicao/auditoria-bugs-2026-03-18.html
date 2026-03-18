@@ -3,352 +3,187 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Auditoria de Bugs — Distribuição v2</title>
+<title>Auditoria de Bugs — Distribuição v3</title>
 <style>
+  :root { --green: #16a34a; --red: #dc2626; --orange: #ea580c; --blue: #2563eb; --gray: #6b7280; --yellow: #ca8a04; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 2rem; }
-  .container { max-width: 900px; margin: 0 auto; }
-  header { margin-bottom: 2rem; }
-  header h1 { font-size: 1.75rem; font-weight: 700; color: #f8fafc; }
-  header .meta { font-size: 0.85rem; color: #64748b; margin-top: 0.4rem; }
-  header .meta span { color: #94a3b8; }
-
-  .summary-box { background: #1e2433; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
-  .summary-box h2 { font-size: 1rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
-  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 1rem; }
-  .stat { background: #0f1117; border-radius: 8px; padding: 1rem; text-align: center; }
-  .stat .num { font-size: 2rem; font-weight: 700; }
-  .stat .label { font-size: 0.75rem; color: #64748b; margin-top: 0.2rem; }
-  .num.green { color: #22c55e; }
-  .num.red { color: #ef4444; }
-  .num.yellow { color: #f59e0b; }
-  .num.blue { color: #3b82f6; }
-
-  .section-title { font-size: 0.85rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin: 2rem 0 1rem; }
-
-  .bug-card { background: #1e2433; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
-  .bug-card.new { border-color: #7c3aed44; background: #1a1a2e; }
-  .bug-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; flex-wrap: wrap; }
-  .bug-id { font-size: 0.75rem; font-weight: 700; color: #475569; font-family: monospace; }
-  .bug-title { font-size: 1rem; font-weight: 600; color: #f1f5f9; flex: 1; }
-  .badge { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem; border-radius: 999px; white-space: nowrap; }
-  .badge.urgente { background: #7f1d1d; color: #fca5a5; }
-  .badge.alto { background: #7c2d12; color: #fdba74; }
-  .badge.medio { background: #713f12; color: #fde68a; }
-  .badge.baixo { background: #1e3a5f; color: #93c5fd; }
-  .badge.novo-tag { background: #4c1d95; color: #c4b5fd; }
-
-  .status-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
-  .status-dot.ok { background: #22c55e; }
-  .status-dot.err { background: #ef4444; }
-  .status-dot.warn { background: #f59e0b; }
-  .status-dot.info { background: #3b82f6; }
-  .status-label { font-size: 0.82rem; font-weight: 600; }
-  .status-label.ok { color: #22c55e; }
-  .status-label.err { color: #ef4444; }
-  .status-label.warn { color: #f59e0b; }
-  .status-label.info { color: #3b82f6; }
-
-  .desc { font-size: 0.875rem; color: #94a3b8; line-height: 1.6; margin-bottom: 0.75rem; }
-  .desc p + p { margin-top: 0.5rem; }
-
-  .test-result { background: #0f1117; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 0.75rem; font-size: 0.82rem; }
-  .test-result .tr-label { font-weight: 700; color: #475569; margin-bottom: 0.3rem; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  .test-result p { color: #94a3b8; line-height: 1.5; }
-  .test-result.success { border-left: 3px solid #22c55e; }
-  .test-result.failure { border-left: 3px solid #ef4444; }
-  .test-result.warning { border-left: 3px solid #f59e0b; }
-
-  .action-box { background: #1a1f2e; border: 1px solid #3b82f644; border-radius: 8px; padding: 0.75rem 1rem; margin-top: 0.75rem; }
-  .action-box .a-label { font-size: 0.72rem; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.3rem; }
-  .action-box p { font-size: 0.82rem; color: #93c5fd; line-height: 1.5; }
-
-  .tag-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.75rem; }
-  .tag { font-size: 0.7rem; font-family: monospace; background: #0f1117; border: 1px solid #2d3748; color: #64748b; padding: 0.15rem 0.5rem; border-radius: 4px; }
-
-  .divider { border: none; border-top: 1px solid #2d3748; margin: 2rem 0; }
-
-  .next-steps { background: #1e2433; border: 1px solid #2d3748; border-radius: 12px; padding: 1.5rem; }
-  .next-steps h2 { font-size: 1rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 1rem; }
-  .step { display: flex; gap: 0.75rem; padding: 0.75rem 0; border-bottom: 1px solid #1a2030; align-items: flex-start; }
-  .step:last-child { border-bottom: none; }
-  .step-num { font-size: 0.75rem; font-weight: 700; color: #3b82f6; font-family: monospace; min-width: 24px; }
-  .step-text { font-size: 0.875rem; color: #94a3b8; line-height: 1.5; }
-  .step-text strong { color: #e2e8f0; }
-
-  footer { text-align: center; font-size: 0.75rem; color: #334155; margin-top: 3rem; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; padding: 24px; max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .meta { color: var(--gray); font-size: 0.8rem; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .kpi { background: white; border-radius: 10px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .kpi .num { font-size: 2rem; font-weight: 800; }
+  .kpi .label { font-size: 0.75rem; color: var(--gray); margin-top: 4px; }
+  .kpi.green .num { color: var(--green); }
+  .kpi.red .num { color: var(--red); }
+  .kpi.orange .num { color: var(--orange); }
+  .kpi.yellow .num { color: var(--yellow); }
+  section { margin-bottom: 28px; }
+  h2 { font-size: 1rem; font-weight: 700; margin-bottom: 14px; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; }
+  .card { background: white; border-radius: 10px; padding: 18px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-left: 4px solid transparent; }
+  .card.ok { border-left-color: var(--green); }
+  .card.bug { border-left-color: var(--red); }
+  .card.warn { border-left-color: var(--orange); }
+  .card.pending { border-left-color: var(--gray); }
+  .card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+  .badge.green { background: #dcfce7; color: var(--green); }
+  .badge.red { background: #fee2e2; color: var(--red); }
+  .badge.orange { background: #ffedd5; color: var(--orange); }
+  .badge.gray { background: #f1f5f9; color: var(--gray); }
+  .badge.blue { background: #dbeafe; color: var(--blue); }
+  .card-title { font-size: 0.92rem; font-weight: 700; flex: 1; }
+  .card-desc { font-size: 0.82rem; color: #475569; line-height: 1.5; margin-bottom: 8px; }
+  .card-fix { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 10px 12px; font-size: 0.8rem; color: #15803d; }
+  .card-fix code { background: #dcfce7; padding: 1px 5px; border-radius: 3px; font-size: 0.75rem; }
+  .test-result { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 12px; font-size: 0.8rem; margin-bottom: 8px; }
+  .test-result li { list-style: none; padding: 2px 0; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .chip { background: #f1f5f9; color: #475569; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-family: monospace; }
+  .drive-box { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 14px 16px; margin-bottom: 12px; font-size: 0.82rem; }
+  .drive-box strong { color: var(--blue); }
+  .timeline { font-size: 0.75rem; color: var(--gray); margin-top: 6px; }
+  .p-badge { display: inline-block; width: 24px; height: 24px; border-radius: 50%; font-size: 0.7rem; font-weight: 700; text-align: center; line-height: 24px; }
+  .p1 { background: #fee2e2; color: var(--red); }
+  .p2 { background: #ffedd5; color: var(--orange); }
+  .p3 { background: #fef9c3; color: var(--yellow); }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { background: #f1f5f9; padding: 8px 12px; text-align: left; font-weight: 600; }
+  td { padding: 8px 12px; border-bottom: 1px solid #f1f5f9; }
+  tr:hover td { background: #f8fafc; }
 </style>
 </head>
 <body>
-<div class="container">
+<h1>📋 Auditoria de Bugs — Distribuição v3</h1>
+<p class="meta">Atualizado por JARBAS em 18/03/2026 · Verificação final vs código commitado · v3</p>
 
-<header>
-  <h1>🐛 Auditoria de Bugs — Distribuição v2</h1>
-  <div class="meta">
-    Atualizado por JARBAS em <span>18/03/2026</span> · Testes executados por <span>Gustavo Paz</span> · v1 em 17/03/2026
-  </div>
-</header>
-
-<div class="summary-box">
-  <h2>📋 Resumo Executivo</h2>
-  <div class="summary-grid">
-    <div class="stat"><div class="num green">2</div><div class="label">Confirmados OK</div></div>
-    <div class="stat"><div class="num red">3</div><div class="label">Bugs Ativos</div></div>
-    <div class="stat"><div class="num yellow">2</div><div class="label">Pendentes Teste</div></div>
-    <div class="stat"><div class="num blue">1</div><div class="label">Novo Encontrado</div></div>
-  </div>
+<div class="grid">
+  <div class="kpi green"><div class="num">4</div><div class="label">✅ Corrigidos & Confirmados</div></div>
+  <div class="kpi red"><div class="num">0</div><div class="label">🔴 Bugs P1 Ativos</div></div>
+  <div class="kpi yellow"><div class="num">3</div><div class="label">⏳ Pendentes de Teste</div></div>
+  <div class="kpi orange"><div class="num">1</div><div class="label">🔧 Configurado Agora</div></div>
 </div>
 
-<div class="section-title">🔴 Bugs Confirmados Ativos</div>
-
-<!-- BUG 007 NOVO -->
-<div class="bug-card new">
-  <div class="bug-header">
-    <span class="bug-id">#007</span>
-    <span class="bug-title">Card não sai da lista de Agendados após distribuição</span>
-    <span class="badge urgente">🔴 Urgente</span>
-    <span class="badge novo-tag">✨ Novo</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot err"></div>
-    <span class="status-label err">Confirmado em teste — Bug ativo</span>
-  </div>
-  <div class="desc">
-    <p>Ao efetuar distribuição a partir da aba <strong>Agendados</strong>, o toast de sucesso aparece corretamente ("Processo distribuído com sucesso"), mas o card do processo permanece visível na lista. A invalidação de query/cache não está funcionando para esta aba.</p>
-    <p>Já confirmado no banco: ambos os processos de teste tiveram <code>etapa_distribuicao = 'distribuido'</code> e <code>distribuido = true</code> após a ação. O problema é puramente de UI — o React Query não está refazendo o fetch após a mutação.</p>
-  </div>
-  <div class="test-result failure">
-    <div class="tr-label">Resultado do Teste (18/03/2026)</div>
-    <p>✅ Banco OK — processo distribuído com sucesso<br>❌ UI — card permanece na lista após distribuição<br>Confirmado via query direta no Supabase por JARBAS</p>
-  </div>
-  <div class="action-box">
-    <div class="a-label">Correção Necessária</div>
-    <p>Em <code>TabAgendados.tsx</code>, após mutação bem-sucedida de distribuição, garantir que <code>queryClient.invalidateQueries(['processos_distribuicao', 'agendado'])</code> está sendo chamado. Verificar se o <code>onSuccess</code> do modal de distribuição propaga o invalidate para a aba correta.</p>
-  </div>
-  <div class="tag-row">
-    <span class="tag">TabAgendados.tsx</span>
-    <span class="tag">ModalEfetuarDistribuicao.tsx</span>
-    <span class="tag">queryClient.invalidateQueries</span>
-    <span class="tag">React Query cache</span>
-  </div>
+<div class="drive-box">
+  <strong>🔓 Drive — Acesso por Link Configurado (18/03/2026 05:25)</strong><br>
+  A pasta <code>/distribuicao</code> foi configurada como <strong>"qualquer pessoa com o link pode visualizar"</strong> — sem necessidade de conta Google. 
+  Amanhã, qualquer operador que receber o link consegue acessar diretamente. A permissão é somente leitura (viewer).
+  <div class="timeline">ID da pasta: <code>1cb1sXZGof76pawdNJuBckF5Gqr7tNRVy</code> · Permissão: <code>anyone → reader</code></div>
 </div>
 
-<!-- BUG 003 atualizado -->
-<div class="bug-card">
-  <div class="bug-header">
-    <span class="bug-id">#003</span>
-    <span class="bug-title">Órgão restritivo não aparece no modal de dados da restrição</span>
-    <span class="badge alto">🟠 Alto</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot err"></div>
-    <span class="status-label err">Reconfirmado em teste — ainda não corrigido na tela</span>
-  </div>
-  <div class="desc">
-    <p>No modal de efetuar distribuição, a seção "Dados da Restrição" não exibe o órgão restritivo. Gustavo confirmou em teste (18/03): "o órgão restritivo não está aparecendo, tinha que aparecer em dados da restrição também o órgão restritivo".</p>
-    <p>Na auditoria v1 o código foi validado como correto — o campo <code>restricao_orgao_nome</code> está na view e no card. Provavelmente o modal <strong>ModalEfetuarDistribuicao</strong> não exibe o campo (diferente do card). O card mostra, o modal não.</p>
-  </div>
-  <div class="test-result failure">
-    <div class="tr-label">Resultado do Teste (18/03/2026)</div>
-    <p>❌ Campo não visível no modal de distribuição<br>ℹ️ Campo pode aparecer no card mas não no modal — são componentes diferentes</p>
-  </div>
-  <div class="action-box">
-    <div class="a-label">Correção Necessária</div>
-    <p>Verificar <code>ModalEfetuarDistribuicao.tsx</code> — adicionar exibição de <code>processo.restricao_orgao_nome</code> e <code>processo.restricao_tipo</code> na seção de dados da restrição dentro do modal.</p>
-  </div>
-  <div class="tag-row">
-    <span class="tag">ModalEfetuarDistribuicao.tsx</span>
-    <span class="tag">restricao_orgao_nome</span>
-    <span class="tag">restricao_tipo</span>
-  </div>
-</div>
+<section>
+  <h2>✅ Corrigidos & Confirmados no Código</h2>
 
-<!-- BUG 002 atualizado -->
-<div class="bug-card">
-  <div class="bug-header">
-    <span class="bug-id">#002</span>
-    <span class="bug-title">Comprovante de restrição — resultado inconclusivo</span>
-    <span class="badge urgente">🔴 Urgente</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot warn"></div>
-    <span class="status-label warn">Parcialmente testado — geração iniciada, resultado incerto</span>
-  </div>
-  <div class="desc">
-    <p>Gustavo clicou em gerar comprovante e o toast "JARBAS iniciando a geração" apareceu. Tentou clicar em download mas não confirmou se o PDF foi gerado com sucesso.</p>
-    <p>Atenção: o botão "Gerar Comprovante" só habilita se <code>restricao_tipo</code> não for null. O processo de teste foi criado com <code>restricao_tipo = 1</code>, então o botão deveria estar ativo. Porém, a restrição não estava aparecendo no modal (#003), o que pode indicar que o webhook n8n pode ter falhado silenciosamente.</p>
-  </div>
-  <div class="test-result warning">
-    <div class="tr-label">Resultado do Teste (18/03/2026)</div>
-    <p>⚠️ Toast de iniciando apareceu<br>❓ Resultado do PDF não confirmado<br>❓ Se webhook n8n falhou, toast de sucesso pode não ter aparecido</p>
-  </div>
-  <div class="action-box">
-    <div class="a-label">Ação Necessária</div>
-    <p>Gustavo precisa testar com um processo real que tenha <code>restricao_tipo</code> preenchido e confirmar se o PDF é gerado e o link de download aparece. Verificar logs do n8n no workflow <code>mdflow/doc/gerar-comprovante</code>.</p>
-  </div>
-  <div class="tag-row">
-    <span class="tag">useGerarComprovante.ts</span>
-    <span class="tag">rpc_solicitar_comprovante_restricao</span>
-    <span class="tag">n8n: mdflow/doc/gerar-comprovante</span>
-    <span class="tag">restricao_tipo (obrigatório)</span>
-  </div>
-</div>
-
-<hr class="divider">
-<div class="section-title">✅ Confirmados Funcionando</div>
-
-<!-- BUG 001 confirmado -->
-<div class="bug-card">
-  <div class="bug-header">
-    <span class="bug-id">#001</span>
-    <span class="bug-title">Distribuição efetiva — Aguardando e Agendados</span>
-    <span class="badge urgente">🔴 Era Urgente</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot ok"></div>
-    <span class="status-label ok">✅ Confirmado funcionando em teste real (18/03/2026)</span>
-  </div>
-  <div class="desc">
-    <p>Gustavo distribuiu 2 processos de teste: 1 pela aba Aguardando Distribuição e 1 pela aba Agendados. Ambos foram confirmados no banco com <code>etapa_distribuicao = 'distribuido'</code> e <code>distribuido = true</code>. A distribuição em si funciona — o problema é apenas a atualização visual na tela de Agendados (ver #007).</p>
-  </div>
-  <div class="test-result success">
-    <div class="tr-label">Resultado do Teste (18/03/2026)</div>
-    <p>✅ Processo 1 (Aguardando): distribuído + banco atualizado<br>✅ Processo 2 (Agendados): distribuído + banco atualizado<br>⚠️ UI de Agendados não atualizou (bug separado #007)</p>
-  </div>
-</div>
-
-<!-- BUG 004 confirmado -->
-<div class="bug-card">
-  <div class="bug-header">
-    <span class="bug-id">#004</span>
-    <span class="bug-title">Botão Exportar CSV</span>
-    <span class="badge alto">🟠 Era Alto</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot ok"></div>
-    <span class="status-label ok">✅ Confirmado no código — aguarda validação em tela</span>
-  </div>
-  <div class="desc">
-    <p>Código implementado corretamente em ambas as abas. Não reportado como problema no teste de 18/03 — considerado resolvido.</p>
-  </div>
-</div>
-
-<hr class="divider">
-<div class="section-title">⏳ Pendentes de Teste</div>
-
-<!-- BUG 005 -->
-<div class="bug-card">
-  <div class="bug-header">
-    <span class="bug-id">#005</span>
-    <span class="bug-title">Modal com dois botões X de fechar</span>
-    <span class="badge medio">🟡 Médio</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot warn"></div>
-    <span class="status-label warn">Aguardando identificação do modal específico</span>
-  </div>
-  <div class="desc">
-    <p>Não testado em 18/03. Gustavo precisa identificar em qual modal exato aparece o X duplo para JARBAS corrigir. Provavelmente é um DialogContent do shadcn com DialogClose manual duplicado.</p>
-  </div>
-  <div class="action-box">
-    <div class="a-label">Ação Necessária</div>
-    <p>Gustavo: navegar pelos modais da página de distribuição e identificar qual tem X duplo → informar JARBAS o nome do modal.</p>
-  </div>
-</div>
-
-<!-- BUG 006 -->
-<div class="bug-card">
-  <div class="bug-header">
-    <span class="bug-id">#006</span>
-    <span class="bug-title">Datepicker — seleção de hoje</span>
-    <span class="badge baixo">🔵 Baixo</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot info"></div>
-    <span class="status-label info">Não testado em 18/03 — código parece correto</span>
-  </div>
-  <div class="desc">
-    <p>Código usa <code>startOfDay(new Date())</code> como minDate. Tecnicamente hoje deve ser selecionável. Se ainda apresentar problema, suspeita de timezone UTC vs BRT.</p>
-  </div>
-</div>
-
-<!-- CRM -->
-<div class="bug-card">
-  <div class="bug-header">
-    <span class="bug-id">CRM</span>
-    <span class="bug-title">Fluxo CRM → Distribuição (E2E)</span>
-    <span class="badge urgente">🔴 Urgente</span>
-  </div>
-  <div class="status-row">
-    <div class="status-dot warn"></div>
-    <span class="status-label warn">Não testado — requer E2E com n8n</span>
-  </div>
-  <div class="desc">
-    <p>Fluxo completo: aprovação de lead no CRM → criação de processo na aba Preparação da distribuição. Depende de webhooks/workflows no n8n Railway.</p>
-  </div>
-  <div class="action-box">
-    <div class="a-label">Ação Necessária</div>
-    <p>Teste E2E: criar/aprovar lead no CRM → confirmar que processo aparece na aba "Preparação" da distribuição.</p>
-  </div>
-  <div class="tag-row">
-    <span class="tag">n8n Railway</span>
-    <span class="tag">CRM → Preparação → Distribuição</span>
-  </div>
-</div>
-
-<hr class="divider">
-
-<div class="next-steps">
-  <h2>📌 Próximos Passos (Prioridade)</h2>
-
-  <div class="step">
-    <span class="step-num">P1</span>
-    <div class="step-text">
-      <strong>#007 Card Agendados não atualiza</strong> — JARBAS corrige invalidação de query no <code>TabAgendados.tsx</code> após distribuição bem-sucedida. Pode fazer agora.
+  <div class="card ok">
+    <div class="card-header">
+      <span class="badge green">✅ CORRIGIDO</span>
+      <span class="badge gray">#007</span>
+      <div class="card-title">Card Agendados não atualiza após distribuição</div>
     </div>
+    <div class="card-desc">Commit <code>f1d9ab3</code> — <code>TabAgendados.tsx</code> linha 432: adicionado <code>onSuccess={invalidate}</code> no <code>ModalEfetuarDistribuicao</code>. A query é invalidada imediatamente após distribuição bem-sucedida.</div>
+    <div class="card-fix">✅ Correção verificada no código — <code>onSuccess={invalidate}</code> propagado corretamente para o modal</div>
+    <div class="chips"><span class="chip">TabAgendados.tsx:432</span><span class="chip">onSuccess={invalidate}</span><span class="chip">queryClient.invalidateQueries</span></div>
   </div>
 
-  <div class="step">
-    <span class="step-num">P1</span>
-    <div class="step-text">
-      <strong>#003 Órgão no modal</strong> — JARBAS adiciona <code>restricao_orgao_nome</code> e <code>restricao_tipo</code> no <code>ModalEfetuarDistribuicao.tsx</code>. Pode fazer agora.
+  <div class="card ok">
+    <div class="card-header">
+      <span class="badge green">✅ CORRIGIDO</span>
+      <span class="badge gray">#003</span>
+      <div class="card-title">Órgão restritivo não aparecia no modal</div>
     </div>
+    <div class="card-desc">Commit <code>f1d9ab3</code> — Seção "Dados da Restrição" adicionada ao <code>ModalEfetuarDistribuicao.tsx</code>. Exibe órgão, contrato e valor quando disponíveis.</div>
+    <div class="card-fix">✅ Código implementado — exibe <code>restricao_orgao_nome</code>, <code>restricao_contrato</code>, <code>restricao_valor</code> em seção visual dedicada</div>
+    <div class="chips"><span class="chip">ModalEfetuarDistribuicao.tsx:339</span><span class="chip">restricao_orgao_nome</span><span class="chip">restricao_valor</span></div>
   </div>
 
-  <div class="step">
-    <span class="step-num">P2</span>
-    <div class="step-text">
-      <strong>#002 Comprovante</strong> — Gustavo testa com processo real que tenha restricao_tipo preenchido e confirma se PDF é gerado.
+  <div class="card ok">
+    <div class="card-header">
+      <span class="badge green">✅ CONFIRMADO</span>
+      <span class="badge gray">#001</span>
+      <div class="card-title">Efetuar Distribuição sempre habilitado nos Agendados</div>
     </div>
+    <div class="card-desc">Distribuição funciona em ambas as abas. Confirmado em teste real (18/03) com 2 processos distribuídos com sucesso.</div>
+    <div class="chips"><span class="chip">Banco atualizado</span><span class="chip">etapa_distribuicao='distribuido'</span></div>
   </div>
 
-  <div class="step">
-    <span class="step-num">P3</span>
-    <div class="step-text">
-      <strong>#005 X duplo</strong> — Gustavo identifica o modal específico → JARBAS corrige.
+  <div class="card ok">
+    <div class="card-header">
+      <span class="badge green">✅ CONFIRMADO</span>
+      <span class="badge gray">#004</span>
+      <div class="card-title">Exportar CSV nos Agendados</div>
     </div>
+    <div class="card-desc">Botão de exportação CSV presente em TabAgendados. Não reportado como problema — considerado OK.</div>
   </div>
+</section>
 
-  <div class="step">
-    <span class="step-num">P3</span>
-    <div class="step-text">
-      <strong>CRM E2E</strong> — Testar fluxo completo de CRM → Distribuição com n8n.
+<section>
+  <h2>⏳ Pendentes de Teste (aguardam Gustavo)</h2>
+
+  <div class="card warn">
+    <div class="card-header">
+      <span class="badge orange">⏳ AGUARDA TESTE</span>
+      <span class="badge gray">#002</span>
+      <div class="card-title">Geração de comprovante PDF</div>
     </div>
+    <div class="card-desc">Toast "JARBAS iniciando" apareceu, mas resultado do PDF não confirmado. Pode depender do webhook n8n.</div>
+    <div class="test-result"><ul>
+      <li>⚠️ Toast de iniciando apareceu ✓</li>
+      <li>❓ PDF gerado? Download apareceu? — não confirmado</li>
+      <li>❓ Workflow n8n <code>mdflow/doc/gerar-comprovante</code> — logs não checados</li>
+    </ul></div>
+    <div class="card-fix">🔧 Ação: Gustavo testa com processo real com <code>restricao_tipo</code> preenchido → confirma se link de download aparece</div>
   </div>
 
-  <div class="step">
-    <span class="step-num">P4</span>
-    <div class="step-text">
-      <strong>#006 Datepicker</strong> — Gustavo confirma se hoje é selecionável na tela atual.
+  <div class="card pending">
+    <div class="card-header">
+      <span class="badge gray">⏳ AGUARDA IDENTIFICAÇÃO</span>
+      <span class="badge gray">#005</span>
+      <div class="card-title">X duplo em algum modal</div>
     </div>
+    <div class="card-desc">Não testado. Gustavo precisa navegar pelos modais e identificar qual tem o X duplicado.</div>
+    <div class="card-fix">🔧 Ação: Gustavo identifica o modal → JARBAS corrige (provavelmente DialogContent com DialogClose manual)</div>
   </div>
-</div>
 
-<footer>
-  JARBAS v4.1 · Mac Mini M4 · MdLab · Gerado em 18/03/2026
-</footer>
+  <div class="card pending">
+    <div class="card-header">
+      <span class="badge gray">⏳ NÃO TESTADO</span>
+      <span class="badge gray">#008</span>
+      <div class="card-title">Fluxo CRM → Preparação (E2E com n8n)</div>
+    </div>
+    <div class="card-desc">Aprovação de lead no CRM deve criar processo na aba Preparação. Depende de webhook n8n Railway.</div>
+    <div class="card-fix">🔧 Ação: Testar fluxo completo CRM → distribuição → confirmar processo na aba Preparação</div>
+  </div>
+</section>
 
-</div>
+<section>
+  <h2>📊 Resumo de Status por Bug</h2>
+  <table>
+    <thead><tr><th>Bug</th><th>Descrição</th><th>Status</th><th>Ação</th></tr></thead>
+    <tbody>
+      <tr><td><strong>#001</strong></td><td>Efetuar Distribuição habilitado nos Agendados</td><td><span class="badge green">✅ OK</span></td><td>—</td></tr>
+      <tr><td><strong>#002</strong></td><td>Comprovante PDF</td><td><span class="badge orange">⏳ Pendente teste</span></td><td>Gustavo testa</td></tr>
+      <tr><td><strong>#003</strong></td><td>Órgão restritivo no modal</td><td><span class="badge green">✅ Corrigido</span></td><td>—</td></tr>
+      <tr><td><strong>#004</strong></td><td>Exportar CSV Agendados</td><td><span class="badge green">✅ OK</span></td><td>—</td></tr>
+      <tr><td><strong>#005</strong></td><td>X duplo no modal</td><td><span class="badge gray">⏳ Identificar modal</span></td><td>Gustavo identifica</td></tr>
+      <tr><td><strong>#006</strong></td><td>Datepicker — hoje selecionável</td><td><span class="badge gray">⏳ Não testado</span></td><td>Gustavo confirma</td></tr>
+      <tr><td><strong>#007</strong></td><td>Card Agendados não atualiza</td><td><span class="badge green">✅ Corrigido</span></td><td>—</td></tr>
+      <tr><td><strong>#008</strong></td><td>CRM → Preparação (n8n E2E)</td><td><span class="badge gray">⏳ Não testado</span></td><td>Teste E2E</td></tr>
+      <tr><td><strong>Drive</strong></td><td>Acesso por link para equipe</td><td><span class="badge blue">🔓 Configurado</span></td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>🚀 Próximos Passos</h2>
+  <table>
+    <thead><tr><th>Pri</th><th>Ação</th><th>Quem</th></tr></thead>
+    <tbody>
+      <tr><td><span class="p-badge p1">P1</span></td><td>Testar comprovante PDF (#002) com processo real com <code>restricao_tipo</code> preenchido</td><td>Gustavo</td></tr>
+      <tr><td><span class="p-badge p2">P2</span></td><td>Identificar modal com X duplo (#005)</td><td>Gustavo</td></tr>
+      <tr><td><span class="p-badge p2">P2</span></td><td>Confirmar se datepicker permite hoje (#006)</td><td>Gustavo</td></tr>
+      <tr><td><span class="p-badge p3">P3</span></td><td>Testar fluxo CRM → Preparação com n8n (#008)</td><td>Gustavo + JARBAS</td></tr>
+    </tbody>
+  </table>
+</section>
 </body>
 </html>

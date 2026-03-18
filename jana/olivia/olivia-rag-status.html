@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA RAG — Status Completo</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --bg2: #1a1d27;
+    --bg3: #21253a;
+    --accent: #7c6af7;
+    --accent2: #a78bfa;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --border: #2d3252;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    line-height: 1.6;
+  }
+  header {
+    background: linear-gradient(135deg, #0d1117 0%, #1a1f3c 50%, #0d1117 100%);
+    border-bottom: 2px solid var(--accent);
+    padding: 2.5rem 2rem 2rem;
+    text-align: center;
+  }
+  header h1 { font-size: 2rem; font-weight: 800; color: #fff; }
+  .badge-green {
+    display: inline-block; background: var(--green); color: #fff;
+    font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem;
+    border-radius: 999px; margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .badge-yellow {
+    display: inline-block; background: var(--yellow); color: #000;
+    font-size: 0.75rem; font-weight: 700; padding: 0.25rem 0.75rem;
+    border-radius: 999px; margin-top: 0.5rem; text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  header .meta { color: var(--accent2); font-size: 0.9rem; margin-top: 0.75rem; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2.5rem;
+  }
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+  }
+  .stat-card.green { border-color: rgba(34,197,94,0.4); }
+  .stat-card.yellow { border-color: rgba(234,179,8,0.4); }
+  .stat-card .num { font-size: 2rem; font-weight: 800; color: var(--accent2); line-height: 1; }
+  .stat-card.green .num { color: var(--green); }
+  .stat-card.yellow .num { color: var(--yellow); }
+  .stat-card .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 0.35rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  .section { margin-bottom: 2.5rem; }
+  .section-title {
+    font-size: 1.05rem; font-weight: 700; color: var(--accent2);
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem;
+    padding-bottom: 0.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  .table-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .data-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  .data-table th {
+    background: var(--bg3); color: var(--accent2); text-transform: uppercase;
+    letter-spacing: 0.5px; font-size: 0.75rem; padding: 0.75rem 1rem;
+    text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .data-table td { padding: 0.7rem 1rem; border-bottom: 1px solid var(--border); color: var(--text); }
+  .data-table tr:last-child td { border-bottom: none; }
+  .data-table tr:hover td { background: rgba(124,106,247,0.05); }
+  .num-cell { text-align: right; font-weight: 700; color: var(--accent2); }
+
+  .ok { color: var(--green); font-weight: 700; }
+  .warn { color: var(--yellow); font-weight: 700; }
+  .err { color: var(--red); font-weight: 700; }
+  .info { color: var(--blue); font-weight: 700; }
+
+  /* Status cards */
+  .status-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1rem;
+  }
+  .status-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+  }
+  .status-card .sc-title { font-weight: 700; margin-bottom: 0.5rem; font-size: 0.95rem; }
+  .status-card .sc-val { color: var(--muted); font-size: 0.85rem; }
+  .status-card.ok-card { border-color: rgba(34,197,94,0.3); }
+  .status-card.warn-card { border-color: rgba(234,179,8,0.3); }
+  .status-card .indicator {
+    width: 10px; height: 10px; border-radius: 50%;
+    display: inline-block; margin-right: 0.4rem;
+  }
+  .ind-green { background: var(--green); }
+  .ind-yellow { background: var(--yellow); }
+  .ind-red { background: var(--red); }
+  .ind-blue { background: var(--blue); }
+
+  /* Flow diagram */
+  .flow {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .flow-node {
+    background: var(--bg3);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent2);
+    white-space: nowrap;
+  }
+  .flow-node.ok-node { border-color: var(--green); color: var(--green); }
+  .flow-arrow { color: var(--muted); font-size: 1rem; }
+
+  /* Alert */
+  .alert {
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+    display: flex;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+  .alert.warn { background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.25); }
+  .alert.info { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.25); }
+  .alert.ok { background: rgba(34,197,94,0.08); border: 1px solid rgba(34,197,94,0.25); }
+  .alert .icon { font-size: 1.2rem; flex-shrink: 0; }
+
+  code {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    color: var(--accent2);
+    font-family: 'Courier New', monospace;
+  }
+
+  footer {
+    text-align: center; padding: 2rem; color: var(--muted);
+    font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 2rem;
+  }
+  footer strong { color: var(--accent2); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔍 OlivIA RAG — Status Completo</h1>
+  <span class="badge-green">✅ Estrutura Funcional</span>
+  &nbsp;
+  <span class="badge-yellow">⚠️ 1 Ponto de Atenção</span>
+  <div class="meta">Auditado por JANA · 2026-03-17 · Supabase qdivfairxhdihaqqypgb</div>
+</header>
+
+<div class="container">
+
+  <!-- Stats -->
+  <div class="stats-bar">
+    <div class="stat-card green"><div class="num">2.930</div><div class="lbl">Docs indexados</div></div>
+    <div class="stat-card green"><div class="num">3.914</div><div class="lbl">Chunks totais</div></div>
+    <div class="stat-card green"><div class="num">0</div><div class="lbl">Sem embedding</div></div>
+    <div class="stat-card green"><div class="num">1.536</div><div class="lbl">Dimensões vetor</div></div>
+    <div class="stat-card green"><div class="num">HNSW</div><div class="lbl">Índice vetorial</div></div>
+    <div class="stat-card green"><div class="num">100%</div><div class="lbl">Com org_id</div></div>
+  </div>
+
+  <!-- Veredicto -->
+  <div class="section">
+    <div class="section-title">🟢 Veredicto Geral</div>
+    <div class="alert ok">
+      <div class="icon">✅</div>
+      <div>
+        <strong>RAG está funcional e pronto para uso.</strong><br>
+        Todos os 3.914 chunks têm embedding válido (1536 dims), índice HNSW criado, <code>organizacao_id</code> 100% preenchido.
+        O workflow <strong>WH-JURI-02</strong> está ativo e chama corretamente <code>fn_rag_search</code> via embeddings reais (text-embedding-3-small → OpenAI).
+      </div>
+    </div>
+    <div class="alert warn">
+      <div class="icon">⚠️</div>
+      <div>
+        <strong>WH-JURI-02 busca só jurisprudências.</strong><br>
+        O node J3-BuscarRAG passa <code>p_source_types: ['jurisprudencia']</code> — blocos de texto e modelos de petição <strong>não são buscados</strong> nesse workflow.
+        No OLIVIA-ANALISE-V4, a busca inclui 'bloco' e está correta.
+      </div>
+    </div>
+    <div class="alert info">
+      <div class="icon">ℹ️</div>
+      <div>
+        <strong>Scores ~0.08 nas queries diretas são normais.</strong><br>
+        A função <code>match_rag_chunks_by_text</code> usa <strong>full-text search</strong> (ts_rank / tsquery), não vetorial.
+        A busca vetorial real passa por <code>fn_rag_search</code> com embedding da query — só funciona via n8n (WH-JURI-02 / OLIVIA-ANALISE-V4).
+      </div>
+    </div>
+  </div>
+
+  <!-- Dados do banco -->
+  <div class="section">
+    <div class="section-title">🗄️ Dados no Banco</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Fonte</th>
+            <th>Tipo</th>
+            <th class="num-cell">Docs (rag_documents)</th>
+            <th class="num-cell">Chunks (rag_chunks)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>olivia_blocos_texto</td>
+            <td><code>manual</code></td>
+            <td class="num-cell">1.244</td>
+            <td class="num-cell">2.097</td>
+            <td><span class="ok">✅ indexado</span></td>
+          </tr>
+          <tr>
+            <td>olivia_jurisprudencias</td>
+            <td><code>jurisprudencia</code></td>
+            <td class="num-cell">1.351</td>
+            <td class="num-cell">1.413</td>
+            <td><span class="ok">✅ indexado</span></td>
+          </tr>
+          <tr>
+            <td>olivia_modelos_peticao</td>
+            <td><code>template</code></td>
+            <td class="num-cell">335</td>
+            <td class="num-cell">404</td>
+            <td><span class="ok">✅ indexado</span></td>
+          </tr>
+          <tr style="font-weight:700">
+            <td>TOTAL</td>
+            <td>—</td>
+            <td class="num-cell">2.930</td>
+            <td class="num-cell">3.914</td>
+            <td><span class="ok">✅ 100% indexado</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:0.8rem;color:var(--muted);margin-top:0.5rem;">
+      * Chunks > docs porque documentos longos foram divididos em múltiplos chunks (normal).
+    </p>
+  </div>
+
+  <!-- Qualidade dos chunks -->
+  <div class="section">
+    <div class="section-title">📊 Qualidade dos Chunks</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Métrica</th><th>Valor</th><th>Avaliação</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Total chunks</td><td>3.914</td><td><span class="ok">✅ OK</span></td></tr>
+          <tr><td>Chunks sem embedding</td><td>0</td><td><span class="ok">✅ Nenhum faltando</span></td></tr>
+          <tr><td>Chunks sem conteúdo</td><td>0</td><td><span class="ok">✅ Nenhum vazio</span></td></tr>
+          <tr><td>Chunks sem organizacao_id</td><td>0</td><td><span class="ok">✅ 100% preenchido</span></td></tr>
+          <tr><td>Dimensões do vetor</td><td>1.536</td><td><span class="ok">✅ text-embedding-3-small</span></td></tr>
+          <tr><td>Menor chunk (chars)</td><td>43</td><td><span class="warn">⚠️ Muito curto — pode ser ruído</span></td></tr>
+          <tr><td>Maior chunk (chars)</td><td>27.283</td><td><span class="warn">⚠️ Muito longo — pode prejudicar precisão</span></td></tr>
+          <tr><td>Tamanho médio (chars)</td><td>1.587</td><td><span class="ok">✅ Adequado</span></td></tr>
+          <tr><td>Índice vetorial</td><td>HNSW (m=16, ef=64)</td><td><span class="ok">✅ Criado e ativo</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Funções RAG -->
+  <div class="section">
+    <div class="section-title">⚙️ Funções RAG no Banco</div>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr><th>Função</th><th>Tipo de Busca</th><th>Quem usa</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>fn_rag_search</code></td>
+            <td>🧲 Vetorial (cosine similarity) — principal</td>
+            <td>WH-JURI-02, OLIVIA-ANALISE-V4</td>
+            <td><span class="ok">✅ Funcional</span></td>
+          </tr>
+          <tr>
+            <td><code>match_rag_chunks_by_text</code></td>
+            <td>📝 Full-text search (ts_rank / tsquery)</td>
+            <td>—</td>
+            <td><span class="info">ℹ️ Funcional, não vetorial</span></td>
+          </tr>
+          <tr>
+            <td><code>match_rag_chunks</code></td>
+            <td>🧲 Vetorial (recebe embedding pré-gerado)</td>
+            <td>—</td>
+            <td><span class="ok">✅ Disponível</span></td>
+          </tr>
+          <tr>
+            <td><code>fn_rag_ingest_document</code></td>
+            <td>📥 Ingestão de documentos</td>
+            <td>Triggers automáticos</td>
+            <td><span class="ok">✅ Ativo</span></td>
+          </tr>
+          <tr>
+            <td><code>fn_rag_batch_pending</code></td>
+            <td>🔄 Processar docs pendentes</td>
+            <td>—</td>
+            <td><span class="ok">✅ Disponível</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Fluxo WH-JURI-02 -->
+  <div class="section">
+    <div class="section-title">🔄 Fluxo RAG — WH-JURI-02 (Ativo)</div>
+    <div class="flow">
+      <div class="flow-node ok-node">Webhook</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok-node">J1-Validate</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok-node">J2-GerarEmbedding<br><small>text-embedding-3-small</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok-node">J3-BuscarRAG<br><small>fn_rag_search (juris)</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok-node">J3b-AggRAG</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok-node">J4-Claude<br><small>Sonnet</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok-node">Respond</div>
+    </div>
+    <div class="alert warn">
+      <div class="icon">⚠️</div>
+      <div>
+        <strong>J3-BuscarRAG está limitado a <code>p_source_types: ['jurisprudencia']</code></strong><br>
+        Isso é intencional para esse workflow (jurimetria). Mas se quiser buscar também em blocos e modelos aqui,
+        precisa mudar para <code>['jurisprudencia', 'manual', 'template']</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- Fluxo OLIVIA-ANALISE-V4 -->
+  <div class="section">
+    <div class="section-title">🔄 OLIVIA-ANALISE-V4 (50 nodes · Ativo)</div>
+    <div class="alert ok">
+      <div class="icon">✅</div>
+      <div>
+        Workflow principal do OlivIA. RAG inclui tipos <code>bloco</code>, <code>template</code> e <code>jurisprudencia</code>.
+        top_k=12, agent_key dinâmico por sessão. Tudo configurado corretamente.
+      </div>
+    </div>
+  </div>
+
+  <!-- Resumo dos checks -->
+  <div class="section">
+    <div class="section-title">☑️ Checklist de Saúde</div>
+    <div class="status-grid">
+      <div class="status-card ok-card">
+        <div class="sc-title"><span class="indicator ind-green"></span>Embeddings gerados</div>
+        <div class="sc-val">3.914/3.914 chunks com vetor (1536 dims). Zero faltando.</div>
+      </div>
+      <div class="status-card ok-card">
+        <div class="sc-title"><span class="indicator ind-green"></span>Índice HNSW</div>
+        <div class="sc-val">Criado em <code>rag_chunks(embedding)</code> — busca vetorial eficiente.</div>
+      </div>
+      <div class="status-card ok-card">
+        <div class="sc-title"><span class="indicator ind-green"></span>organizacao_id</div>
+        <div class="sc-val">100% preenchido. Isolamento por organização funciona.</div>
+      </div>
+      <div class="status-card ok-card">
+        <div class="sc-title"><span class="indicator ind-green"></span>fn_rag_search</div>
+        <div class="sc-val">Função vetorial principal existe e está correta (cosine similarity).</div>
+      </div>
+      <div class="status-card ok-card">
+        <div class="sc-title"><span class="indicator ind-green"></span>WH-JURI-02</div>
+        <div class="sc-val">Ativo, 11 nodes. Gera embedding (text-embedding-3-small) e chama fn_rag_search.</div>
+      </div>
+      <div class="status-card ok-card">
+        <div class="sc-title"><span class="indicator ind-green"></span>OLIVIA-ANALISE-V4</div>
+        <div class="sc-val">Ativo, 50 nodes. RAG multi-tipo. agent_key dinâmico.</div>
+      </div>
+      <div class="status-card ok-card">
+        <div class="sc-title"><span class="indicator ind-green"></span>Triggers automáticos</div>
+        <div class="sc-val">fn_trg_*_to_rag configurados para blocos, juris e modelos.</div>
+      </div>
+      <div class="status-card warn-card">
+        <div class="sc-title"><span class="indicator ind-yellow"></span>Chunks muito longos</div>
+        <div class="sc-val">Maior chunk tem 27.283 chars. Pode reduzir precisão da busca. Opcional revisar chunking.</div>
+      </div>
+      <div class="status-card warn-card">
+        <div class="sc-title"><span class="indicator ind-yellow"></span>WH-JURI-02 source_types</div>
+        <div class="sc-val">Busca só <code>jurisprudencia</code>. Blocos e modelos não entram nesse fluxo.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Auditado por <strong>JANA 🦊</strong> · MacBook Air M4 · JARBAS Network · MdLab LegalTech<br>
+  2026-03-17 · Supabase: qdivfairxhdihaqqypgb
+</footer>
+
+</body>
+</html>

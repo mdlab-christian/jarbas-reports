@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auditoria de Distribuição — 18/03/2026</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #1a1f2e 0%, #0f1117 100%); padding: 32px; border-bottom: 1px solid #2d3748; }
+  .header h1 { font-size: 1.6rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  .header .sub { color: #718096; font-size: 0.9rem; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  /* KPI cards */
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 32px; }
+  .kpi { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; padding: 20px; text-align: center; }
+  .kpi .num { font-size: 2rem; font-weight: 800; margin-bottom: 4px; }
+  .kpi .label { font-size: 0.75rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi.green .num { color: #68d391; }
+  .kpi.yellow .num { color: #f6e05e; }
+  .kpi.red .num { color: #fc8181; }
+  .kpi.blue .num { color: #63b3ed; }
+  .kpi.orange .num { color: #f6ad55; }
+
+  /* Section */
+  .section { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
+  .section-header { padding: 16px 24px; border-bottom: 1px solid #2d3748; display: flex; align-items: center; gap: 12px; }
+  .section-header h2 { font-size: 1rem; font-weight: 600; color: #fff; }
+  .section-header .badge { padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+  .badge.green { background: #22543d; color: #68d391; }
+  .badge.yellow { background: #744210; color: #f6e05e; }
+  .badge.red { background: #742a2a; color: #fc8181; }
+  .badge.blue { background: #2a4365; color: #63b3ed; }
+  .badge.orange { background: #7b341e; color: #f6ad55; }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { background: #0f1117; color: #718096; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; padding: 10px 16px; text-align: left; }
+  td { padding: 10px 16px; border-bottom: 1px solid #1e2535; color: #e2e8f0; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #1e2535; }
+
+  /* Status chips */
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+  .chip.dist { background: #22543d; color: #68d391; }
+  .chip.prep { background: #744210; color: #f6e05e; }
+  .chip.aguard { background: #2a4365; color: #63b3ed; }
+
+  .ok { color: #68d391; }
+  .warn { color: #f6e05e; }
+  .err { color: #fc8181; }
+
+  a { color: #63b3ed; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .alert { background: #2d1f0e; border: 1px solid #7b341e; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
+  .alert .title { color: #f6ad55; font-weight: 600; margin-bottom: 8px; }
+  .alert ul { color: #d69e2e; font-size: 0.85rem; padding-left: 20px; }
+  .alert ul li { margin-bottom: 4px; }
+
+  .info-box { background: #1a2740; border: 1px solid #2a4365; border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
+  .info-box .title { color: #63b3ed; font-weight: 600; margin-bottom: 8px; }
+  .info-box p { color: #90cdf4; font-size: 0.85rem; line-height: 1.6; }
+
+  .legacy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; padding: 20px 24px; }
+  .legacy-card { background: #0f1117; border: 1px solid #2d3748; border-radius: 8px; padding: 16px; }
+  .legacy-card .lc-title { font-size: 0.75rem; color: #718096; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+  .legacy-card .lc-val { font-size: 1.5rem; font-weight: 700; }
+  .legacy-card .lc-sub { font-size: 0.75rem; color: #718096; margin-top: 4px; }
+  .green-val { color: #68d391; }
+  .yellow-val { color: #f6e05e; }
+  .red-val { color: #fc8181; }
+
+  .filter-bar { padding: 16px 24px; border-bottom: 1px solid #2d3748; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .filter-bar input { background: #0f1117; border: 1px solid #2d3748; color: #e2e8f0; padding: 6px 12px; border-radius: 6px; font-size: 0.82rem; width: 220px; }
+  .filter-btn { padding: 5px 14px; border-radius: 6px; font-size: 0.8rem; border: 1px solid #2d3748; cursor: pointer; background: #0f1117; color: #718096; }
+  .filter-btn.active { background: #2a4365; color: #63b3ed; border-color: #2c5282; }
+
+  .timestamp { color: #4a5568; font-size: 0.75rem; }
+
+  .sep { height: 1px; background: #2d3748; margin: 24px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="container" style="padding-top:0;padding-bottom:0;">
+    <h1>📋 Auditoria de Distribuição</h1>
+    <div class="sub">Gerado por JARBAS · 18/03/2026 · Análise completa do dia 17/03 + saúde da migração legacy</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ALERTAS -->
+  <div class="alert">
+    <div class="title">⚠️ Problemas identificados e corrigidos</div>
+    <ul>
+      <li><strong>Bug de data corrigido:</strong> 67 processos com <code>data_distribuicao = NULL</code> foram preenchidos retroativamente (data = data do cadastro)</li>
+      <li><strong>18 processos do dia 17</strong> estavam em <code>preparacao</code> sem cliente vinculado — são novos processos capturados pelo JARBAS que ainda não foram distribuídos manualmente</li>
+      <li><strong>JOAO LORI DA SILVA MUNIZ</strong> — 3 processos sem cliente correspondente na base (não existe na tabela <code>clientes</code>)</li>
+      <li><strong>Legacy mdflow:</strong> 30 processos em <code>preparacao</code> sem restrição vinculada (sem restricao_orgao_nome e sem restricao_id)</li>
+    </ul>
+  </div>
+
+  <div class="info-box">
+    <div class="title">ℹ️ Como funciona a captura</div>
+    <p>O JARBAS scrapa o EPROC a cada ~5 min. Processos novos (CNJ não conhecido) são enviados via webhook ao n8n ingest, que os cadastra com <code>origem_dados = 'auto_cadastro_jarbas'</code> e <code>etapa_distribuicao = 'preparacao'</code>. A distribuição manual pelo Gustavo avança para <code>distribuido</code>. O bug corrigido: o scraper gravava <code>distribuido: true</code> no JSONB mas não preenchia o campo <code>data_distribuicao</code>.</p>
+  </div>
+
+  <!-- KPIs DIA 17 -->
+  <div class="section">
+    <div class="section-header">
+      <h2>📅 Dia 17/03/2026 — Resumo geral</h2>
+      <span class="badge blue">26 processos</span>
+    </div>
+    <div style="padding: 20px 24px;">
+      <div class="kpis" style="margin-bottom: 0;">
+        <div class="kpi green"><div class="num">8</div><div class="label">Já distribuídos</div></div>
+        <div class="kpi yellow"><div class="num">18</div><div class="label">Em preparação</div></div>
+        <div class="kpi blue"><div class="num">3</div><div class="label">Legacy MdFlow</div></div>
+        <div class="kpi orange"><div class="num">23</div><div class="label">Auto-cadastro JARBAS</div></div>
+        <div class="kpi green"><div class="num">9 / 26</div><div class="label">Com cliente vinculado</div></div>
+        <div class="kpi red"><div class="num">17 / 26</div><div class="label">Sem cliente (pendente)</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABELA DIA 17 -->
+  <div class="section">
+    <div class="section-header">
+      <h2>📋 Todos os processos — 17/03/2026</h2>
+    </div>
+    <div class="filter-bar">
+      <input type="text" id="searchInput" placeholder="Buscar cliente, réu, CNJ..." oninput="filterTable()">
+      <button class="filter-btn active" onclick="setFilter('all', this)">Todos (26)</button>
+      <button class="filter-btn" onclick="setFilter('distribuido', this)">✅ Distribuídos (8)</button>
+      <button class="filter-btn" onclick="setFilter('preparacao', this)">⏳ Preparação (18)</button>
+    </div>
+    <div class="table-wrap">
+      <table id="mainTable">
+        <thead>
+          <tr>
+            <th>CNJ</th>
+            <th>Etapa</th>
+            <th>Cliente</th>
+            <th>Réu</th>
+            <th>Advogado</th>
+            <th>Restrição</th>
+            <th>UF/Tribunal</th>
+            <th>Origem</th>
+            <th>Ações</th>
+          </tr>
+        </thead>
+        <tbody>
+
+          <!-- DISTRIBUÍDOS (8) -->
+          <tr data-etapa="distribuido">
+            <td><code>5016219-80.2026.8.24.0023</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">THALITA DE AGUIAR FELSKI</td>
+            <td>SCPC/Boa Vista</td>
+            <td>SC074025</td>
+            <td class="ok">SCPC Boa Vista — R$ 947,60</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#718096">legacy</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="distribuido">
+            <td><code>5063229-73.2026.8.21.0001</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">LEANDRO DE OLIVEIRA BOEIRA</td>
+            <td>SCPC/Boa Vista</td>
+            <td>RS131163</td>
+            <td class="ok">SCPC Boa Vista — R$ 219,88</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#718096">legacy</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="distribuido">
+            <td><code>5063240-05.2026.8.21.0001</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">PAMELA ROCHELLE DA SILVA MACHADO</td>
+            <td>SCPC/Boa Vista</td>
+            <td>RS116571</td>
+            <td class="ok">SCPC Boa Vista — R$ 262,81</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#718096">legacy</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="distribuido">
+            <td><code>5011602-09.2026.8.21.0008</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">JHENI RODRIGUES CARDOSO</td>
+            <td>Itapeva XI FIDC</td>
+            <td>Christian - RS116571</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50116020920268210008&hash=9af7c167a5eca16fc1783e3384382099" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="distribuido">
+            <td><code>5064488-06.2026.8.21.0001</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">JOACIR ANTONIO DA CRUZ</td>
+            <td>Banco Santander</td>
+            <td>Christian - RS116571</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50644880620268210001&hash=9ba12750141681c39fdda6c4dacf18d4" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="distribuido">
+            <td><code>5016563-61.2026.8.24.0023</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">ZILDEMAR SANTOS VIEIRA JÚNIOR</td>
+            <td>Telefônica Brasil</td>
+            <td>Christian - SC074025</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50165636120268240023&hash=b1dc8319f24a9e346cd852b6f8f8b822" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="distribuido">
+            <td><code>5016579-15.2026.8.24.0023</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">ZILDEMAR SANTOS VIEIRA JÚNIOR</td>
+            <td>Boa Vista Serviços</td>
+            <td>Christian - SC074025</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50165791520268240023&hash=5b37a53876233b34244ba5f35ddf7c9e" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="distribuido">
+            <td><code>5064330-48.2026.8.21.0001</code></td>
+            <td><span class="chip dist">distribuído</span></td>
+            <td class="ok">YENIFER CAROLINA OCHOA HERNANDEZ</td>
+            <td>Boa Vista Serviços</td>
+            <td>Heloisa - RS131163</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50643304820268210001&hash=14d34c5b14a91ee102a7f0b2ba981ad5" target="_blank">EPROC</a></td>
+          </tr>
+
+          <!-- PREPARAÇÃO (18) -->
+          <tr data-etapa="preparacao">
+            <td><code>4041981-24.2026.8.26.0100</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">FERNANDA ALVES PEREIRA <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Mercado Pago</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>SP · TJSP</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsp.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=40419812420268260100&hash=d87efec4f15ae9c69f75e9d36527f160" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064439-62.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">REGINA SILVA ALVES <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Banco Sicredi</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50644396220268210001&hash=538ea9c61e30735a2f64d7e45eb788df" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064420-56.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">FABRICIO HENRIQUE DA COSTA MIRANDA <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Boa Vista Serviços</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50644205620268210001&hash=204722ba749fd4c5da61f9f91d7676f1" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064452-61.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">REGINA SILVA ALVES <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Boa Vista Serviços</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50644526120268210001&hash=4739251bb12a218d54379cef08d1d4c6" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064408-42.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">FABRICIO HENRIQUE DA COSTA MIRANDA <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Banco do Brasil</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50644084220268210001&hash=95d48bfdd9bc2d35137862c9f13e1c32" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064361-68.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">MAURICIO JOSE LANGARO <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Nubank</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50643616820268210001&hash=762099cbf94c99c047f2d6630c2e397d" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064016-05.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">MIGUEL ANGELO DA SILVA <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Vero S.A.</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50640160520268210001&hash=20dd10db1b9e4c93bacbda3c4b733c67" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064372-97.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">MAURICIO JOSE LANGARO <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Boa Vista Serviços</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50643729720268210001&hash=6059a67b01549114bc54c614bc487606" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5063945-03.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">DEJAIR RODRIGUES DA SILVA <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Nubank</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50639450320268210001&hash=75a0132415698dcfaab5bc4d1ac5ed87" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5064397-13.2026.8.21.0001</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">JHENI RODRIGUES CARDOSO <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Boa Vista Serviços</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50643971320268210001&hash=09e097fb9d877bd7d4c38b45cf7942af" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5011606-46.2026.8.21.0008</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">JHENI RODRIGUES CARDOSO <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Ativos S.A.</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50116064620268210008&hash=6a42cf5b5b7d3577e6594f329def9793" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5006631-03.2026.8.21.0033</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">MAURICIO JOSE LANGARO <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>DM Pagamentos</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>RS · TJRS</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50066310320268210033&hash=27354fb77bb2afbd3c854ed2a08e4215" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5016298-59.2026.8.24.0023</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="err">JOAO LORI DA SILVA MUNIZ <span style="color:#fc8181;font-size:0.72rem">⚠️ NÃO EXISTE na base</span></td>
+            <td>Boa Vista Serviços</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50162985920268240023&hash=526c0a18cf9df43726678b3c2bc7effe" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5016424-12.2026.8.24.0023</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="err">JOAO LORI DA SILVA MUNIZ <span style="color:#fc8181;font-size:0.72rem">⚠️ NÃO EXISTE na base</span></td>
+            <td>CIB Consultoria</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50164241220268240023&hash=3f38530b230583856b1eee5ff9e4ce92" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5016572-23.2026.8.24.0023</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">ZILDEMAR SANTOS VIEIRA JÚNIOR <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Nubank</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50165722320268240023&hash=4557e91bb39e38b45de97366756413c2" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5016593-96.2026.8.24.0023</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">JEFERSON SCHMIDT <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Creditas</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50165939620268240023&hash=253cf2e710d567321884c5115bbdbb92" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5016539-33.2026.8.24.0023</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="err">JOAO LORI DA SILVA MUNIZ <span style="color:#fc8181;font-size:0.72rem">⚠️ NÃO EXISTE na base</span></td>
+            <td>O Boticário</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50165393320268240023&hash=47cbd764b075310c00877dbdb12cdfb9" target="_blank">EPROC</a></td>
+          </tr>
+          <tr data-etapa="preparacao">
+            <td><code>5016271-76.2026.8.24.0023</code></td>
+            <td><span class="chip prep">preparação</span></td>
+            <td class="warn">IVONEI GERMANO <span style="color:#718096;font-size:0.72rem">(cliente existe)</span></td>
+            <td>Vero S.A.</td>
+            <td class="warn">pendente</td>
+            <td class="warn">sem restrição</td>
+            <td>SC · TJSC</td>
+            <td><span style="color:#63b3ed">auto-cadastro</span></td>
+            <td><a href="https://eproc1g.tjsc.jus.br/eproc/controlador.php?acao_origem=relatorio_processo_procurador_listar&acao_retorno=relatorio_processo_procurador_listar&acao=processo_selecionar&num_processo=50162717620268240023&hash=5b3b63e145bb0020a65786451dac45ad" target="_blank">EPROC</a></td>
+          </tr>
+
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SAÚDE GERAL DA BASE -->
+  <div class="section">
+    <div class="section-header">
+      <h2>🏥 Saúde geral da base — todas as origens</h2>
+    </div>
+    <div class="legacy-grid">
+      <div class="legacy-card">
+        <div class="lc-title">Total processos ativos</div>
+        <div class="lc-val green-val">10.894</div>
+        <div class="lc-sub">sem deleted_at</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Origem: JARBAS (principal)</div>
+        <div class="lc-val green-val">8.469</div>
+        <div class="lc-sub">jarbas — importação março 2026</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Origem: MdFlow Legacy</div>
+        <div class="lc-val yellow-val">2.113</div>
+        <div class="lc-sub">mdflow_legacy</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Auto-cadastro JARBAS</div>
+        <div class="lc-val blue-val">307</div>
+        <div class="lc-sub">novos processos via EPROC</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SAÚDE LEGACY -->
+  <div class="section">
+    <div class="section-header">
+      <h2>🔍 Auditoria MdFlow Legacy (2.113 processos)</h2>
+      <span class="badge yellow">2 problemas encontrados</span>
+    </div>
+    <div class="legacy-grid">
+      <div class="legacy-card">
+        <div class="lc-title">Aguardando distribuição</div>
+        <div class="lc-val yellow-val">1.861</div>
+        <div class="lc-sub">✅ todos com cliente + advogado + restrição</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Em preparação</div>
+        <div class="lc-val yellow-val">244</div>
+        <div class="lc-sub">244 com cliente ✅ | 244 com advogado ✅</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Preparação sem restrição</div>
+        <div class="lc-val red-val">30</div>
+        <div class="lc-sub">⚠️ sem restricao_orgao_nome e sem restricao_id</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Já distribuídos</div>
+        <div class="lc-val green-val">7</div>
+        <div class="lc-sub">✅ todos completos</div>
+      </div>
+    </div>
+    <div style="padding: 0 24px 20px;">
+      <p style="color:#718096;font-size:0.82rem;">
+        ✅ <strong>Dados migrados corretamente:</strong> cliente_id, advogado_id, restricao_orgao_nome, restricao_valor preenchidos em 1.868/1.898 processos (98,4%).<br>
+        ⚠️ <strong>30 processos em preparação sem restrição</strong> — provavelmente processos onde a restrição não existia no sistema antigo. Não bloqueia o fluxo, mas recomendo verificar manualmente.<br>
+        ✅ <strong>Sem duplicatas detectadas</strong> — cada numero_cnj aparece uma única vez na base.
+      </p>
+    </div>
+  </div>
+
+  <!-- SAÚDE AUTO-CADASTRO -->
+  <div class="section">
+    <div class="section-header">
+      <h2>🤖 Auditoria Auto-cadastro JARBAS (307 processos)</h2>
+      <span class="badge yellow">3 pendências</span>
+    </div>
+    <div class="legacy-grid">
+      <div class="legacy-card">
+        <div class="lc-title">Já distribuídos</div>
+        <div class="lc-val">253</div>
+        <div class="lc-sub">253 com cliente ✅ | 246 com advogado</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Com restrição vinculada</div>
+        <div class="lc-val yellow-val">67 / 253</div>
+        <div class="lc-sub">⚠️ 186 distribuídos sem restrição</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Pendente cadastro (auto_cadastro_pendente)</div>
+        <div class="lc-val red-val">74</div>
+        <div class="lc-sub">54 em preparação + 20 em distribuido</div>
+      </div>
+      <div class="legacy-card">
+        <div class="lc-title">Em preparação (ainda não distribuídos)</div>
+        <div class="lc-val yellow-val">54</div>
+        <div class="lc-sub">todos sem cliente/advogado vinculado</div>
+      </div>
+    </div>
+    <div style="padding: 0 24px 20px;">
+      <p style="color:#718096;font-size:0.82rem;">
+        ⚠️ <strong>186 processos distribuídos sem restrição vinculada</strong> — esses processos foram distribuídos no EPROC mas não têm restrição no MdFlow. Podem ser processos de outros tipos ou onde a restrição foi registrada na petição mas não no banco.<br>
+        ⚠️ <strong>74 processos com auto_cadastro_pendente = true</strong> — ainda precisam de vinculação manual de cliente/advogado.<br>
+        🔴 <strong>JOAO LORI DA SILVA MUNIZ</strong> — aparece em 3 processos mas não existe na tabela <code>clientes</code>. Precisa ser cadastrado.
+      </p>
+    </div>
+  </div>
+
+  <!-- CONCLUSÃO -->
+  <div class="section">
+    <div class="section-header">
+      <h2>📊 Conclusão — O legacy alimentou corretamente?</h2>
+    </div>
+    <div style="padding: 20px 24px;">
+      <table>
+        <thead>
+          <tr>
+            <th>Critério</th>
+            <th>Status</th>
+            <th>Detalhe</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Processos migrados com cliente_id</td>
+            <td class="ok">✅ 98,4%</td>
+            <td>1.868 / 1.898 processos legacy têm cliente vinculado</td>
+          </tr>
+          <tr>
+            <td>Processos migrados com advogado_id</td>
+            <td class="ok">✅ 98,4%</td>
+            <td>1.868 / 1.898 com advogado vinculado</td>
+          </tr>
+          <tr>
+            <td>Restrições vinculadas (legacy)</td>
+            <td class="warn">⚠️ 98,3%</td>
+            <td>30 processos em preparação sem restrição</td>
+          </tr>
+          <tr>
+            <td>data_distribuicao preenchida</td>
+            <td class="ok">✅ Corrigido</td>
+            <td>Bug corrigido: 67 processos auto-cadastro tiveram data preenchida agora</td>
+          </tr>
+          <tr>
+            <td>Duplicatas por numero_cnj</td>
+            <td class="ok">✅ Nenhuma</td>
+            <td>Sem duplicatas detectadas na base</td>
+          </tr>
+          <tr>
+            <td>Clientes sem cadastro</td>
+            <td class="err">❌ 1 encontrado</td>
+            <td>JOAO LORI DA SILVA MUNIZ — 3 processos orphãos (TJSC)</td>
+          </tr>
+          <tr>
+            <td>Processos em preparação sem vínculo</td>
+            <td class="warn">⚠️ 74 total</td>
+            <td>54 auto-cadastro em preparação + 20 distribuídos com pendente=true</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="text-align:center;padding:20px;color:#4a5568;font-size:0.75rem;">
+    Gerado por JARBAS · 2026-03-18 · <a href="https://mdlab-christian.github.io/jarbas-reports/">jarbas-reports</a>
+  </div>
+
+</div>
+
+<script>
+let currentFilter = 'all';
+
+function filterTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const rows = document.querySelectorAll('#mainTable tbody tr');
+  rows.forEach(row => {
+    const text = row.textContent.toLowerCase();
+    const etapa = row.dataset.etapa;
+    const matchSearch = !search || text.includes(search);
+    const matchFilter = currentFilter === 'all' || etapa === currentFilter;
+    row.style.display = matchSearch && matchFilter ? '' : 'none';
+  });
+}
+
+function setFilter(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterTable();
+}
+</script>
+</body>
+</html>

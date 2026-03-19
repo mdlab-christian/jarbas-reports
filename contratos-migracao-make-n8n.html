@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Migração: Gerar Contratos Make → N8n</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f0f0f; color: #e0e0e0; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #1a1a1a, #2d1b69); padding: 40px; border-bottom: 2px solid #4c3b9e; }
+  .header h1 { font-size: 26px; color: #fff; margin-bottom: 8px; }
+  .header .meta { color: #9985d8; font-size: 14px; }
+  .header .badge { display: inline-block; padding: 3px 10px; background: #4c3b9e; border-radius: 20px; font-size: 12px; color: #ccc; margin-top: 8px; margin-right: 6px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+  .section { margin-bottom: 40px; }
+  h2 { font-size: 18px; color: #a78bfa; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #2a2a2a; display: flex; align-items: center; gap: 8px; }
+  h3 { font-size: 15px; color: #c4b5fd; margin-bottom: 12px; }
+  .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card.ok { border-left: 4px solid #22c55e; }
+  .card.warn { border-left: 4px solid #f59e0b; }
+  .card.error { border-left: 4px solid #ef4444; }
+  .card.info { border-left: 4px solid #3b82f6; }
+  .card.decision { border-left: 4px solid #ec4899; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+  .tag.green { background: #14532d; color: #4ade80; }
+  .tag.red { background: #450a0a; color: #f87171; }
+  .tag.yellow { background: #451a03; color: #fbbf24; }
+  .tag.blue { background: #1e3a5f; color: #60a5fa; }
+  .tag.purple { background: #2e1065; color: #c084fc; }
+  .tag.pink { background: #500724; color: #f9a8d4; }
+  .tag.gray { background: #1f2937; color: #9ca3af; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #1f1f1f; color: #9ca3af; padding: 10px 12px; text-align: left; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  td { padding: 10px 12px; border-top: 1px solid #222; vertical-align: top; }
+  tr:hover td { background: #1f1f1f; }
+  .code { font-family: 'Courier New', monospace; background: #111; padding: 2px 6px; border-radius: 4px; font-size: 12px; color: #86efac; }
+  .code-block { background: #111; border-radius: 8px; padding: 16px; font-family: 'Courier New', monospace; font-size: 12px; color: #86efac; overflow-x: auto; line-height: 1.8; margin: 12px 0; }
+  .flow-step { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 12px; }
+  .flow-num { background: #4c3b9e; color: #fff; min-width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .flow-content { flex: 1; }
+  .flow-content strong { color: #c4b5fd; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .progress { background: #2a2a2a; border-radius: 20px; height: 8px; margin-top: 8px; }
+  .progress-bar { height: 8px; border-radius: 20px; }
+  .alert { background: #1a1200; border: 1px solid #713f12; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px; color: #fcd34d; font-size: 14px; }
+  .alert.info { background: #0f1729; border-color: #1d4ed8; color: #93c5fd; }
+  .alert.success { background: #052e16; border-color: #166534; color: #86efac; }
+  a { color: #818cf8; text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .doc-link { font-size: 11px; color: #6366f1; }
+  .toc { background: #151515; border: 1px solid #222; border-radius: 8px; padding: 20px; margin-bottom: 30px; }
+  .toc h3 { margin-bottom: 12px; color: #9ca3af; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+  .toc ul { list-style: none; }
+  .toc li { padding: 4px 0; }
+  .toc a { color: #9985d8; }
+  .mini-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; }
+  .gap-row td:first-child { color: #f87171; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔄 Migração: Gerar Contratos</h1>
+  <div class="meta">Análise do blueprint Make → Plano de implementação N8n</div>
+  <div style="margin-top:12px">
+    <span class="badge">Make Blueprint analisado</span>
+    <span class="badge">N8n auditado (100 workflows)</span>
+    <span class="badge">Supabase auditado</span>
+    <span class="badge">2026-03-19</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <div class="toc">
+    <h3>📋 Índice</h3>
+    <ul>
+      <li><a href="#resumo">1. Resumo Executivo</a></li>
+      <li><a href="#make">2. O que o Make fazia</a></li>
+      <li><a href="#n8n-atual">3. O que o N8n já tem</a></li>
+      <li><a href="#gaps">4. Gaps — O que falta construir</a></li>
+      <li><a href="#templates">5. Templates Google Docs por OAB</a></li>
+      <li><a href="#decisao">6. ⚠️ Decisão Arquitetural (precisa do Christian)</a></li>
+      <li><a href="#plano">7. Plano de Implementação</a></li>
+    </ul>
+  </div>
+
+  <!-- 1. RESUMO EXECUTIVO -->
+  <div class="section" id="resumo">
+    <h2>📊 1. Resumo Executivo</h2>
+    <div class="grid-3">
+      <div class="card ok">
+        <div style="font-size:28px;font-weight:700;color:#22c55e">65%</div>
+        <div style="color:#86efac;font-size:13px">Já implementado no N8n</div>
+        <div class="progress"><div class="progress-bar" style="width:65%;background:#22c55e"></div></div>
+        <div style="margin-top:10px;font-size:12px;color:#9ca3af">contrato_midas + procuração + lote</div>
+      </div>
+      <div class="card warn">
+        <div style="font-size:28px;font-weight:700;color:#f59e0b">35%</div>
+        <div style="color:#fbbf24;font-size:13px">Precisa ser construído</div>
+        <div class="progress"><div class="progress-bar" style="width:35%;background:#f59e0b"></div></div>
+        <div style="margin-top:10px;font-size:12px;color:#9ca3af">contrato_orgao + contrato_empresa (por OAB)</div>
+      </div>
+      <div class="card decision">
+        <div style="font-size:28px;font-weight:700;color:#ec4899">1</div>
+        <div style="color:#f9a8d4;font-size:13px">Decisão crítica pendente</div>
+        <div class="progress"><div class="progress-bar" style="width:100%;background:#ec4899"></div></div>
+        <div style="margin-top:10px;font-size:12px;color:#9ca3af">HTML Supabase vs Google Docs API</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. O QUE O MAKE FAZIA -->
+  <div class="section" id="make">
+    <h2>🔷 2. O que o Make fazia (Blueprint analisado)</h2>
+
+    <div class="card info">
+      <h3>Fluxo principal</h3>
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          <strong>Webhook recebe disparo</strong><br>
+          <span class="code">gateway:CustomWebHook</span> — hook <span class="code">2296423</span> (nome: "Mdflow - Gerar procurações - Christian")<br>
+          Payload: <span class="code">{ dados_origem: { id }, tipo }</span> onde <code style="color:#fbbf24">tipo</code> define qual rota seguir
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          <strong>Busca lead no Supabase</strong><br>
+          <span class="code">supabase:searchRows</span> → tabela <span class="code">leads</span> → filtra por <span class="code">id = dados_origem.id</span><br>
+          Campos usados: <span class="code">name, cpf, drive_cliente</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          <strong>Router bifurca em 2 caminhos</strong><br>
+          <span class="tag green">contrato_midas</span> — 1 documento simples (Contrato Midas)<br>
+          <span class="tag yellow">contrato_empresa / contrato_orgao</span> — sub-router por OAB (5 OABs × 2 tipos = múltiplos docs)
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          <strong>Para cada doc: Google Docs → Drive → Delete temp → Rename pasta</strong><br>
+          <span class="code">google-docs:createADocumentFromTemplate</span> → pasta temp (18SHuzvKFec3AD2ugqrDHr1wCWWoHW6-j)<br>
+          <span class="code">google-drive:uploadAFile</span> → pasta do cliente (<span class="code">drive_cliente</span>)<br>
+          <span class="code">google-drive:deleteAFile</span> → limpa pasta temp<br>
+          <span class="code">google-drive:renameAFolder</span> → renomeia pasta do cliente (algumas rotas)
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:20px">Tipos de documento por OAB</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Tipo (valor no webhook)</th>
+          <th>OABs envolvidas</th>
+          <th>Documentos gerados</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag green">contrato_midas</span></td>
+          <td>todos</td>
+          <td>
+            <span class="mini-badge" style="background:#1a3a1a;color:#86efac">1.1 - Contrato Midas</span>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="tag yellow">contrato_empresa</span></td>
+          <td>RS/116571, SC/74025, SP/535101, RS/131163, SC/75466</td>
+          <td>
+            <span class="mini-badge" style="background:#1a2a3a;color:#93c5fd">1.3 Contrato Empresa</span>
+            <span class="mini-badge" style="background:#1a2a3a;color:#93c5fd">1.4 Ciência Destinação</span>
+            <span class="mini-badge" style="background:#1a2a3a;color:#93c5fd">1.5 Termo Veracidade</span>
+            <span class="mini-badge" style="background:#1a2a3a;color:#93c5fd">2.1 Procuração Empresa</span>
+          </td>
+        </tr>
+        <tr>
+          <td><span class="tag purple">contrato_orgao</span></td>
+          <td>RS/116571, SC/74025, SP/535101, RS/131163, SC/75466</td>
+          <td>
+            <span class="mini-badge" style="background:#2a1a3a;color:#c084fc">1.2 Termo Parceria</span>
+            <span class="mini-badge" style="background:#2a1a3a;color:#c084fc">1.6 Contrato Órgão</span>
+            <span class="mini-badge" style="background:#2a1a3a;color:#c084fc">1.7 Ciência Destinação</span>
+            <span class="mini-badge" style="background:#2a1a3a;color:#c084fc">1.8 Termo Veracidade</span>
+            <span class="mini-badge" style="background:#2a1a3a;color:#c084fc">2.2 Procuração Órgão</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="alert" style="margin-top:16px">
+      ⚠️ <strong>Nota importante:</strong> O Make usa tabela <span class="code">leads</span> e o campo <span class="code">drive_cliente</span> para montar os docs. O N8n atual usa tabela <span class="code">clientes</span>. Precisamos verificar se são a mesma tabela ou tabelas distintas.
+    </div>
+  </div>
+
+  <!-- 3. N8N ATUAL -->
+  <div class="section" id="n8n-atual">
+    <h2>✅ 3. O que o N8n já tem</h2>
+
+    <div class="grid-2">
+      <div class="card ok">
+        <div style="margin-bottom:8px"><span class="tag green">ATIVO</span> <strong>WH-DOC-CONTRATO-MIDAS</strong></div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">ID: <span class="code">9EvNgbzaiUqzsZk5</span></div>
+        <div>Endpoint: <span class="code">POST /webhook/mdflow/doc/gerar-contrato-midas</span></div>
+        <div style="margin-top:8px">Payload: <span class="code">{ cliente_id, organizacao_id }</span></div>
+        <div style="margin-top:8px;font-size:13px">Busca template <span class="code">contrato_midas</span> do Supabase → gera PDF → salva em <span class="code">clientes.contrato_midas_url</span></div>
+        <div style="margin-top:8px"><span class="tag green">✓ cobre rota contrato_midas</span></div>
+      </div>
+
+      <div class="card ok">
+        <div style="margin-bottom:8px"><span class="tag green">ATIVO</span> <strong>WH-DOC-PROCURACAO</strong></div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">ID: <span class="code">aPabSiwxxFqAv44K</span></div>
+        <div>Endpoint: <span class="code">POST /webhook/mdflow/doc/gerar-procuracao</span></div>
+        <div style="margin-top:8px">Payload: <span class="code">{ processo_id, organizacao_id }</span></div>
+        <div style="margin-top:8px;font-size:13px">Gera procuração ad judicia a partir de template HTML Supabase</div>
+        <div style="margin-top:8px"><span class="tag yellow">⚠️ cobre procuração genérica, mas não por OAB/empresa</span></div>
+      </div>
+
+      <div class="card ok">
+        <div style="margin-bottom:8px"><span class="tag green">ATIVO</span> <strong>WH-DOC-LOTE</strong></div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">ID: <span class="code">7pKAuszk6FZtkCxO</span></div>
+        <div>Endpoint: <span class="code">POST /webhook/mdflow/doc/gerar-lote</span></div>
+        <div style="margin-top:8px">Payload: <span class="code">{ organizacao_id, items: [{processo_id, tipo}] }</span></div>
+        <div style="margin-top:8px;font-size:13px">Orquestrador — chama sub-webhooks em sequência</div>
+        <div style="margin-top:8px"><span class="tag green">✓ pronto para ser expandido com novos tipos</span></div>
+      </div>
+
+      <div class="card warn">
+        <div style="margin-bottom:8px"><span class="tag red">INATIVO</span> <strong>WH-DOC-CONTRATO-HONORARIOS</strong></div>
+        <div style="font-size:12px;color:#9ca3af;margin-bottom:8px">ID: <span class="code">5M8iuY8Uq8lSCHKo</span></div>
+        <div>Endpoint: <span class="code">POST /webhook/mdflow/doc/gerar-contrato-honorarios</span></div>
+        <div style="margin-top:8px;font-size:13px">Desativado. Equivalente seria contrato_empresa para honorários.</div>
+        <div style="margin-top:8px"><span class="tag gray">desativado — verificar se ainda necessário</span></div>
+      </div>
+    </div>
+
+    <div class="alert info">
+      💡 <strong>Arquitetura atual do N8n:</strong> Todos os workflows de documentos usam templates HTML armazenados no Supabase (<span class="code">documento_templates</span>) com placeholders <span class="code">{{CLIENTE_NOME}}</span>. O Make usava Google Docs nativamente. Esta é a decisão central que precisa ser tomada antes de implementar.
+    </div>
+  </div>
+
+  <!-- 4. GAPS -->
+  <div class="section" id="gaps">
+    <h2>❌ 4. Gaps — O que falta construir</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>O que falta</th>
+          <th>Tipo Make</th>
+          <th>OABs</th>
+          <th>Docs gerados</th>
+          <th>Complexidade</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="gap-row">
+          <td>WH-DOC-CONTRATO-ORGAO</td>
+          <td><span class="tag purple">contrato_orgao</span></td>
+          <td>5 OABs (RS/116571, SC/74025, SP/535101, RS/131163, SC/75466)</td>
+          <td>5 docs por cliente: 1.2 Termo Parceria + 1.6 Contrato + 1.7 Ciência Destinação + 1.8 Termo Veracidade + 2.2 Procuração</td>
+          <td><span class="tag yellow">MÉDIA</span></td>
+        </tr>
+        <tr class="gap-row">
+          <td>WH-DOC-CONTRATO-EMPRESA</td>
+          <td><span class="tag yellow">contrato_empresa</span></td>
+          <td>5 OABs (mesmas)</td>
+          <td>4 docs: 1.3 Contrato Empresa + 1.4 Ciência Destinação + 1.5 Termo Veracidade + 2.1 Procuração</td>
+          <td><span class="tag yellow">MÉDIA</span></td>
+        </tr>
+        <tr class="gap-row">
+          <td>Templates no Supabase</td>
+          <td>todos os tipos novos</td>
+          <td>todas</td>
+          <td>HTML dos 30+ templates precisam ser populados em <span class="code">documento_templates</span> (ou usar Google Docs IDs)</td>
+          <td><span class="tag red">ALTA</span></td>
+        </tr>
+        <tr class="gap-row">
+          <td>Campo <code>oab_code</code> em documento_templates</td>
+          <td>—</td>
+          <td>—</td>
+          <td>Tabela atual tem <span class="code">grupo_advogado</span> mas não <span class="code">oab_code</span> — precisamos roteamento por OAB</td>
+          <td><span class="tag yellow">BAIXA</span></td>
+        </tr>
+        <tr class="gap-row">
+          <td>Payload de disparo unificado</td>
+          <td>—</td>
+          <td>—</td>
+          <td>Definir se usa <span class="code">cliente_id</span> (N8n atual) ou <span class="code">lead_id</span> (Make) + campos empresa/orgao_restritivo</td>
+          <td><span class="tag yellow">BAIXA</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 5. TEMPLATES GOOGLE DOCS -->
+  <div class="section" id="templates">
+    <h2>📄 5. Templates Google Docs por OAB (extraídos do Make)</h2>
+
+    <div class="alert success">
+      ✅ Todos os 34 Google Doc IDs foram extraídos do blueprint. Links verificáveis abaixo.
+    </div>
+
+    <h3>Contrato Midas (universal)</h3>
+    <table>
+      <thead><tr><th>Documento</th><th>OAB</th><th>Google Doc ID</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1.1 - Contrato Midas Prestação de Serviços</td>
+          <td><span class="tag green">todos</span></td>
+          <td><span class="code" style="font-size:11px">150mEVLj8_6XxXPKS5KqGolY6qMgOH8VSkyn9duem9yw</span></td>
+          <td><a href="https://docs.google.com/document/d/150mEVLj8_6XxXPKS5KqGolY6qMgOH8VSkyn9duem9yw" target="_blank" class="doc-link">↗ abrir</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px">Termos de Parceria (por OAB)</h3>
+    <table>
+      <thead><tr><th>Documento</th><th>OAB</th><th>Advogado</th><th>Google Doc ID</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr><td>1.2 - Termo de Parceria</td><td>RS/116571</td><td>Christian</td><td><span class="code" style="font-size:11px">14gVJiFxVIX7U_6mWihDQwQ2KrRP3umEFsO-7P81Ob8I</span></td><td><a href="https://docs.google.com/document/d/14gVJiFxVIX7U_6mWihDQwQ2KrRP3umEFsO-7P81Ob8I" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.2 - Termo de Parceria</td><td>SC/74025</td><td>Christian</td><td><span class="code" style="font-size:11px">1-r5n1bov0h28EBcv6kL2bFA4cGCze5TNL19230J66pM</span></td><td><a href="https://docs.google.com/document/d/1-r5n1bov0h28EBcv6kL2bFA4cGCze5TNL19230J66pM" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.2 - Termo de Parceria</td><td>SP/535101</td><td>Christian</td><td><span class="code" style="font-size:11px">1y-5HwoEHmEso0Mr1VE6pPZTPiBnrlhe9Aaj7UkXko_s</span></td><td><a href="https://docs.google.com/document/d/1y-5HwoEHmEso0Mr1VE6pPZTPiBnrlhe9Aaj7UkXko_s" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.2 - Termo de Parceria</td><td>RS/131163</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1wwBAzmfbSICd531Os2goh4FZaka4IYRp-oplxP3dnCA</span></td><td><a href="https://docs.google.com/document/d/1wwBAzmfbSICd531Os2goh4FZaka4IYRp-oplxP3dnCA" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.2 - Termo de Parceria</td><td>SC/75466</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1NSxEujSu-kLTHpiZsue-UudzZoXsLaONuoHXV3DGRvM</span></td><td><a href="https://docs.google.com/document/d/1NSxEujSu-kLTHpiZsue-UudzZoXsLaONuoHXV3DGRvM" target="_blank" class="doc-link">↗</a></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px">Contratos Órgão (por OAB)</h3>
+    <table>
+      <thead><tr><th>Documento</th><th>OAB</th><th>Advogado</th><th>Google Doc ID</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr><td>1.6 - Contrato Órgão</td><td>RS/116571</td><td>Christian</td><td><span class="code" style="font-size:11px">13CC9uaKmuDq67gJK3mH_GlkUfqCPUHWZSI73R2oA5Ak</span></td><td><a href="https://docs.google.com/document/d/13CC9uaKmuDq67gJK3mH_GlkUfqCPUHWZSI73R2oA5Ak" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.6 - Contrato Órgão</td><td>SC/74025</td><td>Christian</td><td><span class="code" style="font-size:11px">1atWJZb4zcduNyTbMva70Y9B7qmKGhx9tjwOcNqn0QUo</span></td><td><a href="https://docs.google.com/document/d/1atWJZb4zcduNyTbMva70Y9B7qmKGhx9tjwOcNqn0QUo" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.6 - Contrato Órgão</td><td>SP/535101</td><td>Christian</td><td><span class="code" style="font-size:11px">1jAlXHx541T3_Ssyfyq5g9EfTG2BPOP_ispw9B4qAjpg</span></td><td><a href="https://docs.google.com/document/d/1jAlXHx541T3_Ssyfyq5g9EfTG2BPOP_ispw9B4qAjpg" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.6 - Contrato Órgão</td><td>RS/131163</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1H7EhvA1OlZz3OzycdQnkHIKZm7RU-_mMuB5vdrXnK6E</span></td><td><a href="https://docs.google.com/document/d/1H7EhvA1OlZz3OzycdQnkHIKZm7RU-_mMuB5vdrXnK6E" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.6 - Contrato Órgão</td><td>SC/75466</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1ycupSEVIDxtTKQMDxZrhSm2Rj9aFqdZtyO_nPMmAJuo</span></td><td><a href="https://docs.google.com/document/d/1ycupSEVIDxtTKQMDxZrhSm2Rj9aFqdZtyO_nPMmAJuo" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.2 - Procuração Órgão</td><td>RS/116571</td><td>Christian</td><td><span class="code" style="font-size:11px">1JCpAb3vIfZpwScmOCxUp3zmdVSyc-0DPnhiithlqNus</span></td><td><a href="https://docs.google.com/document/d/1JCpAb3vIfZpwScmOCxUp3zmdVSyc-0DPnhiithlqNus" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.2 - Procuração Órgão</td><td>SC/74025</td><td>Christian</td><td><span class="code" style="font-size:11px">1disC_5Gya8nfwnsSWcS0sqYodgwE-cJoptoeLhmjoqg</span></td><td><a href="https://docs.google.com/document/d/1disC_5Gya8nfwnsSWcS0sqYodgwE-cJoptoeLhmjoqg" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.2 - Procuração Órgão</td><td>SP/535101</td><td>Christian</td><td><span class="code" style="font-size:11px">19jBb1TZ3RAot1PqiAaipgexouYPpGinkmr5EswTPkzY</span></td><td><a href="https://docs.google.com/document/d/19jBb1TZ3RAot1PqiAaipgexouYPpGinkmr5EswTPkzY" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.2 - Procuração Órgão</td><td>RS/131163</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1H7EhvA1OlZz3OzycdQnkHIKZm7RU-_mMuB5vdrXnK6E</span></td><td><a href="https://docs.google.com/document/d/1H7EhvA1OlZz3OzycdQnkHIKZm7RU-_mMuB5vdrXnK6E" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.2 - Procuração Órgão (Boa Vista)</td><td>SC/75466</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1kLVsmEAfntS3jYe8Ul45t4g-fw1x1P38Io_iU-LIg2k</span></td><td><a href="https://docs.google.com/document/d/1kLVsmEAfntS3jYe8Ul45t4g-fw1x1P38Io_iU-LIg2k" target="_blank" class="doc-link">↗</a></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px">Contratos Empresa (por OAB)</h3>
+    <table>
+      <thead><tr><th>Documento</th><th>OAB</th><th>Advogado</th><th>Google Doc ID</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr><td>1.3 - Contrato Empresa</td><td>RS/116571</td><td>Christian</td><td><span class="code" style="font-size:11px">1a6RmjoFZC-dOSgb7VQW9ZsD3VUw-eS7tMNz2XJKQHIk</span></td><td><a href="https://docs.google.com/document/d/1a6RmjoFZC-dOSgb7VQW9ZsD3VUw-eS7tMNz2XJKQHIk" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.3 - Contrato Empresa</td><td>SC/74025</td><td>Christian</td><td><span class="code" style="font-size:11px">1_sP_B58uj6FcLt7YjfobHkOzPioLhts6CNdXEr8U4oU</span></td><td><a href="https://docs.google.com/document/d/1_sP_B58uj6FcLt7YjfobHkOzPioLhts6CNdXEr8U4oU" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.3 - Contrato Empresa</td><td>SP/535101</td><td>Christian</td><td><span class="code" style="font-size:11px">1xeGw9Twn5VAU4wQ9a_aOYhY-gbZ04ZFebT8ZH2Iv4zY</span></td><td><a href="https://docs.google.com/document/d/1xeGw9Twn5VAU4wQ9a_aOYhY-gbZ04ZFebT8ZH2Iv4zY" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.3 - Contrato Empresa</td><td>RS/131163</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1kXI4A4UrIMRBqOCbPJ86dmgIheHbyofc3EiAyPd05aU</span></td><td><a href="https://docs.google.com/document/d/1kXI4A4UrIMRBqOCbPJ86dmgIheHbyofc3EiAyPd05aU" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.3 - Contrato Empresa</td><td>SC/75466</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1ycupSEVIDxtTKQMDxZrhSm2Rj9aFqdZtyO_nPMmAJuo</span></td><td><a href="https://docs.google.com/document/d/1ycupSEVIDxtTKQMDxZrhSm2Rj9aFqdZtyO_nPMmAJuo" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.1 - Procuração Empresa</td><td>RS/116571</td><td>Christian</td><td><span class="code" style="font-size:11px">1HcMJaZa9jPLsj--0Ey7TMtXDG6qnkTkGsnRsdyyM4-A</span></td><td><a href="https://docs.google.com/document/d/1HcMJaZa9jPLsj--0Ey7TMtXDG6qnkTkGsnRsdyyM4-A" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.1 - Procuração Empresa</td><td>SC/74025</td><td>Christian</td><td><span class="code" style="font-size:11px">1P7cBZ6By6hCeyKUoH5jfTzkovcXovOjbXFlpSgpdCco</span></td><td><a href="https://docs.google.com/document/d/1P7cBZ6By6hCeyKUoH5jfTzkovcXovOjbXFlpSgpdCco" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.1 - Procuração Empresa</td><td>SP/535101</td><td>Christian</td><td><span class="code" style="font-size:11px">1fa_NvvueWLEfex0j7SLOa3qk3n0Mb6eSzssfAI6b7Go</span></td><td><a href="https://docs.google.com/document/d/1fa_NvvueWLEfex0j7SLOa3qk3n0Mb6eSzssfAI6b7Go" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.1 - Procuração Empresa</td><td>RS/131163</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1HL89eFPSBvgfKAtwdOFYBcPnZqCFB1KVf1hvL0oo0-E</span></td><td><a href="https://docs.google.com/document/d/1HL89eFPSBvgfKAtwdOFYBcPnZqCFB1KVf1hvL0oo0-E" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>2.1 - Procuração Empresa</td><td>SC/75466</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1XUERHLzEr1O-Xa1KNBVOv0arpt2f7VD2n3yJiWCAmQU</span></td><td><a href="https://docs.google.com/document/d/1XUERHLzEr1O-Xa1KNBVOv0arpt2f7VD2n3yJiWCAmQU" target="_blank" class="doc-link">↗</a></td></tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:20px">Documentos Complementares (compartilhados entre rotas)</h3>
+    <table>
+      <thead><tr><th>Documento</th><th>Usado em</th><th>Advogado</th><th>Google Doc ID</th><th>Link</th></tr></thead>
+      <tbody>
+        <tr><td>1.4/1.7 - Ciência Destinação (Boa Vista)</td><td>contrato_orgao</td><td>Christian</td><td><span class="code" style="font-size:11px">100a0W0XZpyJ2MBkfFUudeTcgC7WtpWprN78duqoBUmc</span></td><td><a href="https://docs.google.com/document/d/100a0W0XZpyJ2MBkfFUudeTcgC7WtpWprN78duqoBUmc" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.4/1.7 - Ciência Destinação (Boa Vista)</td><td>contrato_orgao</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1qFRCKeSLSA_SlMtkqqsKK_kllFWMQ1PX0YJH0WXncE8</span></td><td><a href="https://docs.google.com/document/d/1qFRCKeSLSA_SlMtkqqsKK_kllFWMQ1PX0YJH0WXncE8" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.5/1.8 - Termo Veracidade (Boa Vista)</td><td>contrato_orgao</td><td>Christian</td><td><span class="code" style="font-size:11px">16d4r_oFrfmvfX14UOVMLoUXr8uj1XaoXvFVnQYJwcF8</span></td><td><a href="https://docs.google.com/document/d/16d4r_oFrfmvfX14UOVMLoUXr8uj1XaoXvFVnQYJwcF8" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.5/1.8 - Termo Veracidade (Boa Vista)</td><td>contrato_orgao</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1xLpz143evo4QpQ79i8iW29FuiQrwBX5WFQupNdENXyA</span></td><td><a href="https://docs.google.com/document/d/1xLpz143evo4QpQ79i8iW29FuiQrwBX5WFQupNdENXyA" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.4 - Ciência Destinação (Empresas)</td><td>contrato_empresa</td><td>Christian</td><td><span class="code" style="font-size:11px">1Ichq9v1Wv0VxO-VrBlHozaLRXWJnMZNV59Xjb11Q3R0</span></td><td><a href="https://docs.google.com/document/d/1Ichq9v1Wv0VxO-VrBlHozaLRXWJnMZNV59Xjb11Q3R0" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.4 - Ciência Destinação (Empresas)</td><td>contrato_empresa</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1mbZxXLFGLaAPbS9gAFpxU-Dp9jMgEP1-HzvJS22CoK8</span></td><td><a href="https://docs.google.com/document/d/1mbZxXLFGLaAPbS9gAFpxU-Dp9jMgEP1-HzvJS22CoK8" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.5 - Termo Veracidade (Empresas)</td><td>contrato_empresa</td><td>Christian</td><td><span class="code" style="font-size:11px">1yLD2PGdFWvUZxGzFnDbsY6P6Vit0xyEJFfS2v9XcHeg</span></td><td><a href="https://docs.google.com/document/d/1yLD2PGdFWvUZxGzFnDbsY6P6Vit0xyEJFfS2v9XcHeg" target="_blank" class="doc-link">↗</a></td></tr>
+        <tr><td>1.5 - Termo Veracidade (Empresas)</td><td>contrato_empresa</td><td>Heloisa</td><td><span class="code" style="font-size:11px">1AkiIJv36_46mcitbmQDXp5pugtRvhACcOOtLuKLafMM</span></td><td><a href="https://docs.google.com/document/d/1AkiIJv36_46mcitbmQDXp5pugtRvhACcOOtLuKLafMM" target="_blank" class="doc-link">↗</a></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- 6. DECISÃO ARQUITETURAL -->
+  <div class="section" id="decisao">
+    <h2>⚠️ 6. Decisão Arquitetural — Precisa do Christian</h2>
+
+    <div class="card decision">
+      <h3 style="color:#f9a8d4">🎯 Pergunta central: HTML Supabase ou Google Docs API?</h3>
+      <p style="margin-top:10px;font-size:14px;color:#e0e0e0">O Make usava Google Docs nativamente ("Create from Template"). O N8n atual usa HTML em <span class="code">documento_templates</span>. Dois caminhos possíveis:</p>
+    </div>
+
+    <div class="grid-2" style="margin-top:16px">
+      <div class="card ok">
+        <h3>🅰️ Opção A — HTML Supabase (recomendado)</h3>
+        <p style="font-size:13px;margin-top:8px;color:#9ca3af">Consistente com a arquitetura atual do N8n</p>
+        <ul style="margin-top:12px;font-size:13px;list-style:disc;padding-left:20px;line-height:2">
+          <li style="color:#86efac">✅ Sem dependência Google Docs API</li>
+          <li style="color:#86efac">✅ Consistente com WH-DOC-CONTRATO-MIDAS</li>
+          <li style="color:#86efac">✅ Templates editáveis pelo admin no MdFlow</li>
+          <li style="color:#86efac">✅ Sem limites de quota Google</li>
+          <li style="color:#f87171">❌ Precisamos converter 30+ Google Docs para HTML</li>
+          <li style="color:#f87171">❌ Sem geração no Google Drive do cliente</li>
+          <li style="color:#fbbf24">⚠️ Requer definir nova coluna <code>oab_code</code> em documento_templates</li>
+        </ul>
+      </div>
+
+      <div class="card warn">
+        <h3>🅱️ Opção B — Google Docs API no N8n</h3>
+        <p style="font-size:13px;margin-top:8px;color:#9ca3af">Replica exatamente o comportamento do Make</p>
+        <ul style="margin-top:12px;font-size:13px;list-style:disc;padding-left:20px;line-height:2">
+          <li style="color:#86efac">✅ Replica Make 1:1</li>
+          <li style="color:#86efac">✅ Mantém docs no Google Drive do cliente</li>
+          <li style="color:#86efac">✅ Template já existem e funcionam</li>
+          <li style="color:#f87171">❌ Requer Google Drive OAuth configurado no N8n</li>
+          <li style="color:#f87171">❌ 2 sistemas de template (HTML + Docs)</li>
+          <li style="color:#fbbf24">⚠️ Depende de credenciais Google no N8n Railway</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;background:#1a0f2a;border-color:#7c3aed">
+      <h3 style="color:#a78bfa">📝 Perguntas para o Christian</h3>
+      <ol style="font-size:14px;line-height:2.2;padding-left:20px;margin-top:10px">
+        <li><strong>Opção A ou B?</strong> HTML Supabase (sem Google Drive) ou Google Docs (com Drive)?</li>
+        <li><strong>Tabela leads vs clientes:</strong> O Make usa <span class="code">leads</span>. O N8n usa <span class="code">clientes</span>. São a mesma? Ou o N8n deve usar leads também?</li>
+        <li><strong>Armazenamento de URL:</strong> O contrato_midas salva em <span class="code">clientes.contrato_midas_url</span>. Para empresa/orgao, onde salvar? Nova coluna? Tabela <span class="code">documentos</span>?</li>
+        <li><strong>Payload do disparo:</strong> Qual será o contrato de chamada? <span class="code">{ cliente_id, oab_code, tipo, organizacao_id }</span>?</li>
+        <li><strong>DDL novo:</strong> Adicionar coluna <span class="code">oab_code</span> em <span class="code">documento_templates</span> — pode?</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- 7. PLANO DE IMPLEMENTAÇÃO -->
+  <div class="section" id="plano">
+    <h2>🚀 7. Plano de Implementação (após aprovação)</h2>
+
+    <div class="card info">
+      <h3>Fase 1 — DDL e Supabase (Christian aprova)</h3>
+      <div class="flow-step" style="margin-top:12px">
+        <div class="flow-num">1</div>
+        <div class="flow-content">
+          Adicionar coluna <span class="code">oab_code VARCHAR</span> e <span class="code">subtipo VARCHAR</span> em <span class="code">documento_templates</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-content">
+          Definir onde salvar URLs dos documentos gerados — nova tabela <span class="code">documentos_gerados</span> ou coluna em <span class="code">clientes/processos</span>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-content">
+          Inserir os 30+ templates: <br>
+          <em>Opção A:</em> converter Google Docs → HTML → inserir em documento_templates<br>
+          <em>Opção B:</em> inserir Google Doc IDs na tabela + configurar OAuth no N8n Railway
+        </div>
+      </div>
+    </div>
+
+    <div class="card info" style="margin-top:16px">
+      <h3>Fase 2 — Workflows N8n (JARBAS implementa)</h3>
+      <div class="flow-step" style="margin-top:12px">
+        <div class="flow-num">4</div>
+        <div class="flow-content">
+          Criar <strong>WH-DOC-CONTRATO-ORGAO</strong><br>
+          Path: <span class="code">POST /webhook/mdflow/doc/gerar-contrato-orgao</span><br>
+          Payload: <span class="code">{ cliente_id, oab_code, orgao_restritivo, organizacao_id }</span><br>
+          Gera: Termo Parceria + Contrato Órgão + Ciência Destinação + Termo Veracidade + Procuração Órgão
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-content">
+          Criar <strong>WH-DOC-CONTRATO-EMPRESA</strong><br>
+          Path: <span class="code">POST /webhook/mdflow/doc/gerar-contrato-empresa</span><br>
+          Payload: <span class="code">{ cliente_id, oab_code, empresa_re, codigo_contrato, valor, organizacao_id }</span><br>
+          Gera: Contrato Empresa + Ciência Destinação + Termo Veracidade + Procuração Empresa
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-content">
+          Atualizar <strong>WH-DOC-LOTE</strong> para incluir novos tipos <span class="code">contrato_orgao</span> e <span class="code">contrato_empresa</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card info" style="margin-top:16px">
+      <h3>Fase 3 — Integração Frontend (se necessário)</h3>
+      <div class="flow-step" style="margin-top:12px">
+        <div class="flow-num">7</div>
+        <div class="flow-content">
+          Botão "Gerar Documentos" na página do cliente no MdFlow → dispara o webhook correto conforme OAB do processo
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-num">8</div>
+        <div class="flow-content">
+          Exibir lista de documentos gerados + links de download na timeline do cliente
+        </div>
+      </div>
+    </div>
+
+    <div class="alert" style="margin-top:20px">
+      📋 <strong>Modo /plan ativo.</strong> Nenhuma linha de código ou migração foi executada. Este documento é apenas o plano. Quando o Christian aprovar as 5 perguntas acima, JARBAS implementa tudo nas Fases 2 e 3 sem precisar mais de aprovação.
+    </div>
+  </div>
+
+  <div style="text-align:center;color:#4b5563;font-size:12px;padding:30px 0;border-top:1px solid #1f2937;margin-top:20px">
+    Gerado por JARBAS 🦞 | 2026-03-19 | Blueprint: MDFlow_Gerar_contratos.blueprint_1
+  </div>
+
+</div>
+</body>
+</html>

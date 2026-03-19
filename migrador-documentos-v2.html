@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Documentos — Estado Real do Sistema</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --text: #e8e8f0;
+    --muted: #8888a0;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --teal: #20c997;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; padding: 24px; line-height: 1.6; }
+  
+  .header { text-align: center; padding: 40px 20px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+  .header h1 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--teal), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header p { color: var(--muted); margin-top: 8px; font-size: 0.9rem; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .badge.generated { background: rgba(32,201,151,0.15); color: var(--teal); border: 1px solid rgba(32,201,151,0.3); }
+
+  .alert { padding: 16px 20px; border-radius: 10px; margin-bottom: 24px; display: flex; gap: 12px; align-items: flex-start; }
+  .alert.discovery { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); }
+  .alert.warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+  .alert-icon { font-size: 1.2rem; margin-top: 1px; }
+  .alert-title { font-weight: 600; margin-bottom: 4px; }
+  .alert.discovery .alert-title { color: var(--blue); }
+  .alert.warning .alert-title { color: var(--yellow); }
+  .alert p { color: var(--muted); font-size: 0.88rem; }
+
+  section { margin-bottom: 32px; }
+  h2 { font-size: 1.1rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 12px; }
+  .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; }
+  .card-title { font-weight: 600; font-size: 1rem; }
+  .status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; }
+  .status.active { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .status.inactive { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .status.partial { background: rgba(245,158,11,0.12); color: var(--yellow); border: 1px solid rgba(245,158,11,0.25); }
+  .status.missing { background: rgba(136,136,160,0.12); color: var(--muted); border: 1px solid rgba(136,136,160,0.25); }
+  .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-top: 12px; }
+  .info-item { background: var(--surface2); border-radius: 8px; padding: 10px 14px; }
+  .info-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 3px; }
+  .info-val { font-size: 0.9rem; font-weight: 500; }
+  .info-val.green { color: var(--green); }
+  .info-val.red { color: var(--red); }
+  .info-val.yellow { color: var(--yellow); }
+  .info-val.blue { color: var(--blue); }
+  .info-val.muted { color: var(--muted); }
+
+  .task-list { list-style: none; }
+  .task-list li { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  .task-list li:last-child { border-bottom: none; }
+  .task-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+  .task-num.p0 { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .task-num.p1 { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .task-num.p2 { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .task-content strong { display: block; margin-bottom: 2px; }
+  .task-content span { color: var(--muted); font-size: 0.83rem; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { text-align: left; padding: 8px 12px; background: var(--surface2); color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 500; }
+  .tag.type-contrato { background: rgba(168,85,247,0.15); color: var(--purple); }
+  .tag.type-procuracao { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .tag.type-peticao { background: rgba(32,201,151,0.15); color: var(--teal); }
+  .tag.type-comprovante { background: rgba(249,115,22,0.15); color: var(--orange); }
+
+  .arch-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 12px 0; }
+  .arch-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; font-weight: 500; }
+  .arch-arrow { color: var(--muted); font-size: 1.2rem; padding: 0 6px; }
+
+  .progress-bar { height: 6px; background: var(--surface2); border-radius: 3px; margin-top: 8px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; }
+  .progress-fill.green { background: var(--green); }
+  .progress-fill.yellow { background: var(--yellow); }
+  .progress-fill.red { background: var(--red); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .two-col { grid-template-columns: 1fr; } }
+
+  .code { font-family: 'Fira Code', monospace; font-size: 0.78rem; background: var(--surface2); border: 1px solid var(--border); padding: 10px 14px; border-radius: 8px; color: var(--teal); margin-top: 8px; white-space: pre-wrap; word-break: break-all; }
+
+  footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🗂️ Gerador de Documentos — Estado Real</h1>
+  <p>MP Advocacia · Pesquisa automática JARBAS · <strong>2026-03-19 03:10</strong></p>
+  <span class="badge generated">✓ Auto-gerado via Supabase + n8n API</span>
+</div>
+
+<!-- DESCOBERTA PRINCIPAL -->
+<div class="alert discovery">
+  <div class="alert-icon">💡</div>
+  <div>
+    <div class="alert-title">Descoberta: sistema n8n JÁ EXISTE parcialmente</div>
+    <p>O sistema de geração de documentos via n8n <strong>não precisa ser criado do zero</strong>. O workflow <code>WH-DOC-CONTRATO-HONORARIOS</code> já existe com a arquitetura correta (Webhook → Supabase → Build HTML → PDF.co → Upload). Está <strong>inativo</strong> e com template HTML incompleto. O campo <code>google_doc_id_original</code> não é necessário — o sistema usa <code>conteudo_html</code> diretamente.</p>
+  </div>
+</div>
+
+<div class="alert warning">
+  <div class="alert-icon">⚠️</div>
+  <div>
+    <div class="alert-title">google_doc_id_original = NULL em todos os 61 templates</div>
+    <p>O campo existe na tabela mas nunca foi populado. O JSON do Make que Gustavo ia enviar era para mapear esses IDs — mas como o sistema n8n <strong>não usa Google Docs</strong> (usa HTML direto), preencher esse campo é <strong>opcional</strong> (apenas referência histórica). A prioridade real é completar os HTMLs de contrato e procuração.</p>
+  </div>
+</div>
+
+<!-- STATUS DOS WORKFLOWS -->
+<section>
+  <h2>Workflows n8n — Estado Atual</h2>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">WH-DOC-CONTRATO-HONORARIOS</span>
+      <span class="status inactive"><span class="dot"></span>Inativo</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.88rem;">Gera contrato de honorários advocatícios para Christian e Heloísa. Arquitetura correta, mas precisa ser ativado e o template HTML no Supabase está incompleto.</p>
+    <div class="arch-flow" style="margin:14px 0;">
+      <span class="arch-node">Webhook POST</span><span class="arch-arrow">→</span>
+      <span class="arch-node">Fetch Supabase</span><span class="arch-arrow">→</span>
+      <span class="arch-node">Build HTML</span><span class="arch-arrow">→</span>
+      <span class="arch-node">PDF.co</span><span class="arch-arrow">→</span>
+      <span class="arch-node">Upload + Register</span><span class="arch-arrow">→</span>
+      <span class="arch-node">Respond</span>
+    </div>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">ID Workflow</div><div class="info-val blue">5M8iuY8Uq8lSCHKo</div></div>
+      <div class="info-item"><div class="info-label">Endpoint</div><div class="info-val" style="font-size:0.78rem">POST /mdflow/doc/gerar-contrato-honorarios</div></div>
+      <div class="info-item"><div class="info-label">HTML Template (Christian)</div><div class="info-val yellow">644 chars ⚠️ incompleto</div></div>
+      <div class="info-item"><div class="info-label">HTML Template (Heloísa)</div><div class="info-val yellow">634 chars ⚠️ incompleto</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">WH-DOC-COMPROVANTE</span>
+      <span class="status active"><span class="dot"></span>Ativo</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.88rem;">Gera comprovante de restrição. Lapidado v3 em 2026-03-17. Funciona como referência da arquitetura padrão.</p>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">ID Workflow</div><div class="info-val green">1ozovDYt3Gt30S3s</div></div>
+      <div class="info-item"><div class="info-label">Endpoint</div><div class="info-val" style="font-size:0.78rem">POST /mdflow/doc/gerar-comprovante</div></div>
+      <div class="info-item"><div class="info-label">HTML Template</div><div class="info-val green">2.245 chars ✓</div></div>
+      <div class="info-item"><div class="info-label">Última versão</div><div class="info-val muted">v3 · 17/03/2026</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">WH-DOC-PROCURACAO</span>
+      <span class="status missing"><span class="dot"></span>Não existe</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.88rem;">Workflow para gerar procurações ainda não foi criado. Templates existem no Supabase mas com HTML incompleto (508-517 chars).</p>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">HTML Template (Christian)</div><div class="info-val red">517 chars ✗ incompleto</div></div>
+      <div class="info-item"><div class="info-label">HTML Template (Heloísa)</div><div class="info-val red">508 chars ✗ incompleto</div></div>
+      <div class="info-item"><div class="info-label">Ação necessária</div><div class="info-val yellow">Criar workflow + completar HTML</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">N8N-DIST-PETICAO — Gerar Petição Inicial</span>
+      <span class="status active"><span class="dot"></span>Ativo</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.88rem;">55 templates de petição inicial ativos (christian + heloisa × RS/SC/SP × categorias). HTMLs completos com 17k–32k chars. <strong>Não precisa migração.</strong></p>
+    <div class="info-grid">
+      <div class="info-item"><div class="info-label">ID Workflow</div><div class="info-val green">03-jelC6imeuusUdlY72i</div></div>
+      <div class="info-item"><div class="info-label">Templates ativos</div><div class="info-val green">55 ✓</div></div>
+      <div class="info-item"><div class="info-label">Placeholders médio</div><div class="info-val green">~20 por template</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- INVENTÁRIO TEMPLATES -->
+<section>
+  <h2>Inventário Supabase — documento_templates</h2>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px;">
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-size:2rem;font-weight:700;color:var(--teal)">61</div>
+      <div style="color:var(--muted);font-size:0.85rem">templates totais</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-size:2rem;font-weight:700;color:var(--green)">55</div>
+      <div style="color:var(--muted);font-size:0.85rem">petições (OK)</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-size:2rem;font-weight:700;color:var(--yellow)">4</div>
+      <div style="color:var(--muted);font-size:0.85rem">contratos/procurações (HTML incompleto)</div>
+    </div>
+    <div class="card" style="text-align:center;padding:16px;">
+      <div style="font-size:2rem;font-weight:700;color:var(--red)">61</div>
+      <div style="color:var(--muted);font-size:0.85rem">google_doc_id_original NULL</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Template</th>
+          <th>Tipo</th>
+          <th>Advogado</th>
+          <th>HTML</th>
+          <th>Workflow n8n</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Contrato Honorários (Christian)</td>
+          <td><span class="tag type-contrato">contrato</span></td>
+          <td>christian</td>
+          <td style="color:var(--yellow)">644 chars ⚠️</td>
+          <td style="color:var(--red)">WH-DOC-CONTRATO (inativo)</td>
+          <td><span class="status partial"><span class="dot"></span>Parcial</span></td>
+        </tr>
+        <tr>
+          <td>Contrato Honorários (Heloísa)</td>
+          <td><span class="tag type-contrato">contrato</span></td>
+          <td>heloisa</td>
+          <td style="color:var(--yellow)">634 chars ⚠️</td>
+          <td style="color:var(--red)">WH-DOC-CONTRATO (inativo)</td>
+          <td><span class="status partial"><span class="dot"></span>Parcial</span></td>
+        </tr>
+        <tr>
+          <td>Contrato Midas (Padrão)</td>
+          <td><span class="tag type-contrato">contrato</span></td>
+          <td>todos</td>
+          <td style="color:var(--yellow)">641 chars ⚠️</td>
+          <td style="color:var(--red)">Sem workflow</td>
+          <td><span class="status inactive"><span class="dot"></span>Bloqueado</span></td>
+        </tr>
+        <tr>
+          <td>Procuração (Christian)</td>
+          <td><span class="tag type-procuracao">procuracao</span></td>
+          <td>christian</td>
+          <td style="color:var(--red)">517 chars ✗</td>
+          <td style="color:var(--red)">Sem workflow</td>
+          <td><span class="status inactive"><span class="dot"></span>Bloqueado</span></td>
+        </tr>
+        <tr>
+          <td>Procuração (Heloísa)</td>
+          <td><span class="tag type-procuracao">procuracao</span></td>
+          <td>heloisa</td>
+          <td style="color:var(--red)">508 chars ✗</td>
+          <td style="color:var(--red)">Sem workflow</td>
+          <td><span class="status inactive"><span class="dot"></span>Bloqueado</span></td>
+        </tr>
+        <tr>
+          <td>Comprovante de Restrição</td>
+          <td><span class="tag type-comprovante">comprovante</span></td>
+          <td>todos</td>
+          <td style="color:var(--green)">2.245 chars ✓</td>
+          <td style="color:var(--green)">WH-DOC-COMPROVANTE (ativo)</td>
+          <td><span class="status active"><span class="dot"></span>OK</span></td>
+        </tr>
+        <tr>
+          <td>Petições Iniciais (55 templates)</td>
+          <td><span class="tag type-peticao">petição</span></td>
+          <td>christian + heloisa</td>
+          <td style="color:var(--green)">17k–32k chars ✓</td>
+          <td style="color:var(--green)">N8N-DIST-PETICAO (ativo)</td>
+          <td><span class="status active"><span class="dot"></span>OK</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- PLANO DE EXECUÇÃO -->
+<section>
+  <h2>Plano de Execução — 3 Etapas</h2>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Etapa 1 — Completar HTMLs no Supabase</span>
+      <span class="status inactive"><span class="dot"></span>Bloqueante</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.88rem;margin-bottom:12px;">Os templates de contrato e procuração têm HTML placeholder. Precisa do conteúdo real (texto jurídico completo com placeholders <code>{{variavel}}</code>).</p>
+    <ul class="task-list">
+      <li>
+        <span class="task-num p0">1</span>
+        <div class="task-content">
+          <strong>Gustavo envia o texto dos contratos de honorários</strong>
+          <span>Christian ou Heloísa precisam fornecer o texto Word/PDF dos contratos atuais para converter em HTML com placeholders</span>
+        </div>
+      </li>
+      <li>
+        <span class="task-num p0">2</span>
+        <div class="task-content">
+          <strong>Gustavo envia o texto das procurações</strong>
+          <span>Mesma coisa — texto atual das procurações para converter</span>
+        </div>
+      </li>
+      <li>
+        <span class="task-num p0">3</span>
+        <div class="task-content">
+          <strong>JARBAS converte para HTML e atualiza Supabase via API</strong>
+          <span>UPDATE documento_templates SET conteudo_html = '...' WHERE id = '...'</span>
+        </div>
+      </li>
+    </ul>
+    <div style="margin-top:12px">
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px">Progresso: aguardando documentos de Gustavo</div>
+      <div class="progress-bar"><div class="progress-fill red" style="width:10%"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Etapa 2 — Ativar WH-DOC-CONTRATO-HONORARIOS</span>
+      <span class="status partial"><span class="dot"></span>Pronto após Etapa 1</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.88rem;margin-bottom:12px;">O workflow já existe e está correto. Só precisa ser ativado após o HTML estar completo.</p>
+    <ul class="task-list">
+      <li>
+        <span class="task-num p1">1</span>
+        <div class="task-content">
+          <strong>Ativar workflow via n8n API</strong>
+          <div class="code">PATCH /api/v1/workflows/5M8iuY8Uq8lSCHKo
+{"active": true}</div>
+        </div>
+      </li>
+      <li>
+        <span class="task-num p1">2</span>
+        <div class="task-content">
+          <strong>Testar endpoint com processo real</strong>
+          <span>POST /mdflow/doc/gerar-contrato-honorarios com processo_id de teste</span>
+        </div>
+      </li>
+    </ul>
+    <div style="margin-top:12px">
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px">Progresso: depende da Etapa 1</div>
+      <div class="progress-bar"><div class="progress-fill yellow" style="width:60%"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">Etapa 3 — Criar WH-DOC-PROCURACAO</span>
+      <span class="status missing"><span class="dot"></span>A criar</span>
+    </div>
+    <p style="color:var(--muted);font-size:0.88rem;margin-bottom:12px;">Novo workflow clonando a arquitetura do comprovante/contrato.</p>
+    <ul class="task-list">
+      <li>
+        <span class="task-num p2">1</span>
+        <div class="task-content">
+          <strong>Clonar estrutura do WH-DOC-CONTRATO</strong>
+          <span>Mesma arquitetura: Webhook → Fetch → Build HTML → PDF.co → Upload → Respond</span>
+        </div>
+      </li>
+      <li>
+        <span class="task-num p2">2</span>
+        <div class="task-content">
+          <strong>Endpoint: POST /mdflow/doc/gerar-procuracao</strong>
+          <span>Selecionar template por grupo_advogado (christian | heloisa)</span>
+        </div>
+      </li>
+    </ul>
+    <div style="margin-top:12px">
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px">Progresso: aguarda HTML completo</div>
+      <div class="progress-bar"><div class="progress-fill red" style="width:5%"></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- O QUE NÃO PRECISA FAZER -->
+<section>
+  <h2>O que NÃO precisa fazer</h2>
+  <div class="card">
+    <ul class="task-list">
+      <li>
+        <span style="color:var(--red);font-size:1.1rem;flex-shrink:0">✗</span>
+        <div class="task-content">
+          <strong>Não precisa popular google_doc_id_original</strong>
+          <span>O sistema n8n usa conteudo_html direto. Google Docs não está no fluxo. É apenas uma referência histórica opcional.</span>
+        </div>
+      </li>
+      <li>
+        <span style="color:var(--red);font-size:1.1rem;flex-shrink:0">✗</span>
+        <div class="task-content">
+          <strong>Não precisa criar workflow de petições</strong>
+          <span>N8N-DIST-PETICAO está ativo com 55 templates funcionando perfeitamente.</span>
+        </div>
+      </li>
+      <li>
+        <span style="color:var(--red);font-size:1.1rem;flex-shrink:0">✗</span>
+        <div class="task-content">
+          <strong>Não precisa do JSON do Make para executar</strong>
+          <span>O JSON do Make era para mapear google_doc_ids — que não são necessários. Migração não depende mais dele.</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- PRÓXIMA AÇÃO -->
+<section>
+  <h2>Próxima Ação Necessária</h2>
+  <div class="alert discovery">
+    <div class="alert-icon">📋</div>
+    <div>
+      <div class="alert-title" style="color:var(--teal)">Gustavo: enviar os documentos Word/PDF dos contratos e procurações</div>
+      <p>Com o texto real em mãos, JARBAS converte para HTML com placeholders, atualiza o Supabase e ativa o workflow — tudo em uma execução. O sistema já está 80% pronto.</p>
+      <br>
+      <p><strong>Documentos necessários:</strong><br>
+      • Contrato de Honorários — Christian Paz<br>
+      • Contrato de Honorários — Dra. Heloísa<br>
+      • Procuração Ad Judicia — Christian Paz<br>
+      • Procuração Ad Judicia — Dra. Heloísa</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  JARBAS · MP Advocacia · Gerado automaticamente em 2026-03-19 03:10<br>
+  Fontes: Supabase qdivfairxhdihaqqypgb · n8n Railway · Análise automática
+</footer>
+
+</body>
+</html>

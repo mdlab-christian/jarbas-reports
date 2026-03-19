@@ -64,7 +64,7 @@
 
   <h1>🔄 Sincronização de Distribuição</h1>
   <p class="subtitle">MdFlow Antigo (hzqoxkmx) → MdFlow 2.0 (qdivfairx)</p>
-  <span class="version-badge">v3 · Atualizado 2026-03-19 · JARBAS</span>
+  <span class="version-badge">v4 · Atualizado 2026-03-19 · JARBAS</span>
 
   <div class="stats-grid">
     <div class="stat-card">
@@ -280,31 +280,32 @@ WHERE REGEXP_REPLACE(c.cpf_cnpj, '[^0-9]', '', 'g') = '{cpf_limpo}'
 ORDER BY p.created_at;
 ```
 
-#### Sistema de pontuação por candidato (score de confiança):
-Para cada candidato encontrado no novo, calcular um score somando pontos:
+#### ⚠️ Regra crítica: cliente pode ter múltiplos processos na mesma empresa
+Um cliente com 3 restrições na Boa Vista tem 3 processos distintos. CPF + empresa **não é suficiente** para identificar qual processo é qual. Os dados da restrição em si é que identificam univocamente o processo.
 
-| Critério | Pontos |
-|---|---|
-| Contrato bate exato | +40 |
-| Data restrição bate exato | +30 |
-| Valor bate (±R$0,01 após conversão texto→decimal) | +20 |
-| Empresa normalizada bate (primeiras 3 palavras) | +10 |
+#### Critérios de match 100% (TODOS devem ser satisfeitos para importar):
 
-**Classificação final:**
-- **0 candidatos** → GRUPO C (não encontrado)
-- **1 candidato com score ≥ 40** → GRUPO A (match confiável)
-- **1 candidato com score < 40** → GRUPO B (ambíguo — confirmar manualmente)
-- **2+ candidatos** → pegar o de maior score; se score_1 - score_2 ≥ 30 → GRUPO A; caso contrário → GRUPO B
+| Critério | Campo antigo | Campo novo | Obrigatoriedade |
+|---|---|---|---|
+| CPF | `clientes.cpf` | `clientes.cpf_cnpj` | **Obrigatório** |
+| Contrato | `contrato_restricao` | `restricao_contrato` | **Obrigatório se presente** |
+| Data restrição | `data_restricao` | `restricao_data` | **Obrigatório se presente** |
+| Valor | `valor_restricao` (text→decimal) | `restricao_valor` (numeric) | **Obrigatório se presente** |
+| Empresa | `empresa_re` | `empresa_nome` | Confirmação adicional |
 
-#### Normalização do nome de empresa:
-Remover pontuação (`.,/-`), remover stopwords (`S.A.`, `SA`, `LTDA`, `ME`), deixar maiúsculas, comparar primeiras 3 palavras.
-Exemplos de equivalência conhecida:
-- "BOA VISTA SERVIÇOS S.A." ≈ "BOA VISTA SERVICOS S.A."
-- "NU PAGAMENTOS SA" ≈ "NU PAGAMENTOS S.A. - INSTITUICAO DE PAGAMENTO"
-- "BANCO BRADESCO SA" ≈ "BANCO BRADESCO S.A."
+**Lógica de match:**
+1. Buscar todos os candidatos no novo com o mesmo CPF
+2. Para cada candidato, verificar se os campos da restrição (contrato, data, valor) batem **exatamente**
+3. **Só 1 candidato bate em todos os campos disponíveis** → GRUPO A (importar)
+4. **0 candidatos batem** → GRUPO C (não encontrado)
+5. **2+ candidatos batem** → GRUPO B (ambíguo — não importar, logar para revisão)
+6. **Apenas CPF + empresa batem, mas dados de restrição divergem** → GRUPO B (não é suficiente)
 
-#### Conversão valor (antigo text → decimal):
-Substituir `.` (milhar) por nada, `,` por `.`. Ex: `"1.250,00"` → `1250.00`. Comparar com `restricao_valor::numeric`.
+**Conversão valor** (antigo text → decimal):
+Substituir `.` (milhar) por nada, `,` por `.`. Ex: `"1.250,00"` → `1250.00`. Comparar com `restricao_valor::numeric` com tolerância de ±R$0,01.
+
+**Normalização empresa** (apenas como confirmação adicional, não critério de match):
+Remover pontuação (`.,/-`), remover stopwords (`S.A.`, `SA`, `LTDA`), maiúsculas, comparar primeiras 3 palavras.
 
 ---
 
@@ -395,7 +396,7 @@ Executado em: {timestamp}
   </div>
 
   <div class="footer">
-    Gerado por JARBAS 🦞 · MdLab · 2026-03-19 · v3 (score de confiança multicamada + data_restricao)<br>
+    Gerado por JARBAS 🦞 · MdLab · 2026-03-19 · v4 (match 100% obrigatório — dados da restrição identificam o processo)<br>
     Antigo: hzqoxkmxvwxejjanstdh · Novo: qdivfairxhdihaqqypgb
   </div>
 

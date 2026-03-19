@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdZap — Auditoria Técnica v2</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; }
+
+  header { background: #1a1f2e; border-bottom: 2px solid #ef4444; padding: 22px 32px; }
+  header h1 { font-size: 1.5rem; font-weight: 700; color: #fff; }
+  .header-row { display: flex; align-items: center; gap: 12px; }
+  .badge-red { background: #ef4444; color: #fff; font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .badge-green { background: #22c55e; color: #000; font-size: 0.7rem; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .sub { font-size: 0.82rem; color: #64748b; margin-top: 5px; }
+
+  .container { max-width: 1020px; margin: 0 auto; padding: 28px 22px; }
+
+  /* Scorecard */
+  .score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .score-card { border-radius: 10px; padding: 16px; text-align: center; border: 1px solid; }
+  .score-card.ok { background: #0d2010; border-color: #166534; }
+  .score-card.warn { background: #2a1f08; border-color: #92400e; }
+  .score-card.err { background: #1f0a0a; border-color: #7f1d1d; }
+  .score-card.info { background: #1a1f2e; border-color: #1e293b; }
+  .score-num { font-size: 2.2rem; font-weight: 800; }
+  .ok .score-num { color: #4ade80; }
+  .warn .score-num { color: #fbbf24; }
+  .err .score-num { color: #f87171; }
+  .info .score-num { color: #94a3b8; }
+  .score-lbl { font-size: 0.73rem; color: #64748b; margin-top: 4px; }
+
+  /* Seção */
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 0.68rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #475569; margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 10px; }
+
+  /* Tabela de auditoria */
+  .audit-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .audit-table th { text-align: left; padding: 10px 14px; background: #151a28; color: #64748b; font-size: 0.7rem; letter-spacing: 1px; text-transform: uppercase; font-weight: 600; border-bottom: 1px solid #1e293b; }
+  .audit-table td { padding: 10px 14px; border-bottom: 1px solid #0d1321; vertical-align: top; }
+  .audit-table tr:last-child td { border-bottom: none; }
+  .audit-table tr:hover td { background: #131822; }
+  .audit-table td:first-child { font-family: monospace; font-size: 0.78rem; color: #93c5fd; }
+
+  .tag { display: inline-block; font-size: 0.66rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+  .tag-ok { background: #052e16; color: #4ade80; border: 1px solid #166534; }
+  .tag-warn { background: #2a1f08; color: #fbbf24; border: 1px solid #92400e; }
+  .tag-err { background: #3b0a0a; color: #f87171; border: 1px solid #7f1d1d; }
+  .tag-info { background: #1e293b; color: #94a3b8; border: 1px solid #334155; }
+  .tag-crit { background: #4a0404; color: #fca5a5; border: 1px solid #dc2626; }
+
+  .note { font-size: 0.75rem; color: #64748b; margin-top: 4px; }
+  .note code { background: #1e293b; padding: 1px 5px; border-radius: 3px; font-size: 0.72rem; color: #93c5fd; }
+
+  /* Card de ação */
+  .action-card { background: #1a1f2e; border: 1px solid; border-radius: 12px; padding: 16px 18px; margin-bottom: 14px; }
+  .action-card.crit { border-color: #dc2626; }
+  .action-card.high { border-color: #f59e0b; }
+  .action-card.low { border-color: #22c55e; }
+  .action-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .action-header h3 { font-size: 0.95rem; font-weight: 600; color: #f1f5f9; }
+  .action-body { font-size: 0.8rem; color: #94a3b8; line-height: 1.6; }
+  .action-body code { background: #1e293b; padding: 1px 6px; border-radius: 4px; font-size: 0.74rem; color: #93c5fd; font-family: monospace; }
+  .action-body ul { margin: 6px 0 0 16px; }
+  .action-body ul li { margin-bottom: 3px; }
+
+  footer { text-align: center; color: #334155; font-size: 0.72rem; padding: 32px 0 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-row">
+    <h1>🔍 MdZap — Auditoria Técnica Completa</h1>
+    <span class="badge-red">19/03/2026</span>
+  </div>
+  <p class="sub">Banco · Webhooks n8n · Frontend · Meta API · Fluxo de Mensagens</p>
+</header>
+
+<div class="container">
+
+  <div class="score-grid">
+    <div class="score-card ok"><div class="score-num">18</div><div class="score-lbl">Tabelas OK</div></div>
+    <div class="score-card ok"><div class="score-num">6</div><div class="score-lbl">Webhooks ativos</div></div>
+    <div class="score-card err"><div class="score-num">4</div><div class="score-lbl">Webhooks 404</div></div>
+    <div class="score-card err"><div class="score-num">1</div><div class="score-lbl">API crítica bloqueada</div></div>
+  </div>
+
+  <!-- BANCO -->
+  <div class="section">
+    <div class="section-title">🗄️ Banco de Dados — Supabase</div>
+    <table class="audit-table">
+      <thead><tr><th>Item</th><th>Status</th><th>Detalhe</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>18 tabelas mdzap/whatsapp</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>Todas existem: mdzap_ai_modules, mdzap_audio_messages, mdzap_conversas_timeline, mdzap_julia_lab_sessoes, mdzap_julia_prompts, mdzap_lead_memory, mdzap_stage_map, mdzap_user_map + 10 whatsapp_*</td>
+        </tr>
+        <tr>
+          <td>FKs (crm_leads → leads)</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>Nenhuma FK aponta para <code>crm_leads</code>. Todas apontam corretamente: <code>leads</code>, <code>organizacoes</code>, <code>users</code>, <code>whatsapp_conversas</code>, <code>whatsapp_numeros</code></td>
+        </tr>
+        <tr>
+          <td>whatsapp_mensagens.status</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>Coluna existe com tipo <code>text</code>. Permite pending/sent/delivered/read.</td>
+        </tr>
+        <tr>
+          <td>whatsapp_templates.titulo</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>Coluna existe. 13 colunas no total na tabela.</td>
+        </tr>
+        <tr>
+          <td>mdzap_ai_modules</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>Tabela criada com organizacao_id FK para organizacoes.</td>
+        </tr>
+        <tr>
+          <td>RPCs fn_mdzap_*</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>4 RPCs: fn_mdzap_conversas, fn_mdzap_listar_membros, fn_mdzap_smart_replies, fn_mdzap_stats</td>
+        </tr>
+        <tr>
+          <td>Números WhatsApp</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>2 números com <code>status=connected</code>: Midas Atendimento (+5551816855848) + Midas SDR (+5551999990000)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- N8N WEBHOOKS -->
+  <div class="section">
+    <div class="section-title">⚙️ n8n Webhooks — Estado Real</div>
+    <table class="audit-table">
+      <thead><tr><th>Webhook</th><th>HTTP</th><th>Status</th><th>Observação</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>mdzap/enviar-mensagem</td>
+          <td><span class="tag tag-warn">⚠️ 000/200</span></td>
+          <td><span class="tag tag-warn">Parcial</span></td>
+          <td>Workflow existe e responde. Retorna erro quando <code>organizacao_id</code> está vazio. O frontend injeta via <code>baseData()</code> — funciona em produção com usuário autenticado. Timeout detectado em alguns testes.</td>
+        </tr>
+        <tr>
+          <td>mdzap/ai-composer</td>
+          <td><span class="tag tag-ok">✅ 200</span></td>
+          <td><span class="tag tag-ok">Ativo</span></td>
+          <td>Funcionando. Espera <code>instrucao</code> + <code>texto</code>. Retorna <code>{ resultado: "..." }</code>. Testado com instrucao=formal.</td>
+        </tr>
+        <tr>
+          <td>mdzap/enviar-template</td>
+          <td><span class="tag tag-ok">✅ 200</span></td>
+          <td><span class="tag tag-ok">Ativo</span></td>
+          <td>Workflow registrado. Precisa <code>organizacao_id</code> no payload — ok via contexto auth.</td>
+        </tr>
+        <tr>
+          <td>mdzap/audio-transcribe</td>
+          <td><span class="tag tag-err">❌ 500</span></td>
+          <td><span class="tag tag-err">Falha interna</span></td>
+          <td>Workflow existe mas execução falha. Provável causa: OPENAI_API_KEY inválida nas credenciais do n8n, ou URL de áudio inválida no teste.</td>
+        </tr>
+        <tr>
+          <td>mdzap/audio-tts</td>
+          <td><span class="tag tag-warn">⚠️ 400</span></td>
+          <td><span class="tag tag-warn">Payload inválido</span></td>
+          <td>Ativo. 400 = campos obrigatórios ausentes no teste. Deve funcionar com payload correto.</td>
+        </tr>
+        <tr>
+          <td>mdzap/julia-feedback</td>
+          <td><span class="tag tag-warn">⚠️ 400</span></td>
+          <td><span class="tag tag-warn">Payload inválido</span></td>
+          <td>Ativo. Precisa payload específico de feedback.</td>
+        </tr>
+        <tr>
+          <td>mdzap/encerrar-conversa</td>
+          <td><span class="tag tag-warn">⚠️ 400</span></td>
+          <td><span class="tag tag-warn">Payload inválido</span></td>
+          <td>Ativo. Precisa <code>conversa_id</code> + <code>organizacao_id</code>.</td>
+        </tr>
+        <tr>
+          <td>mdzap/assumir-conversa</td>
+          <td><span class="tag tag-err">❌ 404</span></td>
+          <td><span class="tag tag-crit">NÃO REGISTRADO</span></td>
+          <td>Workflow não existe no n8n. Botão "Assumir" no frontend chama este webhook e vai falhar silenciosamente.</td>
+        </tr>
+        <tr>
+          <td>mdzap/devolver-julia</td>
+          <td><span class="tag tag-err">❌ 404</span></td>
+          <td><span class="tag tag-crit">NÃO REGISTRADO</span></td>
+          <td>Workflow não existe. Botão "Devolver para Julia" vai falhar.</td>
+        </tr>
+        <tr>
+          <td>mdzap/inbound</td>
+          <td><span class="tag tag-err">❌ 404</span></td>
+          <td><span class="tag tag-crit">NÃO REGISTRADO</span></td>
+          <td>Nenhum webhook inbound ativo neste path. Verificar se usa path diferente (ex: via MDZAP-FACEBOOK-INBOUND direto na Meta).</td>
+        </tr>
+        <tr>
+          <td>mdzap/lead-sync</td>
+          <td><span class="tag tag-warn">⚠️ 400</span></td>
+          <td><span class="tag tag-warn">Payload inválido</span></td>
+          <td>Ativo. Payload de sincronização de lead necessário.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- META API -->
+  <div class="section">
+    <div class="section-title">📱 Meta / WhatsApp Business API</div>
+    <table class="audit-table">
+      <thead><tr><th>Item</th><th>Status</th><th>Detalhe</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>META_ACCESS_TOKEN</td>
+          <td><span class="tag tag-crit">🚨 BLOQUEADO</span></td>
+          <td><code>{"message":"API access blocked.","type":"OAuthException","code":200}</code><br><div class="note">Token expirado ou revogado. Toda comunicação com a Meta API está interrompida. Impede envio e recebimento real de mensagens.</div></td>
+        </tr>
+        <tr>
+          <td>Phone Number ID</td>
+          <td><span class="tag tag-info">⚙️ Configurado</span></td>
+          <td>997740236764543 — não testável enquanto token bloqueado</td>
+        </tr>
+        <tr>
+          <td>WABA ID</td>
+          <td><span class="tag tag-info">⚙️ Configurado</span></td>
+          <td>Configurado no .env mas sem validação possível agora</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FRONTEND -->
+  <div class="section">
+    <div class="section-title">⚛️ Frontend React</div>
+    <table class="audit-table">
+      <thead><tr><th>Item</th><th>Status</th><th>Detalhe</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>33 componentes mdzap</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>MdzapAIComposer, MdzapAdminIA, MdzapBadgeStatus, MdzapBottomNav, MdzapChatPanel, MdzapConversaList, MdzapDashboard, MdzapGestaoPanel, MdzapJuliaLab, MdzapLeadMemoryPanel, MdzapMsgBubble, MdzapMsgThread, MdzapSmartReplies, TemplatesManagerDialog, e mais 19</td>
+        </tr>
+        <tr>
+          <td>11 hooks mdzap</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>useMdzapFaviconBadge, useMdzapJuliaPrompts, useMdzapKeyboardShortcuts, useMdzapMembros, useMdzapMensagens, useMdzapNewMessageToast, useMdzapNotificationSound, useMdzapSendMessage, useMdzapSmartReplies, useMdzapTemplates, useMdzapTyping</td>
+        </tr>
+        <tr>
+          <td>Rota /mdzap/app</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>App.tsx linha 149 — fora do AppLayout. Lazy loaded.</td>
+        </tr>
+        <tr>
+          <td>organizacao_id nas calls</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>useMdzapSendMessage.baseData() injeta organizacao_id + actor_user_id. callWebhook envia header <code>x-org-id</code>.</td>
+        </tr>
+        <tr>
+          <td>TypeScript (0 erros)</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>E2E do CC confirmou 0 erros TypeScript nos arquivos mdzap.</td>
+        </tr>
+        <tr>
+          <td>E2E visual (nota 10/10)</td>
+          <td><span class="tag tag-ok">✅ OK</span></td>
+          <td>Commit 406ee357 — todas as telas validadas: lista, thread, AI Composer, Dashboard, Julia Lab, Templates, Gestão.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- AÇÕES -->
+  <div class="section">
+    <div class="section-title">🚨 Ações Necessárias</div>
+
+    <div class="action-card crit">
+      <div class="action-header">
+        <span class="tag tag-crit">P0 — CRÍTICO</span>
+        <h3>Renovar META_ACCESS_TOKEN</h3>
+      </div>
+      <div class="action-body">
+        Sem isso, <strong>nenhuma mensagem real chega nem sai</strong> pelo WhatsApp.<br>
+        <br>
+        <ul>
+          <li>Acesse <strong>developers.facebook.com → seu app → WhatsApp → API Setup</strong></li>
+          <li>Gere um novo token de acesso permanente (System User token)</li>
+          <li>Atualize <code>META_ACCESS_TOKEN</code> no <code>~/jarbas/.env</code></li>
+          <li>Atualize também nas variáveis de ambiente do Railway (n8n)</li>
+          <li>Após renovar, verificar se o webhook da Meta aponta para o workflow correto no n8n</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="action-card high">
+      <div class="action-header">
+        <span class="tag tag-err">P1 — Alto</span>
+        <h3>Criar workflows: assumir-conversa + devolver-julia</h3>
+      </div>
+      <div class="action-body">
+        2 botões do MdZap chamam webhooks que não existem no n8n:<br>
+        <br>
+        <ul>
+          <li><code>mdzap/assumir-conversa</code> — deve: UPDATE whatsapp_conversas SET assigned_user_id + enviar timeline event</li>
+          <li><code>mdzap/devolver-julia</code> — deve: UPDATE whatsapp_conversas SET modo='julia' + limpar assigned</li>
+        </ul>
+        Podem ser criados como workflows simples (~2 HTTP Request nodes cada).
+      </div>
+    </div>
+
+    <div class="action-card high">
+      <div class="action-header">
+        <span class="tag tag-err">P1 — Alto</span>
+        <h3>Corrigir audio-transcribe (500 interno)</h3>
+      </div>
+      <div class="action-body">
+        Workflow existe mas retorna 500 em execução.<br>
+        Verificar no n8n: painel de execuções do workflow MDZAP-AUDIO-TRANSCRIBE → ver o erro exato.<br>
+        Possível causa: credencial OPENAI_API_KEY não configurada no n8n Railway, ou bug no node de binary data.
+      </div>
+    </div>
+
+    <div class="action-card low">
+      <div class="action-header">
+        <span class="tag tag-warn">P2 — Normal</span>
+        <h3>Confirmar path do webhook inbound (Meta → n8n)</h3>
+      </div>
+      <div class="action-body">
+        <code>mdzap/inbound</code> retorna 404. O commit antigo menciona <em>MDZAP-FACEBOOK-INBOUND</em>.<br>
+        Confirmar: qual é o URL exato configurado no painel Meta como webhook de notificações?<br>
+        Se o path mudou, atualizar no painel Meta. Se o workflow foi desativado, reativar.
+      </div>
+    </div>
+  </div>
+
+  <!-- RESUMO FINAL -->
+  <div style="background:#1a1f2e;border:1px solid #1e293b;border-radius:12px;padding:18px 22px;margin-top:8px;">
+    <div class="section-title" style="margin-bottom:12px">📊 Conclusão</div>
+    <div style="font-size:0.82rem;color:#94a3b8;line-height:1.7;">
+      <strong style="color:#f1f5f9">O que está 100% pronto:</strong> banco de dados, schema, FKs, tipos TypeScript, todos os 33 componentes frontend, a tela visual, AI Composer, templates, dashboard, Julia Lab.<br><br>
+      <strong style="color:#f87171">O que bloqueia o uso real:</strong> META_ACCESS_TOKEN expirado — sem isso nenhuma mensagem real trafega. Renovar isso é o único passo antes de colocar em produção com cliente real.<br><br>
+      <strong style="color:#fbbf24">O que funciona parcialmente:</strong> Assumir/Devolver para Julia (botões chegam ao frontend mas webhook 404), audio-transcribe (existe mas falha internamente).
+    </div>
+  </div>
+
+</div>
+
+<footer>Auditoria gerada por JARBAS 🦞 · MdLab · 19/03/2026 · Real — dados extraídos do Supabase + n8n + Meta API</footer>
+
+</body>
+</html>

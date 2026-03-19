@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano — Gerador de Documentos Make → n8n</title>
+<style>
+  :root {
+    --bg: #0e0e0e; --surface: #161616; --surface2: #1e1e1e; --surface3: #242424;
+    --border: #2a2a2a; --text: #e8e8e8; --muted: #888;
+    --teal: #20c997; --teal-dim: rgba(32,201,151,0.12);
+    --orange: #ff922b; --orange-dim: rgba(255,146,43,0.12);
+    --red: #fa5252; --red-dim: rgba(250,82,82,0.12);
+    --blue: #4dabf7; --blue-dim: rgba(77,171,247,0.12);
+    --yellow: #ffd43b; --yellow-dim: rgba(255,212,59,0.12);
+    --purple: #da77f2; --purple-dim: rgba(218,119,242,0.12);
+    --green: #69db7c; --green-dim: rgba(105,219,124,0.12);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter',-apple-system,sans-serif; font-size:14px; line-height:1.6; padding:32px 20px; max-width:1280px; margin:0 auto; }
+  h1 { font-size:26px; font-weight:700; color:var(--teal); letter-spacing:-0.5px; }
+  h2 { font-size:17px; font-weight:700; margin-bottom:12px; color:var(--text); }
+  h3 { font-size:14px; font-weight:700; margin-bottom:8px; }
+  .meta { color:var(--muted); font-size:12px; margin-top:4px; }
+  .badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+  .b-plan { background:var(--yellow-dim); color:var(--yellow); border:1px solid rgba(255,212,59,.25); }
+  .b-ok { background:var(--green-dim); color:var(--green); border:1px solid rgba(105,219,124,.25); }
+  .b-warn { background:var(--orange-dim); color:var(--orange); border:1px solid rgba(255,146,43,.25); }
+  .b-info { background:var(--blue-dim); color:var(--blue); border:1px solid rgba(77,171,247,.25); }
+  .b-pending { background:var(--purple-dim); color:var(--purple); border:1px solid rgba(218,119,242,.25); }
+  .section { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; margin-bottom:20px; }
+  .section-title { font-size:15px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:10px; }
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .grid-3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; }
+  .card { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:16px; }
+  .card-oab { background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:16px; margin-bottom:12px; }
+  .oab-header { font-size:13px; font-weight:700; margin-bottom:12px; padding-bottom:8px; border-bottom:1px solid var(--border); display:flex; align-items:center; gap:10px; }
+  .doc-row { display:flex; align-items:flex-start; gap:12px; padding:7px 0; border-bottom:1px solid rgba(255,255,255,0.04); }
+  .doc-row:last-child { border-bottom:none; }
+  .doc-num { font-size:11px; font-weight:700; color:var(--teal); min-width:28px; }
+  .doc-name { font-size:13px; flex:1; }
+  .doc-id { font-family:monospace; font-size:11px; color:var(--muted); word-break:break-all; }
+  .doc-link { color:var(--blue); text-decoration:none; font-size:11px; }
+  .doc-link:hover { text-decoration:underline; }
+  .flow-step { display:flex; gap:12px; padding:8px 0; align-items:flex-start; }
+  .step-num { background:var(--teal); color:#000; font-weight:700; font-size:11px; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+  .step-body { flex:1; }
+  .step-title { font-weight:600; font-size:13px; }
+  .step-desc { font-size:12px; color:var(--muted); margin-top:2px; }
+  .arrow { color:var(--border); font-size:16px; padding-left:32px; display:block; }
+  .box { border-radius:8px; padding:12px 16px; margin-bottom:12px; font-size:13px; }
+  .box-teal { background:var(--teal-dim); border:1px solid rgba(32,201,151,.2); }
+  .box-yellow { background:var(--yellow-dim); border:1px solid rgba(255,212,59,.2); }
+  .box-orange { background:var(--orange-dim); border:1px solid rgba(255,146,43,.2); }
+  .box-blue { background:var(--blue-dim); border:1px solid rgba(77,171,247,.2); }
+  code { background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:4px; font-family:monospace; font-size:12px; }
+  .shared-badge { font-size:10px; background:rgba(218,119,242,0.15); color:var(--purple); border:1px solid rgba(218,119,242,.2); padding:1px 6px; border-radius:10px; }
+  .validate-btn { display:inline-block; margin-top:4px; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  th { text-align:left; padding:8px 10px; background:var(--surface3); color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); }
+  td { padding:8px 10px; border-bottom:1px solid rgba(255,255,255,0.04); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  .footer { text-align:center; color:var(--muted); font-size:12px; margin-top:32px; padding-top:20px; border-top:1px solid var(--border); }
+  @media(max-width:768px) { .grid-2, .grid-3 { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+
+<div style="margin-bottom:24px;">
+  <h1>📄 Gerador de Documentos — Make/MEI → n8n</h1>
+  <div class="meta">Análise do blueprint: MDFlow_Gerar_contratos.json · JARBAS v4.1 · 19/03/2026</div>
+  <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap;">
+    <span class="badge b-plan">📋 /plan ativo</span>
+    <span class="badge b-ok">✅ 210 módulos analisados</span>
+    <span class="badge b-ok">✅ 5 OABs mapeadas</span>
+    <span class="badge b-info">🔵 46 Google Docs extraídos</span>
+    <span class="badge b-pending">⏳ Aguardando validação</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- RESUMO EXECUTIVO                                           -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">📊 Resumo Executivo</div>
+  <div class="grid-3">
+    <div class="card">
+      <h3 style="color:var(--teal)">Como funcionava (Make)</h3>
+      <div style="font-size:13px; margin-top:8px; line-height:1.8;">
+        🔵 1 webhook recebe: <code>tipo + lead_id + OAB</code><br>
+        🔵 Filtra por <code>tipo</code> (contrato_midas / contrato_orgao / contrato_empresa)<br>
+        🔵 Filtra por <code>OAB</code> do advogado<br>
+        🔵 Copia Google Doc template → novo arquivo<br>
+        🔵 Faz replace dos placeholders<br>
+        🔵 Salva PDF no Drive do cliente<br>
+        🔵 Renomeia pasta do cliente
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--orange)">O problema (era improviso)</h3>
+      <div style="font-size:13px; margin-top:8px; line-height:1.8;">
+        ❌ IDs Google Docs hardcoded no Make<br>
+        ❌ 210 módulos repetidos por OAB<br>
+        ❌ Cada advogado = bloco duplicado<br>
+        ❌ Sem banco de templates centralizado<br>
+        ❌ Difícil manutenção<br>
+        ❌ Make tem limite de operações/mês<br>
+        ❌ Sem rastreio de quais docs foram gerados
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="color:var(--green)">Como vai ficar (n8n)</h3>
+      <div style="font-size:13px; margin-top:8px; line-height:1.8;">
+        ✅ 1 workflow limpo no n8n<br>
+        ✅ Supabase como fonte de verdade dos templates<br>
+        ✅ <code>documento_templates</code> com <code>google_doc_id_original</code><br>
+        ✅ Lógica: busca template → copia doc → substitui<br>
+        ✅ Rastreio em <code>processo_documentos</code><br>
+        ✅ Sem operações Pay-per-use (n8n self-hosted)
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- FLUXO LÓGICO                                              -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🗺️ Fluxo do Make (lógica recriada)</div>
+  <div class="grid-2">
+    <div>
+      <div class="flow-step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-title">Webhook recebe payload</div>
+          <div class="step-desc"><code>tipo</code> + <code>dados_origem.id</code> (lead_id) + <code>dados_origem.advogado.oab</code></div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-title">Busca lead no Supabase</div>
+          <div class="step-desc">Tabela <code>leads</code> filtrando por <code>id</code> — pega nome, CPF, endereço, advogado</div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-title">Router por tipo de documento</div>
+          <div class="step-desc">
+            <code>contrato_midas</code> → gera 1.1 + 1.2<br>
+            <code>contrato_orgao</code> → gera 1.6, 1.7, 1.8, 2.2<br>
+            <code>contrato_empresa</code> → gera 1.3, 1.4, 1.5, 2.1
+          </div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-title">Router por OAB do advogado</div>
+          <div class="step-desc">RS/116571 · RS/131163 · SC/74025 · SC/75466 · SP/535101<br>Cada OAB tem seus Google Docs específicos</div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-title">Copia Google Doc template → nova instância</div>
+          <div class="step-desc">API Google Docs: <code>createFromTemplate</code> com substituição de variáveis</div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-title">Exporta PDF e salva no Drive do cliente</div>
+          <div class="step-desc">Pasta do cliente nomeada como <code>{codigo_advogado} - {nome} [{CPF}]</code></div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num">7</div>
+        <div class="step-body">
+          <div class="step-title">Deleta rascunho do Docs (mantém só PDF)</div>
+          <div class="step-desc">Google Drive: deleteAFile após upload do PDF</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="box box-blue" style="margin-bottom:12px;">
+        <strong>Tabelas Supabase usadas no Make:</strong><br>
+        📦 <code>leads</code> — dados do cliente (nome, CPF, OAB, endereço)<br>
+        📦 <code>restricoes_orgao</code> — quando tipo = contrato_orgao<br>
+        📦 outra tabela (empresa_re) — quando tipo = contrato_empresa
+      </div>
+      <div class="box box-teal">
+        <strong>Tabelas que o n8n vai usar:</strong><br>
+        📦 <code>leads</code> ou <code>organizacoes</code> — dados do cliente<br>
+        📦 <code>documento_templates</code> — Google Doc IDs (a popular)<br>
+        📦 <code>processo_documentos</code> — salvar links dos docs gerados<br>
+        📦 <code>restricoes_orgao</code> / <code>contratos_empresa</code> — dados extras
+      </div>
+      <div class="box box-yellow">
+        <strong>⚠️ Pontos de atenção:</strong><br>
+        • RS/131163 e SC/75466 — quem são esses advogados? Verificar.<br>
+        • 1.7, 1.8 e 1.4, 1.5 têm o mesmo Google Doc ID para múltiplas OABs (é intencional — template genérico)<br>
+        • Drive do cliente: pasta precisa existir previamente ou ser criada<br>
+        • Make usava conta Google específica — n8n precisa da mesma
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- GOOGLE DOCS — MAPA COMPLETO                               -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">📂 Google Docs — Mapa por OAB <span style="color:var(--muted); font-size:12px; font-weight:400;">(para validação manual)</span></div>
+
+  <div class="box box-teal" style="margin-bottom:16px;">
+    Abrir cada link e verificar se o documento é o correto. Clicar no ID abre o Google Doc diretamente.
+  </div>
+
+  <!-- DOC GLOBAL -->
+  <div class="card-oab">
+    <div class="oab-header">
+      <span>🌐 TODOS (independente de OAB)</span>
+    </div>
+    <div class="doc-row">
+      <div class="doc-num">1.1</div>
+      <div style="flex:1">
+        <div class="doc-name">Contrato Midas</div>
+        <div class="doc-id">150mEVLj8_6XxXPKS5KqGolY6qMgOH8VSkyn9duem9yw</div>
+        <a class="doc-link" href="https://docs.google.com/document/d/150mEVLj8_6XxXPKS5KqGolY6qMgOH8VSkyn9duem9yw/edit" target="_blank">🔗 Abrir no Google Docs</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- RS/116571 -->
+  <div class="card-oab">
+    <div class="oab-header">
+      <span>⚖️ OAB RS/116571</span>
+      <span class="badge b-info">Christian RS</span>
+    </div>
+    <table>
+      <tr><th>Nº</th><th>Documento</th><th>Google Doc ID</th><th>Validar</th></tr>
+      <tr>
+        <td><b>1.2</b></td><td>Termo de Parceria</td>
+        <td><code>14gVJiFx...3umEFsO-7P81Ob8I</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/14gVJiFxVIX7U_6mWihDQwQ2KrRP3umEFsO-7P81Ob8I/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.3</b></td><td>Contrato (empresa)</td>
+        <td><code>1a6RmjoF...MNz2XJKQHIk</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1a6RmjoFZC-dOSgb7VQW9ZsD3VUw-eS7tMNz2XJKQHIk/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.4</b></td><td>Termo de Ciência (empresa) <span class="shared-badge">compartilhado</span></td>
+        <td><code>1Ichq9v1...Xjb11Q3R0</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1Ichq9v1Wv0VxO-VrBlHozaLRXWJnMZNV59Xjb11Q3R0/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.5</b></td><td>Termo de Veracidade (empresa) <span class="shared-badge">compartilhado</span></td>
+        <td><code>1yLD2PGd...v9XcHeg</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1yLD2PGdFWvUZxGzFnDbsY6P6Vit0xyEJFfS2v9XcHeg/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.6</b></td><td>Contrato (órgão restritivo)</td>
+        <td><code>13CC9uaK...R2oA5Ak</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/13CC9uaKmuDq67gJK3mH_GlkUfqCPUHWZSI73R2oA5Ak/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.7</b></td><td>Termo de Ciência (órgão) <span class="shared-badge">compartilhado</span></td>
+        <td><code>100a0W0X...duqoBUmc</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/100a0W0XZpyJ2MBkfFUudeTcgC7WtpWprN78duqoBUmc/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.8</b></td><td>Termo de Veracidade (órgão) <span class="shared-badge">compartilhado</span></td>
+        <td><code>16d4r_oF...YJwcF8</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/16d4r_oFrfmvfX14UOVMLoUXr8uj1XaoXvFVnQYJwcF8/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>2.1</b></td><td>Procuração (empresa)</td>
+        <td><code>1HcMJaZa...yM4-A</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1HcMJaZa9jPLsj--0Ey7TMtXDG6qnkTkGsnRsdyyM4-A/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>2.2</b></td><td>Procuração (órgão)</td>
+        <td><code>1JCpAb3v...hlqNus</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1JCpAb3vIfZpwScmOCxUp3zmdVSyc-0DPnhiithlqNus/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- SC/74025 -->
+  <div class="card-oab">
+    <div class="oab-header">
+      <span>⚖️ OAB SC/74025</span>
+      <span class="badge b-info">Heloísa SC</span>
+    </div>
+    <table>
+      <tr><th>Nº</th><th>Documento</th><th>Google Doc ID</th><th>Validar</th></tr>
+      <tr>
+        <td><b>1.2</b></td><td>Termo de Parceria</td>
+        <td><code>1-r5n1bo...J66pM</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1-r5n1bov0h28EBcv6kL2bFA4cGCze5TNL19230J66pM/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.3</b></td><td>Contrato (empresa)</td>
+        <td><code>1_sP_B58...R8U4oU</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1_sP_B58uj6FcLt7YjfobHkOzPioLhts6CNdXEr8U4oU/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.4</b></td><td>Termo de Ciência (empresa) <span class="shared-badge">compartilhado</span></td>
+        <td><code>1Ichq9v1...Xjb11Q3R0</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1Ichq9v1Wv0VxO-VrBlHozaLRXWJnMZNV59Xjb11Q3R0/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.5</b></td><td>Termo de Veracidade (empresa) <span class="shared-badge">compartilhado</span></td>
+        <td><code>1yLD2PGd...v9XcHeg</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1yLD2PGdFWvUZxGzFnDbsY6P6Vit0xyEJFfS2v9XcHeg/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.6</b></td><td>Contrato (órgão restritivo)</td>
+        <td><code>1atWJZb4...n0QUo</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1atWJZb4zcduNyTbMva70Y9B7qmKGhx9tjwOcNqn0QUo/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.7</b></td><td>Termo de Ciência (órgão) <span class="shared-badge">compartilhado</span></td>
+        <td><code>100a0W0X...duqoBUmc</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/100a0W0XZpyJ2MBkfFUudeTcgC7WtpWprN78duqoBUmc/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.8</b></td><td>Termo de Veracidade (órgão) <span class="shared-badge">compartilhado</span></td>
+        <td><code>16d4r_oF...YJwcF8</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/16d4r_oFrfmvfX14UOVMLoUXr8uj1XaoXvFVnQYJwcF8/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>2.1</b></td><td>Procuração (empresa)</td>
+        <td><code>1P7cBZ6B...pdCco</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1P7cBZ6By6hCeyKUoH5jfTzkovcXovOjbXFlpSgpdCco/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>2.2</b></td><td>Procuração (órgão)</td>
+        <td><code>1disC_5G...joqg</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1disC_5Gya8nfwnsSWcS0sqYodgwE-cJoptoeLhmjoqg/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- SP/535101 -->
+  <div class="card-oab">
+    <div class="oab-header">
+      <span>⚖️ OAB SP/535101</span>
+      <span class="badge b-info">Christian SP</span>
+    </div>
+    <table>
+      <tr><th>Nº</th><th>Documento</th><th>Google Doc ID</th><th>Validar</th></tr>
+      <tr>
+        <td><b>1.2</b></td><td>Termo de Parceria</td>
+        <td><code>1y-5HwoE...Xko_s</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1y-5HwoEHmEso0Mr1VE6pPZTPiBnrlhe9Aaj7UkXko_s/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.3</b></td><td>Contrato (empresa)</td>
+        <td><code>1xeGw9Tw...Iv4zY</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1xeGw9Twn5VAU4wQ9a_aOYhY-gbZ04ZFebT8ZH2Iv4zY/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.4</b></td><td>Termo de Ciência (empresa) <span class="shared-badge">compartilhado</span></td>
+        <td><code>1Ichq9v1...Xjb11Q3R0</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1Ichq9v1Wv0VxO-VrBlHozaLRXWJnMZNV59Xjb11Q3R0/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.5</b></td><td>Termo de Veracidade (empresa) <span class="shared-badge">compartilhado</span></td>
+        <td><code>1yLD2PGd...v9XcHeg</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1yLD2PGdFWvUZxGzFnDbsY6P6Vit0xyEJFfS2v9XcHeg/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.6</b></td><td>Contrato (órgão restritivo)</td>
+        <td><code>1jAlXHx5...Ajpg</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1jAlXHx541T3_Ssyfyq5g9EfTG2BPOP_ispw9B4qAjpg/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.7</b></td><td>Termo de Ciência (órgão) <span class="shared-badge">compartilhado</span></td>
+        <td><code>100a0W0X...duqoBUmc</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/100a0W0XZpyJ2MBkfFUudeTcgC7WtpWprN78duqoBUmc/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>1.8</b></td><td>Termo de Veracidade (órgão) <span class="shared-badge">compartilhado</span></td>
+        <td><code>16d4r_oF...YJwcF8</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/16d4r_oFrfmvfX14UOVMLoUXr8uj1XaoXvFVnQYJwcF8/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>2.1</b></td><td>Procuração (empresa)</td>
+        <td><code>1fa_Nvvu...b7Go</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/1fa_NvvueWLEfex0j7SLOa3qk3n0Mb6eSzssfAI6b7Go/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+      <tr>
+        <td><b>2.2</b></td><td>Procuração (órgão)</td>
+        <td><code>19jBb1TZ...kzY</code></td>
+        <td><a class="doc-link" href="https://docs.google.com/document/d/19jBb1TZ3RAot1PqiAaipgexouYPpGinkmr5EswTPkzY/edit" target="_blank">🔗 Abrir</a></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- RS/131163 -->
+  <div class="card-oab">
+    <div class="oab-header">
+      <span>⚖️ OAB RS/131163</span>
+      <span class="badge b-warn">⚠️ Advogado não identificado</span>
+    </div>
+    <table>
+      <tr><th>Nº</th><th>Documento</th><th>Google Doc ID</th><th>Validar</th></tr>
+      <tr><td><b>1.2</b></td><td>Termo de Parceria</td><td><code>1wwBAzmf...dnCA</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1wwBAzmfbSICd531Os2goh4FZaka4IYRp-oplxP3dnCA/edit" target="_blank">🔗 Abrir</a></td></tr>
+      <tr><td><b>1.3</b></td><td>Contrato (empresa)</td><td><code>1kXI4A4U...05aU</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1kXI4A4UrIMRBqOCbPJ86dmgIheHbyofc3EiAyPd05aU/edit" target="_blank">🔗 Abrir</a></td></tr>
+      <tr><td><b>1.6</b></td><td>Contrato (órgão)</td><td><code>1H7EhvA1...nK6E</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1H7EhvA1OlZz3OzycdQnkHIKZm7RU-_mMuB5vdrXnK6E/edit" target="_blank">🔗 Abrir</a></td></tr>
+      <tr><td><b>1.7</b></td><td>Termo de Ciência (órgão)</td><td><code>1qFRCKeS...ncE8</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1qFRCKeSLSA_SlMtkqqsKK_kllFWMQ1PX0YJH0WXncE8/edit" target="_blank">🔗 Abrir</a></td></tr>
+      <tr><td><b>1.8</b></td><td>Termo de Veracidade (órgão)</td><td><code>1xLpz143...XyA</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1xLpz143evo4QpQ79i8iW29FuiQrwBX5WFQupNdENXyA/edit" target="_blank">🔗 Abrir</a></td></tr>
+      <tr><td><b>2.1</b></td><td>Procuração (empresa)</td><td><code>1HL89eFP...0-E</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1HL89eFPSBvgfKAtwdOFYBcPnZqCFB1KVf1hvL0oo0-E/edit" target="_blank">🔗 Abrir</a></td></tr>
+    </table>
+  </div>
+
+  <!-- SC/75466 -->
+  <div class="card-oab">
+    <div class="oab-header">
+      <span>⚖️ OAB SC/75466</span>
+      <span class="badge b-warn">⚠️ Advogado não identificado</span>
+    </div>
+    <table>
+      <tr><th>Nº</th><th>Documento</th><th>Google Doc ID</th><th>Validar</th></tr>
+      <tr><td><b>1.2</b></td><td>Termo de Parceria</td><td><code>1NSxEujS...GRvM</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1NSxEujSu-kLTHpiZsue-UudzZoXsLaONuoHXV3DGRvM/edit" target="_blank">🔗 Abrir</a></td></tr>
+      <tr><td><b>1.6</b></td><td>Contrato (órgão)</td><td><code>1ycupSEV...AJuo</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1ycupSEVIDxtTKQMDxZrhSm2Rj9aFqdZtyO_nPMmAJuo/edit" target="_blank">🔗 Abrir</a></td></tr>
+      <tr><td><b>2.2</b></td><td>Procuração (órgão)</td><td><code>1kLVsmEA...g2k</code></td><td><a class="doc-link" href="https://docs.google.com/document/d/1kLVsmEAfntS3jYe8Ul45t4g-fw1x1P38Io_iU-LIg2k/edit" target="_blank">🔗 Abrir</a></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- PLANO DE IMPLEMENTAÇÃO                                    -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🚀 Plano de Implementação n8n</div>
+
+  <div class="box box-yellow" style="margin-bottom:16px;">
+    ⚠️ <strong>Modo /plan ativo</strong> — Nada foi executado. Validar os IDs acima antes de continuar.
+  </div>
+
+  <div class="grid-2">
+    <div>
+      <h3 style="margin-bottom:12px; color:var(--teal)">Etapas pós-validação</h3>
+
+      <div class="flow-step">
+        <div class="step-num" style="background:var(--yellow); color:#000;">P1</div>
+        <div class="step-body">
+          <div class="step-title">Popular <code>documento_templates</code> com IDs</div>
+          <div class="step-desc">UPDATE em massa para preencher <code>google_doc_id_original</code> nas 46 linhas</div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num" style="background:var(--yellow); color:#000;">P2</div>
+        <div class="step-body">
+          <div class="step-title">Confirmar conta Google no n8n</div>
+          <div class="step-desc">Verificar se Google Docs + Drive estão configurados no n8n com a conta correta (a mesma do Make)</div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num" style="background:var(--yellow); color:#000;">P3</div>
+        <div class="step-body">
+          <div class="step-title">Criar workflow n8n</div>
+          <div class="step-desc">1 webhook → busca template no Supabase → copia GDoc → substitui vars → salva PDF no Drive → registra em processo_documentos</div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num" style="background:var(--yellow); color:#000;">P4</div>
+        <div class="step-body">
+          <div class="step-title">Teste com 1 lead real</div>
+          <div class="step-desc">Disparo manual com lead de teste → validar PDF gerado no Drive</div>
+        </div>
+      </div>
+      <span class="arrow">↓</span>
+      <div class="flow-step">
+        <div class="step-num" style="background:var(--yellow); color:#000;">P5</div>
+        <div class="step-body">
+          <div class="step-title">Ativar no MdFlow</div>
+          <div class="step-desc">Botão "Gerar Documentos" no CRM chama o webhook n8n (substituindo o Make)</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <h3 style="margin-bottom:12px; color:var(--orange)">Perguntas para validar com Christian</h3>
+      <div class="card" style="margin-bottom:8px;">
+        <div style="font-size:13px; line-height:2;">
+          ❓ RS/131163 e SC/75466 — quem são?<br>
+          ❓ A conta Google usada no Make é service account ou OAuth pessoal?<br>
+          ❓ Essa conta ainda tem acesso aos Docs e Drive?<br>
+          ❓ A pasta do cliente no Drive é criada automaticamente ou já existe?<br>
+          ❓ O campo <code>drive_cliente</code> na tabela <code>leads</code> já salva o ID da pasta?<br>
+          ❓ Onde salvar os links dos PDFs gerados? (<code>processo_documentos</code> ou direto em <code>leads.contratos_gerados</code>?)
+        </div>
+      </div>
+
+      <h3 style="margin-bottom:12px; color:var(--purple); margin-top:16px;">O que Gustavo pode aprovar sozinho</h3>
+      <div class="card">
+        <div style="font-size:13px; line-height:2;">
+          ✅ Validar se os Google Docs abertos são os corretos<br>
+          ✅ Confirmar se RS/131163 e SC/75466 são advogados ativos<br>
+          ✅ Confirmar se os docs compartilhados (1.4, 1.5, 1.7, 1.8) são realmente genéricos<br>
+          ✅ Aprovar o fluxo lógico descrito acima
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ -->
+<!-- OBSERVAÇÃO TÉCNICA: DOCS COMPARTILHADOS                  -->
+<!-- ═══════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-title">🔍 Observação Técnica — Templates Compartilhados</div>
+  <div class="box box-blue">
+    Os docs a seguir têm o <strong>mesmo Google Doc ID</strong> para múltiplas OABs — são templates neutros sem nome de advogado:
+  </div>
+  <table style="margin-top:12px;">
+    <tr><th>Doc</th><th>ID</th><th>Usado por</th><th>Validar</th></tr>
+    <tr>
+      <td><b>1.4</b> Termo de Ciência (empresa)</td>
+      <td><code>1Ichq9v1...Q3R0</code></td>
+      <td>RS/116571, SC/74025, SP/535101</td>
+      <td><a class="doc-link" href="https://docs.google.com/document/d/1Ichq9v1Wv0VxO-VrBlHozaLRXWJnMZNV59Xjb11Q3R0/edit" target="_blank">🔗 Abrir</a></td>
+    </tr>
+    <tr>
+      <td><b>1.5</b> Termo de Veracidade (empresa)</td>
+      <td><code>1yLD2PGd...Heg</code></td>
+      <td>RS/116571, SC/74025, SP/535101</td>
+      <td><a class="doc-link" href="https://docs.google.com/document/d/1yLD2PGdFWvUZxGzFnDbsY6P6Vit0xyEJFfS2v9XcHeg/edit" target="_blank">🔗 Abrir</a></td>
+    </tr>
+    <tr>
+      <td><b>1.7</b> Termo de Ciência (órgão)</td>
+      <td><code>100a0W0X...Umc</code></td>
+      <td>RS/116571, SC/74025, SP/535101</td>
+      <td><a class="doc-link" href="https://docs.google.com/document/d/100a0W0XZpyJ2MBkfFUudeTcgC7WtpWprN78duqoBUmc/edit" target="_blank">🔗 Abrir</a></td>
+    </tr>
+    <tr>
+      <td><b>1.8</b> Termo de Veracidade (órgão)</td>
+      <td><code>16d4r_oF...cF8</code></td>
+      <td>RS/116571, SC/74025, SP/535101</td>
+      <td><a class="doc-link" href="https://docs.google.com/document/d/16d4r_oFrfmvfX14UOVMLoUXr8uj1XaoXvFVnQYJwcF8/edit" target="_blank">🔗 Abrir</a></td>
+    </tr>
+  </table>
+  <div style="margin-top:12px; font-size:12px; color:var(--muted);">
+    💡 No n8n, esses docs podem usar a mesma linha no <code>documento_templates</code> com <code>grupo_advogado = 'todos'</code>, simplificando muito a lógica.
+  </div>
+</div>
+
+<div class="footer">
+  Plano Gerador de Documentos Make → n8n · JARBAS v4.1 · 19/03/2026<br>
+  <span style="color:#444">📋 /plan ativo — nenhuma ação executada. Aguardando validação do Gustavo.</span>
+</div>
+
+</body>
+</html>

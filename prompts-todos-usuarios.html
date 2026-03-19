@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdFlow — Auditoria de Permissões v2.0</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e2e8f0; min-height: 100vh; padding: 32px 16px; max-width: 960px; margin: 0 auto; }
+  h1 { font-size: 1.5rem; font-weight: 700; color: #f8fafc; margin-bottom: 4px; }
+  .subtitle { color: #64748b; font-size: 0.875rem; margin-bottom: 8px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 28px; margin-top: 12px; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 0.72rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; }
+  .badge.ok { background: #14291a; color: #4ade80; border: 1px solid #166534; }
+  .badge.warn { background: #3f2000; color: #fb923c; border: 1px solid #9a3412; }
+  .badge.info { background: #1e3a5f; color: #60a5fa; border: 1px solid #1d4ed8; }
+
+  .section-title { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.12em; color: #475569; margin: 28px 0 12px; padding-left: 4px; }
+
+  .card { background: #1e2130; border: 1px solid #2d3348; border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+  .card.has-changes { border-color: #f97316; }
+  .card-header { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: #181c2a; }
+  .avatar { width: 38px; height: 38px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.8rem; flex-shrink: 0; }
+  .av-admin { background: #1a1a3e; color: #a5b4fc; }
+  .av-juridico { background: #1e3a5f; color: #60a5fa; }
+  .av-comercial { background: #3b2f00; color: #fbbf24; }
+  .card-info { flex: 1; }
+  .card-name { font-weight: 700; font-size: 0.95rem; color: #f1f5f9; }
+  .card-role { font-size: 0.72rem; color: #64748b; margin-top: 2px; }
+  .card-status { font-size: 0.7rem; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
+  .status-ok { background: #14291a; color: #4ade80; border: 1px solid #166534; }
+  .status-fix { background: #3f1a00; color: #fb923c; border: 1px solid #9a3412; }
+
+  .changes-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 18px; border-bottom: 1px solid #2d3348; background: #15192a; }
+  .tag { font-size: 0.7rem; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+  .tag.remove { background: #3f1515; color: #f87171; border: 1px solid #7f1d1d; }
+  .tag.add { background: #14291a; color: #4ade80; border: 1px solid #166534; }
+  .tag.verify { background: #1e3a5f; color: #93c5fd; border: 1px solid #1d4ed8; }
+
+  .pages-section { padding: 12px 18px; border-bottom: 1px solid #2d3348; }
+  .pages-label { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; color: #475569; margin-bottom: 6px; }
+  .pages-list { display: flex; flex-wrap: wrap; gap: 4px; }
+  .page-tag { font-size: 0.68rem; padding: 2px 7px; border-radius: 4px; font-family: monospace; }
+  .page-keep { background: #1e2a1e; color: #86efac; border: 1px solid #166534; }
+  .page-remove { background: #3f1515; color: #f87171; border: 1px solid #7f1d1d; text-decoration: line-through; }
+  .page-add { background: #1e2a3f; color: #93c5fd; border: 1px solid #1d4ed8; }
+
+  .prompt-area { position: relative; padding: 14px 18px; }
+  .prompt-label { font-size: 0.65rem; font-weight: 800; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+  pre { background: #0d1117; border: 1px solid #2d3348; border-radius: 8px; padding: 14px; font-size: 0.78rem; line-height: 1.65; color: #a8d8a8; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+  .copy-btn { position: absolute; top: 14px; right: 18px; background: #2d3348; border: 1px solid #3d4a6a; color: #94a3b8; font-size: 0.7rem; font-weight: 700; padding: 4px 10px; border-radius: 6px; cursor: pointer; transition: all 0.15s; }
+  .copy-btn:hover { background: #3d4a6a; color: #e2e8f0; }
+  .copy-btn.copied { background: #14291a; color: #4ade80; border-color: #166534; }
+</style>
+</head>
+<body>
+
+<h1>🔐 Auditoria de Permissões MdFlow</h1>
+<p class="subtitle">19/03/2026 — Verificação + Correção automática por usuário. Execute cada prompt no Claude Code.</p>
+<div class="legend">
+  <span class="badge info">13 usuários</span>
+  <span class="badge ok">8 sem alterações</span>
+  <span class="badge warn">5 com correções</span>
+</div>
+
+<!-- ============ ADMINS ============ -->
+<div class="section-title">🔴 Admin — Acesso Total</div>
+
+<!-- CHRISTIAN PAZ -->
+<div class="card">
+  <div class="card-header">
+    <div class="avatar av-admin">CP</div>
+    <div class="card-info">
+      <div class="card-name">Christian Paz</div>
+      <div class="card-role">🔴 Admin — 29 páginas</div>
+    </div>
+    <span class="card-status status-ok">✅ Verificar</span>
+  </div>
+  <div class="changes-bar"><span class="tag verify">nenhuma mudança esperada</span></div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (29)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/acordos</span><span class="page-tag page-keep">/admin</span><span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/audiencias</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/calculadora</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/configuracoes</span><span class="page-tag page-keep">/controller</span><span class="page-tag page-keep">/crm</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/decisoes</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/empresas</span><span class="page-tag page-keep">/equipe</span><span class="page-tag page-keep">/execucoes</span><span class="page-tag page-keep">/financeiro</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/indicacoes</span><span class="page-tag page-keep">/jurimetria</span><span class="page-tag page-keep">/marketing</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/playbooks</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/relatorios</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita as permissões de Christian Paz no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '6dd16878-06a7-4655-b720-8a44bf18ab6a'
+
+Páginas ESPERADAS (29):
+/acordos, /admin, /atividades, /audiencias, /auditorias, /calculadora, /clientes,
+/configuracoes, /controller, /crm, /dashboard, /decisoes, /distribuicao,
+/documentos-pendentes, /empresas, /equipe, /execucoes, /financeiro, /homepage,
+/indicacoes, /jurimetria, /marketing, /mdacademy, /mdchat, /olivia, /playbooks,
+/processos, /relatorios, /usuario
+
+Execute:
+SELECT p.rota, upp.permitido
+FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = '6dd16878-06a7-4655-b720-8a44bf18ab6a'
+AND upp.permitido = true
+ORDER BY p.rota;
+
+Compare o resultado com as páginas esperadas acima.
+- Se tiver páginas a mais: liste quais são.
+- Se tiver páginas faltando: liste quais são e insira com INSERT.
+- Se estiver correto: confirme "Christian Paz ✅ 29 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- HELOÍSA -->
+<div class="card">
+  <div class="card-header">
+    <div class="avatar av-admin">HM</div>
+    <div class="card-info">
+      <div class="card-name">Heloísa Miglioranza</div>
+      <div class="card-role">🔴 Admin — 29 páginas</div>
+    </div>
+    <span class="card-status status-ok">✅ Verificar</span>
+  </div>
+  <div class="changes-bar"><span class="tag verify">nenhuma mudança esperada</span></div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (29)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/acordos</span><span class="page-tag page-keep">/admin</span><span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/audiencias</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/calculadora</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/configuracoes</span><span class="page-tag page-keep">/controller</span><span class="page-tag page-keep">/crm</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/decisoes</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/empresas</span><span class="page-tag page-keep">/equipe</span><span class="page-tag page-keep">/execucoes</span><span class="page-tag page-keep">/financeiro</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/indicacoes</span><span class="page-tag page-keep">/jurimetria</span><span class="page-tag page-keep">/marketing</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/playbooks</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/relatorios</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita as permissões de Heloísa Miglioranza no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: 'e116ac55-606e-48cc-9497-751e0c039837'
+
+Páginas ESPERADAS (29):
+/acordos, /admin, /atividades, /audiencias, /auditorias, /calculadora, /clientes,
+/configuracoes, /controller, /crm, /dashboard, /decisoes, /distribuicao,
+/documentos-pendentes, /empresas, /equipe, /execucoes, /financeiro, /homepage,
+/indicacoes, /jurimetria, /marketing, /mdacademy, /mdchat, /olivia, /playbooks,
+/processos, /relatorios, /usuario
+
+Execute:
+SELECT p.rota, upp.permitido
+FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = 'e116ac55-606e-48cc-9497-751e0c039837'
+AND upp.permitido = true
+ORDER BY p.rota;
+
+Compare com as páginas esperadas.
+- Páginas extras: liste e remova se não estiverem na lista.
+- Páginas faltando: insira.
+- Correto: confirme "Heloísa Miglioranza ✅ 29 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- ============ ADMIN S/ FINANCEIRO ============ -->
+<div class="section-title">🟠 Admin s/ Financeiro</div>
+
+<!-- GUSTAVO -->
+<div class="card">
+  <div class="card-header">
+    <div class="avatar av-admin">GP</div>
+    <div class="card-info">
+      <div class="card-name">Gustavo Paz</div>
+      <div class="card-role">🟠 Admin s/ Financeiro — 29 páginas (incl. /mdzap)</div>
+    </div>
+    <span class="card-status status-ok">✅ Verificar</span>
+  </div>
+  <div class="changes-bar"><span class="tag verify">nenhuma mudança esperada</span></div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (29 — sem /financeiro, com /mdzap)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/acordos</span><span class="page-tag page-keep">/admin</span><span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/audiencias</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/calculadora</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/configuracoes</span><span class="page-tag page-keep">/controller</span><span class="page-tag page-keep">/crm</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/decisoes</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/empresas</span><span class="page-tag page-keep">/equipe</span><span class="page-tag page-keep">/execucoes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/indicacoes</span><span class="page-tag page-keep">/jurimetria</span><span class="page-tag page-keep">/marketing</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/mdzap</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/playbooks</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/relatorios</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita as permissões de Gustavo Paz no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: 'bc557356-eecd-4da0-85b8-10681afe32f3'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (29 — sem /financeiro, com /mdzap):
+/acordos, /admin, /atividades, /audiencias, /auditorias, /calculadora, /clientes,
+/configuracoes, /controller, /crm, /dashboard, /decisoes, /distribuicao,
+/documentos-pendentes, /empresas, /equipe, /execucoes, /homepage, /indicacoes,
+/jurimetria, /marketing, /mdacademy, /mdchat, /mdzap, /olivia, /playbooks,
+/processos, /relatorios, /usuario
+
+ATENÇÃO: /financeiro NÃO deve estar na lista.
+
+Execute:
+SELECT p.rota, upp.permitido
+FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = 'bc557356-eecd-4da0-85b8-10681afe32f3'
+AND upp.permitido = true
+ORDER BY p.rota;
+
+Compare com as páginas esperadas.
+- Se /financeiro estiver presente: remova.
+- Páginas faltando: insira.
+- Correto: confirme "Gustavo Paz ✅ 29 páginas OK (sem financeiro)".</pre>
+  </div>
+</div>
+
+<!-- ============ JURÍDICO ============ -->
+<div class="section-title">🔵 Jurídico</div>
+
+<!-- JOÃO VICTOR -->
+<div class="card">
+  <div class="card-header">
+    <div class="avatar av-juridico">JV</div>
+    <div class="card-info">
+      <div class="card-name">João Victor</div>
+      <div class="card-role">🔵 Jurídico Gestor s/ Financeiro — 24 páginas</div>
+    </div>
+    <span class="card-status status-ok">✅ Verificar</span>
+  </div>
+  <div class="changes-bar"><span class="tag verify">nenhuma mudança esperada</span></div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (24)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/acordos</span><span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/audiencias</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/calculadora</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/configuracoes</span><span class="page-tag page-keep">/controller</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/decisoes</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/empresas</span><span class="page-tag page-keep">/equipe</span><span class="page-tag page-keep">/execucoes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/jurimetria</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/playbooks</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/relatorios</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita as permissões de João Victor no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: 'a468c7d6-a44a-41e9-a6e9-a2b1d04aa8a0'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (24):
+/acordos, /atividades, /audiencias, /auditorias, /calculadora, /clientes,
+/configuracoes, /controller, /dashboard, /decisoes, /distribuicao,
+/documentos-pendentes, /empresas, /equipe, /execucoes, /homepage, /jurimetria,
+/mdacademy, /mdchat, /olivia, /playbooks, /processos, /relatorios, /usuario
+
+Execute:
+SELECT p.rota FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = 'a468c7d6-a44a-41e9-a6e9-a2b1d04aa8a0' AND upp.permitido = true
+ORDER BY p.rota;
+
+Compare e corrija qualquer divergência. Confirme "João Victor ✅ 24 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- LEONARDO PEREIRA -->
+<div class="card">
+  <div class="card-header">
+    <div class="avatar av-juridico">LP</div>
+    <div class="card-info">
+      <div class="card-name">Leonardo Pereira</div>
+      <div class="card-role">🔵 Jurídico Base Completo — 22 páginas</div>
+    </div>
+    <span class="card-status status-ok">✅ Verificar</span>
+  </div>
+  <div class="changes-bar"><span class="tag verify">nenhuma mudança esperada</span></div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (22)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/acordos</span><span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/audiencias</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/calculadora</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/decisoes</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/empresas</span><span class="page-tag page-keep">/equipe</span><span class="page-tag page-keep">/execucoes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/jurimetria</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/playbooks</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/relatorios</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita as permissões de Leonardo Pereira no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '459d402e-9e22-4769-910f-a20898706256'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (22):
+/acordos, /atividades, /audiencias, /auditorias, /calculadora, /clientes,
+/dashboard, /decisoes, /distribuicao, /documentos-pendentes, /empresas, /equipe,
+/execucoes, /homepage, /jurimetria, /mdacademy, /mdchat, /olivia, /playbooks,
+/processos, /relatorios, /usuario
+
+Execute:
+SELECT p.rota FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = '459d402e-9e22-4769-910f-a20898706256' AND upp.permitido = true
+ORDER BY p.rota;
+
+Compare e corrija qualquer divergência. Confirme "Leonardo Pereira ✅ 22 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- YURI SALDANHA -->
+<div class="card has-changes">
+  <div class="card-header">
+    <div class="avatar av-juridico">YS</div>
+    <div class="card-info">
+      <div class="card-name">Yuri Saldanha</div>
+      <div class="card-role">🔵 Jurídico Reduzido — 11 páginas após correção</div>
+    </div>
+    <span class="card-status status-fix">⚠️ Corrigir</span>
+  </div>
+  <div class="changes-bar">
+    <span class="tag remove">❌ remover /calculadora</span>
+  </div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (11)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/usuario</span>
+      <span class="page-tag page-remove">/calculadora</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita e corrige as permissões de Yuri Saldanha no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '71e6c861-d69f-43bb-b44b-0aae855cc9fd'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (11):
+/atividades, /auditorias, /clientes, /dashboard, /documentos-pendentes,
+/homepage, /mdacademy, /mdchat, /olivia, /processos, /usuario
+
+CORREÇÃO NECESSÁRIA:
+- Remover /calculadora (pagina_id: 'dbb6f420-14b0-4a2a-b106-7c1cceb56bf2')
+
+Execute a correção:
+DELETE FROM users_paginas_permissoes 
+WHERE user_id = '71e6c861-d69f-43bb-b44b-0aae855cc9fd'
+AND pagina_id = 'dbb6f420-14b0-4a2a-b106-7c1cceb56bf2';
+
+Depois verifique o estado final:
+SELECT p.rota FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = '71e6c861-d69f-43bb-b44b-0aae855cc9fd' AND upp.permitido = true
+ORDER BY p.rota;
+
+Confirme "Yuri Saldanha ✅ 11 páginas OK (calculadora removida)".</pre>
+  </div>
+</div>
+
+<!-- STEFANY LARGER -->
+<div class="card">
+  <div class="card-header">
+    <div class="avatar av-juridico">SL</div>
+    <div class="card-info">
+      <div class="card-name">Stefany Larger</div>
+      <div class="card-role">🔵 Jurídico Stefany — 13 páginas</div>
+    </div>
+    <span class="card-status status-ok">✅ Verificar</span>
+  </div>
+  <div class="changes-bar"><span class="tag verify">nenhuma mudança esperada</span></div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (13)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/calculadora</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/jurimetria</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/playbooks</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita as permissões de Stefany Larger no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '8b987e44-1489-4fc8-9b83-c968da07b258'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (13):
+/atividades, /auditorias, /calculadora, /clientes, /dashboard, /homepage,
+/jurimetria, /mdacademy, /mdchat, /olivia, /playbooks, /processos, /usuario
+
+Execute:
+SELECT p.rota FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = '8b987e44-1489-4fc8-9b83-c968da07b258' AND upp.permitido = true
+ORDER BY p.rota;
+
+Compare e corrija qualquer divergência. Confirme "Stefany Larger ✅ 13 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- KAYRON DELLATORRE -->
+<div class="card has-changes">
+  <div class="card-header">
+    <div class="avatar av-juridico">KD</div>
+    <div class="card-info">
+      <div class="card-name">Kayron Dellatorre</div>
+      <div class="card-role">🔵 Jurídico Reduzido — 10 páginas após correção</div>
+    </div>
+    <span class="card-status status-fix">⚠️ Corrigir</span>
+  </div>
+  <div class="changes-bar">
+    <span class="tag remove">❌ remover /calculadora</span>
+    <span class="tag add">✅ adicionar /distribuicao</span>
+  </div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (10)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-add">/distribuicao</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/usuario</span>
+      <span class="page-tag page-remove">/calculadora</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita e corrige as permissões de Kayron Dellatorre no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: 'c55a5099-4aa3-4338-a6ae-1b71c94e18bb'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (10):
+/atividades, /clientes, /dashboard, /distribuicao, /homepage,
+/mdacademy, /mdchat, /olivia, /processos, /usuario
+
+CORREÇÕES NECESSÁRIAS:
+1. Remover /calculadora (pagina_id: 'dbb6f420-14b0-4a2a-b106-7c1cceb56bf2')
+2. Adicionar /distribuicao (pagina_id: 'b51beeaa-7f90-44e1-ae54-048f739ce5f8')
+
+Execute:
+DELETE FROM users_paginas_permissoes 
+WHERE user_id = 'c55a5099-4aa3-4338-a6ae-1b71c94e18bb'
+AND pagina_id = 'dbb6f420-14b0-4a2a-b106-7c1cceb56bf2';
+
+INSERT INTO users_paginas_permissoes (id, user_id, pagina_id, organizacao_id, permitido, pode_acessar, origem_regra)
+SELECT gen_random_uuid(), 'c55a5099-4aa3-4338-a6ae-1b71c94e18bb', 'b51beeaa-7f90-44e1-ae54-048f739ce5f8', '55a0c7ba-1a23-4ae1-b69b-a13811324735', true, true, 'manual'
+WHERE NOT EXISTS (
+  SELECT 1 FROM users_paginas_permissoes 
+  WHERE user_id = 'c55a5099-4aa3-4338-a6ae-1b71c94e18bb' 
+  AND pagina_id = 'b51beeaa-7f90-44e1-ae54-048f739ce5f8'
+);
+
+Verifique o estado final e confirme "Kayron Dellatorre ✅ 10 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- JOÃO PEDRO -->
+<div class="card has-changes">
+  <div class="card-header">
+    <div class="avatar av-juridico">JP</div>
+    <div class="card-info">
+      <div class="card-name">João Pedro</div>
+      <div class="card-role">🔵 Jurídico Mínimo — 11 páginas após correção</div>
+    </div>
+    <span class="card-status status-fix">⚠️ Corrigir</span>
+  </div>
+  <div class="changes-bar">
+    <span class="tag remove">❌ remover /calculadora</span>
+    <span class="tag add">✅ adicionar /distribuicao</span>
+    <span class="tag add">✅ adicionar /documentos-pendentes</span>
+  </div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (11)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-add">/distribuicao</span><span class="page-tag page-add">/documentos-pendentes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/usuario</span>
+      <span class="page-tag page-remove">/calculadora</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita e corrige as permissões de João Pedro no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '472160a1-0ca7-4043-a878-ad2bd87d33b2'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (11):
+/atividades, /clientes, /dashboard, /distribuicao, /documentos-pendentes,
+/homepage, /mdacademy, /mdchat, /olivia, /processos, /usuario
+
+CORREÇÕES NECESSÁRIAS:
+1. Remover /calculadora (pagina_id: 'dbb6f420-14b0-4a2a-b106-7c1cceb56bf2')
+2. Adicionar /distribuicao (pagina_id: 'b51beeaa-7f90-44e1-ae54-048f739ce5f8')
+3. Adicionar /documentos-pendentes (pagina_id: 'bbe4989f-c3c9-4946-83ba-10741c6813a5')
+
+Execute:
+DELETE FROM users_paginas_permissoes 
+WHERE user_id = '472160a1-0ca7-4043-a878-ad2bd87d33b2'
+AND pagina_id = 'dbb6f420-14b0-4a2a-b106-7c1cceb56bf2';
+
+INSERT INTO users_paginas_permissoes (id, user_id, pagina_id, organizacao_id, permitido, pode_acessar, origem_regra)
+SELECT gen_random_uuid(), '472160a1-0ca7-4043-a878-ad2bd87d33b2', pagina_id, '55a0c7ba-1a23-4ae1-b69b-a13811324735', true, true, 'manual'
+FROM (VALUES 
+  ('b51beeaa-7f90-44e1-ae54-048f739ce5f8'::uuid),
+  ('bbe4989f-c3c9-4946-83ba-10741c6813a5'::uuid)
+) AS novas(pagina_id)
+WHERE NOT EXISTS (
+  SELECT 1 FROM users_paginas_permissoes 
+  WHERE user_id = '472160a1-0ca7-4043-a878-ad2bd87d33b2' 
+  AND users_paginas_permissoes.pagina_id = novas.pagina_id
+);
+
+Verifique o estado final e confirme "João Pedro ✅ 11 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- MARCELO -->
+<div class="card has-changes">
+  <div class="card-header">
+    <div class="avatar av-juridico">MA</div>
+    <div class="card-info">
+      <div class="card-name">Marcelo</div>
+      <div class="card-role">🔵 Jurídico Mínimo — 11 páginas após correção</div>
+    </div>
+    <span class="card-status status-fix">⚠️ Corrigir</span>
+  </div>
+  <div class="changes-bar">
+    <span class="tag add">✅ adicionar /documentos-pendentes</span>
+  </div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (11)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/calculadora</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-add">/documentos-pendentes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita e corrige as permissões de Marcelo no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '489fbf05-6a0a-41e5-ab14-6707f5b9e41f'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (11):
+/atividades, /calculadora, /clientes, /dashboard, /documentos-pendentes,
+/homepage, /mdacademy, /mdchat, /olivia, /processos, /usuario
+
+CORREÇÃO NECESSÁRIA:
+1. Adicionar /documentos-pendentes (pagina_id: 'bbe4989f-c3c9-4946-83ba-10741c6813a5')
+
+Execute:
+INSERT INTO users_paginas_permissoes (id, user_id, pagina_id, organizacao_id, permitido, pode_acessar, origem_regra)
+SELECT gen_random_uuid(), '489fbf05-6a0a-41e5-ab14-6707f5b9e41f', 'bbe4989f-c3c9-4946-83ba-10741c6813a5', '55a0c7ba-1a23-4ae1-b69b-a13811324735', true, true, 'manual'
+WHERE NOT EXISTS (
+  SELECT 1 FROM users_paginas_permissoes 
+  WHERE user_id = '489fbf05-6a0a-41e5-ab14-6707f5b9e41f' 
+  AND pagina_id = 'bbe4989f-c3c9-4946-83ba-10741c6813a5'
+);
+
+Verifique o estado final e confirme "Marcelo ✅ 11 páginas OK".</pre>
+  </div>
+</div>
+
+<!-- ============ COMERCIAL ============ -->
+<div class="section-title">🟡 Comercial</div>
+
+<!-- CATIA OTTO -->
+<div class="card has-changes">
+  <div class="card-header">
+    <div class="avatar av-comercial">CO</div>
+    <div class="card-info">
+      <div class="card-name">Catia Otto</div>
+      <div class="card-role">🟡 Comercial Base — 14 páginas após correção</div>
+    </div>
+    <span class="card-status status-fix">⚠️ Corrigir</span>
+  </div>
+  <div class="changes-bar">
+    <span class="tag remove">❌ remover /olivia</span>
+  </div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (14)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/crm</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/empresas</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/indicacoes</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/relatorios</span><span class="page-tag page-keep">/usuario</span>
+      <span class="page-tag page-remove">/olivia</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita e corrige as permissões de Catia Otto no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '66cb11e0-6c48-4a42-bb13-c63da2c575bb'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (14):
+/atividades, /auditorias, /clientes, /crm, /dashboard, /distribuicao,
+/documentos-pendentes, /empresas, /homepage, /indicacoes, /mdacademy,
+/mdchat, /relatorios, /usuario
+
+CORREÇÃO NECESSÁRIA:
+1. Remover /olivia (pagina_id: 'c0b61694-ccb6-418e-98c4-1501e5b971b5')
+
+Execute:
+DELETE FROM users_paginas_permissoes 
+WHERE user_id = '66cb11e0-6c48-4a42-bb13-c63da2c575bb'
+AND pagina_id = 'c0b61694-ccb6-418e-98c4-1501e5b971b5';
+
+Verifique o estado final e confirme "Catia Otto ✅ 14 páginas OK (olivia removida)".</pre>
+  </div>
+</div>
+
+<!-- CARLOS DANIEL -->
+<div class="card has-changes">
+  <div class="card-header">
+    <div class="avatar av-comercial">CD</div>
+    <div class="card-info">
+      <div class="card-name">Carlos Daniel</div>
+      <div class="card-role">🟡 Comercial Reduzido — 13 páginas após correção</div>
+    </div>
+    <span class="card-status status-fix">⚠️ Corrigir</span>
+  </div>
+  <div class="changes-bar">
+    <span class="tag remove">❌ remover /olivia</span>
+  </div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (13)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/crm</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/marketing</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/usuario</span>
+      <span class="page-tag page-remove">/olivia</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita e corrige as permissões de Carlos Daniel no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '81cd48e8-3c6b-4273-8e2e-bed34384529a'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (13):
+/atividades, /auditorias, /clientes, /crm, /dashboard, /distribuicao,
+/documentos-pendentes, /homepage, /marketing, /mdacademy, /mdchat,
+/processos, /usuario
+
+CORREÇÃO NECESSÁRIA:
+1. Remover /olivia (pagina_id: 'c0b61694-ccb6-418e-98c4-1501e5b971b5')
+
+Execute:
+DELETE FROM users_paginas_permissoes 
+WHERE user_id = '81cd48e8-3c6b-4273-8e2e-bed34384529a'
+AND pagina_id = 'c0b61694-ccb6-418e-98c4-1501e5b971b5';
+
+Verifique o estado final e confirme "Carlos Daniel ✅ 13 páginas OK (olivia removida)".</pre>
+  </div>
+</div>
+
+<!-- VINÍCIUS PAZ -->
+<div class="card">
+  <div class="card-header">
+    <div class="avatar av-comercial">VP</div>
+    <div class="card-info">
+      <div class="card-name">Vinícius Paz</div>
+      <div class="card-role">🟡 Comercial Reduzido — 14 páginas</div>
+    </div>
+    <span class="card-status status-ok">✅ Verificar</span>
+  </div>
+  <div class="changes-bar"><span class="tag verify">nenhuma mudança esperada</span></div>
+  <div class="pages-section">
+    <div class="pages-label">Páginas esperadas (14)</div>
+    <div class="pages-list">
+      <span class="page-tag page-keep">/atividades</span><span class="page-tag page-keep">/auditorias</span><span class="page-tag page-keep">/clientes</span><span class="page-tag page-keep">/crm</span><span class="page-tag page-keep">/dashboard</span><span class="page-tag page-keep">/distribuicao</span><span class="page-tag page-keep">/documentos-pendentes</span><span class="page-tag page-keep">/homepage</span><span class="page-tag page-keep">/marketing</span><span class="page-tag page-keep">/mdacademy</span><span class="page-tag page-keep">/mdchat</span><span class="page-tag page-keep">/olivia</span><span class="page-tag page-keep">/processos</span><span class="page-tag page-keep">/usuario</span>
+    </div>
+  </div>
+  <div class="prompt-area">
+    <div class="prompt-label">Prompt Claude Code</div>
+    <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+    <pre>Audita as permissões de Vinícius Paz no Supabase (projeto qdivfairxhdihaqqypgb).
+
+user_id: '37d6240d-ba87-4f8e-81c9-085092cdf8f6'
+organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+Páginas ESPERADAS (14):
+/atividades, /auditorias, /clientes, /crm, /dashboard, /distribuicao,
+/documentos-pendentes, /homepage, /marketing, /mdacademy, /mdchat,
+/olivia, /processos, /usuario
+
+Execute:
+SELECT p.rota FROM users_paginas_permissoes upp
+JOIN config_paginas_sistema p ON p.id = upp.pagina_id
+WHERE upp.user_id = '37d6240d-ba87-4f8e-81c9-085092cdf8f6' AND upp.permitido = true
+ORDER BY p.rota;
+
+Compare e corrija qualquer divergência. Confirme "Vinícius Paz ✅ 14 páginas OK".</pre>
+  </div>
+</div>
+
+<script>
+function copyPrompt(btn) {
+  const pre = btn.closest('.prompt-area').querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent.trim()).then(() => {
+    btn.textContent = 'Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+</script>
+</body>
+</html>

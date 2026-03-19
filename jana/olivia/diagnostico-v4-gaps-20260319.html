@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>OlivIA v4 — Diagnóstico de Gaps + Prompt Claude Code</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --surface: #1a1816;
+    --border: #2a2826;
+    --teal: #20c997;
+    --teal-dim: #1a9e78;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --text: #e2e0dc;
+    --muted: #8a8480;
+    --green: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; font-size: 14px; line-height: 1.6; padding: 32px 24px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-family: Manrope, sans-serif; font-size: 28px; font-weight: 900; color: var(--teal); margin-bottom: 4px; }
+  h2 { font-family: Manrope, sans-serif; font-size: 18px; font-weight: 800; color: var(--text); margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; color: var(--teal); margin: 20px 0 8px; }
+  .meta { color: var(--muted); font-size: 12px; margin-bottom: 28px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+  .badge-red { background: rgba(239,68,68,.15); color: var(--red); border: 1px solid rgba(239,68,68,.3); }
+  .badge-yellow { background: rgba(245,158,11,.15); color: var(--yellow); border: 1px solid rgba(245,158,11,.3); }
+  .badge-green { background: rgba(34,197,94,.15); color: var(--green); border: 1px solid rgba(34,197,94,.3); }
+  .badge-blue { background: rgba(59,130,246,.15); color: var(--blue); border: 1px solid rgba(59,130,246,.3); }
+  .badge-teal { background: rgba(32,201,151,.15); color: var(--teal); border: 1px solid rgba(32,201,151,.3); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { background: rgba(32,201,151,.08); color: var(--teal); text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; background: rgba(255,255,255,.06); padding: 1px 5px; border-radius: 3px; color: var(--teal); }
+  pre { background: #0d0b09; border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-size: 12px; line-height: 1.8; font-family: 'JetBrains Mono', monospace; white-space: pre-wrap; }
+  .prompt-box { background: #0d0b09; border: 2px solid var(--teal); border-radius: 10px; padding: 20px; margin: 16px 0; position: relative; }
+  .prompt-box::before { content: 'PROMPT CLAUDE CODE'; position: absolute; top: -10px; left: 16px; background: var(--teal); color: #000; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 4px; letter-spacing: 1px; }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; }
+  .col { flex: 1; min-width: 280px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .stat-value { font-size: 28px; font-weight: 900; font-family: Manrope, sans-serif; color: var(--teal); }
+  .stat-label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .gap-item { display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); align-items: flex-start; }
+  .gap-item:last-child { border-bottom: none; }
+  .gap-num { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 12px; flex-shrink: 0; }
+  .gap-num-red { background: rgba(239,68,68,.2); color: var(--red); }
+  .gap-num-yellow { background: rgba(245,158,11,.2); color: var(--yellow); }
+  .gap-body h4 { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .gap-body p { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .gap-body .fix { font-size: 12px; color: var(--teal); }
+  .decision-item { display: flex; align-items: baseline; gap: 8px; padding: 6px 0; }
+  .icon-x { color: var(--red); font-weight: 900; }
+  .icon-check { color: var(--green); font-weight: 900; }
+  .icon-warn { color: var(--yellow); font-weight: 900; }
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .copy-hint { font-size: 11px; color: var(--muted); margin-top: 8px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<h1>OlivIA v4 — Diagnóstico de Gaps + Prompt CC</h1>
+<p class="meta">Gerado por JANA 🦊 · 2026-03-19 09:26 · Cruzamento: código atual vs specs ~/Desktop/olivia v3/ + prd-olivia-20260319.md</p>
+
+<!-- KPIs -->
+<div class="row" style="margin-bottom: 24px;">
+  <div class="stat"><div class="stat-value">14</div><div class="stat-label">Gaps identificados</div></div>
+  <div class="stat"><div class="stat-value" style="color:var(--red)">6</div><div class="stat-label">Críticos (P0/P1)</div></div>
+  <div class="stat"><div class="stat-value" style="color:var(--yellow)">8</div><div class="stat-label">Melhorias (P2)</div></div>
+  <div class="stat"><div class="stat-value" style="color:var(--green)">✓</div><div class="stat-label">Build OK · TS 0 erros</div></div>
+</div>
+
+<h2>📊 O Que Foi Feito vs O Que Faltou</h2>
+
+<table>
+  <tr>
+    <th>Área</th><th>O que o CC entregou</th><th>O que faltou</th><th>Status</th>
+  </tr>
+  <tr>
+    <td><strong>Estrutura de pastas</strong></td>
+    <td>index.tsx, types.ts, constants.ts, stores/, hooks/, components/ — estrutura limpa criada</td>
+    <td>useSmartBlocksGeneration.ts não foi criado (causa do build error)</td>
+    <td><span class="badge badge-green">✓ Corrigido</span></td>
+  </tr>
+  <tr>
+    <td><strong>Modo Express</strong></td>
+    <td>5 steps completos (Step1→5), hook useExpressGeneration, triagem, outline, revisão, conclusão</td>
+    <td>Seletor de qualidade IA presente no Step1 — spec D-FE-13 diz "fixo Sonnet 4.6 sem seletor"</td>
+    <td><span class="badge badge-yellow">Gap P2</span></td>
+  </tr>
+  <tr>
+    <td><strong>Modo Smart Blocks</strong></td>
+    <td>3 steps (Step1, Step2TagWizard, Step3Geracao), webhook corrigido para olivia/gerar-manual</td>
+    <td>categoriaEmpresaId não é carregada do processo — seletor de tipo petição não filtra por empresa</td>
+    <td><span class="badge badge-red">Gap P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>Modo Agente</strong></td>
+    <td>5 steps (AgenteStep1→5), hook useAgenteGeneration, consulta analises existentes</td>
+    <td>ORG_ID hardcoded não foi corrigido no skill_olivia_agente_v2.mjs (backend JARBAS)</td>
+    <td><span class="badge badge-yellow">Gap P2 (backend)</span></td>
+  </tr>
+  <tr>
+    <td><strong>Landing Gerador</strong></td>
+    <td>3 cards com animação hover, steps, badge de tempo, botão Usar</td>
+    <td>Sem KPIs (Total 30d, Hoje, % Sucesso) — spec PRD seção 4.2 exige KPI row. Sem histórico últimas 5 petições. Sem rascunhos em andamento.</td>
+    <td><span class="badge badge-red">Gap P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>ProcessoSelector</strong></td>
+    <td>SearchBoxCNJ, exibe CNJ + cliente + empresa. Reutilizado nos 3 modos.</td>
+    <td>Não carrega categoria_empresa_id do processo para filtrar modelos por empresa. Painel de info do processo ausente (spec D-FE-02). Sem modal cadastro rápido (spec D-FE-03).</td>
+    <td><span class="badge badge-red">Gap P1</span></td>
+  </tr>
+  <tr>
+    <td><strong>Step1 — Tipo de Petição</strong></td>
+    <td>Query em olivia_tipos_peticao com ativo=true e neq inicial</td>
+    <td>categoria_tipo = NULL em todos os 10 tipos no banco — filtro .neq('categoria_tipo','inicial') não filtra nada (todos são NULL). Mas todos os 10 estão corretos para exibir.</td>
+    <td><span class="badge badge-green">OK (coincidência)</span></td>
+  </tr>
+  <tr>
+    <td><strong>Seletor de Modelo</strong></td>
+    <td>Query em olivia_modelos_grupo com status='published' e tipo_peticao_id</td>
+    <td>Filtro categoriaEmpresaId nunca é passado — todos os 177 modelos aparecem sem filtro por empresa do processo. Gera lista enorme e incorreta.</td>
+    <td><span class="badge badge-red">Gap P0</span></td>
+  </tr>
+  <tr>
+    <td><strong>Seletor de Advogado</strong></td>
+    <td>Query em advogados com ativo=true. Presente em todos os modos.</td>
+    <td>Spec D-FE-12 diz "sem seletor de advogado — já vinculado ao processo". CC implementou seletor mesmo assim. Decisão firme ignorada.</td>
+    <td><span class="badge badge-yellow">Gap P2 (spec)</span></td>
+  </tr>
+  <tr>
+    <td><strong>Tabs da página</strong></td>
+    <td>4 abas: Gerador, Analise, Chat, Fila. URL params. Badge realtime na Fila.</td>
+    <td>Spec define: Fila deve estar DENTRO do Gerador (não aba separada). PRD seção 3: "aba Fila EXCLUÍDA — migra para dentro do Gerador". Fila existe como aba separada na implementação atual.</td>
+    <td><span class="badge badge-yellow">Gap P2 (spec)</span></td>
+  </tr>
+  <tr>
+    <td><strong>Chat OlivIA</strong></td>
+    <td>OliviaChatPage criado — componente placeholder</td>
+    <td>Modal de início (Livre vs Processo), ChatTimeline, ChatComposer, ChatSidebar — não implementados. Só shell vazio.</td>
+    <td><span class="badge badge-yellow">Gap P2</span></td>
+  </tr>
+  <tr>
+    <td><strong>Análise IA</strong></td>
+    <td>OliviaAnaliseUnificada — integrado na aba analise</td>
+    <td>Verificar se sub-abas (Processo + Decisão) estão funcionando — não auditado nesta sessão</td>
+    <td><span class="badge badge-blue">A verificar</span></td>
+  </tr>
+  <tr>
+    <td><strong>Dirty state / Multi-tab</strong></td>
+    <td>Não implementado</td>
+    <td>Spec D-FE-02 (confirmar antes de sair) e sistema de abas tipo Chrome (D-FE-07) não foram implementados</td>
+    <td><span class="badge badge-yellow">Gap P2</span></td>
+  </tr>
+  <tr>
+    <td><strong>E2E real (geração)</strong></td>
+    <td>Screenshots E2E de UI (SmartBlocks steps)</td>
+    <td>Nenhum teste clica "Gerar" e verifica SUCESSO no banco — mesma falha da v3</td>
+    <td><span class="badge badge-yellow">Gap P2</span></td>
+  </tr>
+</table>
+
+<h2>🔍 Causa Raiz — Por Que o CC Não Cumpriu Tudo</h2>
+
+<div class="card">
+  <div class="gap-item">
+    <div class="gap-num gap-num-red">1</div>
+    <div class="gap-body">
+      <h4>categoriaEmpresaId nunca é propagada — o maior gap funcional</h4>
+      <p>O ProcessoSelector retorna o processo mas não busca categoria_empresa_id. O usePetitionModels recebe categoriaEmpresaId como param mas todos os callers passam null. Resultado: todos os 177 modelos aparecem sem filtro de empresa — a lista é inútil na prática.</p>
+      <p class="fix">→ Fix: ProcessoSelector deve fazer SELECT processos JOIN empresas e retornar categoria_empresa_id. Passar para usePetitionModels nos Steps 1 de todos os modos.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="gap-num gap-num-red">2</div>
+    <div class="gap-body">
+      <h4>Prompts do CC não incluíam decisões de spec D-FE-xx</h4>
+      <p>O prompt dos terminais focou em "criar estrutura e componentes" mas não listou as decisões de frontend do PLANO-MESTRE como restrições. Ex: D-FE-12 (sem seletor advogado), D-FE-13 (sem seletor qualidade no Express), D-FE-09 (sem playbook). CC implementou o que faz "sentido óbvio" em vez do que foi decidido.</p>
+      <p class="fix">→ Fix no próximo projeto: seção DECISÕES FIRMES no topo de cada prompt com lista numerada de o que NÃO fazer.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="gap-num gap-num-red">3</div>
+    <div class="gap-body">
+      <h4>Landing incompleta — KPIs e histórico ausentes</h4>
+      <p>O PRD seção 4.2 é explícito: Landing tem KPI row (fn_olivia_kpis), PeticaoTabBar (rascunhos em andamento), histórico últimas 5. O CC criou só os 3 cards de modo — parte mais simples. Partes que requerem queries ao banco foram ignoradas.</p>
+      <p class="fix">→ Fix: Implementar fn_olivia_kpis + histórico + rascunhos na OliviaGeradorLanding.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="gap-num gap-num-yellow">4</div>
+    <div class="gap-body">
+      <h4>hook useSmartBlocksGeneration não foi criado</h4>
+      <p>O componente OliviaGeradorSmartBlocks.tsx importava o hook mas ele não existia. CC provavelmente assumiu que o arquivo já estava lá (de sessão anterior) ou esqueceu de criar. Derrubou o build inteiro.</p>
+      <p class="fix">→ Corrigido por JANA. Já commitado.</p>
+    </div>
+  </div>
+  <div class="gap-item">
+    <div class="gap-num gap-num-yellow">5</div>
+    <div class="gap-body">
+      <h4>Chat e Fila são placeholders</h4>
+      <p>OliviaChatPage e OliviaFilaTab existem como componentes mínimos. O Chat é funcional na v3 (OliviaChatPage com threads), mas na v4 não foi reconstruído com o novo design. A Fila existe como aba separada quando deveria ser integrada ao Gerador.</p>
+      <p class="fix">→ Fix: Reconstruir Chat com modal início + timeline + composer. Mover Fila para dentro da aba Gerador.</p>
+    </div>
+  </div>
+</div>
+
+<h2>✅ Decisões de Spec Ignoradas (para o CC corrigir)</h2>
+
+<div class="card">
+  <table>
+    <tr><th>Decisão</th><th>Spec</th><th>O que CC fez</th><th>O que deve ser</th></tr>
+    <tr>
+      <td><strong>D-FE-12</strong></td>
+      <td>Sem seletor de advogado no Step 1 — já vinculado ao processo</td>
+      <td>Implementou seletor de advogado em todos os 3 modos</td>
+      <td>Remover Select de advogado. Usar advogado_id do processo (via ProcessoSelector). Exibir nome como info apenas.</td>
+    </tr>
+    <tr>
+      <td><strong>D-FE-13</strong></td>
+      <td>Modo Express sem seletor de qualidade IA (fixo Sonnet 4.6)</td>
+      <td>Implementou QUALIDADE_IA_OPTIONS no ExpressStep1</td>
+      <td>Remover Select de qualidade do Express. Hardcode qualidadeIa = 'padrao'. Manter seletor só no Modo Agente (D-FE-14).</td>
+    </tr>
+    <tr>
+      <td><strong>D-FE-09</strong></td>
+      <td>Sem seletor de playbook (IA seleciona automaticamente)</td>
+      <td>Não implementou — correto ✓</td>
+      <td>Manter assim</td>
+    </tr>
+    <tr>
+      <td><strong>D-ARQ-06</strong></td>
+      <td>VibeLaw EXCLUÍDO — remover card, rotas, imports</td>
+      <td>Não implementou VibeLaw — correto ✓. Mas rota /olivia/gerador/vibelaw ainda existe em App.tsx</td>
+      <td>Remover rota /olivia/gerador/vibelaw do App.tsx</td>
+    </tr>
+    <tr>
+      <td><strong>PRD 3</strong></td>
+      <td>Aba Fila EXCLUÍDA — migra para dentro do Gerador</td>
+      <td>Implementou aba Fila separada</td>
+      <td>Remover aba Fila. Criar seção "Petições em andamento" dentro da aba Gerador (abaixo dos mode cards).</td>
+    </tr>
+  </table>
+</div>
+
+<hr class="section-divider">
+
+<h2>🤖 Prompt Claude Code — Correções Prioritárias</h2>
+<p style="color:var(--muted); font-size:12px; margin-bottom:16px;">Copie o bloco abaixo e envie para o Claude Code no terminal do beta-mdflow. Arquivo de referência: <code>~/Desktop/projeto olivia/prd-olivia-20260319.md</code></p>
+
+<div class="prompt-box">
+<pre>
+## PRÉ-LEITURA OBRIGATÓRIA (leia ANTES de alterar qualquer arquivo)
+1. cat ~/Desktop/projeto\ olivia/prd-olivia-20260319.md
+2. cat ~/Desktop/projeto\ olivia/PLANO-MESTRE-OLIVIA-DEFINITIVO.md | head -200
+3. ls src/pages/olivia/components/shared/
+4. cat src/pages/olivia/components/shared/ProcessoSelector.tsx
+5. cat src/pages/olivia/hooks/usePetitionModels.ts
+6. cat src/pages/olivia/components/express/ExpressStep1.tsx
+
+## CONTEXTO
+OlivIA v4 — Frontend reconstruído mas com gaps críticos. Build OK, TS 0 erros.
+Backend/n8n: NÃO TOCAR. Só frontend.
+Design System v5: bg via var(--background), teal var(--primary) #20c997, zero hardcoded.
+
+## DECISÕES FIRMES — NÃO IMPLEMENTAR
+- ❌ Sem seletor de advogado no Step 1 (D-FE-12) — advogado vem do processo
+- ❌ Sem seletor de qualidade IA no Express (D-FE-13) — fixo Sonnet 4.6
+- ❌ Sem seletor de playbook em nenhum modo (D-FE-09)
+- ❌ Sem VibeLaw — remover rota /olivia/gerador/vibelaw do App.tsx
+- ❌ Não criar aba Fila separada — já existe, será integrada ao Gerador depois
+
+## MISSÃO — 5 correções em ordem de prioridade
+
+### CORREÇÃO 1 — P0: categoriaEmpresaId no ProcessoSelector (GAP CRÍTICO)
+**Problema:** O seletor de modelo lista TODOS os 177 modelos sem filtrar por empresa do processo.
+**Causa:** ProcessoSelector não retorna categoria_empresa_id. usePetitionModels recebe null.
+
+**Fix no ProcessoSelector (src/pages/olivia/components/shared/ProcessoSelector.tsx):**
+Alterar a interface ProcessoSelecionado para incluir:
+  categoria_empresa_id?: string | null;
+
+Alterar SearchBoxCNJ onChange para fazer lookup:
+Quando processo é selecionado, fazer query:
+  SELECT processos.id, processos.numero_cnj, clientes.nome as cliente_nome,
+         empresas.nome as empresa_nome, empresas.categoria_id as categoria_empresa_id,
+         processos.advogado_id
+  FROM processos
+  LEFT JOIN clientes ON processos.cliente_id = clientes.id
+  LEFT JOIN empresas ON processos.empresa_id = empresas.id
+  WHERE processos.id = [processoId]
+
+Retornar categoria_empresa_id no objeto ProcessoSelecionado.
+
+**Fix nos Steps 1 de cada modo:**
+- src/pages/olivia/components/express/ExpressStep1.tsx:
+  handleProcessoChange deve fazer: onUpdate({ categoriaEmpresaId: p?.categoria_empresa_id ?? null })
+- src/pages/olivia/components/smart-blocks/SmartBlocksStep1.tsx: mesmo fix
+- src/pages/olivia/components/agente/AgenteStep1.tsx: já tem lógica mas verificar se propaga corretamente
+
+---
+
+### CORREÇÃO 2 — P1: Painel de info do processo após seleção
+**Spec D-FE-02:** Após selecionar processo, exibir painel com: restrições ativas, advogado vinculado, número do processo, empresa/banco.
+
+**Fix no ProcessoSelector:** Quando value != null, abaixo do card atual (CNJ + cliente + empresa), adicionar seção expansível com:
+- Nome do advogado vinculado (buscar em advogados WHERE id = processo.advogado_id)
+- Número de restrições ativas (buscar em restricoes WHERE processo_id = processo.id AND ativo = true)
+- Badge de status do processo
+
+Implementar como componente interno ProcessoInfoPanel dentro do ProcessoSelector.
+Só aparecer quando processo está selecionado.
+
+---
+
+### CORREÇÃO 3 — P1: Remover seletor de advogado dos Steps 1
+**Spec D-FE-12:** Advogado já está vinculado ao processo — sem seletor.
+
+**Fix:**
+1. Em ExpressStep1.tsx: remover todo o bloco `{/* Advogado */}` (Select de advogado)
+   Manter advogado_id sendo propagado via handleProcessoChange (já vem do processo)
+   
+2. Em SmartBlocksStep1.tsx: mesmo fix — remover Select de advogado
+
+3. Em AgenteStep1.tsx: verificar se tem seletor de advogado e remover se houver
+
+4. Atualizar canProceed em cada Step para não exigir advogadoId preenchido manualmente:
+   Express: canProceed = !!state.processoId && !!state.modeloId
+   Smart Blocks: canProceed = !!state.processoId && !!state.modeloId
+
+---
+
+### CORREÇÃO 4 — P1: Remover seletor de qualidade do Modo Express
+**Spec D-FE-13:** Express usa fixo Sonnet 4.6, sem opção de escolha.
+
+**Fix em ExpressStep1.tsx:**
+1. Remover bloco `{/* Qualidade IA */}` (Select QUALIDADE_IA_OPTIONS)
+2. Em useExpressGeneration.ts, garantir que qualidadeIa default = 'padrao' (já está)
+3. Verificar que o payload para o webhook inclui qualidade correta mesmo sem seletor
+
+---
+
+### CORREÇÃO 5 — P2: Landing com KPIs e histórico
+**Spec PRD 4.2:** Landing deve ter: KPI row (Total 30d, Hoje, % Sucesso), histórico últimas 5 petições.
+
+**Fix em OliviaGeradorLanding.tsx:**
+Adicionar hook useQuery para fn_olivia_kpis:
+  SELECT * FROM fn_olivia_kpis(organizacao_id)
+  Retorna: total_30d, hoje, concluidas, score_medio
+
+Adicionar query para últimas 5 petições:
+  SELECT id, modo, status, created_at, google_doc_url
+  FROM olivia_historico
+  WHERE organizacao_id = [org_id]
+  ORDER BY created_at DESC LIMIT 5
+
+Adicionar seção abaixo dos mode cards:
+- Row de 4 KPI cards (números grandes, muted labels)
+- Lista "Últimas petições" com status badge (SUCESSO verde, ERRO vermelho, PENDENTE amarelo)
+- Link para o Google Doc quando SUCESSO
+
+---
+
+## CORREÇÃO EXTRA — Remover rota VibeLaw morta
+Em src/App.tsx:
+- Remover linha: `const OliviaGeradorVibelaw = lazy(...)` se existir
+- Remover Route: `<Route path="/olivia/gerador/vibelaw" ...>` se existir
+
+---
+
+## VALIDAÇÃO OBRIGATÓRIA após cada correção
+1. npx tsc --noEmit → deve retornar 0 erros antes de avançar para próxima correção
+2. Testar no browser: selecionar processo → verificar que categoria_empresa_id popula seletores
+3. Verificar que seletor de modelo filtra corretamente (não mostra todos os 177)
+
+## COMMIT por bloco
+Após correções 1+2+3: git add -A && git commit -m "fix(olivia): processoSelector categoria + painel info + remove seletor advogado"
+Após correções 4+5: git add -A && git commit -m "fix(olivia): express sem qualidade IA + landing KPIs + histórico"
+Após extra: git add -A && git commit -m "chore(olivia): remove rota vibelaw morta"
+Push ao final: git push
+</pre>
+<p class="copy-hint">💡 Antes de rodar: abrir terminal em ~/beta-mdflow. Referência: ~/Desktop/projeto\ olivia/prd-olivia-20260319.md</p>
+</div>
+
+<h2>📋 Resumo Executivo</h2>
+
+<div class="card">
+  <h3>O que o CC entregou bem</h3>
+  <div class="decision-item"><span class="icon-check">✓</span> Estrutura limpa — pastas, types, constants, hooks separados</div>
+  <div class="decision-item"><span class="icon-check">✓</span> Modo Express: 5 steps funcionais + hook com polling</div>
+  <div class="decision-item"><span class="icon-check">✓</span> Smart Blocks: webhook correto (olivia/gerar-manual), 3 steps</div>
+  <div class="decision-item"><span class="icon-check">✓</span> Modo Agente: 5 steps, consulta analises existentes</div>
+  <div class="decision-item"><span class="icon-check">✓</span> Design System v5 aplicado (tokens, sem hardcoded)</div>
+  <div class="decision-item"><span class="icon-check">✓</span> Abas com URL params, badge realtime</div>
+
+  <h3 style="margin-top:16px;">O que o CC não entregou</h3>
+  <div class="decision-item"><span class="icon-x">✗</span> <strong>P0:</strong> categoriaEmpresaId nunca propagada → seletor de modelo inútil</div>
+  <div class="decision-item"><span class="icon-x">✗</span> <strong>P1:</strong> Painel info do processo (restrições, advogado vinculado)</div>
+  <div class="decision-item"><span class="icon-x">✗</span> <strong>P1:</strong> Landing sem KPIs e histórico de petições</div>
+  <div class="decision-item"><span class="icon-warn">⚠</span> <strong>P2:</strong> Seletor de advogado presente (spec diz remover)</div>
+  <div class="decision-item"><span class="icon-warn">⚠</span> <strong>P2:</strong> Seletor de qualidade IA no Express (spec diz remover)</div>
+  <div class="decision-item"><span class="icon-warn">⚠</span> <strong>P2:</strong> Aba Fila separada (spec diz integrar ao Gerador)</div>
+  <div class="decision-item"><span class="icon-warn">⚠</span> <strong>P2:</strong> Chat e Fila são shells vazios — não reconstruídos</div>
+
+  <h3 style="margin-top:16px;">Como evitar nos próximos projetos</h3>
+  <div class="decision-item"><span class="icon-check">→</span> Incluir seção "DECISÕES FIRMES — NÃO IMPLEMENTAR" no topo de cada prompt</div>
+  <div class="decision-item"><span class="icon-check">→</span> Listar os campos que cada componente deve retornar (ex: ProcessoSelector retorna categoria_empresa_id)</div>
+  <div class="decision-item"><span class="icon-check">→</span> Após cada terminal: JANA valida 3 pontos: TS 0 erros + decisões firmes respeitadas + campo crítico propagado</div>
+  <div class="decision-item"><span class="icon-check">→</span> Commit por correção (não agrupar) para rastrear o que foi feito</div>
+</div>
+
+<p style="color:var(--muted); font-size:11px; margin-top:32px; text-align:center;">
+  OlivIA v4 · JANA 🦊 · 2026-03-19 · MdLab LegalTech
+</p>
+
+</body>
+</html>

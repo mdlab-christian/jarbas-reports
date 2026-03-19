@@ -64,7 +64,7 @@
 ### Backend Investigado
 - [x] 22 tabelas olivia_* — schema + contagem + samples
 - [x] Tabelas auxiliares: processos, restrições, documentos
-- [x] Projeto + 24 etapas verificadas
+- [x] Projeto + 26 etapas verificadas (reorganizadas v2.0)
 - [x] 9 FKs olivia_historico mapeadas
 - [x] 4 workflows n8n exportados analisados
 - [x] 12 skills JARBAS (Mac Mini SSH)
@@ -894,6 +894,15 @@ CREATE POLICY "tenant_isolation" ON olivia_agente_contexto USING (organizacao_id
 | Fix (banco) | `UPDATE olivia_modelos_peticao SET published_at = created_at WHERE ativo = true` |
 | Fix (frontend) | Mudar query para usar `ativo = true` em vez de `published_at IS NOT NULL` |
 
+### Bug 3.5: salvarHistorico faz INSERT em vez de UPDATE — P1
+
+| Campo | Detalhe |
+|---|---|
+| Erro | olivia_historico recebe INSERTs duplicados em vez de UPDATE no registro existente |
+| Causa | Função salvarHistorico no frontend sempre faz INSERT, nunca UPDATE. Contribui para 37 registros ABANDONADO (41%) |
+| Fix | Step 1 "Avançar" = INSERT (status PENDENTE). Steps subsequentes = UPDATE no historico_id existente. Propagar historico_id entre steps |
+| Etapa banco | E07 |
+
 ### Bug 4: Seletor versões exibe nomes duplicados — P1
 
 | Campo | Detalhe |
@@ -1085,76 +1094,60 @@ olivia_tipos_peticao (10)                 # Réplica, Apelação, etc.
 
 ---
 
-## 23. Etapas do Projeto — Ordem Correta de Execução
+## 23. Etapas do Projeto — 26 Etapas (SSOT: banco projetos_etapas)
 
-> **REESTRUTURAÇÃO:** As 24 etapas originais estão todas em `rascunho`. Nova ordem por fases — será aplicada no banco no Prompt 3.
+> **APLICADO NO BANCO em 2026-03-18.** 24 etapas originais reorganizadas + 2 novas inseridas = 26 etapas sequenciais. Cada etapa tem cc_prompt com PRD completo e criterio_aceite mensurável.
 
-### FASE 1 — Investigação CC (paralela, somente leitura)
+### FASE 1 — Investigação CC (E01-E04)
 
-| # | Título Original | Status | Notas |
-|---|---|---|---|
-| 21 | CC Investigação: Backend + Importação de Dados | CONCLUÍDO | Feito nesta sessão de absorção |
-| 22 | CC Investigação: GAS + Workflows N8N | CONCLUÍDO | Feito nesta sessão de absorção |
-| 23 | CC Revisão Crítica do Plano + Concorrência | CONCLUÍDO | Este plano mestre v2.0 |
-
-### FASE 2 — JANA Consolida Plano v2
-
-| # | Título | Status | Notas |
-|---|---|---|---|
-| 24 | CC Geração do Índice Detalhado da SPEC | PRÓXIMO | Gerar spec XML a partir deste plano |
-
-### FASE 3 — Fixes P0 (ANTES de reconstruir frontend)
-
-| # | Título | Prioridade | Descrição |
-|---|---|---|---|
-| 1 | Fix: published_at NULL + query versão | P0 | UPDATE published_at em 329 modelos + fix query frontend |
-| 2 | Fix: FK modelo_id no olivia_historico | P0 | Frontend passa modelo_grupo_id em vez de modelo_peticao_id |
-| 3 | Fix: fetch() em 15 Code nodes n8n (Express + Smart Blocks) | P0 | Substituir por $helpers.httpRequest() em ambos workflows |
-| 4 | Fix: ORG_ID hardcoded no skill agente | P1 | payload.organizacao_id \|\| process.env.ORG_ID |
-| 5 | Fix: seletor versões duplicadas (label) | P1 | "V${versao} · ${nome} · ${format(created_at, 'dd/MM')}" |
-| NEW | Fix: Fila "Petição avulsa" + modos inconsistentes | P1 | JOIN processos + map labels modo |
-
-### FASE 4 — Migrations & Seeds
-
-| # | Título | Prioridade |
+| Ordem | Título | Status |
 |---|---|---|
-| 6 | Migration: processos.categoria_empresa_id | P0 |
-| NEW | Migration: olivia_agente_contexto + bucket olivia-reports | P2 |
-| NEW | Seed: olivia_flow (popular a partir de modelo_tags) | P1 |
-| NEW | Seed: olivia_tipos_prova (10 tipos reais) | P2 |
-| NEW | Import: olivia_modelo_juris (backend antigo) | P1 |
+| 1 | CC Investigação: Backend + Importação de Dados | CONCLUÍDO |
+| 2 | CC Investigação: GAS + Workflows N8N | CONCLUÍDO |
+| 3 | CC Revisão Crítica do Plano Mestre | CONCLUÍDO |
+| 4 | CC Geração Índice Detalhado SPEC OlivIA | rascunho |
 
-### FASE 5 — Reconstrução Frontend (por modo)
+### FASE 2 — Fixes P0 (E05-E10)
 
-| # | Título | Deps |
+| Ordem | Título | P |
 |---|---|---|
-| 7 | Step 1 Unificado (SearchBox + Painel + Seletores) | Fases 3+4 |
-| 8 | Smart Blocks Step 2 — Wizard de Tags | 7 + olivia_flow populado |
-| 9 | Smart Blocks Step 3 — Preview + Geração GAS | 8 |
-| 10 | Express Step 2 — Triagem IA (perguntas dinâmicas) | 7 + fix n8n |
-| 11 | Express Step 3 — Editor Outline drag-and-drop | 10 |
-| 12 | Express Steps 4-5 — Revisão + Conclusão | 11 |
-| 13 | Agente Steps 2-3 — Análise + Editor Rascunho | 7 + fix FK + fix endpoint |
-| 14 | Agente Steps 4-6 — Geração + Revisão + Conclusão | 13 |
-| 15 | Sistema de Abas Multi-petição WizardTabBar | 7 |
-| 16 | Aba Gerador — Landing + Fila Interna | 7 |
-| NEW | Remover VibeLaw Studio (card, componentes, routes, imports) | - |
+| 5 | Fix fetch() is not defined no N8N (15 Code nodes) | P1 |
+| 6 | Fix FK olivia_historico_modelo_id_fkey | P1 |
+| 7 | Fix salvarHistorico INSERT→UPDATE | P1 |
+| 8 | Fix ORG_ID hardcoded skill agente v2 | P2 |
+| 9 | Fix versões duplicadas Smart Blocks (label seletor) | P2 |
+| 10 | Fix query versão publicada (published_at NULL em 329 modelos) | P1 |
 
-### FASE 6 — Abas Auxiliares
+### FASE 3 — Migrations & Seeds (E11)
 
-| # | Título | Deps |
+| Ordem | Título | P |
 |---|---|---|
-| 17 | Chat OlivIA — Modal início + chat contextualizado | - |
-| 18 | Análise IA — Reconstruir 100% JARBAS | - |
+| 11 | Migration: categoria_empresa_id + bucket olivia-reports + olivia_agente_contexto + seeds (flow, tipos_prova) | P1 |
 
-### FASE 7 — Polimento & Extras
+### FASE 4 — Reconstrução Frontend (E12-E22)
 
-| # | Título | Deps |
+| Ordem | Título | Deps |
 |---|---|---|
-| 19 | Skill JARBAS: gerador relatório HTML caso | 14 |
-| 20 | Petição Livre — frontend próprio | 14 |
-| NEW | Criar tipos TypeScript gerador.types.ts | 7 |
-| NEW | Testes E2E Playwright todos os modos | Fases 5+6 |
+| 12 | Step 1 Unificado — SearchBox + Painel + Seletores + Upload | E05-E11 |
+| 13 | Smart Blocks Step 2 — Wizard de Tags | E12 + olivia_flow |
+| 14 | Smart Blocks Step 3 — Preview + Geração via GAS | E13 |
+| 15 | Express Step 2 — Triagem IA (perguntas dinâmicas) | E12 + E05 |
+| 16 | Express Step 3 — Editor Outline drag-and-drop | E15 |
+| 17 | Express Steps 4-5 — Revisão Rascunho + Conclusão | E16 |
+| 18 | Agente Steps 2-3 — Análise IA Profunda + Editor Rascunho | E12 + E06 |
+| 19 | Agente Steps 4-6 — Geração + Revisão + Conclusão | E18 |
+| 20 | Aba Análise IA — Reconstruir 100% JARBAS/JANA | — |
+| 21 | Aba Chat OlivIA — Modal início + Chat contextualizado | — |
+| 22 | Aba Gerador — Landing 3 modos + Fila Interna + WizardTabBar | E12 |
+
+### FASE 5 — Cleanup & Extras (E23-E26)
+
+| Ordem | Título | P |
+|---|---|---|
+| 23 | Cleanup: Remover VibeLaw Studio + Criar gerador.types.ts | P2 |
+| 24 | Skill JARBAS: gerador relatório HTML caso | P2 |
+| 25 | Petição Livre — frontend próprio | P3 |
+| 26 | Testes E2E Playwright — todos os modos OlivIA | P3 |
 
 ---
 

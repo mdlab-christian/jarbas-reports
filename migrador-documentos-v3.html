@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa Completo — Gerador de Documentos Make → n8n</title>
+<style>
+  :root {
+    --bg: #0f0f13;
+    --surface: #1a1a22;
+    --surface2: #22222e;
+    --border: #2e2e3e;
+    --text: #e8e8f0;
+    --muted: #8888a0;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --teal: #20c997;
+    --orange: #f97316;
+    --pink: #ec4899;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; padding: 24px; line-height: 1.6; }
+
+  .header { text-align: center; padding: 40px 20px 32px; border-bottom: 1px solid var(--border); margin-bottom: 32px; }
+  .header h1 { font-size: 1.9rem; font-weight: 700; background: linear-gradient(135deg, var(--teal), var(--purple)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .header p { color: var(--muted); margin-top: 8px; font-size: 0.88rem; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; margin-top: 8px; }
+  .badge.v3 { background: rgba(32,201,151,0.15); color: var(--teal); border: 1px solid rgba(32,201,151,0.3); }
+
+  .alert { padding: 16px 20px; border-radius: 10px; margin-bottom: 20px; display: flex; gap: 12px; align-items: flex-start; }
+  .alert.discovery { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); }
+  .alert.warning { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+  .alert.success { background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.3); }
+  .alert-icon { font-size: 1.2rem; margin-top: 1px; flex-shrink: 0; }
+  .alert-title { font-weight: 600; margin-bottom: 4px; }
+  .alert.discovery .alert-title { color: var(--blue); }
+  .alert.warning .alert-title { color: var(--yellow); }
+  .alert.success .alert-title { color: var(--green); }
+  .alert p, .alert li { color: var(--muted); font-size: 0.88rem; }
+  .alert ul { margin-top: 6px; padding-left: 18px; }
+  .alert li { margin-bottom: 2px; }
+
+  section { margin-bottom: 36px; }
+  h2 { font-size: 1rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+  .card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+  .status { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }
+  .status.ok { background: rgba(34,197,94,0.12); color: var(--green); border: 1px solid rgba(34,197,94,0.25); }
+  .status.missing { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.25); }
+  .status.partial { background: rgba(245,158,11,0.12); color: var(--yellow); border: 1px solid rgba(245,158,11,0.25); }
+  .status.new { background: rgba(168,85,247,0.12); color: var(--purple); border: 1px solid rgba(168,85,247,0.25); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* Stats row */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; text-align: center; }
+  .stat-val { font-size: 1.8rem; font-weight: 700; }
+  .stat-val.teal { color: var(--teal); }
+  .stat-val.purple { color: var(--purple); }
+  .stat-val.yellow { color: var(--yellow); }
+  .stat-val.red { color: var(--red); }
+  .stat-val.green { color: var(--green); }
+  .stat-label { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { text-align: left; padding: 8px 10px; background: var(--surface2); color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+  td { padding: 7px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .doc-id { font-family: 'Fira Code', monospace; font-size: 0.72rem; color: var(--teal); }
+  .doc-link { font-family: 'Fira Code', monospace; font-size: 0.72rem; color: var(--blue); text-decoration: none; }
+  .doc-link:hover { text-decoration: underline; }
+
+  .tag { display: inline-block; padding: 2px 7px; border-radius: 10px; font-size: 0.7rem; font-weight: 500; white-space: nowrap; }
+  .tag.christian { background: rgba(59,130,246,0.15); color: var(--blue); }
+  .tag.heloisa { background: rgba(236,72,153,0.15); color: var(--pink); }
+  .tag.todos { background: rgba(136,136,160,0.15); color: var(--muted); }
+  .tag.rs { background: rgba(34,197,94,0.12); color: var(--green); }
+  .tag.sc { background: rgba(32,201,151,0.12); color: var(--teal); }
+  .tag.sp { background: rgba(168,85,247,0.12); color: var(--purple); }
+  .tag.contrato { background: rgba(245,158,11,0.12); color: var(--yellow); }
+  .tag.procuracao { background: rgba(59,130,246,0.12); color: var(--blue); }
+  .tag.termo { background: rgba(249,115,22,0.12); color: var(--orange); }
+
+  /* Arch comparison */
+  .arch-compare { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .arch-compare { grid-template-columns: 1fr; } }
+  .arch-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .arch-title { font-size: 0.8rem; font-weight: 600; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+  .arch-step { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; font-size: 0.83rem; }
+  .arch-num { width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.68rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .arch-num.make { background: rgba(245,158,11,0.2); color: var(--yellow); }
+  .arch-num.n8n { background: rgba(32,201,151,0.2); color: var(--teal); }
+  .arch-step span { color: var(--muted); font-size: 0.8rem; }
+
+  /* Placeholders */
+  .placeholders { display: flex; flex-wrap: wrap; gap: 4px; }
+  .ph { display: inline-block; padding: 1px 6px; border-radius: 6px; font-size: 0.68rem; background: var(--surface2); border: 1px solid var(--border); color: var(--muted); font-family: monospace; }
+
+  /* Plano de migração */
+  .step-list { list-style: none; }
+  .step-list li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .step-list li:last-child { border-bottom: none; }
+  .step-badge { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+  .step-badge.p0 { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .step-badge.p1 { background: rgba(245,158,11,0.15); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .step-badge.p2 { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .step-content strong { display: block; margin-bottom: 3px; font-size: 0.92rem; }
+  .step-content span { color: var(--muted); font-size: 0.83rem; }
+  .code { font-family: 'Fira Code', monospace; font-size: 0.75rem; background: var(--surface2); border: 1px solid var(--border); padding: 8px 12px; border-radius: 6px; color: var(--teal); margin-top: 6px; white-space: pre-wrap; }
+
+  /* OAB map */
+  .oab-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .oab-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .oab-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .oab-val { font-weight: 600; font-size: 0.9rem; }
+
+  footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 40px; }
+  .mono { font-family: monospace; font-size: 0.8rem; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🗂️ Mapa Completo — Gerador de Documentos</h1>
+  <p>Análise do blueprint Make + estado atual Supabase · MP Advocacia</p>
+  <span class="badge v3">v3 · Auto-gerado por JARBAS · 2026-03-19 03:20</span>
+</div>
+
+<!-- DESCOBERTA PRINCIPAL -->
+<div class="alert discovery">
+  <div class="alert-icon">💡</div>
+  <div>
+    <div class="alert-title">Blueprint analisado: sistema é muito maior do que imaginávamos</div>
+    <p>O Make não tem 2 contratos + 2 procurações. Tem <strong>46 templates Google Docs</strong> cobrindo 10 tipos de documentos × advogado × estado. O Supabase tem apenas 6 registros para esse domínio — todos com <code>google_doc_id_original = NULL</code>. Precisa criar 40 novos registros e mapear todos os IDs.</p>
+  </div>
+</div>
+
+<div class="alert warning">
+  <div class="alert-icon">⚠️</div>
+  <div>
+    <div class="alert-title">Arquitetura Make ≠ do que o n8n atual implementa</div>
+    <p>O Make usa <strong>Google Docs como template</strong> (copia o Doc, preenche placeholders, exporta PDF, faz upload no Drive do cliente, deleta o Doc temporário). O n8n existente usa <strong>HTML inline → PDF.co</strong>. São abordagens diferentes — precisamos decidir qual manter.</p>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat"><div class="stat-val teal">46</div><div class="stat-label">templates no Make</div></div>
+  <div class="stat"><div class="stat-val purple">10</div><div class="stat-label">tipos de documento</div></div>
+  <div class="stat"><div class="stat-val yellow">5</div><div class="stat-label">OABs mapeadas</div></div>
+  <div class="stat"><div class="stat-val red">6</div><div class="stat-label">registros no Supabase</div></div>
+  <div class="stat"><div class="stat-val green">40</div><div class="stat-label">registros a criar</div></div>
+</div>
+
+<!-- OABs -->
+<section>
+  <h2>OABs Mapeadas no Make</h2>
+  <div class="oab-grid">
+    <div class="oab-card">
+      <div class="oab-label">Christian Paz</div>
+      <div class="oab-val" style="color:var(--blue)">RS/116571</div>
+      <div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Contratos RS · Procurações RS</div>
+    </div>
+    <div class="oab-card">
+      <div class="oab-label">Christian Paz</div>
+      <div class="oab-val" style="color:var(--teal)">SC/74025</div>
+      <div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Contratos SC · Procurações SC</div>
+    </div>
+    <div class="oab-card">
+      <div class="oab-label">Christian Paz</div>
+      <div class="oab-val" style="color:var(--purple)">SP/535101</div>
+      <div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Contratos SP · Procurações SP</div>
+    </div>
+    <div class="oab-card">
+      <div class="oab-label">Dra. Heloísa</div>
+      <div class="oab-val" style="color:var(--pink)">RS/131163</div>
+      <div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Contratos RS · Procurações RS</div>
+    </div>
+    <div class="oab-card">
+      <div class="oab-label">Dra. Heloísa</div>
+      <div class="oab-val" style="color:var(--pink)">SC/75466</div>
+      <div style="color:var(--muted);font-size:0.8rem;margin-top:4px">Contratos SC · Procurações SC</div>
+    </div>
+  </div>
+  <p style="color:var(--muted);font-size:0.82rem;margin-top:10px">⚠️ <strong>Heloísa não tem SP</strong> — não existe OAB SP para Heloísa no Make. Christian tem 3 estados, Heloísa tem 2.</p>
+</section>
+
+<!-- MAPA COMPLETO DOS TEMPLATES -->
+<section>
+  <h2>Mapa Completo — 46 Templates Google Docs</h2>
+
+  <!-- CHRISTIAN -->
+  <div class="card">
+    <h3><span class="tag christian">Christian Paz</span> · 27 templates</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Tipo</th><th>Estado/OAB</th><th>Documento</th><th>Google Doc ID</th><th>Placeholders</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--muted)">1.1</td>
+          <td><span class="tag contrato">contrato_midas</span></td>
+          <td><span class="tag todos">todos</span></td>
+          <td style="font-size:0.8rem">Contrato Midas PRESTAÇÃO DE SERVIÇOS</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/150mEVLj8_6XxXPKS5KqGolY6qMgOH8VSkyn9duem9yw" target="_blank">150mEVLj8...m9yw</a></td>
+          <td><div class="placeholders"><span class="ph">RG</span><span class="ph">CEP</span><span class="ph">CPF</span><span class="ph">DATA</span><span class="ph">CIDADE</span><span class="ph">ESTADO</span><span class="ph">NOME DA RUA</span><span class="ph">NOME COMPLETO</span><span class="ph">NÚMERO DO ENDEREÇO</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.2</td>
+          <td><span class="tag termo">termo_parceria</span></td>
+          <td><span class="tag rs">RS/116571</span></td>
+          <td style="font-size:0.8rem">TERMO DE CIÊNCIA PARCERIA MIDAS - RS116571</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/14gVJiFxVIX7U_6mWihDQwQ2KrRP3umEFsO-7P81Ob8I" target="_blank">14gVJiFx...Ob8I</a></td>
+          <td><div class="placeholders"><span class="ph">RG</span><span class="ph">CPF</span><span class="ph">DATA</span><span class="ph">CIDADE</span><span class="ph">ESTADO</span><span class="ph">PROFISSÃO</span><span class="ph">NOME COMPLETO</span><span class="ph">NÚMERO DO ENDEREÇO</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.2</td>
+          <td><span class="tag termo">termo_parceria</span></td>
+          <td><span class="tag sc">SC/74025</span></td>
+          <td style="font-size:0.8rem">TERMO DE CIÊNCIA PARCERIA MIDAS - SC074025</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1-r5n1bov0h28EBcv6kL2bFA4cGCze5TNL19230J66pM" target="_blank">1-r5n1bo...J66pM</a></td>
+          <td><div class="placeholders"><span class="ph">RG</span><span class="ph">CPF</span><span class="ph">DATA</span><span class="ph">PROFISSÃO</span><span class="ph">NOME COMPLETO</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.2</td>
+          <td><span class="tag termo">termo_parceria</span></td>
+          <td><span class="tag sp">SP/535101</span></td>
+          <td style="font-size:0.8rem">TERMO DE CIÊNCIA PARCERIA MIDAS - SP535101</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1y-5HwoEHmEso0Mr1VE6pPZTPiBnrlhe9Aaj7UkXko_s" target="_blank">1y-5HwoE...ko_s</a></td>
+          <td><div class="placeholders"><span class="ph">RG</span><span class="ph">CPF</span><span class="ph">DATA</span><span class="ph">PROFISSÃO</span><span class="ph">NOME COMPLETO</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.3</td>
+          <td><span class="tag contrato">contrato_empresa</span></td>
+          <td><span class="tag rs">RS/116571</span></td>
+          <td style="font-size:0.8rem">E - Contrato Empresa - RS116571</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1a6RmjoFZC-dOSgb7VQW9ZsD3VUw-eS7tMNz2XJKQHIk" target="_blank">1a6Rmjo...QHIk</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">RG</span><span class="ph">PROFISSÃO</span><span class="ph">EMPRESA</span><span class="ph">CONTRATO</span><span class="ph">VALOR</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.3</td>
+          <td><span class="tag contrato">contrato_empresa</span></td>
+          <td><span class="tag sc">SC/74025</span></td>
+          <td style="font-size:0.8rem">E - Contrato Empresa - SC74025</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1_sP_B58uj6FcLt7YjfobHkOzPioLhts6CNdXEr8U4oU" target="_blank">1_sP_B58...U4oU</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">EMPRESA</span><span class="ph">CONTRATO</span><span class="ph">VALOR</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.3</td>
+          <td><span class="tag contrato">contrato_empresa</span></td>
+          <td><span class="tag sp">SP/535101</span></td>
+          <td style="font-size:0.8rem">E - Contrato Empresa - SP535101</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1xeGw9Twn5VAU4wQ9a_aOYhY-gbZ04ZFebT8ZH2Iv4zY" target="_blank">1xeGw9T...v4zY</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">EMPRESA</span><span class="ph">CONTRATO</span><span class="ph">VALOR</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.4</td>
+          <td><span class="tag termo">termo_ciencia_empresa</span></td>
+          <td><span class="tag todos">Christian (todos)</span></td>
+          <td style="font-size:0.8rem">Ciência de Destinação de Valores - Empresas</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1Ichq9v1Wv0VxO-VrBlHozaLRXWJnMZNV59Xjb11Q3R0" target="_blank">1Ichq9v1...Q3R0</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">EMPRESA RESPONSÁVEL</span><span class="ph">NUMERO</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.5</td>
+          <td><span class="tag termo">termo_veracidade_empresa</span></td>
+          <td><span class="tag todos">Christian (todos)</span></td>
+          <td style="font-size:0.8rem">Termo de Veracidade - Empresas</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1yLD2PGdFWvUZxGzFnDbsY6P6Vit0xyEJFfS2v9XcHeg" target="_blank">1yLD2PG...cHeg</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">EMPRESA RESPONSÁVEL</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.6</td>
+          <td><span class="tag contrato">contrato_orgao</span></td>
+          <td><span class="tag rs">RS/116571</span></td>
+          <td style="font-size:0.8rem">F - Contrato Órgão - RS116571</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/13CC9uaKmuDq67gJK3mH_GlkUfqCPUHWZSI73R2oA5Ak" target="_blank">13CC9ua...A5Ak</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span><span class="ph">CIDADE</span><span class="ph">ESTADO</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.6</td>
+          <td><span class="tag contrato">contrato_orgao</span></td>
+          <td><span class="tag sc">SC/74025</span></td>
+          <td style="font-size:0.8rem">F - Contrato Órgão - SC74025</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1atWJZb4zcduNyTbMva70Y9B7qmKGhx9tjwOcNqn0QUo" target="_blank">1atWJZb4...QUo</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span><span class="ph">CIDADE</span><span class="ph">ESTADO</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.6</td>
+          <td><span class="tag contrato">contrato_orgao</span></td>
+          <td><span class="tag sp">SP/535101</span></td>
+          <td style="font-size:0.8rem">F - Contrato Órgão - SP535101</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1jAlXHx541T3_Ssyfyq5g9EfTG2BPOP_ispw9B4qAjpg" target="_blank">1jAlXHx5...Ajpg</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.7</td>
+          <td><span class="tag termo">termo_ciencia_orgao</span></td>
+          <td><span class="tag todos">Christian (todos)</span></td>
+          <td style="font-size:0.8rem">Ciência de Destinação - Boa Vista</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/100a0W0XZpyJ2MBkfFUudeTcgC7WtpWprN78duqoBUmc" target="_blank">100a0W0X...UMc</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.8</td>
+          <td><span class="tag termo">termo_veracidade_orgao</span></td>
+          <td><span class="tag todos">Christian (todos)</span></td>
+          <td style="font-size:0.8rem">Termo de Veracidade - Boa Vista</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/16d4r_oFrfmvfX14UOVMLoUXr8uj1XaoXvFVnQYJwcF8" target="_blank">16d4r_oF...wcF8</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.1</td>
+          <td><span class="tag procuracao">procuracao_empresa</span></td>
+          <td><span class="tag rs">RS/116571</span></td>
+          <td style="font-size:0.8rem">C - Procuração Empresa - RS116571</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1HcMJaZa9jPLsj--0Ey7TMtXDG6qnkTkGsnRsdyyM4-A" target="_blank">1HcMJaZa...M4-A</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">EMPRESA</span><span class="ph">CONTRATO</span><span class="ph">VALOR</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.1</td>
+          <td><span class="tag procuracao">procuracao_empresa</span></td>
+          <td><span class="tag sc">SC/74025</span></td>
+          <td style="font-size:0.8rem">C - Procuração Empresa - SC74025</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1P7cBZ6By6hCeyKUoH5jfTzkovcXovOjbXFlpSgpdCco" target="_blank">1P7cBZ6B...dCco</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">EMPRESA</span><span class="ph">VALOR</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.1</td>
+          <td><span class="tag procuracao">procuracao_empresa</span></td>
+          <td><span class="tag sp">SP/535101</span></td>
+          <td style="font-size:0.8rem">C - Procuração Empresa - SP535101</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1fa_NvvueWLEfex0j7SLOa3qk3n0Mb6eSzssfAI6b7Go" target="_blank">1fa_Nvvu...b7Go</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">EMPRESA</span><span class="ph">VALOR</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.2</td>
+          <td><span class="tag procuracao">procuracao_orgao</span></td>
+          <td><span class="tag rs">RS/116571</span></td>
+          <td style="font-size:0.8rem">D - Procuração Órgão - RS116571</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1JCpAb3vIfZpwScmOCxUp3zmdVSyc-0DPnhiithlqNus" target="_blank">1JCpAb3v...qNus</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.2</td>
+          <td><span class="tag procuracao">procuracao_orgao</span></td>
+          <td><span class="tag sc">SC/74025</span></td>
+          <td style="font-size:0.8rem">D - Procuração Órgão - SC74025</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1disC_5Gya8nfwnsSWcS0sqYodgwE-cJoptoeLhmjoqg" target="_blank">1disC_5G...joqg</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span></div></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.2</td>
+          <td><span class="tag procuracao">procuracao_orgao</span></td>
+          <td><span class="tag sp">SP/535101</span></td>
+          <td style="font-size:0.8rem">D - Procuração Órgão - SP535101</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/19jBb1TZ3RAot1PqiAaipgexouYPpGinkmr5EswTPkzY" target="_blank">19jBb1TZ...kzY</a></td>
+          <td><div class="placeholders"><span class="ph">NOME COMPLETO</span><span class="ph">CPF</span><span class="ph">DATA</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- HELOISA -->
+  <div class="card">
+    <h3><span class="tag heloisa">Dra. Heloísa</span> · 19 templates (RS + SC apenas)</h3>
+    <div class="tbl-wrap">
+    <table>
+      <thead><tr>
+        <th>#</th><th>Tipo</th><th>Estado/OAB</th><th>Documento</th><th>Google Doc ID</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td style="color:var(--muted)">1.2</td>
+          <td><span class="tag termo">termo_parceria</span></td>
+          <td><span class="tag rs">RS/131163</span></td>
+          <td style="font-size:0.8rem">TERMO DE CIÊNCIA PARCERIA - RS131163</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1wwBAzmfbSICd531Os2goh4FZaka4IYRp-oplxP3dnCA" target="_blank">1wwBAzm...dnCA</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.2</td>
+          <td><span class="tag termo">termo_parceria</span></td>
+          <td><span class="tag sc">SC/75466</span></td>
+          <td style="font-size:0.8rem">TERMO DE CIÊNCIA PARCERIA - SC75466</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1NSxEujSu-kLTHpiZsue-UudzZoXsLaONuoHXV3DGRvM" target="_blank">1NSxEujS...RvM</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.3</td>
+          <td><span class="tag contrato">contrato_empresa</span></td>
+          <td><span class="tag rs">RS/131163</span></td>
+          <td style="font-size:0.8rem">E - Contrato Empresa - RS131163</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1kXI4A4UrIMRBqOCbPJ86dmgIheHbyofc3EiAyPd05aU" target="_blank">1kXI4A4U...5aU</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.3</td>
+          <td><span class="tag contrato">contrato_empresa</span></td>
+          <td><span class="tag sc">SC/75466</span></td>
+          <td style="font-size:0.8rem">F - Contrato Órgão - SC75466 (empresa)</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1ycupSEVIDxtTKQMDxZrhSm2Rj9aFqdZtyO_nPMmAJuo" target="_blank">1ycupSEV...AJuo</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.4</td>
+          <td><span class="tag termo">termo_ciencia_empresa</span></td>
+          <td><span class="tag todos">Heloísa (todos)</span></td>
+          <td style="font-size:0.8rem">Ciência de Destinação - Empresas</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1mbZxXLFGLaAPbS9gAFpxU-Dp9jMgEP1-HzvJS22CoK8" target="_blank">1mbZxXLF...oK8</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.5</td>
+          <td><span class="tag termo">termo_veracidade_empresa</span></td>
+          <td><span class="tag todos">Heloísa (todos)</span></td>
+          <td style="font-size:0.8rem">Termo de Veracidade - Empresas</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1AkiIJv36_46mcitbmQDXp5pugtRvhACcOOtLuKLafMM" target="_blank">1AkiIJv3...fMM</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.6</td>
+          <td><span class="tag contrato">contrato_orgao</span></td>
+          <td><span class="tag rs">RS/131163</span></td>
+          <td style="font-size:0.8rem">D - Procuração Órgão - RS131163 (contrato)</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1H7EhvA1OlZz3OzycdQnkHIKZm7RU-_mMuB5vdrXnK6E" target="_blank">1H7EhvA1...nK6E</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.6</td>
+          <td><span class="tag contrato">contrato_orgao</span></td>
+          <td><span class="tag sc">SC/75466</span></td>
+          <td style="font-size:0.8rem">F - Contrato Órgão - SC75466</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1ycupSEVIDxtTKQMDxZrhSm2Rj9aFqdZtyO_nPMmAJuo" target="_blank">1ycupSEV...AJuo</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.7</td>
+          <td><span class="tag termo">termo_ciencia_orgao</span></td>
+          <td><span class="tag todos">Heloísa (todos)</span></td>
+          <td style="font-size:0.8rem">Ciência de Destinação - Boa Vista</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1qFRCKeSLSA_SlMtkqqsKK_kllFWMQ1PX0YJH0WXncE8" target="_blank">1qFRCKeS...ncE8</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">1.8</td>
+          <td><span class="tag termo">termo_veracidade_orgao</span></td>
+          <td><span class="tag todos">Heloísa (todos)</span></td>
+          <td style="font-size:0.8rem">Termo de Veracidade - Boa Vista</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1xLpz143evo4QpQ79i8iW29FuiQrwBX5WFQupNdENXyA" target="_blank">1xLpz143...NXyA</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.1</td>
+          <td><span class="tag procuracao">procuracao_empresa</span></td>
+          <td><span class="tag rs">RS/131163</span></td>
+          <td style="font-size:0.8rem">C - Procuração Empresa - RS131163</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1HL89eFPSBvgfKAtwdOFYBcPnZqCFB1KVf1hvL0oo0-E" target="_blank">1HL89eFP...o0-E</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.1</td>
+          <td><span class="tag procuracao">procuracao_empresa</span></td>
+          <td><span class="tag sc">SC/75466</span></td>
+          <td style="font-size:0.8rem">C - Procuração Empresa - SC75466</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1XUERHLzEr1O-Xa1KNBVOv0arpt2f7VD2n3yJiWCAmQU" target="_blank">1XUERHLz...QU</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.2</td>
+          <td><span class="tag procuracao">procuracao_orgao</span></td>
+          <td><span class="tag rs">RS/131163</span></td>
+          <td style="font-size:0.8rem">D - Procuração Órgão - RS131163</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1H7EhvA1OlZz3OzycdQnkHIKZm7RU-_mMuB5vdrXnK6E" target="_blank">1H7EhvA1...nK6E</a></td>
+        </tr>
+        <tr>
+          <td style="color:var(--muted)">2.2</td>
+          <td><span class="tag procuracao">procuracao_orgao</span></td>
+          <td><span class="tag sc">SC/75466</span></td>
+          <td style="font-size:0.8rem">D - Procuração Boa Vista - SC75466</td>
+          <td><a class="doc-link" href="https://docs.google.com/document/d/1kLVsmEAfntS3jYe8Ul45t4g-fw1x1P38Io_iU-LIg2k" target="_blank">1kLVsmEA...g2k</a></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- COMPARAÇÃO DE ARQUITETURA -->
+<section>
+  <h2>Comparação de Arquitetura</h2>
+  <div class="arch-compare">
+    <div class="arch-box">
+      <div class="arch-title" style="color:var(--yellow)">⚙️ Make (atual)</div>
+      <div class="arch-step"><span class="arch-num make">1</span><div>Webhook recebe <code>tipo + id_lead</code></div></div>
+      <div class="arch-step"><span class="arch-num make">2</span><div>Busca lead no Supabase por ID</div></div>
+      <div class="arch-step"><span class="arch-num make">3</span><div>Router: decide por <code>tipo</code> (contrato_midas vs outros)</div></div>
+      <div class="arch-step"><span class="arch-num make">4</span><div>Sub-router: filtra por <code>advogado.oab</code> (RS/SC/SP)</div></div>
+      <div class="arch-step"><span class="arch-num make">5</span><div><strong>Google Docs:</strong> copia template, substitui placeholders</div></div>
+      <div class="arch-step"><span class="arch-num make">6</span><div>HTTP GET: exporta o Google Doc como PDF</div></div>
+      <div class="arch-step"><span class="arch-num make">7</span><div>Google Drive: upload PDF na pasta do cliente</div></div>
+      <div class="arch-step"><span class="arch-num make">8</span><div>Google Drive: <strong>deleta</strong> o Doc temporário</div></div>
+      <div class="arch-step"><span class="arch-num make">9</span><div>Renomeia pasta do cliente no Drive</div></div>
+      <p style="color:var(--muted);font-size:0.78rem;margin-top:12px">⚠️ Dependência total do Google Drive do cliente (<code>drive_cliente</code>). PDF salvo no Drive, não no Supabase Storage.</p>
+    </div>
+    <div class="arch-box">
+      <div class="arch-title" style="color:var(--teal)">⚡ n8n (proposto)</div>
+      <div class="arch-step"><span class="arch-num n8n">1</span><div>Webhook recebe <code>tipo + oab + id_lead</code></div></div>
+      <div class="arch-step"><span class="arch-num n8n">2</span><div>Busca template no Supabase por <code>tipo + oab + advogado</code></div></div>
+      <div class="arch-step"><span class="arch-num n8n">3</span><div>Busca dados do lead no Supabase</div></div>
+      <div class="arch-step"><span class="arch-num n8n">4</span><div>Build HTML: substitui placeholders no <code>conteudo_html</code></div></div>
+      <div class="arch-step"><span class="arch-num n8n">5</span><div>PDF.co: converte HTML → PDF</div></div>
+      <div class="arch-step"><span class="arch-num n8n">6</span><div>Upload no Supabase Storage <em>ou</em> Google Drive</div></div>
+      <div class="arch-step"><span class="arch-num n8n">7</span><div>Registra documento gerado na tabela</div></div>
+      <div class="arch-step"><span class="arch-num n8n">8</span><div>Retorna URL do PDF + notifica</div></div>
+      <p style="color:var(--muted);font-size:0.78rem;margin-top:12px">✅ Templates versionados no Supabase. Sem dependência do Google Drive para gerar PDFs. Mais fácil de escalar para múltiplos advogados.</p>
+    </div>
+  </div>
+</section>
+
+<!-- DECISÃO PENDENTE -->
+<section>
+  <h2>Decisão Necessária — Christian/Gustavo</h2>
+  <div class="alert warning">
+    <div class="alert-icon">🤔</div>
+    <div>
+      <div class="alert-title">Qual abordagem adotar para o n8n?</div>
+      <ul>
+        <li><strong>Opção A — Manter Google Docs:</strong> n8n replica o fluxo Make (copia Google Doc → exporta PDF → sobe no Drive). Vantagem: PDFs idênticos aos atuais. Desvantagem: dependência do Google Drive, editar template = editar Doc no Drive.</li>
+        <li style="margin-top:8px"><strong>Opção B — HTML no Supabase (recomendado por JARBAS):</strong> Templates em HTML no Supabase, PDF gerado pelo PDF.co. Vantagem: tudo versionado, sem Google, mais rápido. Desvantagem: precisamos converter todos os Google Docs para HTML — trabalho inicial.</li>
+        <li style="margin-top:8px"><strong>Opção C — Híbrida:</strong> n8n chama a Google Docs API diretamente (sem Make), usando os mesmos Doc IDs. Menos trabalho de conversão, mantém os Docs originais.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- PLANO SE OPÇÃO B -->
+<section>
+  <h2>Plano de Migração — Opção B (HTML no Supabase)</h2>
+
+  <div class="card">
+    <ul class="step-list">
+      <li>
+        <span class="step-badge p0">1</span>
+        <div class="step-content">
+          <strong>Criar 40 novos registros em documento_templates</strong>
+          <span>Supabase tem 6 registros. Make tem 46 templates. Precisa criar ~40 novos com os tipos: termo_parceria, contrato_empresa, contrato_orgao, procuracao_empresa, procuracao_orgao, termo_ciencia_empresa, termo_ciencia_orgao, termo_veracidade_empresa, termo_veracidade_orgao</span>
+          <div class="code">INSERT INTO documento_templates (tipo, grupo_advogado, estado, oab, google_doc_id_original, conteudo_html, placeholders)
+VALUES
+  ('termo_parceria', 'christian', 'RS', 'RS/116571', '14gVJiFxVIX7U_6mWihDQwQ2KrRP3umEFsO-7P81Ob8I', '...html...', ARRAY['NOME COMPLETO', 'CPF', ...]),
+  ('contrato_empresa', 'christian', 'RS', 'RS/116571', '1a6RmjoFZC-dOSgb7VQW9ZsD3VUw-eS7tMNz2XJKQHIk', '...html...', ...),
+  ...</div>
+        </div>
+      </li>
+      <li>
+        <span class="step-badge p0">2</span>
+        <div class="step-content">
+          <strong>Exportar + converter os Google Docs para HTML</strong>
+          <span>Para cada um dos 46 Doc IDs, fazer GET <code>https://docs.google.com/document/d/{ID}/export?format=html</code> via Google API, limpar o HTML e salvar no campo <code>conteudo_html</code>. JARBAS pode fazer isso automaticamente se tiver o Google OAuth token.</span>
+        </div>
+      </li>
+      <li>
+        <span class="step-badge p1">3</span>
+        <div class="step-content">
+          <strong>Criar workflow n8n WH-DOC-GERAR (único, genérico)</strong>
+          <span>Um só workflow que recebe <code>{tipo, oab, id_lead}</code>, busca template no Supabase, popula placeholders, gera PDF. Substitui todas as 46 rotas do Make por um único fluxo parametrizado.</span>
+        </div>
+      </li>
+      <li>
+        <span class="step-badge p1">4</span>
+        <div class="step-content">
+          <strong>Testar com processo real (paralelo ao Make)</strong>
+          <span>Rodar em paralelo por 1 semana para validar os PDFs gerados. Após aprovação → desativar Make.</span>
+        </div>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- O QUE JARBAS PODE FAZER AGORA -->
+<section>
+  <h2>O que JARBAS consegue fazer agora (sem aprovação)</h2>
+  <div class="alert success">
+    <div class="alert-icon">✅</div>
+    <div>
+      <div class="alert-title">Populo o google_doc_id_original nos 6 registros existentes + crio os 40 novos</div>
+      <p>Tenho todos os IDs mapeados do blueprint. Posso já executar os UPDATEs nos registros existentes e os INSERTs para os novos tipos — sem precisar dos textos dos documentos (o <code>conteudo_html</code> fica NULL por enquanto, populado depois via exportação dos Google Docs).</p>
+      <p style="margin-top:8px">Diga <strong>"executa o mapeamento"</strong> e eu faço isso agora.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  JARBAS · MP Advocacia · v3 · 2026-03-19 03:20<br>
+  Fontes: Make Blueprint (46 templates) · Supabase qdivfairxhdihaqqypgb · n8n Railway<br>
+  Anterior: <a href="migrador-documentos-v2.html" style="color:var(--blue)">v2 (análise sem blueprint)</a>
+</footer>
+
+</body>
+</html>

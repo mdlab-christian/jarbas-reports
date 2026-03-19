@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OlivIA v3 — RAG + JANA Loop · Plano Completo</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3347;
+      --accent: #6c63ff;
+      --accent2: #00d4aa;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.7; }
+
+    .header { background: linear-gradient(135deg, #1a1d27, #0f1117); border-bottom: 1px solid var(--border); padding: 32px 40px; }
+    .header h1 { font-size: 26px; font-weight: 800; color: #fff; }
+    .header h1 em { color: var(--accent2); font-style: normal; font-family: var(--mono); }
+    .header .meta { color: var(--muted); font-size: 12px; margin-top: 8px; display: flex; gap: 20px; flex-wrap: wrap; }
+    .header .meta b { color: var(--accent); }
+
+    .container { max-width: 1120px; margin: 0 auto; padding: 32px 40px; }
+
+    .approve-card { background: linear-gradient(135deg, rgba(0,212,170,0.08), rgba(108,99,255,0.08)); border: 1.5px solid var(--accent2); border-radius: 16px; padding: 28px 32px; margin-bottom: 44px; }
+    .approve-card h2 { font-size: 20px; font-weight: 800; color: var(--accent2); margin-bottom: 12px; }
+
+    .section { margin-bottom: 48px; }
+    .section > h2 { font-size: 17px; font-weight: 700; color: #fff; border-left: 3px solid var(--accent2); padding-left: 12px; margin-bottom: 18px; }
+    h3 { font-size: 14px; font-weight: 700; color: var(--accent); margin: 22px 0 10px; }
+
+    .probability { display: flex; align-items: center; gap: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin: 20px 0; }
+    .prob-num { font-size: 52px; font-weight: 900; line-height: 1; }
+    .prob-num.high { color: var(--success); }
+    .prob-num.mid { color: var(--warn); }
+    .prob-text { flex: 1; }
+    .prob-text strong { color: #fff; font-size: 15px; display: block; margin-bottom: 6px; }
+    .prob-text p { color: var(--muted); font-size: 13px; }
+
+    .phase-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin: 20px 0; }
+    .phase { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+    .phase.active { border-color: var(--accent2); }
+    .phase .ph-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 4px; }
+    .phase .ph-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+    .phase .ph-eta { font-family: var(--mono); font-size: 11px; color: var(--accent2); background: var(--surface2); padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 10px; }
+    .phase p { color: var(--muted); font-size: 12px; line-height: 1.6; }
+
+    .arch { display: flex; gap: 0; align-items: stretch; margin: 20px 0; flex-wrap: wrap; }
+    .arch-item { background: var(--surface); border: 1px solid var(--border); padding: 16px 18px; flex: 1; min-width: 140px; border-radius: 0; }
+    .arch-item:first-child { border-radius: 10px 0 0 10px; }
+    .arch-item:last-child { border-radius: 0 10px 10px 0; }
+    .arch-item.highlight { border-color: var(--accent2); background: rgba(0,212,170,0.05); }
+    .arch-item .al { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; }
+    .arch-item .ac { font-size: 13px; color: var(--text); margin-top: 4px; }
+    .arch-item .ac strong { color: var(--accent2); font-family: var(--mono); font-size: 12px; }
+    .arch-arrow { display: flex; align-items: center; color: var(--accent); font-size: 18px; padding: 0 4px; }
+
+    .loop-box { background: var(--surface2); border: 1px solid var(--accent); border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .loop-box .loop-title { color: var(--accent2); font-weight: 700; font-size: 15px; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .loop-step { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px dashed var(--border); }
+    .loop-step:last-child { border-bottom: none; }
+    .loop-n { width: 26px; height: 26px; border-radius: 50%; background: var(--accent2); color: #000; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; }
+    .loop-step .lc strong { color: #fff; display: block; font-size: 13px; margin-bottom: 2px; }
+    .loop-step .lc span { color: var(--muted); font-size: 12px; }
+    .loop-step .lc code { font-family: var(--mono); font-size: 11px; background: var(--surface); padding: 1px 6px; border-radius: 3px; color: #a5b4fc; }
+
+    .codeblock { background: #0a0c14; border: 1px solid var(--border); border-radius: 8px; padding: 18px; font-family: var(--mono); font-size: 12px; line-height: 1.9; color: #c4cad4; overflow-x: auto; white-space: pre; margin: 12px 0; }
+    .codeblock .kw { color: var(--accent2); }
+    .codeblock .str { color: #68d391; }
+    .codeblock .comment { color: #4a5568; }
+    .codeblock .fn { color: var(--accent); }
+    .codeblock .num { color: #fbbf24; }
+
+    code { font-family: var(--mono); font-size: 12px; background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: #a5b4fc; }
+
+    table.t { width: 100%; border-collapse: collapse; margin: 14px 0; }
+    table.t th { background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    table.t td { padding: 11px 14px; border-bottom: 1px solid var(--border); vertical-align: top; font-size: 13px; }
+    table.t tr:last-child td { border-bottom: none; }
+    table.t td:first-child { font-family: var(--mono); font-size: 11px; color: var(--accent2); }
+    table.t .good { color: var(--success); }
+    table.t .bad { color: var(--danger); }
+
+    .badge { display: inline-flex; padding: 2px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .badge.done { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+    .badge.new { background: rgba(108,99,255,0.15); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+    .badge.warn { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
+
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin: 16px 0; }
+    .box { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+    .box h4 { font-size: 13px; font-weight: 700; margin-bottom: 10px; }
+    .box.danger { border-color: var(--danger); }
+    .box.danger h4 { color: var(--danger); }
+    .box.success { border-color: var(--success); }
+    .box.success h4 { color: var(--success); }
+
+    ul.list { list-style: none; padding: 0; }
+    ul.list li { padding: 5px 0; display: flex; gap: 8px; font-size: 13px; }
+    ul.list li::before { content: '→'; color: var(--accent2); flex-shrink: 0; }
+
+    .component-list { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 14px 0; }
+    .comp { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; font-size: 12px; }
+    .comp .name { font-family: var(--mono); color: #a5b4fc; font-size: 11px; margin-bottom: 4px; }
+    .comp .status { font-size: 11px; color: var(--muted); }
+    .comp.pending { border-color: var(--warn); }
+    .comp.pending .status { color: var(--warn); }
+
+    .warn-box { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 14px 18px; margin: 12px 0; color: var(--warn); font-size: 13px; }
+    .info-box { background: rgba(108,99,255,0.07); border: 1px solid rgba(108,99,255,0.2); border-radius: 8px; padding: 14px 18px; margin: 12px 0; color: #c4b5fd; font-size: 13px; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+    .footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>OlivIA v3 — <em>RAG + JANA Loop</em> · Plano Completo</h1>
+  <div class="meta">
+    <span>JANA · 2026-03-19</span>
+    <span>Projeto: <b>48d9bfaa-206f-457c-95f6-36ed25e4162e</b></span>
+    <span>Executor: <b>JANA (sem CC)</b></span>
+    <span>Aguarda: <b>aprovação Christian</b></span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- APROVAÇÃO -->
+  <div class="approve-card">
+    <h2>📋 O que você está aprovando</h2>
+    <p>Um plano em 3 fases executadas sequencialmente por JANA, sem Claude Code, sem n8n. Tudo interno.</p>
+    <br>
+    <table class="t" style="margin: 0;">
+      <thead><tr><th>Fase</th><th>O que é</th><th>Tempo est.</th></tr></thead>
+      <tbody>
+        <tr><td>1 — Criar skill rag-projeto</td><td>Script Node.js + SKILL.md. Import/search/update/list.</td><td>~45min</td></tr>
+        <tr><td>2 — Popular RAG OlivIA v3</td><td>8 arquivos da pasta → ~130 chunks → Supabase pgvector.</td><td>~5min</td></tr>
+        <tr><td>3 — Loop de Revisão JANA</td><td>JANA abre browser, screenshot, consulta RAG, corrige, commit, avança. Sem CC.</td><td>Roda enquanto você dorme</td></tr>
+      </tbody>
+    </table>
+    <br>
+    <div class="info-box">
+      <strong>O que NÃO será feito agora:</strong> nenhuma mudança fora da pasta OlivIA. Só cria a skill, popula o RAG e executa o loop de revisão da /olivia.
+    </div>
+  </div>
+
+  <!-- POR QUE MUDOU A ABORDAGEM -->
+  <div class="section">
+    <h2>🔎 Por que o CC falhou e o que muda</h2>
+    <div class="grid2">
+      <div class="box danger">
+        <h4>❌ CC — O que não funcionou</h4>
+        <ul class="list">
+          <li>Leu 11k linhas de spec antes de começar → contexto saturado</li>
+          <li>Perdeu o fio condutor entre steps — alucinação nas conexões</li>
+          <li>Não sabia o que já tinha sido testado vs o que faltava</li>
+          <li>Sem rastreamento de estado — recomeçava do zero em cada sessão</li>
+          <li>Correções sem validação visual → bugs que pareciam corrigidos</li>
+        </ul>
+      </div>
+      <div class="box success">
+        <h4>✅ RAG + JANA Loop — O que muda</h4>
+        <ul class="list">
+          <li>RAG entrega só o trecho relevante (~2k tokens) → contexto limpo</li>
+          <li>Estado persistido em <code>projetos_etapas</code> → nunca perde o que fez</li>
+          <li>JANA tira screenshot antes + depois de cada fix → validação real</li>
+          <li>Commit após cada correção → histórico granular, rollback fácil</li>
+          <li>JANA conhece o banco, o browser, o git — não precisa de intermediário</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- PROBABILIDADE DE SUCESSO -->
+  <div class="section">
+    <h2>🎯 Chances reais de funcionar</h2>
+
+    <div class="probability">
+      <div class="prob-num high">75%</div>
+      <div class="prob-text">
+        <strong>De conseguir revisar e corrigir todos os steps do Gerador Express enquanto você dorme</strong>
+        <p>O principal risco não é o RAG nem o loop — é a complexidade dos flows n8n (B-01 tipo petição, modelos, versões). Com o RAG entregando a spec correta, JANA tem tudo que precisa. O que pode falhar: fix que exige teste de backend real (n8n offline, seed incompleto).</p>
+      </div>
+    </div>
+
+    <div class="probability">
+      <div class="prob-num high">95%</div>
+      <div class="prob-text">
+        <strong>De entregar o frontend conforme spec (campos, layout, fluxo de steps)</strong>
+        <p>JANA já corrigiu bugs similares com browser + edit + commit. Com RAG para confirmar spec antes de cada fix, chance de alucinação cai drasticamente.</p>
+      </div>
+    </div>
+
+    <div class="probability">
+      <div class="prob-num mid">55%</div>
+      <div class="prob-text">
+        <strong>De testar integração completa (frontend → n8n → GAS → backend) em loop único</strong>
+        <p>Integração real depende de serviços externos (n8n Railway, GAS). Se n8n estiver offline ou webhook incorreto, o loop para nessa etapa e registra o bloqueio. Não trava o restante.</p>
+      </div>
+    </div>
+
+    <div class="warn-box">
+      <strong>Expectativa realista:</strong> você acorda com o frontend 85-90% conforme spec, cada divergência registrada como etapa no banco, e os bloqueios de integração claramente identificados com causa raiz. Não "pronto pra produção" — mas pronto para lapidação final sua.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ARQUITETURA DO LOOP -->
+  <div class="section">
+    <h2>⚙️ Como o Loop Funciona — Arquitetura</h2>
+
+    <div class="arch">
+      <div class="arch-item">
+        <div class="al">Estado</div>
+        <div class="ac"><strong>projetos_etapas</strong><br>o que foi feito,<br>o que falta, status</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-item highlight">
+        <div class="al">JANA lê próxima etapa</div>
+        <div class="ac"><strong>rag-projeto search</strong><br>consulta spec do<br>componente alvo</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-item">
+        <div class="al">Browser</div>
+        <div class="ac"><strong>screenshot atual</strong><br>navega na UI como<br>usuário real</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-item">
+        <div class="al">Compara</div>
+        <div class="ac"><strong>spec RAG vs real</strong><br>identifica<br>divergências</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-item highlight">
+        <div class="al">Corrige</div>
+        <div class="ac"><strong>edit direto</strong><br>no arquivo .tsx<br>+ git commit</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-item">
+        <div class="al">Valida</div>
+        <div class="ac"><strong>screenshot pós-fix</strong><br>confirma visual<br>+ marca done</div>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-item">
+        <div class="al">Repete</div>
+        <div class="ac">próxima etapa<br>até <strong>todas done</strong></div>
+      </div>
+    </div>
+
+    <div class="loop-box">
+      <div class="loop-title">🔄 Loop JANA por componente</div>
+      <div class="loop-step">
+        <div class="loop-n">1</div>
+        <div class="lc">
+          <strong>Lê estado do projeto no banco</strong>
+          <span>Busca etapas <code>status='pendente'</code> em <code>projetos_etapas</code> ordenadas por <code>ordem</code>. Pega a próxima.</span>
+        </div>
+      </div>
+      <div class="loop-step">
+        <div class="loop-n">2</div>
+        <div class="lc">
+          <strong>Consulta RAG — spec do componente</strong>
+          <span><code>rag-projeto search "[componente]" --projeto olivia-v3</code> → recebe trechos relevantes do T2-prd-frontend + Master Plan.</span>
+        </div>
+      </div>
+      <div class="loop-step">
+        <div class="loop-n">3</div>
+        <div class="lc">
+          <strong>Lê o arquivo .tsx atual</strong>
+          <span>Lê o código real do componente alvo. Compara com spec do RAG.</span>
+        </div>
+      </div>
+      <div class="loop-step">
+        <div class="loop-n">4</div>
+        <div class="lc">
+          <strong>Screenshot no browser (se componente visual)</strong>
+          <span>Abre <code>http://localhost:5173/olivia</code>, navega até o componente, tira screenshot. Vision analisa o estado real.</span>
+        </div>
+      </div>
+      <div class="loop-step">
+        <div class="loop-n">5</div>
+        <div class="lc">
+          <strong>Corrige a divergência</strong>
+          <span>Usa <code>edit</code> tool diretamente no arquivo. Só o que está divergente da spec — nenhuma mudança extra.</span>
+        </div>
+      </div>
+      <div class="loop-step">
+        <div class="loop-n">6</div>
+        <div class="lc">
+          <strong>Git commit</strong>
+          <span><code>git add [arquivo] && git commit -m "fix(olivia): [componente] — [o que foi corrigido]"</code></span>
+        </div>
+      </div>
+      <div class="loop-step">
+        <div class="loop-n">7</div>
+        <div class="lc">
+          <strong>Screenshot pós-fix + validação</strong>
+          <span>Confirma visualmente que o fix funcionou. Atualiza etapa no banco com <code>status='concluida'</code> + <code>evidencia_url</code>.</span>
+        </div>
+      </div>
+      <div class="loop-step">
+        <div class="loop-n">8</div>
+        <div class="lc">
+          <strong>Avança para próxima etapa</strong>
+          <span>Volta ao passo 1. Se houver bloqueio (ex: n8n offline) → marca <code>status='bloqueada'</code>, registra causa, avança para a próxima não-dependente.</span>
+        </div>
+      </div>
+    </div>
+
+    <h3>Como o contexto nunca se perde</h3>
+    <div class="codeblock"><span class="comment">## Estado persistido no Supabase — JANA sempre sabe onde está</span>
+
+<span class="comment"># Ao iniciar sessão (após dormir, após restart):</span>
+SELECT titulo, status, ordem
+FROM projetos_etapas
+WHERE projeto_id = <span class="str">'48d9bfaa-...'</span>
+  AND status IN (<span class="str">'pendente'</span>, <span class="str">'em_andamento'</span>)
+ORDER BY ordem
+LIMIT 1;
+<span class="comment">-- Retorna: "Step 2 Express — Triagem" → JANA retoma exatamente daqui</span>
+
+<span class="comment"># JANA não depende da memória da sessão — depende do banco.</span>
+<span class="comment"># Sessão reinicia? Banco persiste. Contexto 95%? Banco persiste.</span>
+<span class="comment"># Errou e precisou rollback? git log → desfaz o commit específico.</span></div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ONDE O RAG SE CONECTA -->
+  <div class="section">
+    <h2>🔗 Onde o RAG se conecta — direto na JANA</h2>
+
+    <p style="color:var(--muted); margin-bottom:16px;">Você perguntou: <em>"o RAG conecta na JANA, num agente, ou numa skill específica?"</em></p>
+
+    <table class="t">
+      <thead><tr><th>Camada</th><th>O que faz</th><th>Como chama o RAG</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>JANA (orquestradora)</td>
+          <td>Decide qual componente revisar, lê etapa do banco, interpreta resultado do RAG, toma decisão</td>
+          <td><strong>Chama diretamente:</strong> <code>exec("node rag_projeto.mjs search ...")</code></td>
+        </tr>
+        <tr>
+          <td>skill rag-projeto</td>
+          <td>Só faz uma coisa: busca semântica na spec. Retorna trechos. Não decide nada.</td>
+          <td>É chamada pela JANA ou pelo CC</td>
+        </tr>
+        <tr>
+          <td>gerenciador-projetos (skill atualizada)</td>
+          <td>Adiciona modo <code>executor: "jana_loop"</code> como opção. JANA executa diretamente em vez de spawnar CC.</td>
+          <td>Skill instrui JANA a chamar o RAG antes de cada etapa</td>
+        </tr>
+        <tr>
+          <td>Claude Code (futuro, opcional)</td>
+          <td>Para tarefas >500 linhas de refactor, CC ainda pode ser usado com RAG integrado</td>
+          <td><code>node rag_projeto.mjs search "..."</code> no terminal</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="info-box">
+      <strong>Arquitetura resumida:</strong> JANA lê banco → JANA chama RAG → JANA analisa spec → JANA edita código → JANA commita → JANA atualiza banco → repete. Nenhum intermediário. Loop 100% JANA.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- COMPONENTES A REVISAR -->
+  <div class="section">
+    <h2>📋 Componentes Alvo do Loop — Gerador de Petições</h2>
+    <p style="color:var(--muted); margin-bottom:14px;">Hierarquia definida: Step 1 → Step 2 → Step 3 → Step 4 → Step 5 → Conclusão → Landing → Modos Agente + Smart Blocks → Análise IA → Chat</p>
+
+    <div class="component-list">
+      <div class="comp pending">
+        <div class="name">StepIdentificacao</div>
+        <div class="status">⚠️ B-01 tipo petição vazio</div>
+      </div>
+      <div class="comp pending">
+        <div class="name">usePetitionModels</div>
+        <div class="status">⚠️ B-02 filtro categoria</div>
+      </div>
+      <div class="comp pending">
+        <div class="name">ProcessoSelector</div>
+        <div class="status">⚠️ categoriaEmpresaId null</div>
+      </div>
+      <div class="comp pending">
+        <div class="name">SeletorVersao</div>
+        <div class="status">⚠️ label V{n}·nome·data</div>
+      </div>
+      <div class="comp">
+        <div class="name">ExpressStep2Triagem</div>
+        <div class="status">🔍 pendente teste</div>
+      </div>
+      <div class="comp">
+        <div class="name">ExpressStep3Outline</div>
+        <div class="status">🔍 @dnd-kit verificar</div>
+      </div>
+      <div class="comp">
+        <div class="name">ExpressStep4Revisao</div>
+        <div class="status">🔍 pendente teste</div>
+      </div>
+      <div class="comp">
+        <div class="name">ExpressStep5Conclusao</div>
+        <div class="status">🔍 Google Doc + feedback</div>
+      </div>
+      <div class="comp">
+        <div class="name">OliviaGeradorLanding</div>
+        <div class="status">🔍 3 cards + fila interna</div>
+      </div>
+      <div class="comp">
+        <div class="name">WizardTabBar</div>
+        <div class="status">🔍 multi-tab Chrome style</div>
+      </div>
+      <div class="comp">
+        <div class="name">DrawerUploadDocs</div>
+        <div class="status">🔍 largura &gt;50% tela</div>
+      </div>
+      <div class="comp">
+        <div class="name">AgenteStep1→6</div>
+        <div class="status">🔍 todos os steps Agente</div>
+      </div>
+      <div class="comp">
+        <div class="name">SmartBlocks Step1→3</div>
+        <div class="status">🔍 wizard + GAS</div>
+      </div>
+      <div class="comp">
+        <div class="name">OliviaAnaliseUnificada</div>
+        <div class="status">🔍 sub-abas Processo+Decisão</div>
+      </div>
+      <div class="comp">
+        <div class="name">OliviaChatPage</div>
+        <div class="status">🔍 modal início + chat</div>
+      </div>
+    </div>
+
+    <p style="color:var(--muted); font-size:12px; margin-top:8px;">Total: ~15 componentes principais. Cada um com 1-5 campos a verificar. Loop estimado: 3-5h para todos, com commits granulares.</p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- O QUE SERÁ CRIADO/ALTERADO -->
+  <div class="section">
+    <h2>🔧 O que será criado / atualizado</h2>
+    <table class="t">
+      <thead><tr><th>Item</th><th>Tipo</th><th>O que é</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>skills/rag-projeto/SKILL.md</td>
+          <td><span class="badge new">Novo</span></td>
+          <td>Skill OpenClaw registrada com triggers e documentação de uso</td>
+        </tr>
+        <tr>
+          <td>skills/rag-projeto/scripts/rag_projeto.mjs</td>
+          <td><span class="badge new">Novo</span></td>
+          <td>Script Node.js: import/search/update/list. ~250 linhas. Zero dependências novas.</td>
+        </tr>
+        <tr>
+          <td>skills/rag-projeto/references/usage.md</td>
+          <td><span class="badge new">Novo</span></td>
+          <td>Documentação de uso para JANA e CC</td>
+        </tr>
+        <tr>
+          <td>Supabase: rag_chunks (dados)</td>
+          <td><span class="badge new">Dados novos</span></td>
+          <td>~130 chunks da pasta olivia v3 com embedding 1536d. Source_type: projeto_spec.</td>
+        </tr>
+        <tr>
+          <td>skills/gerenciador-projetos/SKILL.md</td>
+          <td><span class="badge warn">Atualizado</span></td>
+          <td>Adicionar modo <code>executor: "jana_loop"</code> — JANA executa diretamente com RAG integrado, sem CC.</td>
+        </tr>
+        <tr>
+          <td>Supabase: projetos_etapas (dados)</td>
+          <td><span class="badge warn">Atualizado</span></td>
+          <td>Etapas de revisão dos ~15 componentes inseridas com ordem, componente alvo, critério de aceite e campo RAG query.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- COMMIT STRATEGY -->
+  <div class="section">
+    <h2>📦 Estratégia de Commits</h2>
+    <p style="color:var(--muted); margin-bottom: 12px;">Você acordar e ver o histórico do git vai dizer exatamente o que foi feito:</p>
+    <div class="codeblock"><span class="comment"># git log --oneline (exemplo do que você verá amanhã)</span>
+
+<span class="success">a3f2c1d</span> fix(olivia): SeletorTipoPeticao — query RLS org_id corrigida
+<span class="success">b8e9d2a</span> fix(olivia): usePetitionModels — filtro categoriaEmpresaId quando null
+<span class="success">c4f1b3e</span> fix(olivia): SeletorVersao — label V{n}·nome·data conforme D-FE-10
+<span class="success">d7a2c4f</span> fix(olivia): QualidadeIaSelector removido do Express (D-FE-13)
+<span class="success">e1b3d5c</span> fix(olivia): DrawerUploadDocumentos width 55vw (>50% spec D-FE-04)
+<span class="success">f9c2e1a</span> fix(olivia): ExpressStep2 validação required antes de avançar
+<span class="warn">g2d4f6b</span> BLOQUEADO: ExpressStep4 geração — n8n webhook retornou 502
+<span class="success">h5e3a7c</span> fix(olivia): WizardTabBar — tabs Chrome style multi-petição
+<span class="comment">... etc</span></div>
+    <div class="info-box">
+      Cada commit = um componente/fix específico. Se algo quebrar → <code>git revert</code> do commit exato. Sem commits gigantes que mistura 10 coisas.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ATUALIZAÇÃO DO GERENCIADOR DE PROJETOS -->
+  <div class="section">
+    <h2>🗂️ Atualização da Skill gerenciador-projetos</h2>
+    <p style="color:var(--muted); margin-bottom:14px;">Você pediu para adicionar a opção de executar sem CC. A skill vai ganhar um novo modo:</p>
+
+    <div class="codeblock"><span class="comment">## Novo campo: executor em projetos_etapas</span>
+
+executor: <span class="str">"jana_loop"</span>   <span class="comment"># JANA executa com browser + edit + RAG</span>
+executor: <span class="str">"jarbas_loop"</span> <span class="comment"># JARBAS executa (n8n, jurídico)</span>
+executor: <span class="str">"cc"</span>          <span class="comment"># Claude Code (refactors grandes, >500 linhas)</span>
+executor: <span class="str">"manual"</span>      <span class="comment"># Christian executa manualmente</span>
+
+<span class="comment">## Trigger atualizado na skill</span>
+<span class="str">"revisão loop /olivia"</span>    → modo jana_loop + RAG
+<span class="str">"executa projeto [id]"</span>    → pergunta qual executor
+<span class="str">"loop jana: [componente]"</span> → jana_loop no componente específico</div>
+
+    <p style="color:var(--muted); margin-top: 12px; font-size: 13px;">Resultado: quando você disser <strong>"revisão loop /olivia"</strong>, JANA entra no loop direto sem precisar spawnar CC. Contexto da sessão + estado do banco = nunca perde onde estava.</p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- PLANO SEQUENCIAL FINAL -->
+  <div class="section">
+    <h2>🗺️ Sequência de Execução — Do início ao fim</h2>
+    <div class="phase-row">
+      <div class="phase active">
+        <div class="ph-label">Fase 1 · ~45min</div>
+        <div class="ph-title">Criar skill rag-projeto</div>
+        <div class="ph-eta">JANA executa</div>
+        <p>Script + SKILL.md + references/usage.md. Testa import e search com 1 arquivo.</p>
+      </div>
+      <div class="phase active">
+        <div class="ph-label">Fase 2 · ~10min</div>
+        <div class="ph-title">Popular RAG OlivIA v3</div>
+        <div class="ph-eta">JANA executa</div>
+        <p>Importa os 8 arquivos .md. Confirma: N chunks indexados. 3 buscas de validação.</p>
+      </div>
+      <div class="phase active">
+        <div class="ph-label">Fase 3 · ~15min</div>
+        <div class="ph-title">Criar etapas no banco</div>
+        <div class="ph-eta">JANA executa</div>
+        <p>Insere ~15 etapas em projetos_etapas com componente, critério de aceite e rag_query para cada uma.</p>
+      </div>
+      <div class="phase active">
+        <div class="ph-label">Fase 4 · 3-5h</div>
+        <div class="ph-title">Loop de revisão</div>
+        <div class="ph-eta">Roda dormindo</div>
+        <p>JANA itera etapa a etapa: RAG → screenshot → compara → corrige → commit → valida → avança.</p>
+      </div>
+    </div>
+
+    <div class="warn-box" style="margin-top: 20px;">
+      <strong>⏱️ Total do setup (Fases 1-3):</strong> ~70 minutos. Você aprova o plano, JANA executa as 3 fases primeiro, te manda confirmação "RAG pronto + etapas criadas", aí você diz "pode rodar o loop" e JANA inicia. Ou você aprova tudo agora e dorme enquanto roda.
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  🦊 JANA — MacBook Air M4 | MdLab LegalTech | 2026-03-19<br>
+  Plano RAG + Loop · Executor: JANA (sem CC) · Aguardando aprovação Christian
+</div>
+
+</body>
+</html>

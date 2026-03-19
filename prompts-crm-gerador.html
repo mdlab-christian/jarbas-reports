@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prompts CC — CRM + Gerador de Documentos</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #0f0f0f; color: #e0e0e0; min-height: 100vh; }
+  
+  header { background: #1a1a1a; border-bottom: 1px solid #2a2a2a; padding: 24px 40px; }
+  header h1 { font-size: 20px; font-weight: 700; color: #fff; }
+  header p { font-size: 13px; color: #666; margin-top: 4px; }
+  
+  .legend { display: flex; gap: 16px; padding: 16px 40px; background: #141414; border-bottom: 1px solid #1e1e1e; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #888; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .dot-red { background: #ef4444; }
+  .dot-orange { background: #f97316; }
+  .dot-yellow { background: #eab308; }
+  .dot-green { background: #22c55e; }
+  .dot-blue { background: #3b82f6; }
+  .dot-purple { background: #a855f7; }
+
+  .phase-header { padding: 32px 40px 8px; }
+  .phase-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: #555; }
+  .phase-desc { font-size: 14px; color: #888; margin-top: 4px; }
+  .phase-parallel { font-size: 12px; color: #3b82f6; margin-top: 6px; }
+
+  .cards { padding: 12px 40px; display: flex; flex-direction: column; gap: 12px; }
+  
+  .card { background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; overflow: hidden; }
+  .card.blocked { opacity: 0.5; }
+  .card-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #222; cursor: pointer; }
+  .card-header:hover { background: #1e1e1e; }
+  
+  .badge-num { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+  .badge-p0 { background: #7f1d1d; color: #fca5a5; }
+  .badge-p1 { background: #7c2d12; color: #fdba74; }
+  .badge-p2 { background: #713f12; color: #fde68a; }
+  .badge-infra { background: #1e3a5f; color: #93c5fd; }
+  .badge-manual { background: #3b1f6b; color: #c4b5fd; }
+  .badge-n8n { background: #14532d; color: #86efac; }
+  
+  .card-title { flex: 1; }
+  .card-title h3 { font-size: 15px; font-weight: 600; color: #fff; }
+  .card-title .meta { font-size: 12px; color: #666; margin-top: 2px; }
+  
+  .tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; font-weight: 500; }
+  .tag-front { background: #1d2b4f; color: #93c5fd; }
+  .tag-back { background: #1a3a28; color: #86efac; }
+  .tag-n8n { background: #2d1b4f; color: #c4b5fd; }
+  .tag-infra { background: #2d2418; color: #fde68a; }
+  .tag-supabase { background: #1a2d3a; color: #67e8f9; }
+  .tag-manual { background: #3a1a1a; color: #fca5a5; }
+  .tag-size { background: #1f1f1f; color: #888; border: 1px solid #333; }
+  
+  .lock-icon { font-size: 16px; color: #555; }
+  .chevron { font-size: 16px; color: #555; transition: transform 0.2s; }
+  .card-header.open .chevron { transform: rotate(180deg); }
+  
+  .card-body { display: none; padding: 20px; border-top: 1px solid #1e1e1e; }
+  .card-body.open { display: block; }
+  
+  .prompt-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #555; margin-bottom: 8px; }
+  .prompt-box { background: #111; border: 1px solid #2a2a2a; border-radius: 8px; padding: 16px; font-size: 13px; line-height: 1.7; color: #ccc; font-family: 'JetBrains Mono', 'Fira Code', monospace; white-space: pre-wrap; position: relative; }
+  .copy-btn { position: absolute; top: 10px; right: 10px; background: #2a2a2a; border: none; color: #888; padding: 4px 10px; border-radius: 4px; font-size: 11px; cursor: pointer; transition: all 0.2s; }
+  .copy-btn:hover { background: #3a3a3a; color: #fff; }
+  .copy-btn.copied { background: #14532d; color: #86efac; }
+  
+  .deps { margin-top: 14px; padding: 12px; background: #161616; border-radius: 8px; border-left: 3px solid #f97316; }
+  .deps-title { font-size: 11px; font-weight: 600; color: #f97316; margin-bottom: 6px; }
+  .deps ul { font-size: 12px; color: #888; list-style: none; }
+  .deps ul li::before { content: "⛔ "; }
+  
+  .notes { margin-top: 14px; padding: 12px; background: #161616; border-radius: 8px; border-left: 3px solid #3b82f6; }
+  .notes-title { font-size: 11px; font-weight: 600; color: #3b82f6; margin-bottom: 6px; }
+  .notes p, .notes ul { font-size: 12px; color: #888; }
+  .notes ul { list-style: none; }
+  .notes ul li::before { content: "→ "; }
+
+  .parallel-info { background: #0d1f2d; border: 1px solid #1e3a5f; border-radius: 8px; padding: 14px 20px; margin: 8px 40px; }
+  .parallel-info h4 { font-size: 13px; font-weight: 600; color: #93c5fd; margin-bottom: 8px; }
+  .parallel-info p { font-size: 12px; color: #7aa3c4; line-height: 1.6; }
+  .terminal-badge { display: inline-block; background: #1e3a5f; color: #93c5fd; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
+
+  .divider { height: 1px; background: #1e1e1e; margin: 24px 40px; }
+  
+  .warning-box { background: #2d1500; border: 1px solid #7c2d12; border-radius: 8px; padding: 14px 20px; margin: 16px 40px; }
+  .warning-box h4 { font-size: 13px; font-weight: 600; color: #f97316; margin-bottom: 6px; }
+  .warning-box p { font-size: 12px; color: #cd8a5a; line-height: 1.6; }
+  
+  footer { padding: 40px; text-align: center; color: #333; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🗂️ Prompts CC — CRM + Gerador de Documentos</h1>
+  <p>MdFlow · Gerado em 2026-03-19 · Baseado no relatório de auditoria do Claude Code</p>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="dot dot-red"></div> P0 — Crítico/bloqueante</div>
+  <div class="legend-item"><div class="dot dot-orange"></div> P1 — Importante</div>
+  <div class="legend-item"><div class="dot dot-yellow"></div> P2 — Melhoria</div>
+  <div class="legend-item"><div class="dot dot-blue"></div> Infra/Verificação</div>
+  <div class="legend-item"><div class="dot dot-purple"></div> Manual (você faz)</div>
+  <div class="legend-item"><div class="dot dot-green"></div> n8n</div>
+</div>
+
+<div class="warning-box">
+  <h4>⚠️ Decisões tomadas — referência rápida</h4>
+  <p>
+    <strong>Geração de docs:</strong> Google Docs API (manter abordagem do Make) &nbsp;|&nbsp;
+    <strong>Modo:</strong> Lote (botão gera tudo) + envio individual depois &nbsp;|&nbsp;
+    <strong>Storage:</strong> Google Drive (drive_cliente) + Supabase Storage (ambos) &nbsp;|&nbsp;
+    <strong>Nomenclatura:</strong> padrão Make (contrato_midas/empresa/orgao) &nbsp;|&nbsp;
+    <strong>IDs duplicados:</strong> confirmar com Christian antes de migrar
+  </p>
+</div>
+
+<!-- ====== FASE 0 ====== -->
+<div class="phase-header">
+  <div class="phase-title">⚡ Fase 0 — Pré-requisitos (faça PRIMEIRO, em paralelo)</div>
+  <div class="phase-desc">Nada da Fase 2 em diante funciona sem isso resolvido.</div>
+  <div class="phase-parallel">🔀 Prompt 0-A e 0-B podem rodar simultaneamente</div>
+</div>
+
+<div class="parallel-info">
+  <h4>🖥️ Terminais nesta fase</h4>
+  <p><span class="terminal-badge">Terminal 1</span> Prompt 0-A — verificação Google OAuth2 no n8n &nbsp;|&nbsp; <span class="terminal-badge">Você</span> Prompt 0-B — validação manual dos IDs Google Docs</p>
+</div>
+
+<div class="cards">
+
+  <!-- 0-A -->
+  <div class="card" id="c0a">
+    <div class="card-header" onclick="toggle('c0a')">
+      <div class="badge-num badge-infra">0A</div>
+      <div class="card-title">
+        <h3>Verificar Google OAuth2 no n8n</h3>
+        <div class="meta">Infra · S · BLOQUEANTE para toda a Fase 2</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-infra">Infra</span>
+        <span class="tag tag-n8n">n8n</span>
+        <span class="tag tag-size">S</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b0a">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p0a">Acesse o n8n em https://primary-production-e209.up.railway.app via API REST com o N8N_API_KEY do arquivo ~/jarbas/.env
+
+Faça o seguinte:
+1. Liste todas as credentials cadastradas no n8n (GET /api/v1/credentials)
+2. Verifique se existe alguma credential do tipo "googleDocsOAuth2Api" ou "googleDriveOAuth2Api" ou similar
+3. Se existir: informe o nome, id, tipo e se está ativa (connected)
+4. Se não existir: confirme que não existe e informe quais tipos de Google credentials estão disponíveis no n8n
+
+Entregue um relatório simples:
+- Existe credential Google configurada? SIM/NÃO
+- Se sim: nome, id, tipo, status
+- Se não: o que precisa ser feito para configurar
+<button class="copy-btn" onclick="copyPrompt('p0a', this)">Copiar</button></div>
+      <div class="notes">
+        <div class="notes-title">ℹ️ Contexto</div>
+        <p>Sem Google OAuth2 configurado no n8n, o workflow de geração de documentos via Google Docs API não funciona. Esta verificação define se precisamos criar a credential do zero ou só referenciar a existente.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 0-B -->
+  <div class="card" id="c0b">
+    <div class="card-header" onclick="toggle('c0b')">
+      <div class="badge-num badge-manual">0B</div>
+      <div class="card-title">
+        <h3>Validar IDs Google Docs (você faz)</h3>
+        <div class="meta">Manual · Gustavo · 46 IDs para validar · BLOQUEANTE para Fase 2</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-manual">Manual</span>
+        <span class="tag tag-size">S por ID</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b0b">
+      <div class="prompt-label">Instrução (você executa, não é prompt CC)</div>
+      <div class="prompt-box" id="p0b">Para cada ID abaixo, abra no browser:
+https://docs.google.com/document/d/{ID}/edit
+
+Confirme se o documento abre corretamente e é o template correto.
+
+IDs para validar (do relatório de auditoria):
+Contrato Midas: 150mEVLj8_6XxXPKS5KqGolY6qMgOH8VSkyn9duem9yw
+
+Christian RS/116571:
+- Termo Parceria: 14gVJiFxVIX7...Ob8I
+- 1.3 Contrato Empresa: 1a6RmjoFZC-d...HIk
+- 1.4 Ciência Empresa: 1Ichq9v1Wv0V...R0
+- 1.5 Veracidade Empresa: 1yLD2PGdFWvU...Heg
+- 1.6 Contrato Órgão: 13CC9uaKmuDq...5Ak
+- 1.7 Ciência Órgão: 100a0W0XZpyJ...Umc
+- 1.8 Veracidade Órgão: 16d4r_oFrfmv...cF8
+- 2.1 Procuração Empresa: 1HcMJaZa9jPL...4-A
+- 2.2 Procuração Órgão: 1JCpAb3vIfZp...Nus
+
+(+ IDs de SC, SP, Heloísa RS/SC — ver RELATORIO-AUDITORIA-CC.md)
+
+⚠️ ATENÇÃO — confirmar especialmente:
+- Heloísa RS/131163: Procuração Órgão (suspeito de ID errado)
+- Heloísa SC/75466: Contrato Órgão (suspeito de ID errado)
+<button class="copy-btn" onclick="copyPrompt('p0b', this)">Copiar</button></div>
+      <div class="notes">
+        <div class="notes-title">ℹ️ Por que isso importa</div>
+        <ul>
+          <li>Os IDs são de 2024 — podem ter sido movidos ou deletados</li>
+          <li>2 bugs de IDs duplicados detectados no Make original</li>
+          <li>Sem validação, o workflow n8n vai gerar documentos errados</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="divider"></div>
+
+<!-- ====== FASE 1 ====== -->
+<div class="phase-header">
+  <div class="phase-title">🔴 Fase 1 — Bugs P0 CRM (paralelo com Fase 0)</div>
+  <div class="phase-desc">Corrigir enquanto a Fase 0 roda. Não depende do Google OAuth2.</div>
+  <div class="phase-parallel">🔀 Prompt 1-A e 1-B podem rodar em paralelo</div>
+</div>
+
+<div class="parallel-info">
+  <h4>🖥️ Terminais nesta fase</h4>
+  <p><span class="terminal-badge">Terminal 1</span> 0-A (Google OAuth2) &nbsp;|&nbsp; <span class="terminal-badge">Terminal 2</span> 1-A (Bug erro restrição) &nbsp;|&nbsp; <span class="terminal-badge">Terminal 3</span> 1-B (Upload + Abrir)</p>
+</div>
+
+<div class="cards">
+
+  <!-- 1-A -->
+  <div class="card" id="c1a">
+    <div class="card-header" onclick="toggle('c1a')">
+      <div class="badge-num badge-p0">1A</div>
+      <div class="card-title">
+        <h3>Bug: Erro ao salvar restrição (auditoria)</h3>
+        <div class="meta">P0 · Back + Front · M · Projeto: beta-mdflow</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-front">Front</span>
+        <span class="tag tag-back">Back</span>
+        <span class="tag tag-supabase">Supabase</span>
+        <span class="tag tag-size">M</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b1a">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p1a">Projeto: ~/beta-mdflow (React + TypeScript + Supabase)
+
+BUG P0: Ao criar uma nova auditoria pelo CRM, clicar em "Criar lead com restrições" retorna "Erro ao salvar a restrição".
+
+INVESTIGAR:
+1. Encontrar o código responsável por salvar restrições após uma auditoria no CRM
+   - Procurar por "salvar restrição", "leads_restricoes", ou similar no código
+   - Verificar qual RPC ou insert do Supabase é chamado
+2. Verificar o schema da tabela leads_restricoes no Supabase (via código ou types)
+   - Quais campos são obrigatórios (NOT NULL)?
+   - Existem foreign keys que podem estar sendo violadas?
+3. Verificar se o payload enviado para o Supabase inclui todos os campos obrigatórios
+4. Verificar se há algum erro de tipo (TypeScript) sendo ignorado
+
+CONTEXTO:
+- O bug ocorre ao tentar confirmar restrições selecionadas e cadastrar
+- Testado com lead "Chayanne Lopes" (CPF disponível no Supabase na tabela leads)
+- O erro aparece como toast/notificação na tela
+
+ENTREGUE:
+- Diagnóstico da causa raiz
+- Fix implementado e testado
+- Confirmação de que o lead é criado corretamente após o fix
+<button class="copy-btn" onclick="copyPrompt('p1a', this)">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- 1-B -->
+  <div class="card" id="c1b">
+    <div class="card-header" onclick="toggle('c1b')">
+      <div class="badge-num badge-p0">1B</div>
+      <div class="card-title">
+        <h3>Bug: Upload não aparece + Botão "Abrir" não funciona</h3>
+        <div class="meta">P0 · Front · S · Projeto: beta-mdflow</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-front">Front</span>
+        <span class="tag tag-supabase">Supabase</span>
+        <span class="tag tag-size">S</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b1b">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p1b">Projeto: ~/beta-mdflow (React + TypeScript + Supabase)
+
+DOIS BUGS P0 na aba "Documentos" do drawer do lead no CRM:
+
+BUG 1: Upload de documento não aparece na lista após envio
+- O upload parece funcionar (sem erro), mas o arquivo não é exibido na UI
+- Investigar: após o upload para Supabase Storage, o queryClient está invalidando a query correta?
+- Verificar se o path do arquivo está sendo salvo corretamente na tabela (leads_documentos ou similar)
+- Verificar no Supabase se o arquivo foi realmente salvo (lead de teste: buscar Chayenne Lopes)
+- Fix: garantir que a lista de documentos atualize automaticamente após upload
+
+BUG 2: Botão "Abrir" após gerar procuração/contrato não funciona
+- O documento é "gerado" mas clicar em "Abrir" não abre nada
+- Investigar: o hook de geração retorna uma URL? Ela está sendo passada corretamente para o botão?
+- Verificar se window.open está sendo bloqueado (usar target="_blank" com link element em vez de window.open)
+- Verificar se a URL retornada pelo n8n workflow é válida
+
+CONTEXTO:
+- Tab "Documentos" está no ClienteDrawer do CRM
+- Lead de teste: "leadfix3" (buscar no Supabase para pegar o ID)
+- O workflow n8n de contrato (ID: 5M8iuY8Uq8lSCHKo) está inativo — isso pode ser a causa do Bug 2
+
+ENTREGUE:
+- Diagnóstico e fix de ambos os bugs
+- Confirmação visual de que upload aparece e que URL de documento abre corretamente
+<button class="copy-btn" onclick="copyPrompt('p1b', this)">Copiar</button></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="divider"></div>
+
+<!-- ====== FASE 1.5 ====== -->
+<div class="phase-header">
+  <div class="phase-title">🟠 Fase 1.5 — Bugs P1 CRM (depois da Fase 1)</div>
+  <div class="phase-desc">Importante para a operação, mas não bloqueante.</div>
+  <div class="phase-parallel">🔀 1-C e 1-D podem rodar em paralelo (terminais separados)</div>
+</div>
+
+<div class="parallel-info">
+  <h4>🖥️ Terminais nesta fase</h4>
+  <p><span class="terminal-badge">Terminal 2</span> 1-C (Bugs front CRM: auditar, realtime, lista) &nbsp;|&nbsp; <span class="terminal-badge">Terminal 3</span> 1-D (Empresas: processável + filtro)</p>
+</div>
+
+<div class="cards">
+
+  <!-- 1-C -->
+  <div class="card" id="c1c">
+    <div class="card-header" onclick="toggle('c1c')">
+      <div class="badge-num badge-p1">1C</div>
+      <div class="card-title">
+        <h3>Bugs front CRM: auditar no drawer, realtime, modo lista</h3>
+        <div class="meta">P1 · Front · M · Projeto: beta-mdflow</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-front">Front</span>
+        <span class="tag tag-size">M</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b1c">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p1c">Projeto: ~/beta-mdflow (React + TypeScript + Supabase)
+
+TRÊS BUGS P1 no CRM — corrigir todos nesta sessão:
+
+BUG 1: Botão "Auditar" aparece dentro do modal drawer do lead no CRM
+- O botão "Auditar" NÃO deve existir dentro do ClienteDrawer quando context="crm"
+- Ele existe na action bar do drawer (Auditar / Vincular Adv / MDZap / Editar / Triagem)
+- Remover o botão "Auditar" da action bar do drawer para context="crm"
+- A auditoria pelo CRM deve ser feita pelo botão "Nova Auditoria" na página principal, não dentro do drawer
+
+BUG 2: Novo lead não aparece em "Novos" em tempo real após criação via auditoria
+- Quando uma auditoria cria um novo lead, ele não aparece automaticamente no kanban/lista
+- Verificar useCrmRealtime.ts: o subscription do Supabase está filtrado corretamente por organizacao_id e status?
+- O evento de INSERT na tabela leads deve disparar atualização do board
+- Fix: garantir que após criar lead via auditoria, ele apareça em "Novos" imediatamente
+
+BUG 3: Modo lista do CRM mostra poucas informações
+- O modo lista não mostra as mesmas informações que o modo Kanban
+- Adicionar ao modo lista: nome, CPF mascarado, telefone, status, score, número de restrições, advogado vinculado
+- Seguir o mesmo padrão visual do modo Kanban
+
+ENTREGUE:
+- Todos os 3 fixes implementados
+- Confirmação de que o drawer não tem mais o botão auditar
+- Confirmação de que novos leads aparecem em realtime
+<button class="copy-btn" onclick="copyPrompt('p1c', this)">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- 1-D -->
+  <div class="card" id="c1d">
+    <div class="card-header" onclick="toggle('c1d')">
+      <div class="badge-num badge-p1">1D</div>
+      <div class="card-title">
+        <h3>Bugs: Empresas processáveis + filtro por restrição no drawer</h3>
+        <div class="meta">P1 · Front + Back · M · Projeto: beta-mdflow</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-front">Front</span>
+        <span class="tag tag-back">Back</span>
+        <span class="tag tag-size">M</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b1d">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p1d">Projeto: ~/beta-mdflow (React + TypeScript + Supabase)
+
+DOIS BUGS P1 relacionados a empresas no CRM:
+
+BUG 1: Modal de auditoria não mostra se empresa é "processável"
+- Ao criar nova auditoria e selecionar restrições, as empresas aparecem listadas
+- Mas não mostra se cada empresa é processável ou não
+- Consultar a lógica usada na página /empresas para determinar processabilidade
+- Aplicar o mesmo critério/indicador visual na lista de empresas da auditoria no CRM
+
+BUG 2: Tab "Documentos" do drawer mostra empresas que não batem com a restrição
+- No drawer do lead (context="crm"), a seção de documentos mostra empresas
+- Estão aparecendo empresas do lead que não correspondem à restrição específica
+- O filtro deve usar restricao.empresa_id (ou campo equivalente) para mostrar só a empresa daquela restrição
+- Referência: lead "leadfix3" — verificar quais empresas aparecem vs. quais restrições ele tem
+
+ENTREGUE:
+- Fix do indicador de processabilidade na auditoria
+- Fix do filtro de empresas por restrição no drawer
+- Consultar lead "leadfix3" no Supabase para validar o comportamento correto
+<button class="copy-btn" onclick="copyPrompt('p1d', this)">Copiar</button></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="divider"></div>
+
+<!-- ====== FASE 2 ====== -->
+<div class="phase-header">
+  <div class="phase-title">🟢 Fase 2 — Gerador de Documentos via n8n</div>
+  <div class="phase-desc">Aguarda: Fase 0-A concluída (OAuth2 verificado) + Fase 0-B concluída (IDs validados por Gustavo)</div>
+  <div class="phase-parallel">🔒 2-A deve ser feito primeiro. Depois 2-B e 2-C em paralelo. 2-D só depois de 2-B+2-C.</div>
+</div>
+
+<div class="parallel-info">
+  <h4>🖥️ Terminais nesta fase</h4>
+  <p>
+    <span class="terminal-badge">Fase 0-A primeiro</span> →
+    <span class="terminal-badge">Terminal 1</span> 2-A (Supabase IDs) →
+    <span class="terminal-badge">Terminal 1</span> 2-B (workflow contrato) +
+    <span class="terminal-badge">Terminal 2</span> 2-C (hook front) em paralelo →
+    <span class="terminal-badge">Terminal 1</span> 2-D (workflow procuração)
+  </p>
+</div>
+
+<div class="cards">
+
+  <!-- 2-A -->
+  <div class="card" id="c2a">
+    <div class="card-header" onclick="toggle('c2a')">
+      <div class="badge-num badge-p1">2A</div>
+      <div class="card-title">
+        <h3>Popular google_doc_id_original nos templates do Supabase</h3>
+        <div class="meta">P1 · Back · S · BLOQUEANTE para 2-B</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-back">Back</span>
+        <span class="tag tag-supabase">Supabase</span>
+        <span class="tag tag-size">S</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b2a">
+      <div class="deps">
+        <div class="deps-title">Dependências</div>
+        <ul>
+          <li>Fase 0-B concluída: Gustavo validou os IDs Google Docs</li>
+          <li>IDs corrigidos para Heloísa RS (Proc. Órgão) e SC (Contrato Órgão)</li>
+        </ul>
+      </div>
+      <div class="prompt-label" style="margin-top:14px">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p2a">Acesse o Supabase do MdFlow (projeto: qdivfairxhdihaqqypgb) via Management API com SUPABASE_ACCESS_TOKEN do arquivo ~/jarbas/.env
+
+TAREFA: Popular o campo google_doc_id_original na tabela documento_templates
+
+1. Primeiro, liste todos os registros da tabela documento_templates para ver a estrutura atual:
+   - Campos: id, tipo, advogado_id, estado, google_doc_id_original
+   - Quais advogados existem? Quais tipos? Quais estados?
+
+2. Busque os advogados na tabela advogados (ou users com role advogado) para mapear:
+   - Christian → suas OABs (RS/116571, SC/74025, SP/535101)
+   - Heloísa → suas OABs (RS/131163, SC/75466)
+
+3. Com o mapeamento feito, execute os UPDATEs para popular google_doc_id_original
+   seguindo esta tabela (IDs validados por Gustavo):
+
+   Contrato Midas (único): 150mEVLj8_6XxXPKS5KqGolY6qMgOH8VSkyn9duem9yw
+
+   Por advogado × tipo × estado — usar os IDs do arquivo:
+   ~/Desktop/planejamento crm/RELATORIO-AUDITORIA-CC.md (Bloco 1.3)
+
+4. Confirme que todos os registros foram atualizados corretamente
+5. Liste o resultado final: todos os templates com google_doc_id_original preenchido
+
+IMPORTANTE: Não sobrescrever templates de petições (tipo = "peticao_inicial") — eles já funcionam.
+<button class="copy-btn" onclick="copyPrompt('p2a', this)">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- 2-B -->
+  <div class="card" id="c2b">
+    <div class="card-header" onclick="toggle('c2b')">
+      <div class="badge-num badge-p1">2B</div>
+      <div class="card-title">
+        <h3>Recriar workflow n8n — Gerador de Contratos</h3>
+        <div class="meta">P1 · n8n · L · Recriar do zero (ID atual vazio)</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-n8n">n8n</span>
+        <span class="tag tag-infra">Infra</span>
+        <span class="tag tag-size">L</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b2b">
+      <div class="deps">
+        <div class="deps-title">Dependências</div>
+        <ul>
+          <li>Fase 0-A: Google OAuth2 configurado no n8n</li>
+          <li>Fase 2-A: google_doc_id_original populado no Supabase</li>
+        </ul>
+      </div>
+      <div class="prompt-label" style="margin-top:14px">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p2b">Acesse o n8n em https://primary-production-e209.up.railway.app via API REST com N8N_API_KEY do ~/jarbas/.env
+
+TAREFA: Recriar o workflow de geração de contratos de honorários
+
+CONTEXTO:
+- Workflow antigo (ID: 5M8iuY8Uq8lSCHKo) está inativo e com conteúdo vazio (644 chars) — ignorar, recriar do zero
+- O sistema antigo (Make) gerava via Google Docs API createFromTemplate
+- Manter a mesma abordagem: usar Google Docs API para gerar a partir dos templates
+
+LÓGICA DO WORKFLOW (baseado no Make — arquivo ~/Desktop/planejamento crm/RELATORIO-AUDITORIA-CC.md):
+
+Webhook POST recebe:
+{
+  "lead_id": "UUID",
+  "restricao_id": "UUID", 
+  "tipo": "contrato_empresa | contrato_orgao | contrato_midas",
+  "oab": "RS/116571"
+}
+
+Fluxo:
+1. Webhook node (POST /webhook/gerar-contrato)
+2. Supabase node: buscar lead por lead_id (name, cpf, rg, profissao, estado, cidade, cep, logradouro, numero_endereco, drive_cliente)
+3. Supabase node: buscar restrição por restricao_id (orgao_restritivo, empresa_re, valor, codigo_contrato)
+4. Supabase node: buscar template em documento_templates WHERE tipo = {{tipo}} AND oab = {{oab}}
+5. Google Docs node: createFromTemplate usando google_doc_id_original do template
+   - Substituir variáveis: {{nome}}, {{cpf}}, {{rg}}, {{orgao}}, {{empresa}}, {{valor}}, etc.
+6. Google Drive node: exportar como PDF
+7. Supabase Storage node: fazer upload do PDF para bucket "documentos" com path: leads/{{lead_id}}/contratos/{{nome_arquivo}}.pdf
+8. Google Drive node: também salvar na pasta drive_cliente do lead
+9. Supabase node: INSERT em leads_documentos com {lead_id, restricao_id, tipo, url, nome}
+10. Response node: retornar {success: true, url: "URL_DO_PDF"}
+
+Criar o workflow, ativar, e retornar:
+- ID do novo workflow
+- URL do webhook para chamar
+- Exemplo de payload para teste
+<button class="copy-btn" onclick="copyPrompt('p2b', this)">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- 2-C -->
+  <div class="card" id="c2c">
+    <div class="card-header" onclick="toggle('c2c')">
+      <div class="badge-num badge-p1">2C</div>
+      <div class="card-title">
+        <h3>Refatorar useGerarDocumentosLead.ts + UI do drawer</h3>
+        <div class="meta">P1 · Front · M · Pode rodar em paralelo com 2-B</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-front">Front</span>
+        <span class="tag tag-size">M</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b2c">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p2c">Projeto: ~/beta-mdflow (React + TypeScript + Supabase)
+
+TAREFA: Refatorar o hook de geração de documentos e atualizar a UI do drawer
+
+1. REFATORAR useGerarDocumentosLead.ts (ou arquivo equivalente):
+   - Schema ATUAL (errado): usa processo_id no payload
+   - Schema NOVO (correto):
+     {
+       lead_id: string,
+       restricao_id: string,
+       tipo: "contrato_empresa" | "contrato_orgao" | "contrato_midas",
+       oab: string  // OAB do advogado vinculado ao lead
+     }
+   - O hook deve chamar o webhook do n8n (URL será fornecida após Prompt 2-B)
+   - Placeholder para URL: usar variável de ambiente VITE_N8N_CONTRATO_WEBHOOK_URL
+
+2. ATUALIZAR a Tab Documentos no ClienteDrawer para:
+   
+   a) Upload Central (topo da tab):
+      - Área de upload para documentos gerais do lead (vão para TODAS as restrições)
+      - Tipos: Identidade/CNH, Comprovante Residência, Carteira de Trabalho, Situação Cadastral, Renda/Receita
+      - Converter para PDF automaticamente após upload (se não for PDF)
+      - Upload para Supabase Storage + Google Drive (drive_cliente)
+   
+   b) Por Restrição (seção individual para cada restrição):
+      - Mostrar: empresa, órgão, valor
+      - Botão "Gerar Contrato" → chama hook com tipo correto (empresa ou orgao)
+      - Botão "Gerar Procuração" → placeholder por enquanto (workflow 2-D ainda não existe)
+      - Upload individual para essa restrição específica
+      - Lista de documentos gerados/enviados para essa restrição
+   
+   c) Geração em lote:
+      - Botão "Gerar Tudo" no topo da seção de documentos
+      - Gera contrato + (procuração quando disponível) para TODAS as restrições de uma vez
+      - Loading state com progresso (N de N documentos gerados)
+   
+   d) Seleção para download:
+      - Checkbox em cada documento
+      - Botão "Baixar Selecionados" → ZIP download
+
+3. REMOVER: useGerarDocumentosLead.ts antigo e qualquer referência ao schema processo_id
+
+ENTREGUE:
+- Hook refatorado com novo schema
+- Tab Documentos atualizada com toda a lógica acima
+- TypeScript 0 erros
+<button class="copy-btn" onclick="copyPrompt('p2c', this)">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- 2-D -->
+  <div class="card" id="c2d">
+    <div class="card-header" onclick="toggle('c2d')">
+      <div class="badge-num badge-p1">2D</div>
+      <div class="card-title">
+        <h3>Criar workflow n8n — Gerador de Procurações</h3>
+        <div class="meta">P1 · n8n · XL · Aguarda 2-B concluído</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-n8n">n8n</span>
+        <span class="tag tag-size">XL</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b2d">
+      <div class="deps">
+        <div class="deps-title">Dependências</div>
+        <ul>
+          <li>Prompt 2-B concluído: workflow de contratos funcionando como base</li>
+          <li>Fase 0-B: IDs das procurações validados por Gustavo</li>
+        </ul>
+      </div>
+      <div class="prompt-label" style="margin-top:14px">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p2d">Acesse o n8n em https://primary-production-e209.up.railway.app via API REST com N8N_API_KEY do ~/jarbas/.env
+
+TAREFA: Criar o workflow de geração de procurações
+
+CONTEXTO:
+- Basear na estrutura do workflow de contratos (criado no Prompt 2-B) — ~60% de reuso
+- Tipos de procuração: "procuracao_empresa" e "procuracao_orgao" (equivalentes a tipos C/D do Make)
+- Cada advogado × OAB tem procurações específicas (C - Procuração Empresa, D - Procuração Órgão)
+
+Webhook POST recebe:
+{
+  "lead_id": "UUID",
+  "restricao_id": "UUID",
+  "tipo": "procuracao_empresa | procuracao_orgao",
+  "oab": "RS/116571"
+}
+
+Fluxo (idêntico ao de contratos, só muda o tipo de template buscado):
+1. Webhook node (POST /webhook/gerar-procuracao)
+2-4. Mesmos nodes do workflow de contratos
+5. Buscar template em documento_templates WHERE tipo LIKE 'procuracao%' AND oab = {{oab}}
+6-10. Mesmo fluxo: Google Docs createFromTemplate → PDF → Storage → leads_documentos → Response
+
+Criar o workflow, ativar, e retornar:
+- ID do novo workflow
+- URL do webhook para chamar
+
+Após criar: atualizar a variável VITE_N8N_PROCURACAO_WEBHOOK_URL no .env do beta-mdflow
+e ativar o botão "Gerar Procuração" que estava como placeholder no Prompt 2-C.
+<button class="copy-btn" onclick="copyPrompt('p2d', this)">Copiar</button></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="divider"></div>
+
+<!-- ====== FASE 3 ====== -->
+<div class="phase-header">
+  <div class="phase-title">🟡 Fase 3 — Melhorias P2 (último, quando o resto estiver OK)</div>
+  <div class="phase-desc">Qualidade de vida — tudo pode rodar em paralelo.</div>
+  <div class="phase-parallel">🔀 Todos podem rodar simultaneamente em terminais separados</div>
+</div>
+
+<div class="parallel-info">
+  <h4>🖥️ Terminais nesta fase</h4>
+  <p><span class="terminal-badge">Terminal 1</span> 3-A (botões + OAB + notas) &nbsp;|&nbsp; <span class="terminal-badge">Terminal 2</span> 3-B (modo lista + campo nome doc)</p>
+</div>
+
+<div class="cards">
+
+  <!-- 3-A -->
+  <div class="card" id="c3a">
+    <div class="card-header" onclick="toggle('c3a')">
+      <div class="badge-num badge-p2">3A</div>
+      <div class="card-title">
+        <h3>Melhorias P2: botão verde, OAB no vincular, notas no card</h3>
+        <div class="meta">P2 · Front · S · Projeto: beta-mdflow</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-front">Front</span>
+        <span class="tag tag-size">S</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b3a">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p3a">Projeto: ~/beta-mdflow (React + TypeScript + Tailwind)
+
+TRÊS MELHORIAS P2 no CRM — implementar todas nesta sessão:
+
+MELHORIA 1: Botão "Nova Auditoria" 
+- Colocar na cor verde (igual ao botão "Novo Lead")
+- Posicionar à ESQUERDA do botão "Novo Lead" na toolbar do CRM
+- Usar as mesmas classes/variant do botão "Novo Lead"
+
+MELHORIA 2: Vincular Advogado mostra OAB
+- Ao vincular um advogado ao lead, exibir a OAB do advogado (não o nome)
+- No card do lead e no drawer, onde aparece o advogado vinculado: mostrar "RS/116571" em vez de "Dr. Christian Paz"
+- Se o advogado tiver múltiplas OABs, mostrar a OAB do estado do lead
+
+MELHORIA 3: Notas do lead aparecem abaixo do card
+- As notas/observações do lead devem aparecer visíveis abaixo do card no modo Kanban
+- Limitar a 1-2 linhas com ellipsis se necessário
+- Clicar abre o drawer na tab de notas
+
+ENTREGUE:
+- Todas as 3 melhorias implementadas
+- TypeScript 0 erros
+- Commit com mensagem: "feat(crm): botão auditoria verde, OAB no vincular, notas no card"
+<button class="copy-btn" onclick="copyPrompt('p3a', this)">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- 3-B -->
+  <div class="card" id="c3b">
+    <div class="card-header" onclick="toggle('c3b')">
+      <div class="badge-num badge-p2">3B</div>
+      <div class="card-title">
+        <h3>Melhorias P2: modo lista completo + campo nome livre no doc</h3>
+        <div class="meta">P2 · Front · S · Projeto: beta-mdflow</div>
+      </div>
+      <div class="tags">
+        <span class="tag tag-front">Front</span>
+        <span class="tag tag-size">S</span>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="card-body" id="b3b">
+      <div class="prompt-label">Prompt para o Claude Code</div>
+      <div class="prompt-box" id="p3b">Projeto: ~/beta-mdflow (React + TypeScript + Tailwind)
+
+DUAS MELHORIAS P2 no CRM:
+
+MELHORIA 1: Modo Lista com informações completas
+- O modo lista atual mostra poucas informações comparado ao Kanban
+- Adicionar ao modo lista as seguintes colunas/informações:
+  - Nome do lead
+  - CPF mascarado (usar maskCpfCnpjPII já existente no projeto)
+  - Telefone
+  - Status (badge colorido)
+  - Score (badge com cor por nível: baixo/médio/alto)
+  - Número de restrições
+  - Advogado vinculado (OAB)
+  - Data de entrada
+- Manter layout responsivo e consistente com o Design System v5
+
+MELHORIA 2: Campo de nome livre para documentos
+- Na tab Documentos do drawer, ao fazer upload de um documento:
+  - Além do dropdown de tipo (Identidade, Comprovante, etc.), adicionar campo de texto livre
+  - O campo de texto permite nomear o arquivo livremente
+  - Preencher automaticamente com o nome padrão baseado no tipo selecionado
+  - Ex: selecionou "Identidade" → nome pré-preenchido "Identidade - {nome_lead}"
+  - Usuário pode editar o nome antes de enviar
+
+ENTREGUE:
+- Ambas as melhorias implementadas
+- TypeScript 0 erros
+- Commit com mensagem: "feat(crm): modo lista completo + campo nome livre documento"
+<button class="copy-btn" onclick="copyPrompt('p3b', this)">Copiar</button></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="divider"></div>
+
+<!-- ROADMAP VISUAL -->
+<div style="padding: 0 40px 40px">
+  <h2 style="font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 20px;">📋 Mapa de Execução</h2>
+  <div style="background: #1a1a1a; border: 1px solid #2a2a2a; border-radius: 12px; padding: 24px; font-size: 13px; color: #888; font-family: monospace; line-height: 2;">
+<span style="color:#3b82f6">AGORA (paralelo):</span>
+  Terminal 1 → <span style="color:#fde68a">0-A</span> (Google OAuth2 n8n)     ← sem isso Fase 2 não funciona
+  Você       → <span style="color:#c4b5fd">0-B</span> (Validar 46 IDs Docs)   ← sem isso 2-A não funciona
+  Terminal 2 → <span style="color:#fca5a5">1-A</span> (Bug erro restrição)
+  Terminal 3 → <span style="color:#fca5a5">1-B</span> (Upload + Abrir)
+
+<span style="color:#3b82f6">DEPOIS DE 1-A e 1-B:</span>
+  Terminal 2 → <span style="color:#fdba74">1-C</span> (Auditar, realtime, lista)
+  Terminal 3 → <span style="color:#fdba74">1-D</span> (Empresas: processável + filtro)
+
+<span style="color:#3b82f6">DEPOIS DE 0-A e 0-B (paralelo):</span>
+  Terminal 1 → <span style="color:#86efac">2-A</span> (Popular IDs no Supabase)   ← primeiro obrigatório
+
+<span style="color:#3b82f6">DEPOIS DE 2-A (paralelo):</span>
+  Terminal 1 → <span style="color:#86efac">2-B</span> (Workflow contrato n8n)
+  Terminal 2 → <span style="color:#86efac">2-C</span> (Hook front + UI drawer)
+
+<span style="color:#3b82f6">DEPOIS DE 2-B:</span>
+  Terminal 1 → <span style="color:#86efac">2-D</span> (Workflow procuração n8n)
+
+<span style="color:#3b82f6">QUANDO TUDO ACIMA ESTIVER OK (paralelo):</span>
+  Terminal 1 → <span style="color:#eab308">3-A</span> (Botão verde, OAB, notas)
+  Terminal 2 → <span style="color:#eab308">3-B</span> (Lista completa, nome livre)
+  </div>
+</div>
+
+<footer>
+  MdFlow · Gerado por JARBAS · 2026-03-19 · Planejamento CRM + Gerador de Documentos
+</footer>
+
+<script>
+function toggle(id) {
+  const card = document.getElementById(id);
+  const header = card.querySelector('.card-header');
+  const body = card.querySelector('.card-body');
+  header.classList.toggle('open');
+  body.classList.toggle('open');
+}
+
+function copyPrompt(id, btn) {
+  const box = document.getElementById(id);
+  const text = box.innerText.replace('Copiar', '').replace('Copiado!', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copiar';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

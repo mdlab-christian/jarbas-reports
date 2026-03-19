@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OlivIA v3 — Plano E2E Vision Loop · JANA</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3347;
+      --accent: #6c63ff;
+      --accent2: #00d4aa;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+
+    .header { background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%); border-bottom: 1px solid var(--border); padding: 32px 40px; }
+    .header h1 { font-size: 28px; font-weight: 700; color: #fff; }
+    .header h1 span { color: var(--accent); }
+    .header .meta { color: var(--muted); font-size: 13px; margin-top: 8px; display: flex; gap: 24px; flex-wrap: wrap; }
+    .header .meta b { color: var(--accent2); }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 32px 40px; }
+
+    /* Summary cards */
+    .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 40px; }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+    .stat-card .num { font-size: 32px; font-weight: 800; }
+    .stat-card .label { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .stat-card.danger .num { color: var(--danger); }
+    .stat-card.warn .num { color: var(--warn); }
+    .stat-card.success .num { color: var(--success); }
+    .stat-card.accent .num { color: var(--accent); }
+
+    /* Section */
+    .section { margin-bottom: 40px; }
+    .section h2 { font-size: 18px; font-weight: 700; color: #fff; border-left: 3px solid var(--accent); padding-left: 12px; margin-bottom: 20px; }
+    .section h3 { font-size: 15px; font-weight: 600; color: var(--accent2); margin: 24px 0 12px; }
+
+    /* Bugs table */
+    .bug-table { width: 100%; border-collapse: collapse; }
+    .bug-table th { background: var(--surface2); color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+    .bug-table td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .bug-table tr:last-child td { border-bottom: none; }
+    .bug-table tr:hover td { background: var(--surface2); }
+    
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+    .badge.p0 { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+    .badge.p1 { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
+    .badge.p2 { background: rgba(108,99,255,0.15); color: var(--accent); border: 1px solid rgba(108,99,255,0.3); }
+    .badge.done { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+    .badge.loop { background: rgba(0,212,170,0.15); color: var(--accent2); border: 1px solid rgba(0,212,170,0.3); }
+
+    code { font-family: var(--mono); font-size: 12px; background: var(--surface2); padding: 2px 6px; border-radius: 4px; color: #a5b4fc; }
+
+    /* Step cards */
+    .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+    .step-card .step-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; background: var(--surface2); cursor: pointer; }
+    .step-card .step-num { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #fff; flex-shrink: 0; }
+    .step-card .step-title { font-weight: 600; color: #fff; flex: 1; }
+    .step-card .step-body { padding: 20px; }
+
+    /* Loop diagram */
+    .loop-box { background: var(--surface2); border: 1px solid var(--accent); border-radius: 12px; padding: 24px; margin: 24px 0; }
+    .loop-box .loop-title { color: var(--accent2); font-weight: 700; font-size: 16px; margin-bottom: 16px; }
+    .loop-steps { display: flex; flex-direction: column; gap: 0; }
+    .loop-step { display: flex; gap: 16px; padding: 12px 0; border-bottom: 1px dashed var(--border); }
+    .loop-step:last-child { border-bottom: none; }
+    .loop-step .arrow { color: var(--accent); font-size: 18px; flex-shrink: 0; width: 24px; text-align: center; }
+    .loop-step .content { flex: 1; }
+    .loop-step .content strong { color: #fff; }
+
+    /* Spec check */
+    .check-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .check-item:last-child { border-bottom: none; }
+    .check-icon { font-size: 16px; flex-shrink: 0; margin-top: 2px; }
+    .check-item .detail { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+    /* Prompt box */
+    .prompt-box { background: #0a0c14; border: 1px solid var(--border); border-radius: 8px; padding: 20px; font-family: var(--mono); font-size: 12px; line-height: 1.8; color: #c4cad4; overflow-x: auto; white-space: pre-wrap; }
+    .prompt-box .comment { color: #4a5568; }
+    .prompt-box .keyword { color: var(--accent2); }
+    .prompt-box .string { color: #68d391; }
+
+    /* Instruction block */
+    .instruction { background: var(--surface); border-left: 4px solid var(--accent2); border-radius: 0 8px 8px 0; padding: 16px 20px; margin: 12px 0; }
+    .instruction strong { color: var(--accent2); }
+
+    .warn-box { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 14px 18px; margin: 12px 0; color: var(--warn); font-size: 13px; }
+
+    ul.check-list { list-style: none; padding: 0; }
+    ul.check-list li { padding: 6px 0; display: flex; gap: 8px; align-items: flex-start; color: var(--text); }
+    ul.check-list li::before { content: '→'; color: var(--accent); flex-shrink: 0; }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+    .footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦊 OlivIA v3 — <span>Plano E2E Vision Loop</span></h1>
+  <div class="meta">
+    <span>Gerado por <b>JANA</b> · MacBook Air M4</span>
+    <span>Data: <b>2026-03-19</b></span>
+    <span>Projeto: <b>48d9bfaa-206f-457c-95f6-36ed25e4162e</b></span>
+    <span>Executor: <b>Claude Code</b></span>
+    <span>Modo: <b>Loop Autônomo com Vision</b></span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SUMÁRIO -->
+  <div class="summary-grid">
+    <div class="stat-card danger">
+      <div class="num">3</div>
+      <div class="label">Bugs Bloqueantes (P0) — Step 1 nem avança</div>
+    </div>
+    <div class="stat-card warn">
+      <div class="num">8</div>
+      <div class="label">Pendências identificadas (P1/P2)</div>
+    </div>
+    <div class="stat-card accent">
+      <div class="num">6</div>
+      <div class="label">Steps a testar (Express completo)</div>
+    </div>
+    <div class="stat-card success">
+      <div class="num">∞</div>
+      <div class="label">Loop — CC corrige, testa, avança</div>
+    </div>
+  </div>
+
+  <!-- DIAGNÓSTICO INICIAL -->
+  <div class="section">
+    <h2>🔍 Diagnóstico Inicial (JANA pré-análise)</h2>
+    <p style="color: var(--muted); margin-bottom: 20px;">
+      Antes do loop CC, JANA analisou banco, código e specs. Bugs confirmados com evidência:
+    </p>
+
+    <table class="bug-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Bug</th>
+          <th>Prioridade</th>
+          <th>Causa Raiz</th>
+          <th>Arquivo</th>
+          <th>Fix</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>B-01</b></td>
+          <td><b>Seletor de Tipo de Petição vazio</b><br><span style="color:var(--muted);font-size:12px">Não carrega nenhuma opção</span></td>
+          <td><span class="badge p0">P0 BLOQUEANTE</span></td>
+          <td>Hook filtra por <code>organizacao_id</code> mas os tipos estão na org <code>55a0c7ba</code> (MP Advocacia) e o usuário de teste retorna exatamente esse org — provavelmente o <code>org_id()</code> RLS retorna <code>null</code> em contexto de testes com JWT não configurado. <b>Verificar se o usuário logado tem <code>organizacao_id</code> no JWT.</b></td>
+          <td><code>usePetitionModels.ts</code><br><code>olivia_tp_select policy</code></td>
+          <td>1. Screenshot + debug <code>useAuth()</code> → logar org_id no console.<br>2. Se JWT sem org_id → corrigir auth_context ou RLS.<br>3. Alternativa: query direto sem RLS via service role para debug.</td>
+        </tr>
+        <tr>
+          <td><b>B-02</b></td>
+          <td><b>Modelos não carregam após selecionar tipo</b><br><span style="color:var(--muted);font-size:12px">Select de modelo fica vazio</span></td>
+          <td><span class="badge p0">P0 BLOQUEANTE</span></td>
+          <td>Query de modelos depende de <code>tipoPeticaoId</code> (ok) e <code>categoriaEmpresaId</code> — se <code>categoria_empresa_id</code> do processo não está sendo enriquecida corretamente no <code>ProcessoSelector</code>, o filtro OR exclui todos os modelos. Banco confirma que <b>todos</b> os modelos têm <code>categoria_empresa_id</code> preenchida (não null).</td>
+          <td><code>usePetitionModels.ts</code><br><code>ProcessoSelector.tsx</code></td>
+          <td>1. Logar <code>categoriaEmpresaId</code> no hook.<br>2. Se null → modelos com <code>categoria_empresa_id</code> preenchida não aparecem.<br>3. Fix: se <code>categoriaEmpresaId</code> null → não adicionar filtro OR (retornar todos os modelos do tipo).</td>
+        </tr>
+        <tr>
+          <td><b>B-03</b></td>
+          <td><b>Seletor de Versão não exibe label correto</b></td>
+          <td><span class="badge p1">P1</span></td>
+          <td>Versões têm <code>nome: null</code> no banco. Label atual: <code>v{ordem}</code> — spec define: <code>V{n} · nome · data</code>. Se nome null → só exibe <code>V{n} · data</code>.</td>
+          <td><code>usePetitionModels.ts</code><br><code>ExpressStep1.tsx</code></td>
+          <td>Formatar label: <code>`V${v.ordem} · ${v.nome ?? ''} · ${formatDate(v.created_at)}`</code></td>
+        </tr>
+        <tr>
+          <td><b>B-04</b></td>
+          <td><b>ProcessoSelector não passa categoriaEmpresaId</b></td>
+          <td><span class="badge p0">P0 BLOQUEANTE</span></td>
+          <td><code>fetchEnrichedData</code> busca <code>empresas!processos_empresa_id_fkey(categoria_id)</code> mas o join pode falhar se o FK não existe ou processo não tem empresa. O campo <code>categoria_empresa_id</code> na tabela <code>empresas</code> é <code>categoria_id</code>, não <code>categoria_empresa_id</code>.</td>
+          <td><code>ProcessoSelector.tsx</code></td>
+          <td>Verificar se join retorna corretamente. Logar <code>enrichedData</code>. Garantir que <code>categoria_empresa_id</code> chega ao <code>usePetitionModels</code>.</td>
+        </tr>
+        <tr>
+          <td><b>B-05</b></td>
+          <td><b>Botão "Próximo" desabilitado mesmo com processo + modelo selecionado</b></td>
+          <td><span class="badge p1">P1</span></td>
+          <td>Se B-01/B-02 bloqueiam modelo → <code>canProceed = false</code> sempre. Dependente dos bugs acima.</td>
+          <td><code>ExpressStep1.tsx</code></td>
+          <td>Resolver B-01/B-02 primeiro. Depois validar canProceed.</td>
+        </tr>
+        <tr>
+          <td><b>B-06</b></td>
+          <td><b>Step 2 (Triagem) — perguntas dinâmicas sem validação de required</b></td>
+          <td><span class="badge p1">P1</span></td>
+          <td>Não testado ainda — bloqueado por B-01/B-05.</td>
+          <td><code>ExpressStep2Triagem.tsx</code></td>
+          <td>Testar após Step 1 funcionar.</td>
+        </tr>
+        <tr>
+          <td><b>B-07</b></td>
+          <td><b>Step 3 (Outline DnD) — sem @dnd-kit instalado?</b></td>
+          <td><span class="badge p1">P1</span></td>
+          <td>PRD exige @dnd-kit/core + @dnd-kit/sortable. Verificar se está no package.json.</td>
+          <td><code>package.json</code><br><code>ExpressStep3Outline.tsx</code></td>
+          <td>Verificar import. Se ausente → instalar.</td>
+        </tr>
+        <tr>
+          <td><b>B-08</b></td>
+          <td><b>Fila Interna na Landing — polling 5s implementado?</b></td>
+          <td><span class="badge p2">P2</span></td>
+          <td>Spec exige polling 5s + realtime. Não confirmado se implementado.</td>
+          <td><code>OliviaGeradorLanding.tsx</code></td>
+          <td>CC verifica e implementa se ausente.</td>
+        </tr>
+        <tr>
+          <td><b>B-09</b></td>
+          <td><b>WizardTabBar (Chrome tabs multi-petição) — implementado?</b></td>
+          <td><span class="badge p2">P2</span></td>
+          <td>Spec exige abas tipo Chrome para múltiplas petições simultâneas. Verificar se existe ou é só uma petição por vez.</td>
+          <td><code>components/gerador/shared/</code></td>
+          <td>CC inspeciona e implementa se ausente.</td>
+        </tr>
+        <tr>
+          <td><b>B-10</b></td>
+          <td><b>DrawerUploadDocumentos — largura >50% tela?</b></td>
+          <td><span class="badge p2">P2</span></td>
+          <td>Spec: drawer lateral, largura >50% tela, à direita. Vision vai verificar visualmente.</td>
+          <td><code>DrawerUploadDocumentos.tsx</code></td>
+          <td>Vision screenshot → medir proporção. Corrigir se <50%.</td>
+        </tr>
+        <tr>
+          <td><b>B-11</b></td>
+          <td><b>QualidadeIaSelector — aparece em Express (não deveria)</b></td>
+          <td><span class="badge p1">P1</span></td>
+          <td>Spec: Express usa Sonnet 4.6 fixo (D-FE-13). Seletor só no Modo Agente (D-FE-14).</td>
+          <td><code>ExpressStep1.tsx</code></td>
+          <td>Verificar se seletor aparece em Express. Se sim → remover.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="divider">
+
+  <!-- ARQUITETURA DO LOOP -->
+  <div class="section">
+    <h2>⚡ Arquitetura do Loop Autônomo (Claude Code)</h2>
+
+    <div class="loop-box">
+      <div class="loop-title">🔄 Loop CC — Corrige → Testa → Avança → Registra → Repete</div>
+      <div class="loop-steps">
+        <div class="loop-step">
+          <div class="arrow">1</div>
+          <div class="content">
+            <strong>INICIALIZAÇÃO</strong><br>
+            CC lê todos os arquivos da pasta <code>~/Desktop/olivia v3/</code> → internalizou a spec completa. Lê <code>usePetitionModels.ts</code>, <code>ExpressStep1.tsx</code>, <code>ProcessoSelector.tsx</code>.
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="arrow">2</div>
+          <div class="content">
+            <strong>SCREENSHOT + VISION (início de cada step)</strong><br>
+            CC abre <code>http://localhost:5173/olivia</code> no browser → screenshot → vision interpreta o estado atual da UI → identifica o que está errado vs spec.
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="arrow">3</div>
+          <div class="content">
+            <strong>CRUZAR COM SPEC</strong><br>
+            Para cada campo/componente visível: verificar contra o PRD T2 + T3 + Master Plan. Campo está conforme? Sim → avança. Não → registra bug na tabela <code>projeto_etapas</code> e corrige.
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="arrow">4</div>
+          <div class="content">
+            <strong>BUSCAR SOLUÇÃO NA PASTA OLIVIA V3</strong><br>
+            Antes de corrigir qualquer bug → CC pesquisa nos arquivos da pasta Olivia v3 (T2-prd-frontend.md, T3-prd-backend.md, Master Plan) para encontrar a solução especificada. Nunca inventa — segue a spec.
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="arrow">5</div>
+          <div class="content">
+            <strong>CORRIGIR + REGISTRAR</strong><br>
+            Aplica o fix no código. Registra na tabela <code>projeto_etapas</code>: <code>status='concluida'</code>, descrição do fix, componente afetado, se conforme spec.
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="arrow">6</div>
+          <div class="content">
+            <strong>SCREENSHOT PÓS-FIX + VALIDAÇÃO</strong><br>
+            Screenshot novamente → vision confirma que o fix funcionou. Se ok → avança para o próximo campo/step. Se ainda errado → tenta fix alternativo (máx 2 tentativas).
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="arrow">→</div>
+          <div class="content">
+            <strong>REPETE para cada campo do Step → depois próximo Step → até Step 5 concluído</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="warn-box">
+      ⚠️ <strong>CC nunca inventa soluções.</strong> Sempre cruza com a pasta <code>~/Desktop/olivia v3/</code> antes de corrigir. Se a spec não cobrir o caso → CC para e pede orientação ao Christian.
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- STEPS DO TESTE -->
+  <div class="section">
+    <h2>📋 Steps do Teste — Express (6 Steps)</h2>
+    <p style="color: var(--muted); margin-bottom: 20px;">Cada step: CC faz screenshot → vision → cruza spec → corrige bugs → registra → avança.</p>
+
+    <!-- Step 1 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <div class="step-title">STEP 1 — Identificação (BLOQUEADO → Prioridade Máxima)</div>
+        <span class="badge p0">P0</span>
+      </div>
+      <div class="step-body">
+        <h3>Campos a testar</h3>
+        <ul class="check-list">
+          <li><strong>SearchBox Processo</strong> — Busca por CNJ ou nome cliente. Debounce 300ms. Cards com badge status. Botão "Cadastrar novo" se 0 resultados.</li>
+          <li><strong>Painel Informações Processo</strong> — Após selecionar processo: mostrar CNJ, cliente, empresa, advogado, restrições.</li>
+          <li><strong>Seletor Tipo de Petição</strong> — <span class="badge p0">BUG B-01</span> Vazio. Fix: Debug org_id → verificar RLS → garantir tipos carregam.</li>
+          <li><strong>Seletor Modelo</strong> — <span class="badge p0">BUG B-02/B-04</span> Dependente de tipo + categoria. Fix: se categoriaEmpresaId null → não filtrar.</li>
+          <li><strong>Seletor Versão</strong> — <span class="badge p1">BUG B-03</span> Label: <code>V{n} · nome · data</code>. Só aparece se versão > 1.</li>
+          <li><strong>Botão Próximo</strong> — Desabilitado até processo + modelo selecionados. <span class="badge p1">BUG B-05</span></li>
+          <li><strong>DrawerUpload</strong> — Abre ao clicar em "Documentos". Largura >50% tela. <span class="badge p2">BUG B-10</span></li>
+          <li><strong>Botão Atualizar JARBAS</strong> — Dentro do Drawer. Chama webhook JARBAS.</li>
+          <li><strong>QualidadeIaSelector</strong> — <span class="badge p1">NÃO deve aparecer</span> no modo Express. <span class="badge p1">BUG B-11</span></li>
+        </ul>
+
+        <h3>Cruzar na Spec</h3>
+        <div class="instruction">
+          <strong>Arquivo:</strong> <code>T2-prd-frontend.md</code> → Seção 3 (Step 1 Unificado) + Seção 3.1 (SearchBox) + Seção 3.2 (Modal Cadastro Rápido)<br>
+          <strong>Arquivo:</strong> <code>OLIVIA-V3-MASTER-PLAN.md</code> → D-FE-01, D-FE-12, D-FE-13 (sem qualidade IA no Express)
+        </div>
+
+        <h3>Ações do CC no Step 1</h3>
+        <ul class="check-list">
+          <li>Navegar para <code>http://localhost:5173/olivia</code></li>
+          <li>Clicar no card "Express" → entrar no wizard</li>
+          <li>Screenshot → vision → verificar todos os campos</li>
+          <li>DEBUG: abrir console do browser → logar <code>useAuth().organizacao_id</code></li>
+          <li>Fix B-01: garantir tipos carregam (debug RLS/org_id)</li>
+          <li>Fix B-02/B-04: corrigir filtro de modelos quando categoriaEmpresaId = null</li>
+          <li>Fix B-03: formatar label da versão</li>
+          <li>Fix B-11: remover QualidadeIaSelector do Express</li>
+          <li>Screenshot pós-fix → vision → confirmar que todos os campos funcionam</li>
+          <li>Selecionar processo + tipo + modelo → clicar Próximo</li>
+          <li>Registrar em projeto_etapas: cada bug encontrado/corrigido</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <div class="step-title">STEP 2 — Triagem (Perguntas Dinâmicas)</div>
+        <span class="badge p1">P1</span>
+      </div>
+      <div class="step-body">
+        <h3>Campos a testar</h3>
+        <ul class="check-list">
+          <li><strong>Perguntas dinâmicas</strong> — Carregam baseadas no tipo de petição selecionado?</li>
+          <li><strong>PerguntaSimNao</strong> — Botões Sim/Não estilizados corretamente</li>
+          <li><strong>PerguntaTexto</strong> — Input texto + ícone microfone (transcricao)</li>
+          <li><strong>PerguntaUpload</strong> — Sim/Não + opção de upload</li>
+          <li><strong>Progresso</strong> — WizardStepper atualiza para Step 2?</li>
+          <li><strong>Validação</strong> — Não avança se perguntas obrigatórias não preenchidas</li>
+        </ul>
+        <h3>Cruzar na Spec</h3>
+        <div class="instruction">
+          <strong>Arquivo:</strong> <code>T2-prd-frontend.md</code> → Seção 4 (Step 2 Triagem) + componentes <code>triagem/</code>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <div class="step-title">STEP 3 — Estrutura (Outline DnD)</div>
+        <span class="badge p1">P1</span>
+      </div>
+      <div class="step-body">
+        <h3>Campos a testar</h3>
+        <ul class="check-list">
+          <li><strong>Lista DnD</strong> — @dnd-kit instalado e funcionando? Drag-and-drop de seções</li>
+          <li><strong>Seções</strong> — Introdução / Fundamentação / Conclusão como headers</li>
+          <li><strong>Items sortáveis</strong> — Cada bloco é arrastável dentro da seção</li>
+          <li><strong>Adicionar/remover blocos</strong> — UI para gerenciar estrutura</li>
+        </ul>
+        <div class="instruction">
+          <strong>Primeiro:</strong> verificar <code>package.json</code> → <code>@dnd-kit/core</code> + <code>@dnd-kit/sortable</code> instalados? Se não → CC instala.
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">4</div>
+        <div class="step-title">STEP 4 — Geração Express (n8n webhook)</div>
+        <span class="badge p1">P1</span>
+      </div>
+      <div class="step-body">
+        <h3>Campos a testar</h3>
+        <ul class="check-list">
+          <li><strong>GeracaoProgress</strong> — Barra de progresso animada durante geração</li>
+          <li><strong>ProgressSubsteps</strong> — Sub-etapas: "Buscando modelo..." → "Montando estrutura..." → etc.</li>
+          <li><strong>callWebhook()</strong> — Usa a função centralizada (não fetch direto)?</li>
+          <li><strong>Timeout handling</strong> — O que acontece se n8n demorar >30s?</li>
+          <li><strong>Error handling</strong> — Mensagem de erro clara se falhar</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">5</div>
+        <div class="step-title">STEP 5 — Revisão (Minuta gerada)</div>
+        <span class="badge p1">P1</span>
+      </div>
+      <div class="step-body">
+        <h3>Campos a testar</h3>
+        <ul class="check-list">
+          <li><strong>Preview da petição</strong> — Texto gerado exibido corretamente</li>
+          <li><strong>Editor de texto</strong> — Textarea editável com a minuta</li>
+          <li><strong>Validação de placeholders</strong> — ModalConfirmacaoPlaceholders se houver placeholders não substituídos</li>
+          <li><strong>Botão Finalizar</strong> — Avança para conclusão</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Step 6 -->
+    <div class="step-card">
+      <div class="step-header">
+        <div class="step-num">6</div>
+        <div class="step-title">STEP 6 — Conclusão (Google Doc + Download)</div>
+        <span class="badge p2">P2</span>
+      </div>
+      <div class="step-body">
+        <h3>Campos a testar</h3>
+        <ul class="check-list">
+          <li><strong>Google Doc URL</strong> — Link para o documento gerado</li>
+          <li><strong>Botão Download</strong> — Baixar .docx?</li>
+          <li><strong>Métricas</strong> — Tokens usados, custo, tempo de geração</li>
+          <li><strong>Feedback advogado</strong> — Input nota 1-10 + comentário</li>
+          <li><strong>Nova petição</strong> — Botão para resetar e começar nova</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- PROMPT PARA CC -->
+  <div class="section">
+    <h2>🤖 Prompt para Claude Code</h2>
+    <p style="color: var(--muted); margin-bottom: 16px;">Copie e cole este prompt no terminal do Claude Code (<code>claude --print --permission-mode bypassPermissions</code>):</p>
+
+    <div class="prompt-box"><span class="comment"># OlivIA v3 — Agente E2E Vision Loop</span>
+<span class="comment"># Executor: Claude Code | Modo: Autônomo | Data: 2026-03-19</span>
+
+<span class="keyword">CONTEXTO:</span>
+Você é um agente de QA + desenvolvedor autônomo da plataforma MdFlow (LegalTech).
+Sua missão: testar e corrigir a página /olivia em loop até todos os Steps do wizard Express estarem funcionando conforme spec.
+
+<span class="keyword">STACK:</span>
+- React 18 + TypeScript + shadcn/ui + Tailwind CSS (Design System Warm Charcoal v5)
+- Supabase JS SDK (staleTime: 30_000 obrigatório em TODOS os React Query hooks)
+- Rota: http://localhost:5173/olivia
+- Repositório: ~/beta-mdflow/
+- Credenciais teste: email=mdlab.equipe@gmail.com | senha=MdL1501@ (conta admin)
+
+<span class="keyword">SPEC COMPLETA (ler ANTES de qualquer ação):</span>
+- ~/Desktop/olivia\ v3/OLIVIA-V3-MASTER-PLAN.md → Decisões arquiteturais
+- ~/Desktop/olivia\ v3/T2-prd-frontend.md → Spec Frontend detalhada (Step 1 até Conclusão)
+- ~/Desktop/olivia\ v3/T3-prd-backend.md → Spec Backend (tabelas, queries, RLS)
+- ~/Desktop/olivia\ v3/T2-gap-analysis-lapidacao.md → Análise de gaps
+
+<span class="keyword">REGRAS CRÍTICAS:</span>
+1. NUNCA inventar soluções — sempre buscar na pasta ~/Desktop/olivia\ v3/ primeiro
+2. SEMPRE registrar bugs na tabela projeto_etapas (ver abaixo)
+3. SEMPRE fazer screenshot antes e depois de cada correção (vision)
+4. Se spec não cobrir o caso → PARAR e perguntar
+5. staleTime: 30_000 em todos os hooks React Query
+6. ZERO hardcode de cor — sempre tokens CSS ou classes Tailwind semânticas
+7. organizacao_id em todas as queries Supabase
+8. soft delete → filtrar .is('deleted_at', null)
+
+<span class="keyword">TABELA DE REGISTRO (Supabase):</span>
+Após cada bug encontrado/corrigido, inserir em projeto_etapas:
+- projeto_id: '48d9bfaa-206f-457c-95f6-36ed25e4162e'
+- nome: '[STEP-X] Nome do bug'
+- descricao: 'Descrição do problema + solução aplicada + se conforme spec'
+- status: 'concluida' (se corrigido) ou 'em_andamento' (se tentando)
+- responsavel: 'claude-code-e2e'
+- tipo: 'correcao'
+Use Supabase service_role via env: source ~/jarbas/.env
+
+<span class="keyword">LOOP POR STEP — executar para cada step:</span>
+1. Screenshot da UI atual → vision → identificar problemas
+2. Para cada campo do step: verificar contra spec (T2-prd-frontend.md)
+3. Se campo está errado → buscar solução na pasta olivia v3 → corrigir
+4. Screenshot pós-fix → vision → confirmar que corrigiu
+5. Se ok → registrar em projeto_etapas → avançar para próximo campo
+6. Se ainda errado → tentar fix alternativo (máx 2x) → se falhar → registrar e continuar
+
+<span class="keyword">COMEÇAR PELO STEP 1 (BLOQUEADO — P0):</span>
+
+<span class="comment"># BUG B-01 PRIORIDADE MÁXIMA: Seletor de Tipo de Petição está vazio</span>
+Arquivo: src/pages/olivia/hooks/usePetitionModels.ts
+Suspeita: organizacao_id null no contexto ou RLS bloqueando
+Debug:
+  1. Abrir browser em http://localhost:5173/olivia
+  2. Ir para DevTools → Console → verificar erros de query
+  3. No código: logar useAuth().organizacao_id
+  4. Verificar se tipos existem no banco para org '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+  5. Dados banco (confirmado): 10 tipos existem para essa org
+
+<span class="comment"># BUG B-02/B-04: Modelos não carregam</span>
+Arquivo: src/pages/olivia/components/shared/ProcessoSelector.tsx
+                src/pages/olivia/hooks/usePetitionModels.ts
+Problema: se categoriaEmpresaId = null → filtro OR exclui modelos com categoria preenchida
+Fix: se categoriaEmpresaId null → não adicionar filtro de categoria (retornar todos do tipo)
+Evidência banco: todos os modelos têm categoria_empresa_id preenchida
+
+<span class="comment"># BUG B-03: Label de versão incorreto</span>
+Fix: `V${v.ordem} · ${v.nome ?? 'Padrão'} · ${new Date(v.created_at!).toLocaleDateString('pt-BR')}`
+
+<span class="comment"># BUG B-11: QualidadeIaSelector não deve aparecer no Express</span>
+Verificar se existe em ExpressStep1.tsx. Se sim → remover.
+Decisão D-FE-13: Express usa Sonnet 4.6 fixo, sem seletor.
+
+<span class="keyword">APÓS STEP 1 FUNCIONAR:</span>
+Avançar para Step 2 → 3 → 4 → 5 → 6 em loop, mesmo processo.
+Para Step 3: verificar se @dnd-kit/core está em package.json.
+Para Step 4: verificar se callWebhook() é usado (não fetch() direto).
+
+<span class="keyword">AO FINAL DE CADA STEP:</span>
+Enviar mensagem para JANA via Telegram informando:
+- Step concluído
+- Bugs encontrados/corrigidos  
+- Status geral
+(JANA Telegram bot token: em ~/jarbas/.env → TELEGRAM_BOT_TOKEN, chat_id: 1307075495)
+
+<span class="keyword">FIM DO LOOP = quando Step 6 Conclusão for testado e aprovado pela vision.</span></div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- TABELA PROJETO_ETAPAS -->
+  <div class="section">
+    <h2>🗄️ Registro no Banco (projeto_etapas)</h2>
+    <p style="color: var(--muted); margin-bottom: 16px;">CC registra cada correção. Você pode acompanhar em tempo real:</p>
+
+    <div class="instruction">
+      <strong>Query de acompanhamento:</strong><br>
+      <code>SELECT nome, status, descricao, created_at FROM projeto_etapas WHERE projeto_id = '48d9bfaa-206f-457c-95f6-36ed25e4162e' AND responsavel = 'claude-code-e2e' ORDER BY created_at DESC;</code>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- DECISÕES IMUTÁVEIS -->
+  <div class="section">
+    <h2>🔒 Decisões Imutáveis (CC não pode mudar)</h2>
+    <table class="bug-table">
+      <thead>
+        <tr><th>Decisão</th><th>Regra</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>D-ARQ-01</td><td>Frontend reconstruído do zero — não patchar componentes antigos se conflito com spec</td></tr>
+        <tr><td>D-ARQ-11</td><td>Step 1 <strong>unificado</strong> para todos os modos (Express, Agente, Smart Blocks)</td></tr>
+        <tr><td>D-FE-09</td><td>Sem seletor de playbook no Step 1 — IA seleciona automaticamente</td></tr>
+        <tr><td>D-FE-12</td><td>Sem seletor de advogado separado — vem vinculado ao processo</td></tr>
+        <tr><td>D-FE-13</td><td>Modo Express: qualidade IA <strong>fixa</strong> Sonnet 4.6 — sem seletor</td></tr>
+        <tr><td>D-FE-14</td><td>Modo Agente: seletor Padrão (Sonnet) vs Avançado (Opus) — só no Agente</td></tr>
+        <tr><td>D-AUT-01</td><td>fetch() → require('https') em TODOS os Code nodes n8n</td></tr>
+        <tr><td>Princípio</td><td>IA NUNCA inventa fundamentações — sempre segue modelo como esqueleto</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<div class="footer">
+  🦊 JANA — MacBook Air M4 | MdLab LegalTech | 2026-03-19<br>
+  Gerado para: Christian Paz | Executor: Claude Code | Projeto OlivIA v3
+</div>
+
+</body>
+</html>

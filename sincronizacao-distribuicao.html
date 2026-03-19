@@ -64,7 +64,7 @@
 
   <h1>🔄 Sincronização de Distribuição</h1>
   <p class="subtitle">MdFlow Antigo (hzqoxkmx) → MdFlow 2.0 (qdivfairx)</p>
-  <span class="version-badge">v2 · Atualizado 2026-03-19 · JARBAS</span>
+  <span class="version-badge">v3 · Atualizado 2026-03-19 · JARBAS</span>
 
   <div class="stats-grid">
     <div class="stat-card">
@@ -116,28 +116,38 @@
           <td><span class="tag-green">Alta — CPF é único</span></td>
         </tr>
         <tr>
+          <td><code>processos.contrato_restricao</code></td>
+          <td><code>processos.restricao_contrato</code></td>
+          <td><span class="tag-yellow">~68%</span></td>
+          <td><span class="tag-green">Alta quando presente — código único do contrato</span></td>
+        </tr>
+        <tr>
+          <td><code>processos.valor_restricao</code> (text)</td>
+          <td><code>processos.restricao_valor</code> (numeric)</td>
+          <td><span class="tag-yellow">~68%</span></td>
+          <td><span class="tag-yellow">Média — converter texto→decimal p/ comparar</span></td>
+        </tr>
+        <tr>
+          <td><code>processos.data_restricao</code> (date)</td>
+          <td><code>processos.restricao_data</code> (date)</td>
+          <td><span class="tag-yellow">estimado ~60%</span></td>
+          <td><span class="tag-green">Alta quando presente — data exata da negativação</span></td>
+        </tr>
+        <tr>
           <td><code>processos.empresa_re</code></td>
           <td><code>processos.empresa_nome</code></td>
           <td><span class="tag-yellow">146/191 (76%)</span></td>
-          <td><span class="tag-yellow">Média — nomes diferem entre sistemas</span></td>
-        </tr>
-        <tr>
-          <td><code>processos.valor_restricao</code></td>
-          <td><code>processos.restricao_valor</code></td>
-          <td><span class="tag-yellow">130/191 (68%)</span></td>
-          <td><span class="tag-yellow">Média — formato diferente (texto vs decimal)</span></td>
-        </tr>
-        <tr>
-          <td><code>processos.contrato_restricao</code></td>
-          <td><code>processos.restricao_contrato</code></td>
-          <td><span class="tag-red">130/191 (68%)</span></td>
-          <td><span class="tag-green">Alta quando presente</span></td>
+          <td><span class="tag-yellow">Média — nomes diferem entre sistemas (normalizar)</span></td>
         </tr>
       </tbody>
     </table>
 
     <div class="info-box">
-      <p>💡 <strong>Estratégia em camadas:</strong> tentar match pelo CPF + número do contrato primeiro (quando existir), depois CPF + empresa normalizada, depois CPF + valor. Quanto mais campos batem, mais confiança no match. Casos ambíguos → logar para revisão manual.</p>
+      <p>💡 <strong>Estratégia em camadas (prioridade):</strong><br>
+      1️⃣ CPF + contrato → match quase certo<br>
+      2️⃣ CPF + data_restricao + valor → confirma restrição específica<br>
+      3️⃣ CPF + empresa (normalizada) → fallback<br>
+      Quanto mais camadas batem, mais pontos de confiança. <strong>Só IDs são proibidos como chave</strong> — todos os outros campos da restrição são válidos.</p>
     </div>
   </div>
 
@@ -228,6 +238,7 @@ SELECT
   p.data_distribuicao,
   p.valor_restricao,
   p.contrato_restricao,
+  p.data_restricao,
   p.estado,
   p.local_distribuicao,
   p.tipo_acao,
@@ -259,6 +270,7 @@ SELECT
   p.distribuido,
   p.restricao_valor,
   p.restricao_contrato,
+  p.restricao_data,
   REGEXP_REPLACE(c.cpf_cnpj, '[^0-9]', '', 'g') AS cpf_limpo
 FROM processos p
 JOIN clientes c ON p.cliente_id = c.id
@@ -268,19 +280,31 @@ WHERE REGEXP_REPLACE(c.cpf_cnpj, '[^0-9]', '', 'g') = '{cpf_limpo}'
 ORDER BY p.created_at;
 ```
 
-#### Classificação do resultado:
-- **0 resultados** → GRUPO C (não encontrado)
-- **1 resultado** → candidato único → verificar se empresa bate (ILIKE ou similarity) → se sim: GRUPO A (match confiável) → se não: GRUPO B (ambíguo)
-- **2+ resultados** → tentar desempatar por empresa:
-  - Se 1 bate a empresa: GRUPO A (match confiável)
-  - Se 0 ou 2+ batem a empresa: GRUPO B (ambíguo)
+#### Sistema de pontuação por candidato (score de confiança):
+Para cada candidato encontrado no novo, calcular um score somando pontos:
 
-#### Normalização do nome de empresa para comparação:
-Remover pontuação, deixar maiúsculas, comparar primeiras 3 palavras significativas.
+| Critério | Pontos |
+|---|---|
+| Contrato bate exato | +40 |
+| Data restrição bate exato | +30 |
+| Valor bate (±R$0,01 após conversão texto→decimal) | +20 |
+| Empresa normalizada bate (primeiras 3 palavras) | +10 |
+
+**Classificação final:**
+- **0 candidatos** → GRUPO C (não encontrado)
+- **1 candidato com score ≥ 40** → GRUPO A (match confiável)
+- **1 candidato com score < 40** → GRUPO B (ambíguo — confirmar manualmente)
+- **2+ candidatos** → pegar o de maior score; se score_1 - score_2 ≥ 30 → GRUPO A; caso contrário → GRUPO B
+
+#### Normalização do nome de empresa:
+Remover pontuação (`.,/-`), remover stopwords (`S.A.`, `SA`, `LTDA`, `ME`), deixar maiúsculas, comparar primeiras 3 palavras.
 Exemplos de equivalência conhecida:
 - "BOA VISTA SERVIÇOS S.A." ≈ "BOA VISTA SERVICOS S.A."
 - "NU PAGAMENTOS SA" ≈ "NU PAGAMENTOS S.A. - INSTITUICAO DE PAGAMENTO"
 - "BANCO BRADESCO SA" ≈ "BANCO BRADESCO S.A."
+
+#### Conversão valor (antigo text → decimal):
+Substituir `.` (milhar) por nada, `,` por `.`. Ex: `"1.250,00"` → `1250.00`. Comparar com `restricao_valor::numeric`.
 
 ---
 
@@ -371,7 +395,7 @@ Executado em: {timestamp}
   </div>
 
   <div class="footer">
-    Gerado por JARBAS 🦞 · MdLab · 2026-03-19 · v2 (atualizado após análise dos dados reais)<br>
+    Gerado por JARBAS 🦞 · MdLab · 2026-03-19 · v3 (score de confiança multicamada + data_restricao)<br>
     Antigo: hzqoxkmxvwxejjanstdh · Novo: qdivfairxhdihaqqypgb
   </div>
 

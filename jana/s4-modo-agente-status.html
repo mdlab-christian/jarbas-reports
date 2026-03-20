@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>S4 — Modo Agente · Status Report</title>
+<style>
+  :root {
+    --bg: #0f0f11;
+    --surface: #18181b;
+    --surface2: #1f1f23;
+    --border: #2a2a30;
+    --primary: #7c6aff;
+    --primary-dim: #7c6aff22;
+    --success: #22c55e;
+    --success-dim: #22c55e18;
+    --warning: #f59e0b;
+    --warning-dim: #f59e0b18;
+    --danger: #ef4444;
+    --danger-dim: #ef444418;
+    --muted: #71717a;
+    --text: #e4e4e7;
+    --text-dim: #a1a1aa;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); padding: 32px 20px; line-height: 1.6; }
+  .page { max-width: 960px; margin: 0 auto; }
+  
+  /* Header */
+  .header { margin-bottom: 40px; }
+  .header-top { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
+  .badge-sala { background: var(--primary-dim); color: var(--primary); border: 1px solid var(--primary)44; border-radius: 6px; padding: 3px 10px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  h1 { font-size: 26px; font-weight: 800; color: var(--text); }
+  .subtitle { color: var(--text-dim); font-size: 14px; margin-top: 4px; }
+  .meta-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 16px; }
+  .meta-item { font-size: 12px; color: var(--muted); }
+  .meta-item strong { color: var(--text-dim); }
+  
+  /* Sections */
+  section { margin-bottom: 36px; }
+  h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); margin-bottom: 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  
+  /* Status card */
+  .status-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .status-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+  .status-card.green { border-color: var(--success)40; }
+  .status-card.yellow { border-color: var(--warning)40; }
+  .status-card.red { border-color: var(--danger)40; }
+  .status-card.purple { border-color: var(--primary)40; }
+  .status-label { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
+  .status-value { font-size: 20px; font-weight: 800; }
+  .status-value.green { color: var(--success); }
+  .status-value.yellow { color: var(--warning); }
+  .status-value.red { color: var(--danger); }
+  .status-value.purple { color: var(--primary); }
+  .status-desc { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+  
+  /* Fix table */
+  .fix-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .fix-table th { background: var(--surface2); padding: 8px 12px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .fix-table th:first-child { border-radius: 8px 0 0 0; }
+  .fix-table th:last-child { border-radius: 0 8px 0 0; }
+  .fix-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .fix-table tr:last-child td { border-bottom: none; }
+  .fix-table tr:hover td { background: var(--surface2)88; }
+  .fix-code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; color: var(--primary); background: var(--primary-dim); padding: 2px 6px; border-radius: 4px; }
+  .tag-done { display: inline-flex; align-items: center; gap: 4px; background: var(--success-dim); color: var(--success); border: 1px solid var(--success)33; border-radius: 5px; font-size: 10px; font-weight: 700; padding: 2px 7px; white-space: nowrap; }
+  .tag-pending { display: inline-flex; align-items: center; gap: 4px; background: var(--warning-dim); color: var(--warning); border: 1px solid var(--warning)33; border-radius: 5px; font-size: 10px; font-weight: 700; padding: 2px 7px; white-space: nowrap; }
+  .tag-future { display: inline-flex; align-items: center; gap: 4px; background: var(--surface2); color: var(--muted); border: 1px solid var(--border); border-radius: 5px; font-size: 10px; font-weight: 700; padding: 2px 7px; white-space: nowrap; }
+  
+  /* Layer blocks */
+  .layer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width: 640px) { .layer-grid { grid-template-columns: 1fr; } }
+  .layer-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .layer-block.ok { border-color: var(--success)33; }
+  .layer-block.warn { border-color: var(--warning)33; }
+  .layer-block.future { border-color: var(--muted)22; opacity: 0.8; }
+  .layer-title { font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .layer-icon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+  .layer-icon.green { background: var(--success-dim); }
+  .layer-icon.yellow { background: var(--warning-dim); }
+  .layer-icon.purple { background: var(--primary-dim); }
+  .layer-icon.gray { background: var(--surface2); }
+  .checklist { list-style: none; space-y: 4px; }
+  .checklist li { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: var(--text-dim); padding: 3px 0; }
+  .checklist li .dot { width: 5px; height: 5px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+  .checklist li .dot.green { background: var(--success); }
+  .checklist li .dot.yellow { background: var(--warning); }
+  .checklist li .dot.gray { background: var(--muted); }
+  
+  /* Gap cards */
+  .gap-list { display: flex; flex-direction: column; gap: 10px; }
+  .gap-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; display: flex; gap: 14px; align-items: flex-start; }
+  .gap-card.warn { border-color: var(--warning)33; }
+  .gap-card.info { border-color: var(--primary)33; }
+  .gap-card.low { border-color: var(--border); opacity: 0.75; }
+  .gap-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--warning); background: var(--warning-dim); border: 1px solid var(--warning)22; border-radius: 5px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
+  .gap-id.info { color: var(--primary); background: var(--primary-dim); border-color: var(--primary)22; }
+  .gap-id.low { color: var(--muted); background: var(--surface2); border-color: var(--border); }
+  .gap-content h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+  .gap-content p { font-size: 12px; color: var(--text-dim); }
+  .gap-content .fix-hint { font-size: 11px; color: var(--primary); margin-top: 5px; font-style: italic; }
+  
+  /* Olivia section */
+  .olivia-card { background: var(--surface); border: 1px solid var(--primary)33; border-radius: 12px; padding: 20px; }
+  .olivia-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .olivia-avatar { width: 44px; height: 44px; border-radius: 12px; background: var(--primary-dim); border: 1px solid var(--primary)44; display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; }
+  .olivia-name { font-size: 16px; font-weight: 800; }
+  .olivia-handle { font-size: 12px; color: var(--primary); font-family: monospace; }
+  .olivia-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+  @media(max-width: 600px) { .olivia-grid { grid-template-columns: 1fr; } }
+  .olivia-row { display: flex; gap: 10px; font-size: 12px; padding: 4px 0; }
+  .olivia-label { color: var(--muted); min-width: 120px; flex-shrink: 0; }
+  .olivia-val { color: var(--text-dim); }
+  .olivia-val.ok { color: var(--success); }
+  .olivia-val.warn { color: var(--warning); }
+  
+  /* Skills section */
+  .skills-timeline { display: flex; flex-direction: column; gap: 8px; }
+  .skill-item { display: flex; gap: 14px; align-items: flex-start; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .skill-num { width: 26px; height: 26px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; font-weight: 700; color: var(--muted); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .skill-info h4 { font-size: 13px; font-weight: 600; }
+  .skill-info p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  
+  /* Next steps */
+  .steps-list { display: flex; flex-direction: column; gap: 8px; }
+  .step-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .step-idx { font-size: 12px; font-weight: 800; color: var(--primary); min-width: 22px; }
+  .step-text { font-size: 13px; color: var(--text-dim); }
+  .step-text strong { color: var(--text); }
+  
+  .footnote { font-size: 11px; color: var(--muted); margin-top: 48px; padding-top: 16px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <span class="badge-sala">S4</span>
+      <h1>Modo Agente — Status Report</h1>
+    </div>
+    <p class="subtitle">Relatório pós-CC: estado atual do frontend, backend, OlivIA e roadmap de skills</p>
+    <div class="meta-row">
+      <span class="meta-item"><strong>Data:</strong> 2026-03-20</span>
+      <span class="meta-item"><strong>CC fixes aplicados:</strong> 12/12 ✅</span>
+      <span class="meta-item"><strong>Rota:</strong> /olivia/gerador/modo-agente</span>
+      <span class="meta-item"><strong>Agente:</strong> @olivia_mdbot (em treinamento)</span>
+    </div>
+  </div>
+
+  <!-- Overview -->
+  <section>
+    <h2>Visão Geral</h2>
+    <div class="status-grid">
+      <div class="status-card green">
+        <div class="status-label">Frontend</div>
+        <div class="status-value green">✅ Funcional</div>
+        <div class="status-desc">6 steps wired, Chat OlivIA, Wizard Stepper</div>
+      </div>
+      <div class="status-card green">
+        <div class="status-label">Backend (JARBAS)</div>
+        <div class="status-value green">✅ Funcional</div>
+        <div class="status-desc">3 endpoints ativos: analise, gerar, chat</div>
+      </div>
+      <div class="status-card yellow">
+        <div class="status-label">Gaps Restantes</div>
+        <div class="status-value yellow">4 gaps</div>
+        <div class="status-desc">1 importante (prop processoId), 3 menores</div>
+      </div>
+      <div class="status-card purple">
+        <div class="status-label">Skills</div>
+        <div class="status-value purple">🔜 Pendente</div>
+        <div class="status-desc">Só após frontend+backend 100% validados</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CC Fixes -->
+  <section>
+    <h2>CC Fixes — 12/12 Aplicados ✅</h2>
+    <table class="fix-table">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Fix</th>
+          <th>Arquivo</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="fix-code">C-01</span></td>
+          <td>JARBAS_AUTH header em <code>/olivia/analise-processo</code></td>
+          <td>AgenteStep2Analise.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">C-02</span></td>
+          <td>tokens_usados, custo_usd, url_publica no polling select + passados ao onComplete</td>
+          <td>AgenteStep4Geracao.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">C-03</span></td>
+          <td>handleRetry usa retryCount state em vez de chamar onBack</td>
+          <td>AgenteStep4Geracao.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">H-01</span></td>
+          <td>Botão "Continuar sem análise" nos estados idle e error</td>
+          <td>AgenteStep2Analise.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">H-02</span></td>
+          <td>Auto-redirect step 0 quando step=1 && !processoId</td>
+          <td>OliviaGeradorAgente.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">H-04</span></td>
+          <td>onApplyAction wired: sugestão do chat appenda ao contextoAdicional</td>
+          <td>AgenteStep3Editor.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">H-05</span></td>
+          <td>Label "Ir para Conclusão" + ícone ChevronRight</td>
+          <td>AgenteStep5Conclusao.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">H-06</span></td>
+          <td>lg:w-[65%] responsive no editor wrapper</td>
+          <td>AgenteStep3Editor.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">M-04/05</span></td>
+          <td>Acentos corrigidos em AgenteChat, labels AGENTE_STEPS, subtítulo, error boundaries, voice title</td>
+          <td>Múltiplos</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">M-08</span></td>
+          <td>ExpressStep5Conclusao grid: ternário substitui object-map hack</td>
+          <td>ExpressStep5Conclusao.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">L-02</span></td>
+          <td>Removida linha modeloNome redundante + dep stale session.modeloId</td>
+          <td>OliviaGeradorAgente.tsx</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+        <tr>
+          <td><span class="fix-code">ORPHAN-01</span></td>
+          <td>Deletado AgenteStep1.tsx (órfão, nunca importado)</td>
+          <td>—</td>
+          <td><span class="tag-done">✓ Done</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Frontend -->
+  <section>
+    <h2>Frontend — Estado Atual</h2>
+    <div class="layer-grid">
+      <div class="layer-block ok">
+        <div class="layer-title">
+          <div class="layer-icon green">🧙</div>
+          Wizard Stepper (6 steps)
+        </div>
+        <ul class="checklist">
+          <li><span class="dot green"></span>Step 0 — GeradorStep1 (processo + modelo)</li>
+          <li><span class="dot green"></span>Step 1 — AgenteStep2Analise (IA + polling)</li>
+          <li><span class="dot green"></span>Step 2 — AgenteStep3Editor (instruções + config)</li>
+          <li><span class="dot green"></span>Step 3 — AgenteStep4Geracao (geração JARBAS)</li>
+          <li><span class="dot green"></span>Step 4 — AgenteStep5Conclusao (resultado + Google Doc)</li>
+          <li><span class="dot green"></span>Step 5 — AgenteStep6Conclusao (feedback + download)</li>
+        </ul>
+      </div>
+      <div class="layer-block ok">
+        <div class="layer-title">
+          <div class="layer-icon green">💬</div>
+          AgenteChat (OlivIA)
+        </div>
+        <ul class="checklist">
+          <li><span class="dot green"></span>Chat lateral no Step 3 (desktop)</li>
+          <li><span class="dot green"></span>Sugestões viram instrução no editor (H-04)</li>
+          <li><span class="dot green"></span>Chama /olivia/chat com contexto da análise</li>
+          <li><span class="dot yellow"></span>Single-turn apenas — histórico não enviado</li>
+          <li><span class="dot gray"></span>Mic desativado (voice input futuro)</li>
+        </ul>
+      </div>
+      <div class="layer-block ok">
+        <div class="layer-title">
+          <div class="layer-icon green">🔒</div>
+          Guards & UX
+        </div>
+        <ul class="checklist">
+          <li><span class="dot green"></span>BeforeUnload guard (steps 1 e 3)</li>
+          <li><span class="dot green"></span>StepErrorBoundary em cada step</li>
+          <li><span class="dot green"></span>Auto-redirect step 0 se processoId ausente</li>
+          <li><span class="dot green"></span>ConfirmDialog ao sair durante análise</li>
+          <li><span class="dot green"></span>Timeout de 3min (análise) e 8min (geração)</li>
+        </ul>
+      </div>
+      <div class="layer-block future">
+        <div class="layer-title">
+          <div class="layer-icon gray">🔮</div>
+          RagControllerPanel
+        </div>
+        <ul class="checklist">
+          <li><span class="dot gray"></span>Placeholder atual: "Jurimetria do Caso"</li>
+          <li><span class="dot gray"></span>Funcionalidade futura: precedentes + stats</li>
+          <li><span class="dot gray"></span>Não bloqueia nada — só visual desativado</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Backend -->
+  <section>
+    <h2>Backend (JARBAS) — Estado Atual</h2>
+    <div class="layer-grid">
+      <div class="layer-block ok">
+        <div class="layer-title">
+          <div class="layer-icon green">🔬</div>
+          POST /olivia/analise-processo
+        </div>
+        <ul class="checklist">
+          <li><span class="dot green"></span>Cria registro em olivia_analises</li>
+          <li><span class="dot green"></span>Enfileira task olivia_analise_processo</li>
+          <li><span class="dot green"></span>Retorna analise_id imediatamente</li>
+          <li><span class="dot green"></span>Frontend faz polling a cada 3s</li>
+          <li><span class="dot green"></span>Status: CONCLUIDA / CONCLUIDA_PARCIAL / ERRO</li>
+        </ul>
+      </div>
+      <div class="layer-block ok">
+        <div class="layer-title">
+          <div class="layer-icon green">⚡</div>
+          POST /olivia/gerar-modo-agente
+        </div>
+        <ul class="checklist">
+          <li><span class="dot green"></span>Cria olivia_historico (frontend)</li>
+          <li><span class="dot green"></span>Enfileira task em jarbas_tarefas</li>
+          <li><span class="dot green"></span>Polling por historico_id a cada 3s</li>
+          <li><span class="dot green"></span>Retorna: texto, urlPublica, score, tokens, custo</li>
+          <li><span class="dot green"></span>Google Doc + Relatório HTML</li>
+        </ul>
+      </div>
+      <div class="layer-block ok">
+        <div class="layer-title">
+          <div class="layer-icon green">💬</div>
+          POST /olivia/chat
+        </div>
+        <ul class="checklist">
+          <li><span class="dot green"></span>Claude Sonnet 4.6 direto</li>
+          <li><span class="dot green"></span>Recebe contexto da análise</li>
+          <li><span class="dot green"></span>Prompt com identidade OlivIA</li>
+          <li><span class="dot green"></span>Timeout 30s no frontend</li>
+          <li><span class="dot yellow"></span>Single-turn — não passa histórico</li>
+        </ul>
+      </div>
+      <div class="layer-block ok">
+        <div class="layer-title">
+          <div class="layer-icon green">🗄️</div>
+          Supabase
+        </div>
+        <ul class="checklist">
+          <li><span class="dot green"></span>olivia_analises — polling Step 2</li>
+          <li><span class="dot green"></span>olivia_historico — polling Step 4</li>
+          <li><span class="dot green"></span>feedback_advogado salvo (Step 6)</li>
+          <li><span class="dot green"></span>tokens_usados, custo_usd passados via onComplete</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gaps -->
+  <section>
+    <h2>Gaps Restantes — 4 identificados</h2>
+    <div class="gap-list">
+
+      <div class="gap-card warn">
+        <div class="gap-id">GAP-A</div>
+        <div class="gap-content">
+          <h4>processoId prop não inicializa sessão</h4>
+          <p>OliviaGeradorAgente recebe <code>processoId?</code> via prop (vindo de <code>?processo_id=xxx</code> na URL), mas <strong>não inicializa session.processoId</strong>. Se o usuário navega a partir da página de um processo, o seletor de processo fica vazio — o processo não é pré-selecionado no Step 0.</p>
+          <p class="fix-hint">→ Fix: adicionar useEffect inicial que chama updateSession({ processoId }) quando prop existe. GeradorStep1 precisa aceitar activeProcessoId como initialValue.</p>
+        </div>
+      </div>
+
+      <div class="gap-card info">
+        <div class="gap-id info">GAP-B</div>
+        <div class="gap-content">
+          <h4>AgenteChat é single-turn (sem histórico persistente)</h4>
+          <p>O endpoint <code>/olivia/chat</code> recebe apenas a mensagem atual, sem histórico da conversa. Cada mensagem é independente — o modelo não "lembra" da troca anterior dentro da mesma sessão.</p>
+          <p class="fix-hint">→ Fix futuro: passar array de messages no body. Não bloqueia funcionalidade atual — prioridade média.</p>
+        </div>
+      </div>
+
+      <div class="gap-card info">
+        <div class="gap-id info">GAP-C</div>
+        <div class="gap-content">
+          <h4>@olivia_mdbot não integrado ao AgenteChat</h4>
+          <p>O Chat OlivIA usa Claude diretamente via JARBAS, com um systemPrompt local. O @olivia_mdbot (instância autônoma em treinamento) não está conectado ao fluxo do Modo Agente ainda. São dois sistemas separados hoje.</p>
+          <p class="fix-hint">→ Decisão necessária: o AgenteChat deve rotear para @olivia_mdbot? Ou mantemos Claude direto no Modo Agente e @olivia_mdbot fica para outras interfaces?</p>
+        </div>
+      </div>
+
+      <div class="gap-card low">
+        <div class="gap-id low">GAP-D</div>
+        <div class="gap-content">
+          <h4>Mic desativado no AgenteChat</h4>
+          <p>Botão de gravação de voz está presente mas desativado (<code>disabled</code>) com tooltip "em breve". Não bloqueia nada.</p>
+          <p class="fix-hint">→ Prioridade baixa — feature futura.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- OlivIA -->
+  <section>
+    <h2>OlivIA — Agente Autônomo @olivia_mdbot</h2>
+    <div class="olivia-card">
+      <div class="olivia-header">
+        <div class="olivia-avatar">🫒</div>
+        <div>
+          <div class="olivia-name">OlivIA</div>
+          <div class="olivia-handle">@olivia_mdbot · instância autônoma em treinamento</div>
+        </div>
+      </div>
+      
+      <p style="font-size:13px; color: var(--text-dim); margin-bottom: 16px;">
+        A OlivIA é a identidade do agente jurídico IA do Midas. No MdFlow hoje, ela aparece como:
+        (1) <strong>Chat OlivIA</strong> no Modo Agente — Claude direto via JARBAS, com systemPrompt de identidade OlivIA.
+        (2) <strong>@olivia_mdbot</strong> — instância autônoma do Telegram, em treinamento separado.
+        Ainda não há integração direta entre os dois — são fluxos independentes.
+      </p>
+
+      <div class="olivia-grid">
+        <div>
+          <div class="olivia-row"><span class="olivia-label">Chat no Modo Agente:</span><span class="olivia-val ok">✅ Funcional</span></div>
+          <div class="olivia-row"><span class="olivia-label">Identidade no chat:</span><span class="olivia-val ok">OlivIA (systemPrompt)</span></div>
+          <div class="olivia-row"><span class="olivia-label">Modelo usado:</span><span class="olivia-val">Claude Sonnet 4.6</span></div>
+          <div class="olivia-row"><span class="olivia-label">Endpoint:</span><span class="olivia-val">/olivia/chat (JARBAS)</span></div>
+        </div>
+        <div>
+          <div class="olivia-row"><span class="olivia-label">@olivia_mdbot:</span><span class="olivia-val warn">⚠️ Em treinamento</span></div>
+          <div class="olivia-row"><span class="olivia-label">Integrado ao MdFlow:</span><span class="olivia-val warn">Ainda não</span></div>
+          <div class="olivia-row"><span class="olivia-label">Vars no JARBAS .env:</span><span class="olivia-val warn">Não configuradas</span></div>
+          <div class="olivia-row"><span class="olivia-label">Próximo passo:</span><span class="olivia-val">Definir fluxo de integração</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Skills -->
+  <section>
+    <h2>Skills — Roadmap (após frontend+backend validados)</h2>
+    <p style="font-size:13px; color: var(--text-dim); margin-bottom: 16px; background: var(--warning-dim); border: 1px solid var(--warning)33; border-radius: 8px; padding: 10px 14px;">
+      ⚠️ <strong>Skills ficam por último</strong> — só depois que o Modo Agente estiver 100% funcional e testado em produção. Skills merecem atenção especial e contexto completo do agente.
+    </p>
+    <div class="skills-timeline">
+      <div class="skill-item">
+        <div class="skill-num">1</div>
+        <div class="skill-info">
+          <h4>Skill: Sugestão Automática de Argumentos</h4>
+          <p>Baseada no analiseResultado — OlivIA sugere automaticamente os melhores argumentos para o tipo de caso. Alimenta o contextoAdicional no Step 3.</p>
+        </div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-num">2</div>
+        <div class="skill-info">
+          <h4>Skill: Jurimetria do Caso (RagControllerPanel)</h4>
+          <p>Análise de precedentes do mesmo tipo de caso + estatísticas de resultado. Usa RAG sobre base de jurisprudências do escritório Midas.</p>
+        </div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-num">3</div>
+        <div class="skill-info">
+          <h4>Skill: Revisão Pós-Geração</h4>
+          <p>Agente revisor (jarbas-revisor) analisa o texto gerado e sugere melhorias específicas antes do usuário aprovar. Integra ao Step 4/5.</p>
+        </div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-num">4</div>
+        <div class="skill-info">
+          <h4>Skill: Histórico Multi-Turn no Chat OlivIA</h4>
+          <p>Persistir e enviar histórico da conversa para o backend — OlivIA lembra do contexto da sessão toda. Fix do GAP-B.</p>
+        </div>
+      </div>
+      <div class="skill-item">
+        <div class="skill-num">5</div>
+        <div class="skill-info">
+          <h4>Skill: Integração @olivia_mdbot → AgenteChat</h4>
+          <p>Rotear o AgenteChat para @olivia_mdbot em vez de Claude direto. OlivIA como agente treinado responde no chat do Modo Agente com memória de treinamento.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Next Steps -->
+  <section>
+    <h2>Próximos Passos Imediatos</h2>
+    <div class="steps-list">
+      <div class="step-item">
+        <div class="step-idx">1</div>
+        <div class="step-text"><strong>Corrigir GAP-A:</strong> Inicializar session.processoId a partir da prop quando existir — 15min de fix.</div>
+      </div>
+      <div class="step-item">
+        <div class="step-idx">2</div>
+        <div class="step-text"><strong>Teste end-to-end completo</strong> em produção: selecionar processo → análise → instruções → geração → resultado → feedback.</div>
+      </div>
+      <div class="step-item">
+        <div class="step-idx">3</div>
+        <div class="step-text"><strong>Definir posição do @olivia_mdbot</strong> no fluxo: integrar ao AgenteChat ou manter paralelo? Essa decisão guia o roadmap de skills.</div>
+      </div>
+      <div class="step-item">
+        <div class="step-idx">4</div>
+        <div class="step-text"><strong>Só então → Skills</strong> com atenção dedicada, com contexto completo do agente.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="footnote">
+    Gerado por JANA 🦊 · 2026-03-20 · S4 Modo Agente v3 · JARBAS Network
+  </div>
+
+</div>
+</body>
+</html>

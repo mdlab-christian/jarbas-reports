@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Blocks — Fix Report 2026-03-20</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222636;
+    --border: #2e3347;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --p0: #ff4757;
+    --p0-bg: rgba(255,71,87,0.08);
+    --p0-border: rgba(255,71,87,0.3);
+    --p1: #ffa502;
+    --p1-bg: rgba(255,165,2,0.08);
+    --p1-border: rgba(255,165,2,0.3);
+    --p2: #3b82f6;
+    --p2-bg: rgba(59,130,246,0.08);
+    --p2-border: rgba(59,130,246,0.3);
+    --ok: #2ed573;
+    --ok-bg: rgba(46,213,115,0.08);
+    --ok-border: rgba(46,213,115,0.3);
+    --accent: #7c6de8;
+    --accent-hover: #6c5fd8;
+    --radius: 10px;
+    --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  /* HEADER */
+  .header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 24px;
+  }
+  .header-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .header h1 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -0.3px;
+  }
+  .header h1 span { color: var(--accent); }
+  .header-meta {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+  .badge-agent {
+    background: rgba(124,109,232,0.15);
+    border: 1px solid rgba(124,109,232,0.3);
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+  }
+
+  /* SUMMARY CARDS */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+  }
+  .card.p0 { border-color: var(--p0-border); background: var(--p0-bg); }
+  .card.p1 { border-color: var(--p1-border); background: var(--p1-bg); }
+  .card.p2 { border-color: var(--p2-border); background: var(--p2-bg); }
+  .card .count { font-size: 36px; font-weight: 800; line-height: 1; }
+  .card.p0 .count { color: var(--p0); }
+  .card.p1 .count { color: var(--p1); }
+  .card.p2 .count { color: var(--p2); }
+  .card .label { font-size: 12px; color: var(--muted); margin-top: 4px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+  .card .desc { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+  /* SECTION */
+  .section {
+    margin-bottom: 20px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .section-header h2 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .pill {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+  .pill.p0 { background: var(--p0-bg); color: var(--p0); border: 1px solid var(--p0-border); }
+  .pill.p1 { background: var(--p1-bg); color: var(--p1); border: 1px solid var(--p1-border); }
+  .pill.p2 { background: var(--p2-bg); color: var(--p2); border: 1px solid var(--p2-border); }
+  .pill.ok { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok-border); }
+
+  /* ISSUE CARD */
+  .issue {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .issue.p0 { border-left: 3px solid var(--p0); }
+  .issue.p1 { border-left: 3px solid var(--p1); }
+  .issue.p2 { border-left: 3px solid var(--p2); }
+
+  .issue-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 18px;
+  }
+  .issue-title {
+    font-weight: 600;
+    color: #fff;
+    flex: 1;
+    font-size: 13.5px;
+  }
+  .issue-file {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .issue-body {
+    padding: 0 18px 14px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .issue-body strong { color: var(--text); }
+
+  pre {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    overflow-x: auto;
+    color: #a8b4d0;
+    margin: 8px 0;
+    line-height: 1.5;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: rgba(255,255,255,0.06);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: #c4cde0;
+  }
+
+  /* ACCORDION */
+  .accordion {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    overflow: hidden;
+  }
+  .accordion-trigger {
+    width: 100%;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 18px;
+    text-align: left;
+    color: var(--text);
+    font-size: 14px;
+    font-weight: 600;
+    transition: background 0.15s;
+  }
+  .accordion-trigger:hover { background: rgba(255,255,255,0.03); }
+  .accordion-trigger .chevron {
+    margin-left: auto;
+    color: var(--muted);
+    font-size: 12px;
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .accordion-trigger.open .chevron { transform: rotate(180deg); }
+  .accordion-content {
+    display: none;
+    padding: 0 18px 18px;
+  }
+  .accordion-content.open { display: block; }
+
+  .prompt-box {
+    position: relative;
+    background: rgba(0,0,0,0.5);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    color: #c4cde0;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin-top: 10px;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    transition: background 0.15s, transform 0.1s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .copy-btn:hover { background: var(--accent-hover); }
+  .copy-btn:active { transform: scale(0.96); }
+  .copy-btn.copied { background: var(--ok); }
+
+  .prompt-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .prompt-meta span {
+    font-size: 11px;
+    color: var(--muted);
+    background: rgba(255,255,255,0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 24px 0;
+  }
+
+  /* FOOTER */
+  .footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 32px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Chips */
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+  .chip {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: var(--muted);
+    font-family: var(--font-mono);
+  }
+
+  /* TIMELINE */
+  .timeline { margin-top: 8px; }
+  .tl-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tl-item:last-child { border-bottom: none; }
+  .tl-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 7px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+  .tl-badge.p0 { background: var(--p0-bg); color: var(--p0); border: 1px solid var(--p0-border); }
+  .tl-badge.p1 { background: var(--p1-bg); color: var(--p1); border: 1px solid var(--p1-border); }
+  .tl-badge.p2 { background: var(--p2-bg); color: var(--p2); border: 1px solid var(--p2-border); }
+  .tl-text { font-size: 13px; }
+  .tl-text strong { color: var(--text); }
+  .tl-text span { color: var(--muted); font-family: var(--font-mono); font-size: 11px; }
+  .tl-time { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; }
+
+  @media (max-width: 600px) {
+    .summary { grid-template-columns: 1fr; }
+    body { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>Smart Blocks — <span>Fix Report</span></h1>
+      <p class="header-meta">OlivIA v3 · Investigação Claude Code · 2026-03-20</p>
+    </div>
+    <span class="badge-agent">🦊 JANA · Claude Code Opus 4.6</span>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="summary">
+  <div class="card p0">
+    <div class="count">1</div>
+    <div class="label">P0 — Bloqueante</div>
+    <div class="desc">Step 2 retorna 0 tags<br>100% quebrado</div>
+  </div>
+  <div class="card p1">
+    <div class="count">7</div>
+    <div class="label">P1 — Importante</div>
+    <div class="desc">Headers vazios, blocos errados,<br>registro incompleto</div>
+  </div>
+  <div class="card p2">
+    <div class="count">9</div>
+    <div class="label">P2 — Melhoria</div>
+    <div class="desc">Tabs residuais, features<br>faltantes, código morto</div>
+  </div>
+</div>
+
+<!-- ACHADO CRÍTICO -->
+<div class="section">
+  <div class="section-header">
+    <h2>🚨 Achado Crítico — P0</h2>
+    <span class="pill p0">BLOQUEANTE</span>
+  </div>
+  <div class="issue p0">
+    <div class="issue-header">
+      <span class="pill p0">P0</span>
+      <span class="issue-title">Query olivia_modelo_tags usa grupo_id onde banco espera peticao_id → Step 2 SEMPRE retorna 0 tags</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>Arquivo:</strong> <code>useSmartBlocks.ts:87</code></p>
+      <p style="margin-top:8px;">O hook recebe <code>modeloGrupoId</code> (FK → olivia_modelos_<strong>grupo</strong>) mas faz query em <code>olivia_modelo_tags</code> cuja FK aponta para <code>olivia_modelos_<strong>peticao</strong>.id</code>. Confirmado via SQL — 100% dos 508 rows são <code>is_peticao=true</code>.</p>
+      <div class="chips" style="margin-top:10px;">
+        <span class="chip">useSmartBlocks.ts:87</span>
+        <span class="chip">OliviaGeradorSmartBlocks.tsx</span>
+        <span class="chip">SmartBlocksStep2TagWizard.tsx</span>
+      </div>
+      <pre>// ATUAL (quebrado):
+.eq('modelo_id', modeloGrupoId!)  // ← passa olivia_modelos_grupo.id
+
+// FIX: passar state.versaoId (active_version_id = olivia_modelos_peticao.id)
+.eq('modelo_id', modeloPeticaoId!) // ← olivia_modelos_peticao.id</pre>
+      <p style="margin-top:8px;"><strong>Cadeia do bug:</strong> Step1.handleModeloChange → state.modeloId = grupo.id → Step2 recebe grupo.id → hook passa grupo.id → query retorna 0 rows → "Nenhuma tag encontrada".</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- P1 ISSUES -->
+<div class="section">
+  <div class="section-header">
+    <h2>⚠️ Issues P1</h2>
+    <span class="pill p1">7 itens</span>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-1</span>
+      <span class="issue-title">org_id vs organizacao_id — header x-org-id vazio no webhook</span>
+      <span class="issue-file">useSmartBlocksGeneration.ts:157</span>
+    </div>
+    <div class="issue-body">
+      Payload envia <code>org_id</code> mas <code>callWebhook</code> lê <code>payload.organizacao_id</code> para header <code>x-org-id</code>. Resultado: header enviado vazio ao n8n.
+      <pre>// Fix: renomear no payload
+organizacao_id: organizacaoId,  // era org_id</pre>
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-2</span>
+      <span class="issue-title">Blocos sem filtro de categoria — mostra blocos de empresas erradas</span>
+      <span class="issue-file">useSmartBlocks.ts:110-118</span>
+    </div>
+    <div class="issue-body">
+      Query de <code>olivia_blocos_texto</code> não filtra por <code>categoria_empresa_id</code>. Blocos de Telecomunicações aparecem para processos de Instituição Financeira. Todos os 1244 blocos têm <code>categoria_empresa_id</code> preenchido.
+      <pre>// Fix: adicionar filtro OR (null aceito para blocos genéricos)
+.or(`categoria_empresa_id.is.null,categoria_empresa_id.eq.${categoriaEmpresaId}`)</pre>
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-3</span>
+      <span class="issue-title">INSERT olivia_historico incompleto — faltam 4 campos</span>
+      <span class="issue-file">useSmartBlocksGeneration.ts:131-139</span>
+    </div>
+    <div class="issue-body">
+      Faltam no INSERT: <code>versao_id</code>, <code>tipo_peticao_id</code>, <code>advogado_id</code>, <code>motor</code>. Sem esses campos a Fila Interna não consegue exibir detalhes do histórico.
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-4</span>
+      <span class="issue-title">user_id ausente no payload — header x-user-id vazio</span>
+      <span class="issue-file">useSmartBlocksGeneration.ts:152-163</span>
+    </div>
+    <div class="issue-body">
+      Assim como <code>org_id</code>, o <code>user_id</code>/<code>actor_user_id</code> não está no payload, então <code>callWebhook</code> envia <code>x-user-id: ""</code>.
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-5</span>
+      <span class="issue-title">QUALIDADE_IA_OPTIONS com 3 opções vs spec 2 — modelos errados por tier</span>
+      <span class="issue-file">constants.ts:24-28</span>
+    </div>
+    <div class="issue-body">
+      Spec define 2 opções: <strong>padrão</strong> (Sonnet 4.6) e <strong>avançado</strong> (Opus). Código tem 3: padrão=Haiku, avançado=Sonnet, premium=Opus. Tier errado → modelo errado chamado.
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-6</span>
+      <span class="issue-title">Payload sem envelope canônico — falta request_id, contexto, origem_rota, data:{}</span>
+      <span class="issue-file">useSmartBlocksGeneration.ts:150-163</span>
+    </div>
+    <div class="issue-body">
+      Spec T2 seção 4.2 define envelope canônico. Payload atual é flat sem wrapper <code>data:{}</code>.
+      <pre>// Estrutura esperada:
+{
+  request_id: crypto.randomUUID(),
+  contexto: 'olivia.smart-blocks',
+  organizacao_id: orgId,
+  actor_user_id: userId,
+  origem_rota: '/olivia',
+  data: { processo_id, modelo_id, versao_id, ... }
+}</pre>
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-7</span>
+      <span class="issue-title">Webhook path pode divergir do n8n — olivia/gerar-manual vs olivia/smart-blocks</span>
+      <span class="issue-file">constants.ts:33</span>
+    </div>
+    <div class="issue-body">
+      Código usa path <code>olivia/gerar-manual</code>. Master Plan cita <code>olivia/smart-blocks</code>. Confirmar no nó webhook trigger do n8n e corrigir se necessário.
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- P2 ISSUES -->
+<div class="section">
+  <div class="section-header">
+    <h2>🔵 Issues P2</h2>
+    <span class="pill p2">9 itens</span>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-1</span>
+      <span class="issue-title">Tab 'fila' residual em OLIVIA_TABS</span>
+      <span class="issue-file">constants.ts:7</span>
+    </div>
+    <div class="issue-body">Aba "Fila de Geração" foi excluída da spec. Linha ainda presente em <code>OLIVIA_TABS</code>.</div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-2</span>
+      <span class="issue-title">Tags sem filtro ativo=true</span>
+      <span class="issue-file">useSmartBlocks.ts:76</span>
+    </div>
+    <div class="issue-body">Falta <code>.eq('ativo', true)</code> na query de <code>olivia_tags</code>. Atualmente 0 tags inativas, mas frágil sem filtro.</div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-3</span>
+      <span class="issue-title">Toggle "Gerar Relatório HTML" ausente no Step 1</span>
+      <span class="issue-file">SmartBlocksStep1.tsx</span>
+    </div>
+    <div class="issue-body">Spec T2 3.11 exige toggle Sim/Não condicional a JARBAS online.</div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-4</span>
+      <span class="issue-title">Botão "Download PDF" ausente no Step 3</span>
+      <span class="issue-file">SmartBlocksStep3Geracao.tsx</span>
+    </div>
+    <div class="issue-body">Step 3 tem "Abrir Google Doc" e "Nova Petição" mas não tem "Download PDF".</div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-5</span>
+      <span class="issue-title">Feedback do advogado ausente no Step 3</span>
+      <span class="issue-file">SmartBlocksStep3Geracao.tsx</span>
+    </div>
+    <div class="issue-body">Spec exige formulário nota 1–10 + comentário + UPDATE em <code>olivia_historico.feedback_advogado</code>.</div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-6</span>
+      <span class="issue-title">Progresso de geração hardcoded — não lê olivia_historico.progresso</span>
+      <span class="issue-file">SmartBlocksStep3Geracao.tsx</span>
+    </div>
+    <div class="issue-body">Barra de progresso usa % fixas (5%, 15%, 35%). Spec exige polling em <code>olivia_historico.progresso</code> (JSONB) com mensagens do n8n.</div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-7</span>
+      <span class="issue-title">Validação de placeholders ausente — não verifica campos do processo</span>
+      <span class="issue-file">SmartBlocksStep1.tsx</span>
+    </div>
+    <div class="issue-body">Ao avançar Step1→2, deveria verificar se processo tem campos para preencher todos os placeholders do modelo. Se faltar → abrir ModalConfirmacaoPlaceholders.</div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-8</span>
+      <span class="issue-title">Magic number de câmbio USD→BRL (5.50 hardcoded)</span>
+      <span class="issue-file">SmartBlocksStep3Geracao.tsx:205</span>
+    </div>
+    <div class="issue-body">
+      <pre>custoReais: Math.round(data.custo_usd * 550) / 100  // ← cambio 5.50 fixo</pre>
+      Exibir em USD ou usar constante configurável.
+    </div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-9</span>
+      <span class="issue-title">Código deprecated não removido — 4 arquivos + barrel</span>
+    </div>
+    <div class="issue-body">
+      Remover: <code>SmartBlocksModo.tsx</code>, <code>SmartBlocksStep2Blocos.tsx</code>, <code>SmartBlocksStep3Preview.tsx</code>, <code>src/hooks/olivia/useSmartBlocks.ts</code> + exports no barrel <code>index.ts:13-17</code>.
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- PROMPTS PARA CC -->
+<div class="section">
+  <div class="section-header">
+    <h2>🤖 Prompts para Claude Code</h2>
+    <span class="pill ok">Copie e rode manualmente</span>
+  </div>
+
+  <!-- PROMPT 1 — P0 FIX -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p0">P0</span>
+      <span>Fix crítico — modelo_id correto na query de tags (useSmartBlocks)</span>
+      <span style="color:var(--muted);font-size:11px;">~15 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span>
+        <span>⏱ ~15 min</span>
+        <span>🎯 Desbloqueia Step 2 completamente</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="prompt-p0">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## CONTEXTO DO BUG P0
+
+Em `src/pages/olivia/hooks/useSmartBlocks.ts` linha 87, a query em `olivia_modelo_tags` usa `modeloGrupoId` (FK para `olivia_modelos_grupo.id`), mas a FK real da tabela `olivia_modelo_tags.modelo_id` aponta para `olivia_modelos_peticao.id`. Resultado: Step 2 SEMPRE retorna 0 tags e exibe "Nenhuma tag encontrada."
+
+Confirmação via SQL: 100% dos 508 rows em `olivia_modelo_tags` têm `modelo_id` que existe em `olivia_modelos_peticao` (is_peticao=true), NUNCA em `olivia_modelos_grupo`.
+
+## CADEIA DO BUG
+
+```
+SmartBlocksStep1.handleModeloChange
+  → state.modeloId = olivia_modelos_grupo.id   ← ID do grupo
+  → state.versaoId = modelo.active_version_id  ← ID da petição (FK → olivia_modelos_peticao.id)
+
+OliviaGeradorSmartBlocks:
+  → <SmartBlocksStep2TagWizard modeloId={state.modeloId} />
+                                ^^^^^^^^^^^^^^^^^^^^^^
+                                passa grupo.id — ERRADO para olivia_modelo_tags
+
+SmartBlocksStep2TagWizard:
+  → useSmartBlocks(modeloId, org)
+     → .eq('modelo_id', modeloGrupoId!)  ← grupo.id → query retorna 0
+```
+
+## O QUE FAZER
+
+1. Em `OliviaGeradorSmartBlocks.tsx`: adicionar prop `modeloPeticaoId={state.versaoId}` ao `SmartBlocksStep2TagWizard` (além do `modeloId` existente se necessário).
+
+2. Em `SmartBlocksStep2TagWizard.tsx`: adicionar prop `modeloPeticaoId: string` à interface e repassar ao hook.
+
+3. Em `useSmartBlocks.ts`: renomear parâmetro de `modeloGrupoId` para `modeloPeticaoId` (ou adicionar segundo parâmetro) e usar esse valor na query `.eq('modelo_id', modeloPeticaoId!)`.
+
+4. Garantir que `state.versaoId` está sendo populado corretamente em `SmartBlocksStep1.tsx` ao selecionar modelo (deve vir de `modelo.active_version_id`).
+
+5. Verificar que o tipo em `SmartBlocksState` (`versaoId: string`) está presente e preenchido.
+
+## CRITÉRIOS DE SUCESSO
+
+- Step 2 carrega tags reais quando um modelo é selecionado no Step 1
+- Nenhuma mudança de comportamento no Step 1
+- TypeScript sem erros
+- Nenhum `any` introduzido</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt-p0', this)">📋 Copiar prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 2 — P1 PAYLOAD -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p1">P1</span>
+      <span>Fix payload webhook — org_id, user_id, campos INSERT, envelope canônico</span>
+      <span style="color:var(--muted);font-size:11px;">~20 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span>
+        <span>⏱ ~20 min</span>
+        <span>🎯 Corrige 4 P1s em 1 arquivo</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="prompt-p1-payload">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## ARQUIVO PRINCIPAL: src/pages/olivia/hooks/useSmartBlocksGeneration.ts
+
+Este arquivo tem 4 problemas a corrigir:
+
+---
+
+### PROBLEMA 1 — org_id vs organizacao_id (linha ~157)
+
+`callWebhook` em `src/lib/webhook.ts:35` lê `payload.organizacao_id` para gerar o header `x-org-id`.
+O payload atual envia `org_id`. Resultado: header `x-org-id: ""`.
+
+**Fix:** No objeto payload, renomear `org_id` → `organizacao_id`.
+
+---
+
+### PROBLEMA 2 — user_id ausente no payload (linha ~152-163)
+
+`callWebhook` em `webhook.ts:36` lê `payload.user_id` para header `x-user-id`.
+O payload não inclui `user_id`. Resultado: header `x-user-id: ""`.
+
+**Fix:** Adicionar `user_id: userId` (ou `actor_user_id: userId`) ao payload.
+
+---
+
+### PROBLEMA 3 — INSERT olivia_historico incompleto (linhas ~131-139)
+
+O INSERT atual inclui apenas: `organizacao_id`, `user_id`, `processo_id`, `modelo_id`, `modo`, `status`.
+
+Faltam os campos:
+- `versao_id` — ID da versão selecionada (olivia_modelos_peticao.id, vem de `versaoId` no state)
+- `tipo_peticao_id` — tipo de petição selecionado no Step 1 (vem de `tipoPeticaoId` no state)
+- `advogado_id` — advogado do processo (buscar de `processo.advogado_id` se disponível)
+- `motor: 'smart-blocks'` — identificador do motor de geração
+
+Adicione esses campos ao INSERT. Se `advogado_id` não estiver disponível no state, passe `null`.
+
+---
+
+### PROBLEMA 4 — Envelope canônico (linhas ~150-163)
+
+A spec T2 seção 4.2 define o seguinte envelope para o payload do webhook:
+
+```typescript
+const payload = {
+  request_id: crypto.randomUUID(),
+  contexto: 'olivia.smart-blocks',
+  organizacao_id: organizacaoId,
+  actor_user_id: userId,
+  origem_rota: '/olivia',
+  data: {
+    processo_id: processoId,
+    modelo_id: modeloId,
+    versao_id: versaoId,
+    historico_id: historicoId,
+    blocos_selecionados: blocosSelecionados,
+    respostas_wizard: respostasWizard,
+    categoria_empresa_id: categoriaEmpresaId,
+    tipo_peticao_id: tipoPeticaoId,
+  }
+};
+```
+
+Reestruturar o payload mantendo todos os campos existentes dentro de `data: {}` e adicionando os campos de envelope no nível raiz.
+
+**ATENÇÃO:** Verificar se `callWebhook` e o n8n esperam o payload flat ou com envelope. Se `callWebhook` acessa campos no nível raiz (ex: `payload.organizacao_id`), o envelope canônico deve manter `organizacao_id` na raiz E dentro de `data`. Ajuste conforme necessário para não quebrar `webhook.ts`.
+
+---
+
+## CRITÉRIOS DE SUCESSO
+
+- `organizacao_id` presente na raiz do payload (para header correto)
+- `user_id` presente na raiz do payload
+- INSERT olivia_historico tem `versao_id`, `tipo_peticao_id`, `motor: 'smart-blocks'`
+- TypeScript sem erros, sem `any` introduzido
+- `callWebhook` continua funcionando (não quebrar leitura de campos do payload)</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt-p1-payload', this)">📋 Copiar prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 3 — P1 BLOCOS + TAGS -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p1">P1</span>
+      <span>Fix query — filtro categoria_empresa_id nos blocos + ativo=true nas tags</span>
+      <span style="color:var(--muted);font-size:11px;">~10 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span>
+        <span>⏱ ~10 min</span>
+        <span>🎯 Corrige blocos errados sendo exibidos</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="prompt-p1-blocos">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## ARQUIVO: src/pages/olivia/hooks/useSmartBlocks.ts
+
+Dois problemas nas queries deste hook:
+
+---
+
+### PROBLEMA 1 — Query olivia_blocos_texto sem filtro de categoria (linhas ~110-118)
+
+Todos os 1244 blocos em `olivia_blocos_texto` têm `categoria_empresa_id` preenchido.
+A query atual não filtra por categoria, então blocos de "Telecomunicações" aparecem para processos contra "Instituição Financeira".
+
+**Fix:** O hook deve receber `categoriaEmpresaId?: string` como parâmetro e adicionar o filtro na query:
+
+```typescript
+// Se categoriaEmpresaId estiver disponível:
+.or(`categoria_empresa_id.is.null,categoria_empresa_id.eq.${categoriaEmpresaId}`)
+```
+
+Se `categoriaEmpresaId` vier do processo (de `processo.categoria_empresa_id` ou similar), propague da chamada do hook em `SmartBlocksStep2TagWizard.tsx` ou `OliviaGeradorSmartBlocks.tsx`.
+
+Rastreie de onde vem a informação de categoria da empresa no fluxo e conecte até o hook.
+
+---
+
+### PROBLEMA 2 — Query olivia_tags sem filtro ativo=true (linha ~76)
+
+A tabela `olivia_tags` tem coluna `ativo` (boolean). A query atual não filtra tags inativas.
+
+**Fix:** Adicionar `.eq('ativo', true)` no select/join de `olivia_tags`.
+
+Obs: A tabela NÃO tem coluna `deleted_at`, então não adicione esse filtro.
+
+---
+
+## CRITÉRIOS DE SUCESSO
+
+- Query de blocos filtra por `categoria_empresa_id` quando disponível
+- Query de tags inclui `.eq('ativo', true)`
+- Nenhuma mudança de comportamento quando `categoriaEmpresaId` é null/undefined (mostrar todos)
+- TypeScript sem erros</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt-p1-blocos', this)">📋 Copiar prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 4 — P1 CONSTANTS -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p1">P1</span>
+      <span>Fix constants.ts — QUALIDADE_IA (2 opções), tab fila, webhook path</span>
+      <span style="color:var(--muted);font-size:11px;">~10 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span>
+        <span>⏱ ~10 min</span>
+        <span>🎯 Alinha constants com a spec</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="prompt-p1-constants">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## ARQUIVO PRINCIPAL: src/pages/olivia/constants.ts
+
+Três correções neste arquivo:
+
+---
+
+### CORREÇÃO 1 — QUALIDADE_IA_OPTIONS (linhas ~24-28)
+
+Spec define 2 opções (D-FE-13/14):
+- **padrão**: Sonnet 4.6 (claude-sonnet-4-5 ou claude-sonnet-4-6)
+- **avançado**: Opus (claude-opus-4 ou claude-opus-4-5)
+
+Código atual tem 3 opções: padrão=Haiku, avançado=Sonnet, premium=Opus.
+
+**Fix:** Reduzir para 2 opções com os modelos corretos:
+```typescript
+export const QUALIDADE_IA_OPTIONS = [
+  { value: 'padrao',   label: 'Padrão',   model: 'claude-sonnet-4-6', desc: 'Rápido e eficiente' },
+  { value: 'avancado', label: 'Avançado', model: 'claude-opus-4-5',   desc: 'Máxima qualidade' },
+] as const;
+```
+Verifique nos arquivos que consomem `QUALIDADE_IA_OPTIONS` se o campo `value` e `model` são referenciados corretamente, e ajuste se necessário.
+
+---
+
+### CORREÇÃO 2 — Tab 'fila' em OLIVIA_TABS (linha ~7)
+
+A aba "Fila de Geração" foi excluída da spec (D-FE-11/D-ARQ-01). O conceito migrou para dentro do Gerador.
+
+**Fix:** Remover a entrada `{ id: 'fila', label: 'Fila de Geração', icon: 'ListOrdered' }` de `OLIVIA_TABS`.
+
+Verificar se algum componente referencia `tab === 'fila'` e remover essa lógica também.
+
+---
+
+### CORREÇÃO 3 — Webhook path (linha ~33)
+
+Código usa: `SMART_BLOCKS: 'olivia/gerar-manual'`
+Master Plan cita: `olivia/smart-blocks`
+
+**Fix:** Verificar no n8n (Railway) qual é o path configurado no nó webhook trigger do workflow Smart Blocks (ID: hyGajjic2kZBVGvW). Se for diferente de `olivia/gerar-manual`, corrigir a constante.
+
+Se não tiver acesso ao n8n agora, deixar um comentário `// TODO: confirmar path no n8n webhook trigger` mas NÃO mudar o valor sem confirmar.
+
+---
+
+## CRITÉRIOS DE SUCESSO
+
+- QUALIDADE_IA_OPTIONS tem exatamente 2 itens com modelos corretos
+- Tab 'fila' removida de OLIVIA_TABS e sem referências órfãs
+- Constante SMART_BLOCKS path correta ou comentada para revisão
+- TypeScript sem erros em todo o projeto</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt-p1-constants', this)">📋 Copiar prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 5 — P2 STEP3 -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p2">P2</span>
+      <span>Melhorias Step 3 — progresso real, feedback advogado, download PDF, câmbio</span>
+      <span style="color:var(--muted);font-size:11px;">~45 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span>
+        <span>⏱ ~45 min</span>
+        <span>🎯 4 melhorias no Step 3</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="prompt-p2-step3">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## ARQUIVO PRINCIPAL: src/pages/olivia/components/smart-blocks/SmartBlocksStep3Geracao.tsx
+
+Quatro melhorias a implementar:
+
+---
+
+### MELHORIA 1 — Progresso real via olivia_historico.progresso
+
+Atualmente o componente usa % hardcoded (5%, 15%, 35%) baseado em estado interno.
+
+A spec exige polling em `olivia_historico.progresso` (campo JSONB) que o n8n popula com mensagens contextuais durante a geração.
+
+**Fix:**
+- O hook `useSmartBlocksGeneration` já faz polling em `olivia_historico`. Verificar se o SELECT já inclui o campo `progresso`.
+- Se não inclui, adicionar `progresso` ao SELECT do polling.
+- No Step3, exibir a mensagem vinda de `progresso.mensagem` (ou similar) em vez de texto hardcoded.
+- Estrutura esperada do JSONB: `{ pct: 45, mensagem: "Gerando introdução..." }` (adapte ao que o n8n realmente envia — inspecione o schema se disponível).
+- Fallback: se `progresso` for null, usar lógica atual baseada no tempo decorrido.
+
+---
+
+### MELHORIA 2 — Formulário de feedback do advogado
+
+Após a geração concluída, exibir formulário de feedback:
+- Nota de 1 a 10 (estrelas ou slider)
+- Campo de comentário (opcional, textarea)
+- Botão "Enviar feedback"
+
+Ao enviar:
+```typescript
+await supabase
+  .from('olivia_historico')
+  .update({ feedback_advogado: { nota, comentario, enviado_em: new Date().toISOString() } })
+  .eq('id', historicoId)
+```
+
+Exibir confirmação após envio. Feedback é opcional — adicionar botão "Pular".
+
+---
+
+### MELHORIA 3 — Botão "Download PDF"
+
+Após geração bem-sucedida, se `data.pdf_url` estiver disponível (campo do polling), exibir botão "Download PDF" ao lado de "Abrir Google Doc".
+
+Se `pdf_url` for null/undefined, não exibir o botão (feature condicional).
+
+---
+
+### MELHORIA 4 — Magic number de câmbio USD→BRL
+
+Linha ~205:
+```typescript
+custoReais: data.custo_usd ? Math.round(data.custo_usd * 550) / 100 : null
+```
+
+**Fix:** Duas opções (escolha a mais simples):
+a) Exibir o custo diretamente em USD: `$0.0042 USD`
+b) Extrair a constante: `const CAMBIO_USD_BRL = 5.50` no topo do arquivo com comentário `// TODO: tornar configurável`
+
+Prefira a opção (a) — mais honesta e sem manutenção.
+
+---
+
+## CRITÉRIOS DE SUCESSO
+
+- Progresso exibe mensagem real do n8n quando disponível
+- Formulário de feedback renderiza e salva no banco
+- Botão PDF aparece quando pdf_url existe
+- Custo exibido em USD sem magic number
+- Framer Motion animations mantidas
+- Design System v5 Warm Charcoal mantido
+- TypeScript sem erros</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt-p2-step3', this)">📋 Copiar prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 6 — P2 LIMPEZA -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p2">P2</span>
+      <span>Limpeza — remover arquivos deprecated + barrel + exports órfãos</span>
+      <span style="color:var(--muted);font-size:11px;">~15 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span>
+        <span>⏱ ~15 min</span>
+        <span>🎯 Remove 4 arquivos mortos</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="prompt-p2-limpeza">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## TAREFA: Remover código deprecated de Smart Blocks
+
+Os seguintes arquivos estão marcados com @deprecated e NÃO são usados pelo fluxo ativo:
+
+---
+
+### ARQUIVOS A REMOVER
+
+1. `src/pages/olivia/components/smart-blocks/SmartBlocksModo.tsx` (158 linhas)
+   - @deprecated — substituído por OliviaGeradorSmartBlocks
+   - Importa GeradorStep1 e WizardSession que podem estar desatualizados
+
+2. `src/pages/olivia/components/smart-blocks/SmartBlocksStep2Blocos.tsx` (351 linhas)
+   - @deprecated — substituído por SmartBlocksStep2TagWizard
+
+3. `src/pages/olivia/components/smart-blocks/SmartBlocksStep3Preview.tsx` (232 linhas)
+   - @deprecated — usa setTimeout 3000ms, não chama webhook real
+
+4. `src/hooks/olivia/useSmartBlocks.ts` (71 linhas)
+   - @deprecated — usa `supabase.functions.invoke('olivia-smart-blocks')` que não existe mais
+
+---
+
+### BARREL A LIMPAR
+
+`src/pages/olivia/components/smart-blocks/index.ts` — remover as linhas:
+```typescript
+export { SmartBlocksModo } from './SmartBlocksModo';
+export { SmartBlocksStep2Blocos } from './SmartBlocksStep2Blocos';
+export { SmartBlocksStep3Preview } from './SmartBlocksStep3Preview';
+```
+
+---
+
+### PROCEDIMENTO
+
+1. Antes de remover cada arquivo, buscar no projeto inteiro por importações:
+   ```
+   grep -r "SmartBlocksModo\|SmartBlocksStep2Blocos\|SmartBlocksStep3Preview" src/ --include="*.tsx" --include="*.ts"
+   grep -r "from.*hooks/olivia/useSmartBlocks" src/ --include="*.tsx" --include="*.ts"
+   ```
+
+2. Se algum arquivo ativo importar os deprecated, remover APENAS a importação/uso (não o arquivo inteiro até confirmar que não há outros usos).
+
+3. Remover os 4 arquivos deprecated.
+
+4. Limpar o barrel index.ts.
+
+5. Rodar `tsc --noEmit` para confirmar zero erros TypeScript.
+
+---
+
+## CRITÉRIOS DE SUCESSO
+
+- 4 arquivos deprecated removidos
+- Barrel sem exports quebrados
+- `tsc --noEmit` sem erros
+- Nenhum arquivo ativo quebrado</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt-p2-limpeza', this)">📋 Copiar prompt</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 7 — P2 STEP1 -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p2">P2</span>
+      <span>Melhorias Step 1 — toggle relatório HTML + validação placeholders</span>
+      <span style="color:var(--muted);font-size:11px;">~50 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span>
+        <span>⏱ ~50 min</span>
+        <span>🎯 Features faltantes no Step 1</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="prompt-p2-step1">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## ARQUIVO PRINCIPAL: src/pages/olivia/components/smart-blocks/SmartBlocksStep1.tsx
+
+Duas features a implementar:
+
+---
+
+### FEATURE 1 — Toggle "Gerar Relatório HTML"
+
+Spec T2 seção 3.11: o Step 1 deve ter um toggle Sim/Não para gerar relatório HTML da petição.
+
+**Comportamento:**
+- Toggle exibido apenas se JARBAS estiver online (verificar via endpoint de saúde ou variável de configuração)
+- Default: Não
+- Valor salvo em `SmartBlocksState.gerarRelatorioHtml: boolean`
+- Repassado no payload do webhook para o n8n
+
+**Implementação:**
+1. Adicionar campo `gerarRelatorioHtml: boolean` ao tipo `SmartBlocksState` (ou equivalente)
+2. Adicionar toggle Switch no Step 1, após os demais campos
+3. Label: "Gerar relatório HTML" com tooltip "Requer JARBAS online"
+4. Verificar se existe alguma função/endpoint para checar JARBAS online. Se não existir, usar uma flag de configuração `JARBAS_ENABLED=true` hardcoded por ora, com comentário `// TODO: verificar health check JARBAS`
+5. Repassar `gerar_relatorio_html` no payload do webhook
+
+---
+
+### FEATURE 2 — Validação de placeholders ao avançar
+
+Spec T2 seção 3.9: ao clicar "Próximo" no Step 1 (avançar para Step 2), verificar se o processo selecionado tem todos os campos necessários para preencher os placeholders do modelo.
+
+**Implementação:**
+1. Após selecionar modelo e processo, ao clicar em avançar:
+   - Buscar os placeholders do modelo (provavelmente em `olivia_modelos_peticao.conteudo` ou campo similar — inspecionar schema)
+   - Extrair lista de placeholders (pattern: `{{campo_nome}}` ou `{campo_nome}`)
+   - Para cada placeholder, verificar se `processo[campo_nome]` está preenchido
+   - Se algum campo faltar: abrir modal de confirmação
+
+2. Modal `ModalConfirmacaoPlaceholders`:
+   - Se não existir, criar modal simples inline
+   - Exibir: "Os seguintes campos do processo estão vazios e serão deixados em branco na petição: [lista]"
+   - Botões: "Continuar mesmo assim" | "Cancelar e preencher"
+   - Se confirmar: avança para Step 2 normalmente
+
+3. Se todos os campos OK: avança sem modal
+
+**Atenção:** Esta feature requer conhecer o schema exato dos placeholders. Inspecione os dados antes de implementar. Se o schema não estiver claro, implementar a estrutura do modal mas deixar a extração de placeholders como TODO com comentário explicativo.
+
+---
+
+## CRITÉRIOS DE SUCESSO
+
+- Toggle "Gerar Relatório HTML" aparece e salva no state
+- Avançar do Step 1 aciona verificação de placeholders
+- Modal exibe campos faltantes quando aplicável
+- Design System v5 Warm Charcoal mantido
+- TypeScript sem erros</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt-p2-step1', this)">📋 Copiar prompt</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<hr class="divider" />
+
+<!-- ORDEM DE EXECUÇÃO -->
+<div class="section">
+  <div class="section-header">
+    <h2>📋 Ordem recomendada de execução</h2>
+  </div>
+  <div class="issue" style="border-left: 3px solid var(--accent);">
+    <div class="issue-body" style="padding: 18px;">
+      <div class="timeline">
+        <div class="tl-item">
+          <span class="tl-badge p0">1º — P0</span>
+          <div class="tl-text"><strong>Fix modelo_id nas tags</strong> — desbloqueia Step 2 completamente</div>
+          <span class="tl-time">~15 min</span>
+        </div>
+        <div class="tl-item">
+          <span class="tl-badge p1">2º — P1</span>
+          <div class="tl-text"><strong>Fix payload webhook</strong> — org_id, user_id, INSERT, envelope canônico</div>
+          <span class="tl-time">~20 min</span>
+        </div>
+        <div class="tl-item">
+          <span class="tl-badge p1">3º — P1</span>
+          <div class="tl-text"><strong>Fix query blocos + tags</strong> — filtro categoria + ativo</div>
+          <span class="tl-time">~10 min</span>
+        </div>
+        <div class="tl-item">
+          <span class="tl-badge p1">4º — P1</span>
+          <div class="tl-text"><strong>Fix constants.ts</strong> — QUALIDADE_IA, tab fila, webhook path</div>
+          <span class="tl-time">~10 min</span>
+        </div>
+        <div class="tl-item">
+          <span class="tl-badge p2">5º — P2</span>
+          <div class="tl-text"><strong>Limpeza deprecated</strong> — remove 4 arquivos + barrel</div>
+          <span class="tl-time">~15 min</span>
+        </div>
+        <div class="tl-item">
+          <span class="tl-badge p2">6º — P2</span>
+          <div class="tl-text"><strong>Melhorias Step 3</strong> — progresso real, feedback, PDF, câmbio</div>
+          <span class="tl-time">~45 min</span>
+        </div>
+        <div class="tl-item">
+          <span class="tl-badge p2">7º — P2</span>
+          <div class="tl-text"><strong>Melhorias Step 1</strong> — toggle relatório HTML, validação placeholders</div>
+          <span class="tl-time">~50 min</span>
+        </div>
+      </div>
+      <div style="margin-top:16px; padding: 12px; background: var(--ok-bg); border: 1px solid var(--ok-border); border-radius: 8px; color: var(--ok); font-size: 13px;">
+        ✅ <strong>Mínimo para teste E2E:</strong> Passos 1 + 2 + 3 (~45 min) desbloqueiam o fluxo completo Step 1 → 2 → 3.
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  🦊 JANA · JARBAS Network · MdLab · 2026-03-20<br>
+  Investigação: Claude Code Opus 4.6 · Smart Blocks OlivIA v3
+</div>
+
+<script>
+function toggleAccordion(btn) {
+  const content = btn.nextElementSibling;
+  const isOpen = btn.classList.contains('open');
+  btn.classList.toggle('open', !isOpen);
+  content.classList.toggle('open', !isOpen);
+}
+
+function copyPrompt(id, btn) {
+  const box = document.getElementById(id);
+  const text = box.textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.innerHTML = '📋 Copiar prompt';
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.innerHTML = '📋 Copiar prompt';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

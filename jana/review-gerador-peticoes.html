@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deep Review — Gerador de Petições</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a1a1e;
+      --surface: #25252b;
+      --surface2: #2e2e36;
+      --border: #3a3a44;
+      --text: #e8e8f0;
+      --muted: #8888a0;
+      --primary: #7c6fff;
+      --primary-dim: rgba(124,111,255,0.15);
+      --green: #4ade80;
+      --green-dim: rgba(74,222,128,0.12);
+      --yellow: #fbbf24;
+      --yellow-dim: rgba(251,191,36,0.12);
+      --red: #f87171;
+      --red-dim: rgba(248,113,113,0.12);
+      --blue: #60a5fa;
+      --blue-dim: rgba(96,165,250,0.12);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 16px;
+    }
+
+    .container { max-width: 920px; margin: 0 auto; }
+
+    /* Header */
+    .header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 32px; gap: 16px;
+    }
+    .header-left h1 { font-size: 22px; font-weight: 700; color: var(--text); }
+    .header-left p { font-size: 13px; color: var(--muted); margin-top: 4px; }
+    .header-meta {
+      font-size: 11px; color: var(--muted);
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 14px; text-align: right; flex-shrink: 0;
+      line-height: 1.8;
+    }
+
+    /* Summary cards */
+    .summary {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 12px; margin-bottom: 28px;
+    }
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .card-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .card-value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+    .card.critico .card-value { color: var(--red); }
+    .card.medio .card-value { color: var(--yellow); }
+    .card.baixo .card-value { color: var(--blue); }
+    .card.total .card-value { color: var(--primary); }
+
+    /* Section title */
+    .section-title {
+      font-size: 13px; font-weight: 600; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .07em;
+      margin: 28px 0 12px;
+    }
+
+    /* Badge */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      padding: 2px 8px; border-radius: 999px;
+    }
+    .badge.critico { background: var(--red-dim); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+    .badge.medio { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(251,191,36,.3); }
+    .badge.baixo { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,.3); }
+
+    /* Accordion */
+    .accordion { display: flex; flex-direction: column; gap: 8px; }
+
+    .acc-item {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden;
+      transition: border-color .15s;
+    }
+    .acc-item:hover { border-color: #4a4a58; }
+    .acc-item.open { border-color: var(--primary); }
+
+    .acc-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px; cursor: pointer; user-select: none;
+    }
+    .acc-num {
+      font-size: 11px; font-weight: 700; color: var(--muted);
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 2px 7px; flex-shrink: 0;
+    }
+    .acc-title { flex: 1; font-size: 14px; font-weight: 500; color: var(--text); }
+    .acc-arrow {
+      color: var(--muted); font-size: 12px; flex-shrink: 0;
+      transition: transform .2s;
+    }
+    .acc-item.open .acc-arrow { transform: rotate(180deg); }
+
+    .acc-body {
+      display: none; padding: 0 16px 16px; border-top: 1px solid var(--border);
+    }
+    .acc-item.open .acc-body { display: block; }
+
+    /* Bug detail */
+    .bug-detail {
+      display: grid; gap: 4px; margin: 14px 0;
+    }
+    .bug-detail-row { display: flex; gap: 8px; font-size: 13px; }
+    .bug-detail-label { color: var(--muted); min-width: 80px; flex-shrink: 0; }
+    .bug-detail-val { color: var(--text); }
+
+    .bug-desc {
+      font-size: 13px; color: var(--muted); line-height: 1.6;
+      background: var(--surface2); border-radius: 7px;
+      padding: 12px 14px; margin: 10px 0;
+    }
+
+    /* Code block */
+    .code-block {
+      background: #111115; border: 1px solid var(--border);
+      border-radius: 8px; overflow-x: auto;
+      font-size: 12px; font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      line-height: 1.6; color: #cdd6f4;
+    }
+    .code-block pre { padding: 14px 16px; white-space: pre-wrap; word-break: break-word; }
+
+    /* Prompt block */
+    .prompt-section { margin-top: 16px; }
+    .prompt-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .prompt-label {
+      font-size: 11px; font-weight: 600; color: var(--primary);
+      text-transform: uppercase; letter-spacing: .07em;
+    }
+    .btn-copy {
+      display: inline-flex; align-items: center; gap-6px; gap: 6px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      background: var(--primary-dim); color: var(--primary);
+      border: 1px solid rgba(124,111,255,.35); border-radius: 6px;
+      padding: 5px 12px; transition: all .15s;
+    }
+    .btn-copy:hover { background: rgba(124,111,255,.25); }
+    .btn-copy.copied { background: var(--green-dim); color: var(--green); border-color: rgba(74,222,128,.35); }
+
+    .prompt-block {
+      background: #0e0e12; border: 1px solid var(--border);
+      border-radius: 8px; overflow-x: auto; max-height: 320px; overflow-y: auto;
+    }
+    .prompt-block pre {
+      padding: 14px 16px; white-space: pre-wrap; word-break: break-word;
+      font-size: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+      line-height: 1.6; color: #a9b1d6;
+    }
+
+    hr.divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: 14px 0;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 40px; text-align: center;
+      font-size: 12px; color: var(--muted);
+    }
+
+    @media (max-width: 600px) {
+      .summary { grid-template-columns: repeat(2,1fr); }
+      .header { flex-direction: column; }
+      .header-meta { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <h1>🔍 Deep Review — Gerador de Petições</h1>
+      <p>Módulo Playbooks → TabGerador → Wizards (4 modos)</p>
+    </div>
+    <div class="header-meta">
+      Revisão: JANA + CC<br>
+      Data: 20/03/2026<br>
+      Repo: ~/beta-mdflow<br>
+      Rota: /playbooks?tab=gerador
+    </div>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="card total"><div class="card-label">Total de Bugs</div><div class="card-value">6</div></div>
+    <div class="card critico"><div class="card-label">Crítico</div><div class="card-value">1</div></div>
+    <div class="card medio"><div class="card-label">Médio</div><div class="card-value">1</div></div>
+    <div class="card baixo"><div class="card-label">Baixo</div><div class="card-value">4</div></div>
+  </div>
+
+  <!-- Accordion -->
+  <div class="section-title">Bugs Confirmados — Prompts de Correção</div>
+  <div class="accordion">
+
+    <!-- BUG #4 — CRITICO -->
+    <div class="acc-item" id="acc-4">
+      <div class="acc-header" onclick="toggle('acc-4')">
+        <span class="acc-num">#4</span>
+        <span class="acc-title">ModalReferencias inacessível — dead UI</span>
+        <span class="badge critico">Crítico</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="bug-detail">
+          <div class="bug-detail-row"><span class="bug-detail-label">Arquivo:</span><span class="bug-detail-val">WizardNovaVersao.tsx:72-73, 426-427</span></div>
+          <div class="bug-detail-row"><span class="bug-detail-label">Impacto:</span><span class="bug-detail-val">A IA gera versões sem contexto de referências — degradação de qualidade</span></div>
+        </div>
+        <div class="bug-desc">
+          <code>refModalOpen</code> e <code>&lt;ModalReferencias&gt;</code> são declarados e renderizados, mas nenhum botão chama <code>setRefModalOpen(true)</code> em nenhum step. O webhook nunca recebe contexto de referências. Comparar com WizardCriarBloco:175 e WizardCriarModelo:236 que têm o botão corretamente implementado.
+        </div>
+        <div class="code-block"><pre>// Bug: declarado mas nunca aberto
+const [refModalOpen, setRefModalOpen] = useState(false);
+// nenhum botão chama setRefModalOpen(true) — zero ocorrências confirmadas via grep
+
+// Referência correta (WizardCriarBloco:175):
+&lt;Button variant="outline" onClick={() => setRefModalOpen(true)}&gt;
+  &lt;Library /&gt; Selecionar Referências
+&lt;/Button&gt;</pre></div>
+        <hr class="divider" />
+        <div class="prompt-section">
+          <div class="prompt-header">
+            <span class="prompt-label">🛠 Prompt de Correção</span>
+            <button class="btn-copy" onclick="copyPrompt('p4', this)">📋 Copiar Prompt</button>
+          </div>
+          <div class="prompt-block"><pre id="p4"># Fix #4 — WizardNovaVersao: ModalReferencias inacessível
+
+## Contexto
+Projeto: MdFlow — ~/beta-mdflow/
+Arquivo alvo: src/pages/playbooks/gerador/wizards/WizardNovaVersao.tsx
+
+## Problema
+O estado `refModalOpen` e o componente `<ModalReferencias>` estão declarados
+mas nenhum botão abre o modal. O usuário nunca consegue adicionar referências.
+O webhook recebe sempre `referencias: []`.
+
+## Referência correta
+Ver WizardCriarBloco.tsx (step 1 — referências) e WizardCriarModelo.tsx
+que implementam o botão corretamente com o padrão:
+```tsx
+<Button variant="outline" size="sm" className="gap-1.5" onClick={() => setRefModalOpen(true)}>
+  <Library className="h-3.5 w-3.5" /> Selecionar Referências
+</Button>
+{referencias.length > 0 && (
+  <div className="flex flex-wrap gap-1.5 mt-2">
+    {referencias.map(r => (
+      <Badge key={`${r.ref_type}-${r.ref_id}`} variant="secondary" className="text-xs gap-1">
+        <span className="text-[10px] text-muted-foreground uppercase">{r.ref_type}</span>
+        {r.title}
+      </Badge>
+    ))}
+  </div>
+)}
+```
+
+## Tarefa
+Adicionar o botão "Selecionar Referências" no Step 1 (Parâmetros) de WizardNovaVersao.tsx,
+logo abaixo dos focos (toggleFoco), seguindo exatamente o padrão dos outros wizards.
+
+## Output esperado
+- Botão visível no Step 1 que abre o <ModalReferencias>
+- Referências selecionadas exibidas como badges abaixo do botão
+- O webhook já recebe referencias corretamente (payload já está correto)
+- Sem alterar nenhum outro arquivo
+
+## Restrições
+- Não alterar lógica de webhook, steps ou validação
+- Não modificar WizardCriarBloco.tsx ou WizardCriarModelo.tsx
+- Apenas adicionar o botão e os badges no step 1
+
+## Relatório obrigatório
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🧪 Como testar</pre></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG #2 — MEDIO -->
+    <div class="acc-item" id="acc-2">
+      <div class="acc-header" onclick="toggle('acc-2')">
+        <span class="acc-num">#2</span>
+        <span class="acc-title">Sem loading state para blocos e tags no Step 0</span>
+        <span class="badge medio">Médio</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="bug-detail">
+          <div class="bug-detail-row"><span class="bug-detail-label">Arquivo:</span><span class="bug-detail-val">WizardNovaVersao.tsx:108-125</span></div>
+          <div class="bug-detail-row"><span class="bug-detail-label">Afeta:</span><span class="bug-detail-val">Select de blocos (ln 257) e tags (ln 247) — sem Skeleton</span></div>
+        </div>
+        <div class="bug-desc">
+          As queries de blocos e tags não desestruturaram <code>isLoading</code>. Os Selects renderizam sem Skeleton enquanto carregam. O Select de modelos (linha 228) usa <code>loadingModelos</code> com <code>&lt;Skeleton&gt;</code> corretamente — os demais não seguem o mesmo padrão.
+        </div>
+        <div class="code-block"><pre>// Bug: isLoading não desestruturado
+const { data: tags = [] } = useQuery({ ... });      // sem isLoading
+const { data: blocos = [] } = useQuery({ ... });    // sem isLoading
+
+// Correto (padrão modelos):
+const { data: modelos = [], isLoading: loadingModelos } = useQuery({ ... });
+// ...
+{loadingModelos ? &lt;Skeleton className="h-10 w-full mt-1" /&gt; : (
+  &lt;Select&gt;...&lt;/Select&gt;
+)}</pre></div>
+        <hr class="divider" />
+        <div class="prompt-section">
+          <div class="prompt-header">
+            <span class="prompt-label">🛠 Prompt de Correção</span>
+            <button class="btn-copy" onclick="copyPrompt('p2', this)">📋 Copiar Prompt</button>
+          </div>
+          <div class="prompt-block"><pre id="p2"># Fix #2 e #10 — Loading states ausentes nos Selects dos Wizards
+
+## Contexto
+Projeto: MdFlow — ~/beta-mdflow/
+Arquivos alvo:
+- src/pages/playbooks/gerador/wizards/WizardNovaVersao.tsx
+- src/pages/playbooks/gerador/wizards/WizardCriarBloco.tsx
+- src/pages/playbooks/gerador/wizards/WizardCriarModelo.tsx
+- src/pages/playbooks/gerador/wizards/WizardTermosJuris.tsx
+
+## Problema
+As queries dos wizards não desestruturaram `isLoading`, deixando Selects e listas
+renderizando vazios enquanto os dados carregam. Apenas WizardNovaVersao faz isso
+corretamente para o Select de modelos.
+
+## Padrão correto (já existe em WizardNovaVersao para modelos)
+```tsx
+const { data: modelos = [], isLoading: loadingModelos } = useQuery({ ... });
+// ...
+{loadingModelos
+  ? <Skeleton className="h-10 w-full mt-1" />
+  : <Select>...</Select>
+}
+```
+
+## Tarefa
+Para cada arquivo listado, adicionar `isLoading` nas queries relevantes e
+envolver o Select/lista correspondente com Skeleton enquanto carrega:
+
+1. WizardNovaVersao.tsx — queries: tags (filtro) e blocos
+2. WizardCriarBloco.tsx — query: tags (lista de chips)
+   - Para chips/badges: mostrar 6 Skeleton pills (h-6 w-16 rounded-full) enquanto carrega
+3. WizardCriarModelo.tsx — queries: tiposPeticao e playbooks
+4. WizardTermosJuris.tsx — query: assuntos (via hook useJurisprudencias)
+
+## Restrições
+- Não alterar lógica de validação, steps ou webhook
+- Skeleton deve usar o componente `@/components/ui/skeleton` já disponível
+- Apenas adicionar isLoading e Skeleton — sem refatorações adicionais
+
+## Relatório obrigatório
+### ✅ O que foi feito
+### 📁 Arquivos modificados (com linhas alteradas)
+### 🧪 Como testar</pre></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG #5 — BAIXO -->
+    <div class="acc-item" id="acc-5">
+      <div class="acc-header" onclick="toggle('acc-5')">
+        <span class="acc-num">#5</span>
+        <span class="acc-title">Double toast ao criar bloco</span>
+        <span class="badge baixo">Baixo</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="bug-detail">
+          <div class="bug-detail-row"><span class="bug-detail-label">Arquivo:</span><span class="bug-detail-val">WizardNovaVersao.tsx:406-407</span></div>
+          <div class="bug-detail-row"><span class="bug-detail-label">Nota CC:</span><span class="bug-detail-val">Cache invalidation em si funciona (prefix match). Bug real é o toast duplicado.</span></div>
+        </div>
+        <div class="bug-desc">
+          O <code>criarBloco.mutateAsync</code> de <code>useBlocos</code> já exibe um toast via <code>onSuccess</code> interno. A wizard exibe um segundo toast manual após a mutação. O usuário vê dois "Bloco criado com sucesso" consecutivos.
+        </div>
+        <div class="code-block"><pre>// Bug: useBlocos onSuccess já dispara toast
+// WizardNovaVersao.tsx:406-407 (toast duplicado):
+await criarBloco.mutateAsync({ ... });
+toast.success('Bloco criado com sucesso', { duration: 3000 }); // ← remover este</pre></div>
+        <hr class="divider" />
+        <div class="prompt-section">
+          <div class="prompt-header">
+            <span class="prompt-label">🛠 Prompt de Correção</span>
+            <button class="btn-copy" onclick="copyPrompt('p5', this)">📋 Copiar Prompt</button>
+          </div>
+          <div class="prompt-block"><pre id="p5"># Fix #5 — WizardNovaVersao: Double toast ao criar bloco
+
+## Contexto
+Projeto: MdFlow — ~/beta-mdflow/
+Arquivo alvo: src/pages/playbooks/gerador/wizards/WizardNovaVersao.tsx
+
+## Problema
+O hook `useBlocos` já dispara um toast de sucesso no `onSuccess` da mutação
+`criarBloco`. A wizard exibe um segundo toast manual após o `mutateAsync`,
+resultando em dois toasts consecutivos para o usuário.
+
+## Tarefa
+No botão "Criar como Bloco" (Step 3 — Refinar), remover a linha de toast
+manual que aparece após `criarBloco.mutateAsync` bem-sucedido:
+```ts
+// Remover esta linha:
+toast.success('Bloco criado com sucesso', { duration: 3000 });
+```
+Manter o `toast.error` do catch (esse é necessário, o useBlocos não trata erro).
+
+## Restrições
+- Alterar apenas esse trecho específico
+- Não modificar useBlocos.ts
+- Não alterar nenhum outro comportamento
+
+## Relatório obrigatório
+### ✅ O que foi feito
+### 📁 Linha modificada</pre></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG #1 — BAIXO -->
+    <div class="acc-item" id="acc-1">
+      <div class="acc-header" onclick="toggle('acc-1')">
+        <span class="acc-num">#1</span>
+        <span class="acc-title">Type drift em baseType com cast as any</span>
+        <span class="badge baixo">Baixo</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="bug-detail">
+          <div class="bug-detail-row"><span class="bug-detail-label">Arquivo:</span><span class="bug-detail-val">WizardNovaVersao.tsx:212</span></div>
+          <div class="bug-detail-row"><span class="bug-detail-label">Nota CC:</span><span class="bug-detail-val">Funciona na prática, mas é tech debt — RadioGroup só retorna valores válidos.</span></div>
+        </div>
+        <div class="bug-desc">
+          <code>setBaseType(v as any)</code> bypassa a tipagem do estado. Deveria ser <code>v as 'modelo' | 'bloco'</code> para manter type safety explícita.
+        </div>
+        <div class="code-block"><pre>// Bug:
+onValueChange={v => { setBaseType(v as any); ... }}
+
+// Correto:
+onValueChange={v => { setBaseType(v as 'modelo' | 'bloco'); ... }}</pre></div>
+        <hr class="divider" />
+        <div class="prompt-section">
+          <div class="prompt-header">
+            <span class="prompt-label">🛠 Prompt de Correção</span>
+            <button class="btn-copy" onclick="copyPrompt('p1', this)">📋 Copiar Prompt</button>
+          </div>
+          <div class="prompt-block"><pre id="p1"># Fix #1 — WizardNovaVersao: Type drift em baseType
+
+## Contexto
+Projeto: MdFlow — ~/beta-mdflow/
+Arquivo alvo: src/pages/playbooks/gerador/wizards/WizardNovaVersao.tsx
+
+## Problema
+`setBaseType(v as any)` usa cast genérico. O tipo correto é 'modelo' | 'bloco'.
+
+## Tarefa
+Na linha do RadioGroup onValueChange, substituir:
+```ts
+setBaseType(v as any)
+```
+por:
+```ts
+setBaseType(v as 'modelo' | 'bloco')
+```
+
+## Restrições
+- Alterar apenas essa linha
+- Não modificar nenhum outro comportamento
+
+## Relatório obrigatório
+### ✅ O que foi feito
+### 📁 Linha modificada</pre></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG #3 — BAIXO -->
+    <div class="acc-item" id="acc-3">
+      <div class="acc-header" onclick="toggle('acc-3')">
+        <span class="acc-num">#3 + #11</span>
+        <span class="acc-title">EmptyState ausente para listas vazias nos Selects</span>
+        <span class="badge baixo">Baixo</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="bug-detail">
+          <div class="bug-detail-row"><span class="bug-detail-label">Arquivos:</span><span class="bug-detail-val">WizardNovaVersao:229-261 / WizardCriarModelo (tiposPeticao)</span></div>
+          <div class="bug-detail-row"><span class="bug-detail-label">UX:</span><span class="bug-detail-val">Select abre vazio sem orientação — usuário não sabe o que fazer</span></div>
+        </div>
+        <div class="bug-desc">
+          Quando a organização não tem modelos, blocos ou tipos de petição cadastrados, o SelectContent abre vazio sem nenhuma mensagem. O usuário não recebe orientação sobre o que fazer. Consolidado com bug #11 (WizardCriarBloco/CriarModelo).
+        </div>
+        <div class="code-block"><pre>// Bug: SelectContent vazio sem feedback
+&lt;SelectContent&gt;
+  {modelos.map(...)}  {/* se vazio, nada aparece */}
+&lt;/SelectContent&gt;
+
+// Correto:
+&lt;SelectContent&gt;
+  {modelos.length === 0
+    ? &lt;SelectItem value="__empty__" disabled&gt;Nenhum modelo cadastrado&lt;/SelectItem&gt;
+    : modelos.map(...)
+  }
+&lt;/SelectContent&gt;</pre></div>
+        <hr class="divider" />
+        <div class="prompt-section">
+          <div class="prompt-header">
+            <span class="prompt-label">🛠 Prompt de Correção</span>
+            <button class="btn-copy" onclick="copyPrompt('p3', this)">📋 Copiar Prompt</button>
+          </div>
+          <div class="prompt-block"><pre id="p3"># Fix #3 + #11 — EmptyState em Selects vazios nos Wizards do Gerador
+
+## Contexto
+Projeto: MdFlow — ~/beta-mdflow/
+Arquivos alvo:
+- src/pages/playbooks/gerador/wizards/WizardNovaVersao.tsx
+- src/pages/playbooks/gerador/wizards/WizardCriarModelo.tsx
+
+## Problema
+Quando a organização não tem dados cadastrados (modelos, blocos, tipos de petição),
+os SelectContent abrem vazios sem nenhuma mensagem orientativa.
+
+## Padrão a implementar
+Para cada SelectContent que pode retornar lista vazia, adicionar um item desabilitado
+de fallback:
+```tsx
+<SelectContent>
+  {lista.length === 0
+    ? <SelectItem value="__empty__" disabled className="text-muted-foreground text-xs">
+        Nenhum [recurso] cadastrado
+      </SelectItem>
+    : lista.map(item => <SelectItem key={item.id} value={item.id}>{item.nome}</SelectItem>)
+  }
+</SelectContent>
+```
+
+## Selects a corrigir
+1. WizardNovaVersao.tsx — Select de modelos: "Nenhum modelo cadastrado"
+2. WizardNovaVersao.tsx — Select de blocos: "Nenhum bloco publicado"
+3. WizardCriarModelo.tsx — Select de tiposPeticao: "Nenhum tipo de petição cadastrado"
+
+## Restrições
+- Não alterar lógica de validação ou steps
+- O item de fallback deve ser `disabled` (não selecionável)
+- Não adicionar features além do fallback
+
+## Relatório obrigatório
+### ✅ O que foi feito
+### 📁 Linhas modificadas por arquivo</pre></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG #6 — BAIXO -->
+    <div class="acc-item" id="acc-6">
+      <div class="acc-header" onclick="toggle('acc-6')">
+        <span class="acc-num">#6 + #9</span>
+        <span class="acc-title">useCallback não utilizado + useEffect deps incompletas</span>
+        <span class="badge baixo">Baixo</span>
+        <span class="acc-arrow">▼</span>
+      </div>
+      <div class="acc-body">
+        <div class="bug-detail">
+          <div class="bug-detail-row"><span class="bug-detail-label">Arquivos:</span><span class="bug-detail-val">Todos os 4 wizards — linha 1 (import) + useEffects</span></div>
+          <div class="bug-detail-row"><span class="bug-detail-label">Nota:</span><span class="bug-detail-val">Stale closures potenciais nos webhooks — deps de useEffect incompletas</span></div>
+        </div>
+        <div class="bug-desc">
+          <b>Bug #6:</b> <code>useCallback</code> importado mas não utilizado em todos os 4 wizards (lint noise).<br><br>
+          <b>Bug #9:</b> Os <code>useEffect</code> que disparam os webhooks têm arrays de dependências incompletos. Variáveis como <code>execWebhook</code>, <code>baseType</code>, <code>modeloId</code>, <code>grauVariacao</code>, etc. são usadas dentro do effect mas não estão no array de deps — stale closures potenciais.
+        </div>
+        <div class="code-block"><pre>// Bug #6 — import não utilizado (todos os wizards):
+import { useState, useEffect, useCallback } from 'react'; // useCallback não usado
+
+// Bug #9 — deps incompletas (WizardNovaVersao exemplo):
+useEffect(() => {
+  // usa: execWebhook, baseType, modeloId, blocoId, grauVariacao, quantidade, focos, referencias
+}, [step, generated, generating, webhookFailed]); // faltam deps</pre></div>
+        <hr class="divider" />
+        <div class="prompt-section">
+          <div class="prompt-header">
+            <span class="prompt-label">🛠 Prompt de Correção</span>
+            <button class="btn-copy" onclick="copyPrompt('p6', this)">📋 Copiar Prompt</button>
+          </div>
+          <div class="prompt-block"><pre id="p6"># Fix #6 + #9 — Imports não utilizados e useEffect deps incompletas
+
+## Contexto
+Projeto: MdFlow — ~/beta-mdflow/
+Arquivos alvo (todos os 4 wizards):
+- src/pages/playbooks/gerador/wizards/WizardNovaVersao.tsx
+- src/pages/playbooks/gerador/wizards/WizardCriarBloco.tsx
+- src/pages/playbooks/gerador/wizards/WizardCriarModelo.tsx
+- src/pages/playbooks/gerador/wizards/WizardTermosJuris.tsx
+
+## Tarefa 1 — Remover useCallback dos imports
+Em todos os 4 arquivos, remover `useCallback` do import do React
+(não é utilizado em nenhum deles):
+```ts
+// antes:
+import { useState, useEffect, useCallback } from 'react';
+// depois:
+import { useState, useEffect } from 'react';
+```
+
+## Tarefa 2 — Corrigir deps dos useEffects de webhook
+Os useEffects que disparam execWebhook têm arrays de deps incompletos.
+
+ATENÇÃO: A intenção do design é que o webhook só dispare UMA VEZ ao entrar no step
+de geração (step 2 ou 3, dependendo do wizard). O padrão de controle usado é:
+`!generated && !generating && !webhookFailed` — isso previne re-disparos.
+
+Portanto a correção correta é usar `useRef` para estabilizar as variáveis
+que mudam entre renders (execWebhook via useCallback, ou capturar os valores
+no momento do disparo com refs).
+
+Opção recomendada: envolver o useEffect num `useRef` de "já executou" ou
+adicionar `// eslint-disable-next-line react-hooks/exhaustive-deps` com comentário
+explicativo se o comportamento intencional é executar apenas uma vez.
+
+Avaliar cada wizard e aplicar a solução mais conservadora que não altere
+o comportamento atual (disparo único por step).
+
+## Restrições
+- NÃO alterar o fluxo de geração (deve continuar disparando uma única vez)
+- NÃO modificar o payload enviado ao webhook
+- NÃO alterar WizardShell.tsx ou outros arquivos
+- Se a correção de deps causar re-disparos inesperados → usar eslint-disable com comentário
+
+## Relatório obrigatório
+### ✅ O que foi feito por arquivo
+### ⚠️ Decisões tomadas e justificativas
+### 📁 Linhas modificadas</pre></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /accordion -->
+
+  <div class="footer">
+    JANA 🦊 + Claude Code — MdFlow LegalTech — 20/03/2026
+  </div>
+</div>
+
+<script>
+  function toggle(id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+  }
+
+  function copyPrompt(id, btn) {
+    const text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = '✅ Copiado!';
+      btn.classList.add('copied');
+      setTimeout(() => {
+        btn.textContent = '📋 Copiar Prompt';
+        btn.classList.remove('copied');
+      }, 2000);
+    });
+  }
+
+  // Abrir o crítico por padrão
+  document.getElementById('acc-4').classList.add('open');
+</script>
+</body>
+</html>

@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Blocks — Relatório de Auditoria & Plano de Correção</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3e;
+    --primary: #6c63ff; --primary-light: #8b85ff;
+    --success: #22c55e; --warning: #f59e0b; --danger: #ef4444;
+    --text: #e2e8f0; --muted: #94a3b8; --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  
+  .header { background: linear-gradient(135deg, #1a1d27 0%, #12151f 100%); border-bottom: 1px solid var(--border); padding: 36px 48px; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .header .subtitle { color: var(--muted); font-size: 13px; }
+  .header .meta { display: flex; gap: 24px; margin-top: 20px; flex-wrap: wrap; }
+  .meta-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 10px; border-radius: 9999px; font-size: 11px; font-weight: 600; }
+  .badge-danger { background: rgba(239,68,68,.15); color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
+  .badge-warning { background: rgba(245,158,11,.15); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+  .badge-success { background: rgba(34,197,94,.15); color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
+  .badge-info { background: rgba(108,99,255,.15); color: #8b85ff; border: 1px solid rgba(108,99,255,.3); }
+  .badge-neutral { background: rgba(148,163,184,.1); color: var(--muted); border: 1px solid rgba(148,163,184,.2); }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 48px; }
+  
+  /* Summary cards */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 40px; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+  .summary-card .number { font-size: 32px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+  .summary-card .label { font-size: 12px; color: var(--muted); }
+  .summary-card.danger .number { color: var(--danger); }
+  .summary-card.warning .number { color: var(--warning); }
+  .summary-card.success .number { color: var(--success); }
+  .summary-card.info .number { color: var(--primary-light); }
+
+  /* Sections */
+  h2 { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  h2 .icon { font-size: 22px; }
+  h3 { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 12px; }
+  
+  /* Issue cards */
+  .issue-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 40px; }
+  .issue-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .issue-card.p0 { border-left: 3px solid var(--danger); }
+  .issue-card.p1 { border-left: 3px solid var(--warning); }
+  .issue-card.p2 { border-left: 3px solid var(--primary); }
+  .issue-header { padding: 16px 20px 12px; display: flex; align-items: flex-start; gap: 12px; }
+  .issue-num { font-size: 11px; font-weight: 700; color: var(--muted); min-width: 36px; }
+  .issue-title-block { flex: 1; }
+  .issue-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .issue-badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .issue-body { padding: 0 20px 16px 20px; }
+  .issue-body p { font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+  .issue-section { margin-top: 12px; }
+  .issue-section-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .fix-box { background: rgba(34,197,94,.05); border: 1px solid rgba(34,197,94,.2); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #a7f3d0; }
+  .root-box { background: rgba(239,68,68,.05); border: 1px solid rgba(239,68,68,.15); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #fca5a5; }
+  code { background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-family: 'Fira Code', monospace; font-size: 12px; color: #a5b4fc; }
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-family: 'Fira Code', monospace; font-size: 12px; color: #e2e8f0; overflow-x: auto; margin-top: 8px; line-height: 1.7; }
+  
+  /* Accordion */
+  details { background: #12151f; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; overflow: hidden; }
+  details[open] { border-color: var(--primary); }
+  summary { padding: 16px 20px; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 12px; font-weight: 600; font-size: 14px; color: #fff; user-select: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: '▶'; font-size: 10px; color: var(--muted); transition: transform .2s; min-width: 12px; }
+  details[open] summary::before { transform: rotate(90deg); }
+  .prompt-meta { margin-left: auto; font-size: 11px; color: var(--muted); font-weight: 400; }
+  .prompt-body { padding: 0 20px 20px; }
+  .prompt-desc { font-size: 13px; color: var(--muted); margin-bottom: 16px; line-height: 1.6; }
+  .prompt-box { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-size: 12.5px; font-family: 'Fira Code', monospace; color: #e2e8f0; white-space: pre-wrap; line-height: 1.7; position: relative; }
+  .copy-btn { position: absolute; top: 10px; right: 10px; background: rgba(108,99,255,.2); border: 1px solid rgba(108,99,255,.4); border-radius: 6px; color: #8b85ff; font-size: 11px; padding: 4px 10px; cursor: pointer; font-family: inherit; transition: all .2s; }
+  .copy-btn:hover { background: rgba(108,99,255,.35); }
+  .copy-btn.copied { background: rgba(34,197,94,.2); border-color: rgba(34,197,94,.4); color: #22c55e; }
+
+  /* Status table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 32px; }
+  th { text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.04); font-size: 13px; vertical-align: top; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  .flow-diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+  .flow-step { display: flex; align-items: center; gap: 12px; padding: 10px 0; }
+  .flow-step:not(:last-child) { border-bottom: 1px dashed rgba(255,255,255,.05); }
+  .flow-node { background: rgba(108,99,255,.15); border: 1px solid rgba(108,99,255,.3); border-radius: 8px; padding: 6px 14px; font-size: 12px; font-weight: 600; color: #a5b4fc; white-space: nowrap; }
+  .flow-node.ok { background: rgba(34,197,94,.1); border-color: rgba(34,197,94,.3); color: #4ade80; }
+  .flow-node.fail { background: rgba(239,68,68,.1); border-color: rgba(239,68,68,.3); color: #f87171; }
+  .flow-node.warn { background: rgba(245,158,11,.1); border-color: rgba(245,158,11,.3); color: #fbbf24; }
+  .flow-arrow { color: var(--muted); font-size: 16px; }
+  .flow-note { font-size: 12px; color: var(--muted); margin-left: 4px; }
+
+  .section-gap { margin-bottom: 48px; }
+  .tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(148,163,184,.08); color: var(--muted); border: 1px solid var(--border); }
+  
+  .stats-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .stat-chip { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 12px; }
+  .stat-chip span { font-weight: 700; color: var(--primary-light); margin-right: 4px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🦊 Smart Blocks — Auditoria Completa</h1>
+  <p class="subtitle">Análise pós-teste manual · JANA · 2026-03-20</p>
+  <div class="meta">
+    <div class="meta-item">📋 <strong>6 issues identificados</strong></div>
+    <div class="meta-item">🔴 <strong>2 P0 bloqueadores</strong></div>
+    <div class="meta-item">🟡 <strong>3 P1 importantes</strong></div>
+    <div class="meta-item">🔵 <strong>1 P2 qualidade</strong></div>
+    <div class="meta-item">⚙️ <strong>5 prompts CC prontos</strong></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SUMMARY -->
+  <div class="summary-grid">
+    <div class="summary-card danger">
+      <div class="number">2</div>
+      <div class="label">P0 — Bloqueadores críticos</div>
+    </div>
+    <div class="summary-card warning">
+      <div class="number">3</div>
+      <div class="label">P1 — Importantes</div>
+    </div>
+    <div class="summary-card info">
+      <div class="number">1</div>
+      <div class="label">P2 — Qualidade UX</div>
+    </div>
+    <div class="summary-card success">
+      <div class="number">329</div>
+      <div class="label">Modelos de Petição publicados</div>
+    </div>
+    <div class="summary-card success">
+      <div class="number">1.244</div>
+      <div class="label">Blocos de texto com Google Doc</div>
+    </div>
+    <div class="summary-card warning">
+      <div class="number">86/183</div>
+      <div class="label">Tags sem ordem definida</div>
+    </div>
+  </div>
+
+  <!-- FLUXO ATUAL -->
+  <div class="section-gap">
+    <h2><span class="icon">🔄</span> Diagnóstico do Fluxo Completo</h2>
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-node ok">Frontend Step 1</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note">Seleção processo/tipo/modelo/versão — <strong class="badge badge-warning">BUG: Versão exibe nome do modelo ao invés de "Versão N"</strong></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node warn">Frontend Step 2</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note">Tags wizard — <strong class="badge badge-warning">BUG: Tags sem ordem / obrigatório não lido de olivia_modelo_tags / múltipla seleção ignorada</strong></div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node ok">Frontend Step 3</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note">Preview + gerar — métricas vazias (cosmético)</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node ok">Webhook n8n</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note">A1-Validate → A1b-CriarHistorico → A1c-MergeHistorico ✅</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node ok">B1–B3 Busca dados</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note">Processo, advogado, cliente, empresa, modelo, blocos ✅</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node warn">C1-MontarPayload</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note"><strong class="badge badge-warning">CRÍTICO: chama JARBAS /olivia/criar-doc</strong>, mas GAS v4.0 espera formato diferente. <code>google_doc_id_origem</code> não existe no schema atual.</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node fail">C2-ChamarJARBAS</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note"><strong class="badge badge-danger">P0: aponta para https://jarbas.jarbas-mdlab.com/olivia/criar-doc</strong> — rota JARBAS, não GAS. Decisão arquitetural revertida não foi atualizada no n8n!</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node fail">GAS v4.0</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note"><strong class="badge badge-danger">P0: Nunca é chamado</strong> — o payload vai para JARBAS que pode estar offline ou retornar formato incorreto → placeholders não substituídos</div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-node ok">D1-SalvarSucesso</div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-note">Salva google_doc_url no histórico ✅ (se chegou até aqui)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ISSUES -->
+  <div class="section-gap">
+    <h2><span class="icon">🐛</span> Issues Identificados</h2>
+    <div class="issue-list">
+
+      <!-- P0-01 -->
+      <div class="issue-card p0">
+        <div class="issue-header">
+          <div class="issue-num">P0-01</div>
+          <div class="issue-title-block">
+            <div class="issue-title">N8N chama JARBAS em vez do GAS — placeholders não substituídos</div>
+            <div class="issue-badges">
+              <span class="badge badge-danger">P0 Bloqueador</span>
+              <span class="badge badge-neutral">n8n · C2-ChamarJARBAS</span>
+            </div>
+          </div>
+        </div>
+        <div class="issue-body">
+          <p>O nó <code>C2-ChamarJARBAS</code> aponta para <code>https://jarbas.jarbas-mdlab.com/olivia/criar-doc</code>. Esta era a rota JARBAS que foi <strong>descartada</strong> em favor do GAS direto (decisão arquitetural da spec). O n8n nunca foi atualizado para apontar para o GAS.</p>
+          <p>Resultado: o documento é gerado com <code>{{bloco_1}}</code>, <code>{{bloco_2}}</code>, <code>{{advogado_nome}}</code> etc. sem substituição — exatamente o que você viu no Google Doc.</p>
+          <div class="issue-section">
+            <div class="issue-section-label">Root Cause</div>
+            <div class="root-box">Nó C2 nunca foi migrado de JARBAS → GAS após a decisão arquitetural. C1-MontarPayload monta um payload compatível com GAS v4.0 (campo <code>gasPayload</code>) mas C2 o manda para o endpoint JARBAS que não reconhece esse formato.</div>
+          </div>
+          <div class="issue-section">
+            <div class="issue-section-label">Fix</div>
+            <div class="fix-box">Atualizar C2 para chamar a URL do GAS v4.0 (Web App deployado no Google Apps Script). Payload já está correto em C1 — apenas trocar a URL e ajustar body para <code>={{ JSON.stringify($json.gasPayload) }}</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P0-02 -->
+      <div class="issue-card p0">
+        <div class="issue-header">
+          <div class="issue-num">P0-02</div>
+          <div class="issue-title-block">
+            <div class="issue-title">Seletor de Versão exibe nome do modelo repetido ao invés de "Versão N"</div>
+            <div class="issue-badges">
+              <span class="badge badge-danger">P0 Bloqueador</span>
+              <span class="badge badge-neutral">Frontend · SmartBlocksStep1.tsx</span>
+            </div>
+          </div>
+        </div>
+        <div class="issue-body">
+          <p>O <code>Select</code> de versões prioriza <code>v.nome</code> para exibir o label. O campo <code>nome</code> em <code>olivia_modelos_peticao</code> contém o nome completo do modelo (ex: "Instituição Financeira - Cartão de Crédito"), não a versão. Resultado: todas as 3 versões aparecem com o mesmo texto.</p>
+          <div class="issue-section">
+            <div class="issue-section-label">Root Cause</div>
+            <div class="root-box">
+              Código atual: <code>v.nome ? v.nome : v.versao != null ? `Versão ${v.versao}` : 'Versão sem nome'</code><br/>
+              <code>v.nome</code> nunca é null/empty — sempre tem o nome do modelo. Deveria sempre mostrar "Versão N" usando o campo <code>versao</code> (número inteiro), e o nome apenas como tooltip ou subtítulo.
+            </div>
+          </div>
+          <div class="issue-section">
+            <div class="issue-section-label">Fix</div>
+            <div class="fix-box">Trocar label para: <code>v.versao != null ? `Versão ${v.versao}` : v.nome || 'Versão sem nome'</code>. Opcionalmente adicionar <code>v.nome</code> como subtítulo menor embaixo do número.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-01 -->
+      <div class="issue-card p1">
+        <div class="issue-header">
+          <div class="issue-num">P1-01</div>
+          <div class="issue-title-block">
+            <div class="issue-title">Tags no Step 2 ignoram campos obrigatório/múltipla-seleção de olivia_modelo_tags</div>
+            <div class="issue-badges">
+              <span class="badge badge-warning">P1 Importante</span>
+              <span class="badge badge-neutral">Frontend · useSmartBlocks.ts</span>
+            </div>
+          </div>
+        </div>
+        <div class="issue-body">
+          <p>A junction table <code>olivia_modelo_tags</code> tem colunas próprias: <code>obrigatoria</code> e <code>ordem</code>. Essas colunas são <strong>por modelo</strong> — uma mesma tag pode ser obrigatória num modelo e opcional em outro.</p>
+          <p>O hook <code>useSmartBlocks</code> busca essas colunas na query (<code>obrigatoria</code>, <code>ordem</code>), mas ao montar o objeto <code>TagComSecao</code> usa os campos <em>globais</em> da tag (<code>olivia_tags.selecao_obrigatoria</code> e <code>olivia_tags.multipla_selecao</code>), ignorando os valores específicos do modelo.</p>
+          <div class="issue-section">
+            <div class="issue-section-label">Root Cause</div>
+            <div class="root-box">Em <code>useSmartBlocks.ts</code>, o mapeamento deveria priorizar <code>row.obrigatoria ?? tag.selecao_obrigatoria</code> mas usa apenas <code>tag.selecao_obrigatoria</code>. E a ordem deveria usar <code>row.ordem ?? tag.ordem</code>.</div>
+          </div>
+          <div class="issue-section">
+            <div class="issue-section-label">Fix</div>
+            <div class="fix-box">No mapeamento de <code>tagsData</code> → <code>TagComSecao[]</code>: usar <code>row.obrigatoria ?? row.olivia_tags.selecao_obrigatoria</code> para <code>selecao_obrigatoria</code> e <code>row.ordem ?? row.olivia_tags.ordem</code> para <code>ordem</code>.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-02 -->
+      <div class="issue-card p1">
+        <div class="issue-header">
+          <div class="issue-num">P1-02</div>
+          <div class="issue-title-block">
+            <div class="issue-title">Tags sem ordem definida (86/183) → exibição desordenada no Step 2</div>
+            <div class="issue-badges">
+              <span class="badge badge-warning">P1 Importante</span>
+              <span class="badge badge-neutral">Banco · olivia_tags</span>
+              <span class="badge badge-neutral">olivia_modelo_tags</span>
+            </div>
+          </div>
+        </div>
+        <div class="issue-body">
+          <p>86 das 183 tags ativas têm <code>ordem = 0</code> ou <code>NULL</code>. A query ordena por <code>ordem ASC</code>, então tags sem ordem ficam todas no início agrupadas — a ordem exibida no wizard não reflete a sequência lógica da petição.</p>
+          <div class="issue-section">
+            <div class="issue-section-label">Fix</div>
+            <div class="fix-box">
+              1. Garantir que <code>olivia_modelo_tags.ordem</code> esteja preenchido para todos os modelos ativos (admin ou migration).<br/>
+              2. Fallback no frontend: se <code>ordem</code> for null/0, ordenar por <code>nome</code> como critério secundário.<br/>
+              3. Curto prazo: <code>.order('ordem', { ascending: true, nullsFirst: false })</code> já evita nulos no topo.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P1-03 -->
+      <div class="issue-card p1">
+        <div class="issue-header">
+          <div class="issue-num">P1-03</div>
+          <div class="issue-title-block">
+            <div class="issue-title">Descrição dos blocos exibida em formato estranho no Step 2</div>
+            <div class="issue-badges">
+              <span class="badge badge-warning">P1 Importante</span>
+              <span class="badge badge-neutral">Frontend · SmartBlocksStep2TagWizard.tsx</span>
+            </div>
+          </div>
+        </div>
+        <div class="issue-body">
+          <p>O campo <code>bloco.conteudo</code> está sendo renderizado como texto plano com <code>slice(0,120)</code>. Para blocos jurídicos o conteúdo pode conter HTML/markdown ou ser muito técnico, ficando ilegível como preview.</p>
+          <div class="issue-section">
+            <div class="issue-section-label">Fix</div>
+            <div class="fix-box">Duas opções: (a) <strong>Remover descrição</strong> dos blocos no card — mostrar apenas título + badge Drive + indicador de seleção; (b) Exibir conteúdo sanitizado como HTML com <code>dangerouslySetInnerHTML</code> + DOMPurify limitado a 2 linhas. Recomendo (a) — mais limpo.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- P2-01 -->
+      <div class="issue-card p2">
+        <div class="issue-header">
+          <div class="issue-num">P2-01</div>
+          <div class="issue-title-block">
+            <div class="issue-title">Métricas do Step 3 sempre vazias (TEMPO, CUSTO, TOKENS)</div>
+            <div class="issue-badges">
+              <span class="badge badge-info">P2 Qualidade</span>
+              <span class="badge badge-neutral">Frontend · SmartBlocksStep3Geracao.tsx</span>
+            </div>
+          </div>
+        </div>
+        <div class="issue-body">
+          <p>O Step 3 exibe métricas de tempo, custo e tokens que sempre aparecem como "—". O modo Smart Blocks usa GAS (não IA), então custo e tokens são sempre zero — mas o tempo de processamento pode e deve ser calculado.</p>
+          <div class="issue-section">
+            <div class="issue-section-label">Fix</div>
+            <div class="fix-box">Calcular tempo de processamento no frontend (delta entre início do polling e SUCESSO). Ocultar campos "Custo" e "Tokens" para modo Smart Blocks (não faz sentido sem IA). Mostrar apenas: Tempo total, Blocos montados, Status GAS.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- STATUS DO BANCO -->
+  <div class="section-gap">
+    <h2><span class="icon">🗄️</span> Estado do Banco de Dados</h2>
+    <div class="stats-row">
+      <div class="stat-chip"><span>329</span> Modelos de petição publicados</div>
+      <div class="stat-chip"><span>183</span> Tags ativas</div>
+      <div class="stat-chip"><span>1.244</span> Blocos com Google Doc ID</div>
+      <div class="stat-chip"><span>86</span> Tags sem ordem</div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Item</th>
+          <th>Status</th>
+          <th>Observação</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>olivia_modelos_peticao (schema)</td>
+          <td><span class="badge badge-success">✅ OK</span></td>
+          <td>Campo <code>google_doc_id</code> existe. Versão 1/2/3 populadas corretamente.</td>
+        </tr>
+        <tr>
+          <td>olivia_blocos_texto.google_doc_id</td>
+          <td><span class="badge badge-success">✅ 100%</span></td>
+          <td>Todos os 1.244 blocos ativos têm google_doc_id preenchido — GAS pode copiar.</td>
+        </tr>
+        <tr>
+          <td>olivia_modelo_tags.ordem</td>
+          <td><span class="badge badge-warning">⚠️ Parcial</span></td>
+          <td>86/183 tags com ordem=0 ou NULL. Wizard fica desordenado.</td>
+        </tr>
+        <tr>
+          <td>olivia_modelo_tags.obrigatoria</td>
+          <td><span class="badge badge-warning">⚠️ Ignorado</span></td>
+          <td>Campo existe no banco, mas frontend usa <code>olivia_tags.selecao_obrigatoria</code> global.</td>
+        </tr>
+        <tr>
+          <td>olivia_tags.multipla_selecao</td>
+          <td><span class="badge badge-warning">⚠️ Parcial</span></td>
+          <td>Dado está no banco. Frontend lê o campo global mas não o override por modelo.</td>
+        </tr>
+        <tr>
+          <td>olivia_modelos_peticao.nome (versões)</td>
+          <td><span class="badge badge-danger">❌ Bug</span></td>
+          <td>Campo <code>nome</code> contém o nome do grupo repetido, não "Versão N". Frontend prioriza nome.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- MELHORIAS UX/UI -->
+  <div class="section-gap">
+    <h2><span class="icon">✨</span> Melhorias de UX/UI Identificadas</h2>
+    <table>
+      <thead>
+        <tr><th>Step</th><th>Melhoria</th><th>Impacto</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Step 1</td>
+          <td>Versão selecionada → mostrar pequena badge "V1 · X blocos" embaixo do select</td>
+          <td><span class="badge badge-info">Médio</span></td>
+        </tr>
+        <tr>
+          <td>Step 1</td>
+          <td>Ao selecionar Modelo sem versão publicada → aviso inline "Este modelo não tem versões publicadas"</td>
+          <td><span class="badge badge-warning">Alto</span></td>
+        </tr>
+        <tr>
+          <td>Step 1</td>
+          <td>Toggle "Modo petição livre" e "Qualidade IA" → ocultar para Smart Blocks (não usa IA)</td>
+          <td><span class="badge badge-info">Médio</span></td>
+        </tr>
+        <tr>
+          <td>Step 2</td>
+          <td>Indicador de progresso total + contador "X tags respondidas de Y obrigatórias"</td>
+          <td><span class="badge badge-warning">Alto</span></td>
+        </tr>
+        <tr>
+          <td>Step 2</td>
+          <td>Blocos sem seleção em tag obrigatória → botão "Próximo" desabilitado com tooltip explicando</td>
+          <td><span class="badge badge-warning">Alto</span></td>
+        </tr>
+        <tr>
+          <td>Step 2</td>
+          <td>Preview do bloco em Sheet lateral ao clicar (não inline) — preserva o card limpo</td>
+          <td><span class="badge badge-info">Médio</span></td>
+        </tr>
+        <tr>
+          <td>Step 3</td>
+          <td>Substituir métricas IA por: Tempo total, Blocos montados, Template usado</td>
+          <td><span class="badge badge-info">Médio</span></td>
+        </tr>
+        <tr>
+          <td>Step 3</td>
+          <td>Botão "Abrir no Google Docs" com ícone Google + cor azul brand</td>
+          <td><span class="badge badge-neutral">Baixo</span></td>
+        </tr>
+        <tr>
+          <td>Geral</td>
+          <td>Breadcrumb clicável nos steps (voltar para step anterior sem perder estado)</td>
+          <td><span class="badge badge-info">Médio</span></td>
+        </tr>
+        <tr>
+          <td>Geral</td>
+          <td>Animação de transição entre steps (slide horizontal)</td>
+          <td><span class="badge badge-neutral">Baixo</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PROMPTS CLAUDE CODE -->
+  <div class="section-gap">
+    <h2><span class="icon">⚡</span> Prompts para Claude Code</h2>
+    <p style="color: var(--muted); font-size: 13px; margin-bottom: 24px;">Execute na ordem indicada. Cada prompt é autocontido — inclui contexto completo do que alterar.</p>
+
+    <!-- Prompt 1 -->
+    <details>
+      <summary>
+        🔴 CC-01 — P0: Corrigir N8N — redirecionar C2 para GAS v4.0
+        <span class="prompt-meta">n8n · ~15min</span>
+      </summary>
+      <div class="prompt-body">
+        <p class="prompt-desc">Corrige o root cause principal: o nó C2-ChamarJARBAS do workflow Smart Blocks precisa apontar para o GAS v4.0 em vez do JARBAS. O payload em C1 já está correto.</p>
+        <div class="prompt-box" id="prompt1">Você é um engenheiro n8n especialista.
+
+CONTEXTO:
+- Workflow: "final-olivia-smartblocks" (ID: hyGajjic2kZBVGvW)
+- Arquivo local: ~/Desktop/projeto\ olivia/Workflows\ n8n/final-olivia-smartblocks.json
+- Problema: Nó C2-ChamarJARBAS aponta para https://jarbas.jarbas-mdlab.com/olivia/criar-doc (ERRADO)
+- Correto: deve chamar o GAS v4.0 (Google Apps Script Web App)
+- O payload já está montado corretamente em C1 como $json.gasPayload
+
+TAREFA:
+1. Ler o arquivo ~/Desktop/projeto\ olivia/Workflows\ n8n/final-olivia-smartblocks.json
+2. Localizar o nó "C2-ChamarJARBAS"
+3. Atualizar a URL para a URL do GAS v4.0 (verificar em ~/jarbas/.env a variável GAS_SMART_BLOCKS_URL ou GAS_URL — se não existir, usar https://script.google.com/macros/s/[ID_DO_GAS]/exec)
+4. Garantir que o body seja: ={{ JSON.stringify($json.gasPayload) }}
+5. Remover headers desnecessários ("mdflow: MdL1501@" não é necessário para o GAS)
+6. Adicionar header: Content-Type: application/json
+7. Salvar o arquivo JSON atualizado
+8. Exibir diff do que foi alterado
+
+IMPORTANTE: NÃO alterar nenhum outro nó. Apenas C2-ChamarJARBAS.
+
+Após alterar o JSON, verificar se a URL do GAS está acessível via curl GET e reportar o status.</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt1', this)">Copiar</button>
+      </div>
+    </details>
+
+    <!-- Prompt 2 -->
+    <details>
+      <summary>
+        🔴 CC-02 — P0: Fix frontend — Seletor de Versão exibe "Versão N" corretamente
+        <span class="prompt-meta">frontend · ~10min</span>
+      </summary>
+      <div class="prompt-body">
+        <p class="prompt-desc">Corrige o label do select de versões no Step 1 para mostrar "Versão 1", "Versão 2" etc. em vez do nome repetido do modelo.</p>
+        <div class="prompt-box" id="prompt2">Você é um engenheiro React/TypeScript especialista.
+
+CONTEXTO:
+- Projeto: ~/beta-mdflow
+- Arquivo: src/pages/olivia/components/smart-blocks/SmartBlocksStep1.tsx
+- Problema: O select de versões exibe o nome do modelo repetido 3x (ex: "Instituição Financeira - Cartão de Crédito" 3 vezes)
+- Causa: O código atual prioriza v.nome que sempre contém o nome do modelo, não o número da versão
+- Código atual (linha ~115):
+    {versoes.map(v => (
+      <SelectItem key={v.id} value={v.id}>
+        {v.nome ? v.nome : v.versao != null ? `Versão ${v.versao}` : 'Versão sem nome'}
+      </SelectItem>
+    ))}
+
+TAREFA:
+1. Localizar o bloco do seletor de versões no arquivo
+2. Alterar o label para:
+   - Label principal: v.versao != null ? `Versão ${v.versao}` : 'Versão sem nome'
+   - Subtítulo opcional (menor, texto muted): v.nome (se quiser mostrar o nome como contexto)
+3. Exemplo do resultado esperado:
+   ┌─────────────────────────────────────┐
+   │ Versão 1                            │
+   │ Versão 2          ← ativo           │
+   │ Versão 3                            │
+   └─────────────────────────────────────┘
+4. Verificar TypeScript: sem erros após a mudança (rodar: cd ~/beta-mdflow && npx tsc --noEmit)
+5. Verificar se o hook usePetitionModels retorna o campo "versao" (número) — se não, adicionar ao select da query
+
+IMPORTANTE: Não alterar nenhuma outra parte do arquivo. Apenas o bloco do SelectItem de versões.</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt2', this)">Copiar</button>
+      </div>
+    </details>
+
+    <!-- Prompt 3 -->
+    <details>
+      <summary>
+        🟡 CC-03 — P1: Fix tags — ordem e obrigatório por modelo (olivia_modelo_tags)
+        <span class="prompt-meta">frontend · ~20min</span>
+      </summary>
+      <div class="prompt-body">
+        <p class="prompt-desc">Corrige useSmartBlocks.ts para usar os campos obrigatoria e ordem da junction table olivia_modelo_tags (específicos por modelo) em vez dos campos globais da tag.</p>
+        <div class="prompt-box" id="prompt3">Você é um engenheiro React/TypeScript + Supabase especialista.
+
+CONTEXTO:
+- Projeto: ~/beta-mdflow
+- Arquivo principal: src/pages/olivia/hooks/useSmartBlocks.ts
+- Banco: Supabase qdivfairxhdihaqqypgb
+
+SCHEMA RELEVANTE:
+- olivia_modelo_tags: { id, modelo_id, tag_id, obrigatoria: boolean, ordem: number, deleted_at }
+  → "obrigatoria" e "ordem" aqui são ESPECÍFICOS por modelo (override)
+- olivia_tags: { id, nome, selecao_obrigatoria: boolean, multipla_selecao: boolean, ordem: number, ativo }
+  → campos globais da tag, usados como fallback
+
+PROBLEMA 1 — Ordem das tags:
+A query já faz .order('ordem', { ascending: true }) mas 86/183 tags têm ordem=0 em olivia_modelo_tags.
+Solução: .order('ordem', { ascending: true, nullsFirst: false }) + fallback por nome:
+  tags.sort((a, b) => (a.ordem ?? 999) - (b.ordem ?? 999) || a.nome.localeCompare(b.nome))
+
+PROBLEMA 2 — obrigatoria por modelo ignorada:
+No mapeamento de TagQueryRow → TagComSecao, o campo selecao_obrigatoria usa apenas o campo global.
+A query já busca row.obrigatoria mas não aplica.
+Correção no map:
+  selecao_obrigatoria: row.obrigatoria ?? row.olivia_tags.selecao_obrigatoria,
+  ordem: row.ordem ?? row.olivia_tags.ordem ?? null,
+
+TAREFA:
+1. Ler src/pages/olivia/hooks/useSmartBlocks.ts completo
+2. Corrigir o mapeamento TagQueryRow → TagComSecao para usar obrigatoria e ordem da junction
+3. Corrigir a ordenação final das tags com fallback por nome
+4. Verificar se a query já inclui os campos — se não, adicionar ao .select()
+5. Verificar TypeScript: npx tsc --noEmit (zero erros)
+6. NÃO alterar a interface TagComSecao — apenas o mapeamento interno</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt3', this)">Copiar</button>
+      </div>
+    </details>
+
+    <!-- Prompt 4 -->
+    <details>
+      <summary>
+        🟡 CC-04 — P1+P2: Fix UX — remover descrição de blocos + Step 3 métricas + melhorias visuais
+        <span class="prompt-meta">frontend · ~30min</span>
+      </summary>
+      <div class="prompt-body">
+        <p class="prompt-desc">Pacote de melhorias visuais: remove descrição estranha dos blocos, corrige métricas do Step 3, adiciona feedback de obrigatório e melhora UX geral dos 3 steps.</p>
+        <div class="prompt-box" id="prompt4">Você é um engenheiro React/TypeScript/Tailwind especialista em UX.
+
+CONTEXTO:
+- Projeto: ~/beta-mdflow
+- Arquivos a modificar:
+  1. src/pages/olivia/components/smart-blocks/SmartBlocksStep2TagWizard.tsx
+  2. src/pages/olivia/components/smart-blocks/SmartBlocksStep3Geracao.tsx (se existir)
+  3. src/pages/olivia/components/smart-blocks/SmartBlocksStep1.tsx
+
+TAREFA 1 — Step 2: remover descrição dos blocos
+- Localizar o bloco que renderiza bloco.conteudo (está com line-clamp-2)
+- REMOVER o parágrafo de descrição completamente
+- Manter apenas: título do bloco + badge "Drive" (se google_doc_id) + radio/checkbox de seleção
+- Cards ficam mais compactos e limpos
+
+TAREFA 2 — Step 2: melhorar feedback de obrigatório
+- Tags com selecao_obrigatoria=true: quando canProceed=false, mostrar texto abaixo dos cards:
+  "* Seleção obrigatória — escolha pelo menos um bloco para continuar"
+  em cor destructive/muted com ícone AlertCircle
+- Botão "Próxima" já está disabled — adicionar tooltip explicando o motivo
+
+TAREFA 3 — Step 3: corrigir métricas
+- Encontrar onde TEMPO, CUSTO, TOKENS são exibidos
+- Smart Blocks não usa IA → ocultar ou substituir:
+  - Tempo: calcular delta (Date.now() no início do polling - Date.now() no sucesso) → exibir "X.Xs"
+  - Custo: ocultar (substituir por "Modo GAS — gratuito" ou simplesmente remover)  
+  - Tokens: ocultar
+  - Adicionar: "Blocos montados: N" (vindo do meta do histórico)
+
+TAREFA 4 — Step 1: ocultar toggles irrelevantes
+- "Modo petição livre" e "Qualidade IA" → envolver em: {false && (...)} comentado
+  (deixar código mas inativo — pode ser reativado no futuro)
+- Adicionar comentário: // Smart Blocks não usa IA — desabilitado neste modo
+
+TypeScript: npx tsc --noEmit após cada arquivo. Zero erros.</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt4', this)">Copiar</button>
+      </div>
+    </details>
+
+    <!-- Prompt 5 — Deep Review -->
+    <details>
+      <summary>
+        🔍 CC-05 — Deep Review: revisão completa pós-correções
+        <span class="prompt-meta">full-stack · ~45min</span>
+      </summary>
+      <div class="prompt-body">
+        <p class="prompt-desc">Executar APÓS os prompts CC-01 a CC-04. Faz uma revisão profunda do modo Smart Blocks completo — frontend, n8n, GAS e banco — para identificar qualquer issue remanescente antes do próximo ciclo de E2E.</p>
+        <div class="prompt-box" id="prompt5">Você é um engenheiro full-stack sênior fazendo uma revisão profunda (deep review) do modo Smart Blocks do MdFlow.
+
+CONTEXTO DO SISTEMA:
+- Frontend: React + TypeScript + Tailwind + Supabase — ~/beta-mdflow
+- N8N: workflow "final-olivia-smartblocks" — ~/Desktop/projeto\ olivia/Workflows\ n8n/final-olivia-smartblocks.json
+- GAS: ~/Desktop/projeto\ olivia/GAS\ Smart\ blocks.txt
+- Spec: ~/jarbas-reports/jana/SPEC_SMART_BLOCKS.md
+
+ESCOPO DA REVISÃO:
+
+1. FRONTEND (src/pages/olivia/components/smart-blocks/ + src/pages/olivia/hooks/)
+   - Verificar se todos os P0/P1/P2 dos prompts CC-01 a CC-04 foram aplicados
+   - Checar TypeScript: npx tsc --noEmit — zero erros obrigatório
+   - Verificar: canProceed lógico em cada step
+   - Verificar: resetState ao trocar processo/modelo/versão
+   - Verificar: payload enviado ao webhook inclui todos os campos necessários
+
+2. N8N (final-olivia-smartblocks.json)
+   - Confirmar que C2 aponta para GAS (não JARBAS)
+   - Verificar: C1-MontarPayload monta gasPayload com campos corretos para GAS v4.0:
+     { modelo: {google_doc_id}, blocos: [{ordem, placeholder, google_doc_id}], tags_substituicao: {...}, configuracoes: {...} }
+   - Verificar: B2-BuscarBlocos busca campo google_doc_id dos blocos
+   - Verificar: instrucoes_finais (do frontend) chegam até o payload GAS
+   - Verificar: D1-SalvarSucesso usa o campo correto de retorno do GAS (google_doc_url)
+
+3. GAS (GAS Smart blocks.txt)
+   - Verificar se doPost() espera exatamente o formato que C1 monta
+   - Validar: validatePayload() — o payload vai passar na validação?
+   - Confirmar: substituição de {{tags}} com dados do processo funciona
+   - Confirmar: blocos substituem placeholders {{bloco_1}}, {{bloco_2}} etc.
+
+4. BANCO
+   - Verificar: olivia_blocos_texto tem campo version (para filtro por versaoNumero)
+   - Verificar: olivia_modelos_peticao tem google_doc_id (template para o GAS copiar)
+   - Verificar: olivia_modelo_tags tem obrigatoria e ordem preenchidos para modelos principais
+
+RESULTADO ESPERADO:
+- Lista de issues remanescentes com severidade (P0/P1/P2)
+- Para cada issue: arquivo + linha + fix sugerido
+- Score estimado do modo Smart Blocks de 0-10
+- Checklist de critérios para deploy em produção
+
+Rodar npx tsc --noEmit ao final e reportar resultado.</div>
+        <button class="copy-btn" onclick="copyPrompt('prompt5', this)">Copiar</button>
+      </div>
+    </details>
+
+  </div>
+
+  <!-- PLANO DE EXECUÇÃO -->
+  <div class="section-gap">
+    <h2><span class="icon">📋</span> Plano de Execução Recomendado</h2>
+    <table>
+      <thead>
+        <tr><th>#</th><th>Ação</th><th>Quem</th><th>Tempo Est.</th><th>Prioridade</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Executar CC-01 → Redirecionar N8N para GAS</td>
+          <td>Claude Code</td>
+          <td>15 min</td>
+          <td><span class="badge badge-danger">P0 — Agora</span></td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>Executar CC-02 → Fix label Versão</td>
+          <td>Claude Code</td>
+          <td>10 min</td>
+          <td><span class="badge badge-danger">P0 — Agora</span></td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Executar CC-03 → Fix tags obrigatório/ordem</td>
+          <td>Claude Code</td>
+          <td>20 min</td>
+          <td><span class="badge badge-warning">P1 — Logo</span></td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>JANA aplica melhorias UX/UI</td>
+          <td>JANA</td>
+          <td>30 min</td>
+          <td><span class="badge badge-info">P1+P2 — Paralelo</span></td>
+        </tr>
+        <tr>
+          <td>5</td>
+          <td>Executar CC-04 → Fix UX pacote</td>
+          <td>Claude Code</td>
+          <td>30 min</td>
+          <td><span class="badge badge-info">P1+P2 — Depois</span></td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>Executar CC-05 → Deep Review</td>
+          <td>Claude Code</td>
+          <td>45 min</td>
+          <td><span class="badge badge-neutral">Review — Final</span></td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>Ciclo de E2E manual completo (todos os steps)</td>
+          <td>Christian</td>
+          <td>20 min</td>
+          <td><span class="badge badge-success">Validação</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="text-align:center; padding: 32px 0; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border);">
+    JANA 🦊 · JARBAS Network · MdLab LegalTech · 2026-03-20
+  </div>
+
+</div>
+
+<script>
+function copyPrompt(id, btn) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    btn.textContent = '✓ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copiar';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

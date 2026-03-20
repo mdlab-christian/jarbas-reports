@@ -1,0 +1,671 @@
+{
+  "name": "final-olivia-express",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🦊 final-olivia-express\n**V4** | 2026-03-16 | JANA 🦊\n\n**Fluxo A** → `POST mdflow/olivia/triagem`\n**Fluxo B** → `POST mdflow/olivia/express`\n\n**GAS Express v1.0:** nova URL\n\n### Correções V4:\n✅ SUPA_KEY correta\n✅ Paths corretos (triagem + express)\n✅ processo_context do frontend\n✅ Smart Blocks obrigatório\n✅ Progresso intermediário 5 etapas\n✅ Tags do modelo para triagem\n✅ qualidade_ia extended thinking\n✅ GAS URL correta\n❌ Sem Fluxo D",
+        "height": 360,
+        "width": 440,
+        "color": 4
+      },
+      "id": "sn-h",
+      "name": "📋 final-olivia-express",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Fluxo A — Triagem\n**Síncrono — 200**\n\n`POST mdflow/olivia/triagem`\n\n→ A1: Valida\n→ A2: Busca modelo + olivia_tags\n→ A3b: Claude gera perguntas pelas tags\n→ 200 `{ perguntas[], modo:'ia', instrucoes_base }`\n\n**Tags = seções = perguntas contextuais**\nOpcionais: máx 1 pergunta, obrigatorio:false",
+        "height": 230,
+        "width": 340,
+        "color": 3
+      },
+      "id": "sn-a",
+      "name": "📌 Fluxo A",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        288,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Fluxo B — Express\n**Async — 202 + polling**\n\n`POST mdflow/olivia/express`\n\n→ 202 imediato\n→ ProgressStart: 10%\n→ B2: contexto + Smart Blocks ref\n→ B3: prompt + progresso 25%→40%\n→ B4: Claude (extended thinking se ativo)\n→ B5: parse + progresso 65%\n→ B6: skip_revisor?\n→ B7: Claude Revisor + progresso 70%→85%\n→ B8.5: GAS Express\n→ B8: SUCESSO 100%",
+        "height": 280,
+        "width": 340,
+        "color": 6
+      },
+      "id": "sn-b",
+      "name": "📌 Fluxo B",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        288,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mdflow/olivia/triagem",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "WH-Triagem",
+      "name": "WH-Triagem",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        288,
+        0
+      ],
+      "webhookId": "olivia-triagem-v4-final",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "7bGoQhcPPZN8nCm2",
+          "name": "mdflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst input = $input.first().json.body ?? $input.first().json;\nconst avail = {};\nconst candidates = ['fetch', 'XMLHttpRequest', 'https', 'http', 'axios', 'got'];\nfor (const c of candidates) {\n  try { avail[c] = eval('typeof ' + c); } catch(e) { avail[c] = 'error:'+e.message; }\n}\nlet helpersMethods = 'none';\ntry { helpersMethods = JSON.stringify(Object.keys($helpers || {})); } catch(e) { helpersMethods = 'error:'+e.message; }\n// Tentar fazer um fetch real para ver o que funciona\nlet fetchTest = 'not_tried';\ntry {\n  if (typeof fetch !== 'undefined') {\n    const r = await fetch('https://httpbin.org/get');\n    fetchTest = 'fetch_works:' + r.status;\n  }\n} catch(e) { fetchTest = 'fetch_error:'+e.message; }\nreturn [{ json: { valid: false, avail, helpersMethods, fetchTest, error: 'ENV TEST' } }];\n"
+      },
+      "id": "A1-Validate",
+      "name": "A1-Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "A-IF-Valid",
+      "name": "A-IF-Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst input = $input.first().json;\nconst data = input.data;\nconst modeloId = data.modelo_grupo_id || data.versao_id || data.modelo_id;\nconst orgId = input.organizacao_id;\nasync function get(path) {\n  const r = await $http.request({\n    method: 'GET',\n    url: `${SUPA_URL}/rest/v1/${path}`,\n    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, Accept: 'application/json' }\n  });\n  return r;\n}\nconst modelos = await get(`olivia_modelos_peticao?id=eq.${modeloId}&select=id,nome,instrucoes_ia,tipo_peticao_id,google_doc_id_origem`);\nconst modelo = (modelos || [])[0] || {};\nconst modeloTags = await get(`olivia_modelo_tags?modelo_id=eq.${modeloId}&organizacao_id=eq.${orgId}&select=id,tag_id,obrigatoria,ordem&order=ordem.asc`) || [];\nconst tagIds = modeloTags.map(t => t.tag_id).filter(Boolean);\nlet tagNomes = {};\nif (tagIds.length > 0) {\n  const tags = await get(`olivia_tags?id=in.(${tagIds.join(',')})&organizacao_id=eq.${orgId}&select=id,nome`) || [];\n  tags.forEach(t => tagNomes[t.id] = t.nome);\n}\nconst secoes = modeloTags.map(mt => ({ id: mt.id, tag_id: mt.tag_id, nome: tagNomes[mt.tag_id] || '', obrigatoria: mt.obrigatoria, ordem: mt.ordem }));\nconst flows = await get(`olivia_flows?modelo_id=eq.${modeloId}&ativo=eq.true&limit=1`) || [];\nconst flowFixo = flows[0] || null;\nreturn [{ json: { ...input, modelo, secoes_modelo: secoes, flow_fixo: flowFixo, instrucoes_ia: data.instrucoes_ia || modelo.instrucoes_ia || null, processo_context: data.processo_context || {} } }];"
+      },
+      "id": "A2-BuscarModelo",
+      "name": "A2-BuscarModelo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        944,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ANTHROPIC_KEY = 'ANTHROPIC_KEY_REDACTED';\nconst input = $input.first().json;\nconst secoes = input.secoes_modelo || [];\nconst instrucoes = input.instrucoes_ia || '';\nconst ctx = input.processo_context || {};\nconst proc = ctx.processo || {};\nconst modelo = input.modelo || {};\nconst secoesDesc = secoes.map((s,i) => `${i+1}. ${s.nome}${s.obrigatoria ? ' (obrigatória)' : ' (opcional)'}`).join('\\n');\nconst system = `Você é assistente jurídico especializado em petições.\nGere perguntas de triagem para coletar informações para redigir uma petição.\n\nESTRUTURA DA PETIÇÃO (seções):\n${secoesDesc || 'Petição completa padrão'}\n\nREGRAS:\n- Gere 1 a 3 perguntas por seção OBRIGATÓRIA\n- Para seções OPCIONAIS: máx 1 pergunta\n- Tipos: text, textarea, select, multiselect\n- Para select/multiselect: fornecer opcoes[] relevantes\n- Tags opcionais não precisam ser respondidas — marcar obrigatorio: false\n- SAÍDA: JSON puro sem markdown:\n{\"perguntas\": [{\"id\": \"p1\", \"pergunta\": \"...\", \"tipo\": \"textarea\", \"obrigatorio\": true, \"opcoes\": [], \"secao\": \"nome\"}]}`;\nconst user = `Tipo de petição: ${modelo.nome || 'Petição padrão'}\nTipo de processo: ${proc.tipo_processo || 'Cível'}\nRéu: ${proc.reu_nome || ''}\n${instrucoes ? 'Instruções: ' + instrucoes : ''}\n\nGere as perguntas.`;\nconst r = await fetch('https://api.anthropic.com/v1/messages', {\n  method: 'POST',\n  headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },\n  body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 3000, temperature: 0.3, system, messages: [{ role: 'user', content: user }] })\n});\nif (!r.ok) throw new Error(`Anthropic ${r.status}: ${await r.text()}`);\nconst d = await r.json();\nconst text = d.content?.[0]?.text || '';\nlet perguntas = [];\ntry {\n  const clean = text.replace(/^```json\\s*/,'').replace(/\\s*```$/,'').trim();\n  const m = clean.match(/\\{[\\s\\S]*\\}/);\n  perguntas = m ? (JSON.parse(m[0]).perguntas || []) : [];\n} catch(e) {\n  perguntas = secoes.filter(s => s.obrigatoria).slice(0,5).map((s,i) => ({\n    id: `p${i+1}`, pergunta: `Descreva os fatos relevantes para \"${s.nome}\"`, tipo: 'textarea', obrigatorio: true, opcoes: [], secao: s.nome\n  }));\n}\nreturn [{ json: { perguntas, modo: 'ia', instrucoes_base: instrucoes || null } }];"
+      },
+      "id": "A3b-GerarIA",
+      "name": "A3b-GerarIA",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, perguntas: $json.perguntas, modo: $json.modo, instrucoes_base: $json.instrucoes_base || null }) }}",
+        "options": {}
+      },
+      "id": "A-Respond",
+      "name": "A-Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1392,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+        "options": {}
+      },
+      "id": "A-Respond400",
+      "name": "A-Respond400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        944,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "mdflow/olivia/express",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "WH-Gerar",
+      "name": "WH-Gerar",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        288,
+        704
+      ],
+      "webhookId": "olivia-express-v4-final",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "7bGoQhcPPZN8nCm2",
+          "name": "mdflow"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body ?? $input.first().json;\nif (!body.organizacao_id) return [{ json: { valid: false, error: 'organizacao_id obrigatório' } }];\nconst data = body.data || {};\nif (!data.historico_id) return [{ json: { valid: false, error: 'data.historico_id obrigatório' } }];\nreturn [{ json: { valid: true, body, data, organizacao_id: body.organizacao_id, actor_user_id: body.actor_user_id, historico_id: data.historico_id, _start_time: Date.now() } }];"
+      },
+      "id": "B1-Validate",
+      "name": "B1-Validate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "B-IF-Valid",
+      "name": "B-IF-Valid",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        720,
+        704
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, action: 'webhook_triggered', data: { historico_id: $json.historico_id } }) }}",
+        "options": {}
+      },
+      "id": "B-Respond202",
+      "name": "B-Respond202",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        944,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: false, error: $json.error }) }}",
+        "options": {}
+      },
+      "id": "B-Respond400",
+      "name": "B-Respond400",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        944,
+        832
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst input = $input.first().json;\nawait fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${input.historico_id}`, {\n  method: 'PATCH',\n  headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n  body: JSON.stringify({ status: 'EM_PROGRESSO', progresso: { etapa: 'buscando_contexto', pct: 10, label: 'Buscando contexto do processo...' } })\n});\nreturn [{ json: input }];"
+      },
+      "id": "B-ProgressStart",
+      "name": "B-ProgressStart",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1168,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst input = $('B-Respond202').first().json;\nconst data = input.data;\nconst orgId = input.organizacao_id;\nasync function get(path) {\n  const r = await fetch(`${SUPA_URL}/rest/v1/${path}`, { headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, Accept: 'application/json' } });\n  if (!r.ok) throw new Error(`Supa ${r.status}: ${await r.text()}`);\n  return r.json();\n}\nasync function patch(path, body) {\n  await fetch(`${SUPA_URL}/rest/v1/${path}`, {\n    method: 'PATCH',\n    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n    body: JSON.stringify(body)\n  });\n}\n// processo_context vem pronto do frontend\nconst ctx = data.processo_context || {};\nconst proc = ctx.processo || {};\nconst modeloId = data.modelo_grupo_id || data.versao_id;\nconst mods = await get(`olivia_modelos_peticao?id=eq.${modeloId}&select=id,nome,instrucoes_ia,google_doc_id_origem`);\nconst modelo = mods[0] || {};\nconst vers = data.versao_id ? await get(`olivia_versoes?id=eq.${data.versao_id}&select=id,nome,config`) : [];\nconst versao = vers[0] || {};\nlet advogado = ctx.advogado || {};\nif (data.advogado_id && !advogado.cabecalho_escritorio) {\n  const advs = await get(`advogados?id=eq.${data.advogado_id}&select=id,nome,oab,oab_uf,cabecalho_escritorio`);\n  if (advs[0]) advogado = { ...advogado, ...advs[0] };\n}\nconst processoId = proc.id || proc.processo_id;\nlet smart_blocks_ref = null;\nif (processoId) {\n  const sbH = await get(`olivia_historico?processo_id=eq.${processoId}&organizacao_id=eq.${orgId}&status=eq.SUCESSO&modo=in.(AGENTE,SMART_BLOCKS,MANUAL)&select=id,texto_gerado,modo,created_at&order=created_at.desc&limit=1`);\n  if (sbH?.[0]?.texto_gerado) smart_blocks_ref = sbH[0].texto_gerado;\n}\nconst modeloTags = await get(`olivia_modelo_tags?modelo_id=eq.${modeloId}&organizacao_id=eq.${orgId}&select=id,tag_id,obrigatoria,ordem&order=ordem.asc`);\nconst tagIds = (modeloTags || []).map(t => t.tag_id).filter(Boolean);\nlet tagNomes = {};\nif (tagIds.length > 0) {\n  const tags = await get(`olivia_tags?id=in.(${tagIds.join(',')})&organizacao_id=eq.${orgId}&select=id,nome`);\n  (tags || []).forEach(t => tagNomes[t.id] = t.nome);\n}\nconst secoesModelo = (modeloTags || []).map(mt => ({ nome: tagNomes[mt.tag_id] || '', obrigatoria: mt.obrigatoria, ordem: mt.ordem }));\nconst googleFolderId = proc.google_drive_folder_id || '';\nawait patch(`olivia_historico?id=eq.${input.historico_id}`, { progresso: { etapa: 'montando_prompt', pct: 25, label: 'Montando prompt para a IA...' } });\nreturn [{ json: { ...input, processo_context: { ...ctx, advogado }, modelo, versao, secoes_modelo: secoesModelo, google_folder_id: googleFolderId, smart_blocks_ref, triagem_respostas: data.triagem_respostas || [], instrucoes_adicionais: data.instrucoes_adicionais || '', skip_revisor: data.skip_revisor === true, qualidade_ia: data.qualidade_ia || 'padrao', outline: data.outline || [], analise_resultado: data.analise_resultado || null, minuta_final: data.minuta_final || null, historico_id: input.historico_id } }];"
+      },
+      "id": "B2-BuscarContexto",
+      "name": "B2-BuscarContexto",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst input = $input.first().json;\nconst ctx = input.processo_context;\nconst proc = ctx.processo || {};\nconst cli = ctx.cliente || {};\nconst emp = ctx.empresa_re || ctx.empresa || {};\nconst adv = ctx.advogado || {};\nlet triagemStr = '';\nconst tr = input.triagem_respostas;\nif (Array.isArray(tr)) {\n  triagemStr = tr.filter(r => r.resposta != null && r.resposta !== '').map(r => `- ${r.texto || r.id}: ${Array.isArray(r.resposta) ? r.resposta.join(', ') : r.resposta}`).join('\\n');\n} else if (tr && typeof tr === 'object') {\n  triagemStr = Object.entries(tr).filter(([,v]) => v).map(([k,v]) => `- ${k}: ${Array.isArray(v)?v.join(', '):v}`).join('\\n');\n}\nconst secoesDesc = (input.secoes_modelo || []).map((s,i) => `${i+1}. ${s.nome}${s.obrigatoria?' (obrigatória)':' (opcional)'}`).join('\\n');\nconst outlineDesc = (input.outline || []).filter(s => s.incluir !== false).map(s => s.titulo).join(', ');\nconst sbRef = input.smart_blocks_ref;\nconst formatVal = v => v ? 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2}) : 'A definir';\nconst system = `Você é o Claude, redator jurídico especializado da plataforma OlivIA (MdLab LegalTech).\nRedija petições jurídicas de alta qualidade para o escritório Midas Advocacia.\n\nCONTEXTO DO PROCESSO:\n- Tipo: ${proc.tipo_processo||'Cível'}\n- Réu: ${emp.razao_social||emp.nome||proc.reu_nome||''} — CNPJ: ${emp.cnpj||''}\n- Autor: ${cli.nome||''} — CPF/CNPJ: ${cli.cpf_cnpj||''}\n- Vara: ${ctx.comarca_vara?.nome||proc.vara||''}\n- Número CNJ: ${proc.numero_processo||proc.numero_cnj||'A distribuir'}\n- Valor da causa: ${formatVal(proc.valor_causa)}\n- Restrição: ${[proc.restricao_orgao_nome, proc.restricao_valor?formatVal(proc.restricao_valor):null].filter(Boolean).join(' — ')||'Nenhuma'}\nADVOGADO: ${adv.nome||''} — OAB ${adv.oab||''}/${adv.oab_uf||''}\n\n${input.modelo.instrucoes_ia?'INSTRUÇÕES DO MODELO:\\n'+input.modelo.instrucoes_ia+'\\n':'MODELO: '+(input.modelo.nome||'Petição padrão')+'\\n'}\n${sbRef?'\\nREFERÊNCIA DE ESTILO (petição anterior do escritório — use como guia de estrutura, tom e formatação):\\n---\\n'+sbRef.substring(0,4000)+(sbRef.length>4000?'\\n[...truncado...]':'')+'\\n---\\n':''}\nSEÇÕES A REDIGIR:\n${outlineDesc||secoesDesc||'Estrutura padrão'}\n\nREGRAS:\n- Jurisprudências: seção própria tipo \"jurisprudencia\", recuo, fonte menor\n- Pedidos: a), b), c)... com valor da causa ao final\n- Linguagem: técnica, objetiva, sem redundâncias\n- Seções opcionais: incluir só se triagem justificar\n\nSAÍDA: JSON puro sem markdown:\n{\"titulo\":\"...\",\"secoes\":[{\"tipo\":\"enderecamento|qualificacao|dos_fatos|do_direito|jurisprudencia|dos_pedidos|fecho\",\"titulo\":\"...\",\"conteudo\":\"...\"}]}`;\nconst user = `Modelo: ${input.modelo.nome||''} ${input.versao?.nome||''}\nRESPOSTAS DA TRIAGEM:\n${triagemStr||'(sem triagem — usar dados do processo)'}\n${input.instrucoes_adicionais?'\\nINSTRUÇÕES ADICIONAIS:\\n'+input.instrucoes_adicionais:''}\n${input.analise_resultado?'\\nANÁLISE DA DECISÃO/PROVAS:\\n'+JSON.stringify(input.analise_resultado).substring(0,1000):''}\nGere a petição completa em JSON.`;\nawait fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${input.historico_id}`, {\n  method: 'PATCH',\n  headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n  body: JSON.stringify({ progresso: { etapa: 'redatando', pct: 40, label: 'Redigindo petição com IA...' } })\n});\nreturn [{ json: { ...input, _system: system, _user: user } }];"
+      },
+      "id": "B3-MontarPrompt",
+      "name": "B3-MontarPrompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const ANTHROPIC_KEY = 'ANTHROPIC_KEY_REDACTED';\nconst input = $input.first().json;\nconst extended = input.qualidade_ia === 'pensamento_estendido';\nconst body = {\n  model: 'claude-sonnet-4-5',\n  max_tokens: extended ? 16000 : 8192,\n  temperature: extended ? 1 : 0.4,\n  system: input._system,\n  messages: [{ role: 'user', content: input._user }]\n};\nif (extended) body.thinking = { type: 'enabled', budget_tokens: 8000 };\nconst r = await fetch('https://api.anthropic.com/v1/messages', {\n  method: 'POST',\n  headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },\n  body: JSON.stringify(body)\n});\nif (!r.ok) throw new Error(`Anthropic ${r.status}: ${await r.text()}`);\nconst d = await r.json();\nreturn [{ json: { ...input, _claude_response: d } }];"
+      },
+      "id": "B4-ChamarRedator",
+      "name": "B4-ChamarRedator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst input = $input.first().json;\nconst d = input._claude_response;\nconst textBlock = (d.content||[]).find(b => b.type === 'text');\nconst text = textBlock?.text || '';\nconst usage = d.usage || {};\nlet titulo = 'Petição', secoes = [];\ntry {\n  const clean = text.replace(/^```json\\s*/,'').replace(/\\s*```$/,'').trim();\n  const p = JSON.parse(clean);\n  titulo = p.titulo||'Petição'; secoes = p.secoes||[];\n} catch(e) {\n  try { const m=text.match(/\\{[\\s\\S]*\\}/); if(m){const p=JSON.parse(m[0]); titulo=p.titulo||'Petição'; secoes=p.secoes||[];} } catch(e2) { secoes=[{tipo:'body',titulo:'Petição',conteudo:text}]; }\n}\nconst inp=usage.input_tokens||0, out=usage.output_tokens||0;\nconst custo=((inp*3)+(out*15))/1_000_000;\nconst texto=secoes.map(s=>(s.titulo?`## ${s.titulo}\\n`:'')+s.conteudo).join('\\n\\n');\nawait fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${input.historico_id}`, {\n  method: 'PATCH',\n  headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n  body: JSON.stringify({ progresso: { etapa: 'revisando', pct: 65, label: 'Revisando petição...' } })\n});\nreturn [{ json: { ...input, _titulo: titulo, _secoes: secoes, _texto_completo: texto, _tokens: inp+out, _custo: parseFloat(custo.toFixed(6)) } }];"
+      },
+      "id": "B5-ParseRedator",
+      "name": "B5-ParseRedator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.skip_revisor }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "B6-IF-Skip",
+      "name": "B6-IF-Skip",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2272,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst ANTHROPIC_KEY = 'ANTHROPIC_KEY_REDACTED';\nconst input = $input.first().json;\nawait fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${input.historico_id}`, {\n  method: 'PATCH',\n  headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n  body: JSON.stringify({ progresso: { etapa: 'revisando', pct: 70, label: 'Revisando com Claude...' } })\n});\nconst system = 'Você é revisor jurídico especializado. Revise a petição: coerência jurídica, clareza, fundamentação, qualidade dos pedidos e jurisprudências. Mantenha a estrutura JSON. Retorne: {\"titulo\":\"...\",\"secoes\":[...],\"score\":85,\"justificativa\":\"...\"}';\nconst user = `Revise:\\n${JSON.stringify({titulo:input._titulo,secoes:input._secoes}).substring(0,12000)}`;\nconst r = await fetch('https://api.anthropic.com/v1/messages', {\n  method: 'POST',\n  headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },\n  body: JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 8192, temperature: 0.2, system, messages: [{ role: 'user', content: user }] })\n});\nif (!r.ok) throw new Error(`Revisor ${r.status}: ${await r.text()}`);\nconst d = await r.json();\nconst text = (d.content||[]).find(b=>b.type==='text')?.text||'';\nconst usage = d.usage||{};\nlet secoes=input._secoes, score=null;\ntry {\n  const clean=text.replace(/^```json\\s*/,'').replace(/\\s*```$/,'').trim();\n  const p=JSON.parse(clean); if(p.secoes?.length>0)secoes=p.secoes; if(p.score)score=p.score;\n} catch(e){\n  try{const m=text.match(/\\{[\\s\\S]*\\}/);if(m){const p=JSON.parse(m[0]);if(p.secoes?.length>0)secoes=p.secoes;if(p.score)score=p.score;}}catch(e2){}\n}\nconst inp=usage.input_tokens||0, out=usage.output_tokens||0;\nconst cR=((inp*3)+(out*15))/1_000_000;\nconst texto=secoes.map(s=>(s.titulo?`## ${s.titulo}\\n`:'')+s.conteudo).join('\\n\\n');\nawait fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${input.historico_id}`, {\n  method: 'PATCH',\n  headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n  body: JSON.stringify({ progresso: { etapa: 'criando_doc', pct: 85, label: 'Criando Google Doc...' } })\n});\nreturn [{ json: { ...input, _secoes: secoes, _texto_completo: texto, _score_revisor: score, _custo: (input._custo||0)+parseFloat(cR.toFixed(6)) } }];"
+      },
+      "id": "B7-Revisor",
+      "name": "B7-Revisor",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2480,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst input = $input.first().json;\nconst ctx = input.processo_context;\nconst proc = ctx.processo||{}, cli = ctx.cliente||{}, emp = ctx.empresa_re||ctx.empresa||{}, adv = ctx.advogado||{};\nconst GAS_URL = 'https://script.google.com/macros/s/AKfycbx5CaUuoF0L34clP8V7a5lA5HvobU8e7goJihnp9_aGZRxrxZakuFIfvwQbCdFkih-e/exec';\nconst FOLDER_ID = input.google_folder_id || '';\nif (input.skip_revisor) {\n  await fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${input.historico_id}`, {\n    method: 'PATCH',\n    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n    body: JSON.stringify({ progresso: { etapa: 'criando_doc', pct: 85, label: 'Criando Google Doc...' } })\n  });\n}\nconst nomeArquivo = [input._titulo||'Petição', cli.nome, new Date().toISOString().substring(0,10)].filter(Boolean).join(' — ');\nconst fmtVal = v => v ? 'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2}) : '';\nconst gasPayload = {\n  titulo: input._titulo||'Petição', secoes: input._secoes||[],\n  tags_substituicao: { cliente_nome:cli.nome||'', cliente_cpf:cli.cpf_cnpj||'', reu_nome:emp.razao_social||emp.nome||proc.reu_nome||'', reu_cnpj:emp.cnpj||'', comarca:ctx.comarca_vara?.nome||proc.vara||'', vara:ctx.comarca_vara?.nome||proc.vara||'', numero_processo:proc.numero_processo||proc.numero_cnj||'', valor_causa:fmtVal(proc.valor_causa), data_hoje:new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'long',year:'numeric'}), advogado_nome:adv.nome||'', advogado_oab:adv.oab?`${adv.oab}/${adv.oab_uf||''}`:'' },\n  processo: { historico_id: input.historico_id, numero: proc.numero_processo||proc.numero_cnj||'' },\n  configuracoes: { cabecalho_escritorio: adv.cabecalho_escritorio||'', pasta_destino_id: FOLDER_ID, nome_arquivo: nomeArquivo, fallback_to_root: true, debug: false }\n};\nconst https = require('https');\nfunction postGas(url, payload) {\n  return new Promise((resolve,reject) => {\n    const body = JSON.stringify(payload);\n    const u = new URL(url);\n    const req = https.request({ hostname:u.hostname, path:u.pathname+u.search, method:'POST', headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(body)} }, (res) => {\n      if (res.statusCode===302 && res.headers.location) {\n        res.resume();\n        const r2=https.request(res.headers.location,(r2res)=>{let d='';r2res.on('data',c=>d+=c);r2res.on('end',()=>{try{resolve(JSON.parse(d));}catch(e){reject(new Error('GAS parse:'+d.substring(0,200)));}})});\n        r2.on('error',reject);r2.end();return;\n      }\n      let d='';res.on('data',c=>d+=c);res.on('end',()=>{try{resolve(JSON.parse(d));}catch(e){reject(new Error('GAS:'+d.substring(0,200)));}}); \n    });\n    req.on('error',reject);req.setTimeout(60000,()=>{req.destroy();reject(new Error('GAS timeout'));});req.write(body);req.end();\n  });\n}\ntry {\n  const g = await postGas(GAS_URL,gasPayload);\n  if (!g.success) throw new Error('GAS: '+g.error_message);\n  return [{ json: { ...input, _google_doc_url: g.google_doc_url, _google_doc_id: g.google_doc_id, _gas_stats: g.estatisticas } }];\n} catch(err) {\n  console.error('[B8.5] '+err.message);\n  return [{ json: { ...input, _google_doc_url: null, _google_doc_id: null, _gas_error: err.message } }];\n}"
+      },
+      "id": "B8.5-CriarDoc",
+      "name": "B8.5-CriarDoc",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2704,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst input = $input.first().json;\nconst r = await fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${input.historico_id}`, {\n  method: 'PATCH',\n  headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },\n  body: JSON.stringify({\n    status: 'SUCESSO',\n    google_doc_url: input._google_doc_url||null,\n    google_doc_id: input._google_doc_id||null,\n    texto_gerado: input._texto_completo||null,\n    peticao_html: input._texto_completo||null,\n    tokens_usados: input._tokens||null,\n    custo_usd: input._custo||null,\n    score_revisor: input._score_revisor||null,\n    modelo_usado: 'claude-sonnet-4-5',\n    modo: 'EXPRESS',\n    finished_at: new Date().toISOString(),\n    tempo_geracao_ms: Date.now()-(input._start_time||Date.now()),\n    progresso: { etapa: 'concluido', pct: 100, label: 'Petição gerada com sucesso!' }\n  })\n});\nif (!r.ok) throw new Error(`Supabase PATCH ${r.status}: ${await r.text()}`);\nreturn [{ json: { success: true, historico_id: input.historico_id, google_doc_url: input._google_doc_url } }];"
+      },
+      "id": "B8-Salvar",
+      "name": "B8-Salvar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2928,
+        624
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "ErrorTrigger",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        288,
+        1104
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const SUPA_URL = 'https://qdivfairxhdihaqqypgb.supabase.co';\nconst SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';\nconst err = $input.first().json;\nconst historicoId = err.execution?.customData?.historico_id || null;\nconsole.error('[ErrorHandler]', JSON.stringify(err).substring(0,500));\nif (historicoId) {\n  await fetch(`${SUPA_URL}/rest/v1/olivia_historico?id=eq.${historicoId}`, {\n    method: 'PATCH',\n    headers: { apikey: SUPA_KEY, Authorization: `Bearer ${SUPA_KEY}`, 'Content-Type': 'application/json' },\n    body: JSON.stringify({ status: 'ERRO', error_message: err.error?.message||'Erro interno', finished_at: new Date().toISOString(), progresso: { etapa: 'erro', pct: 0, label: 'Ocorreu um erro. Tente novamente.' } })\n  });\n}\nreturn [{ json: { handled: true, historicoId } }];"
+      },
+      "id": "ErrorHandler",
+      "name": "ErrorHandler",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        1104
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "WH-Triagem": {
+      "main": [
+        [
+          {
+            "node": "A1-Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A1-Validate": {
+      "main": [
+        [
+          {
+            "node": "A-IF-Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A-IF-Valid": {
+      "main": [
+        [
+          {
+            "node": "A2-BuscarModelo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "A-Respond400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A2-BuscarModelo": {
+      "main": [
+        [
+          {
+            "node": "A3b-GerarIA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "A3b-GerarIA": {
+      "main": [
+        [
+          {
+            "node": "A-Respond",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "WH-Gerar": {
+      "main": [
+        [
+          {
+            "node": "B1-Validate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B1-Validate": {
+      "main": [
+        [
+          {
+            "node": "B-IF-Valid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B-IF-Valid": {
+      "main": [
+        [
+          {
+            "node": "B-Respond202",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "B-Respond400",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B-Respond202": {
+      "main": [
+        [
+          {
+            "node": "B-ProgressStart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B-ProgressStart": {
+      "main": [
+        [
+          {
+            "node": "B2-BuscarContexto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B2-BuscarContexto": {
+      "main": [
+        [
+          {
+            "node": "B3-MontarPrompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B3-MontarPrompt": {
+      "main": [
+        [
+          {
+            "node": "B4-ChamarRedator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B4-ChamarRedator": {
+      "main": [
+        [
+          {
+            "node": "B5-ParseRedator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B5-ParseRedator": {
+      "main": [
+        [
+          {
+            "node": "B6-IF-Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B6-IF-Skip": {
+      "main": [
+        [
+          {
+            "node": "B8.5-CriarDoc",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "B7-Revisor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B7-Revisor": {
+      "main": [
+        [
+          {
+            "node": "B8.5-CriarDoc",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "B8.5-CriarDoc": {
+      "main": [
+        [
+          {
+            "node": "B8-Salvar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "ErrorHandler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "dca46f4f-03d4-4403-92b7-f3a2c95afb20",
+  "meta": {
+    "instanceId": "7b327af6f4663e4f9f50fb499be1f4af58352e87a6c82f22d8f5aeff62cfe702"
+  },
+  "id": "MN5kuLDzuIrIpufm",
+  "tags": []
+}

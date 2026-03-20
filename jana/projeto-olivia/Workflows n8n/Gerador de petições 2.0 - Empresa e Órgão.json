@@ -1,0 +1,1983 @@
+{
+  "name": "Gerador de petições 2.0 - Empresa e Órgão",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "e86e8e0b-c929-4668-832c-30bfb982b608",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2016,
+        -496
+      ],
+      "id": "3a26bfd2-f5fb-4ec5-b768-d12fbeea470f",
+      "name": "Webhook",
+      "webhookId": "9e9dd0fe-46b7-4998-9c29-24766d83769b"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbyNw1hVqL0VfSodWSDWSW3Tl8btsIrsnLQl5nrVkPPZJBfHolxnA-gpjeN5mmq7wVuZIg/exec",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        784,
+        0
+      ],
+      "id": "ed1f2454-cb55-4e2a-814a-474405e40f8a",
+      "name": "HTTP Request",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar resposta do Google Apps Script\nconst response = $input.first().json;\n\n// Verificar se houve erro\nif (!response.success) {\n  throw new Error(response.error || 'Erro ao processar petição');\n}\n\n// Mapear campos para o formato esperado pelo frontend\nconst resultado = {\n  sucesso: response.success,\n  google_doc_url: response.url,\n  arquivo_nome: response.nome_arquivo,\n  tempo_processamento: response.estatisticas.tempo_processamento_ms,\n  mensagem: `Petição gerada com sucesso! ${response.estatisticas.blocos_substituidos} blocos e ${response.estatisticas.jurisprudencias_substituidas} jurisprudências substituídas.`\n};\n\n// Retornar objeto para o próximo node\nreturn {\n  json: resultado\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        0
+      ],
+      "id": "720d2867-06f2-429b-b935-c23993caba4c",
+      "name": "Processar resposta do script"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1312,
+        0
+      ],
+      "id": "908f76ea-32a2-4158-8924-6f46245bcea3",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "advogados",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $(':Processos').item.json.id_advogado }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        0
+      ],
+      "id": "30e4f847-b900-4e60-bd06-d005ffcf4fec",
+      "name": ":Advogados",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "processos",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $json.body.processo.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1744,
+        -496
+      ],
+      "id": "042e6ad1-1395-43a9-b3f1-81a5a9b52a81",
+      "name": ":Processos",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6b6446a7-c7b2-4850-b044-4ab3b0245f43",
+              "name": "advogado_nome",
+              "value": "={{ ($(':Advogados').item.json.nome || '').toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "64b7d51a-adb4-437c-bac6-71c7a60d399a",
+              "name": "advogado_oab_codigo",
+              "value": "={{ $(':Advogados').item.json.oab_codigo }}",
+              "type": "string"
+            },
+            {
+              "id": "08b11015-f321-4902-a5cd-45aece801244",
+              "name": "advogado_enderecamento",
+              "value": "={{ \n  (\n    $(\":Advogados\").item.json.enderecamento_gerador_peticao + \" \" +\n    $(\":Processos\").item.json.enderecamento_json.vara_civel + \" da comarca de \" +\n    $(\":Processos\").item.json.local_distribuicao\n  ).toUpperCase() \n}}",
+              "type": "string"
+            },
+            {
+              "id": "a2dcbce8-4066-4f5e-b73b-b10860bda323",
+              "name": "advogado_rodape",
+              "value": "={{ $(':Advogados').item.json.placeholder_rodape }}",
+              "type": "string"
+            },
+            {
+              "id": "f36f8f38-388e-40ac-a5e6-a44ca0cb1256",
+              "name": "parte_autora",
+              "value": "={{ ($(':Processos').item.json.parte_autora || '').toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "3aee562b-ed03-43aa-a86e-ccd44152cca7",
+              "name": "empresa_re",
+              "value": "={{ $(':Processos').item.json.empresa_re }}",
+              "type": "string"
+            },
+            {
+              "id": "867599e2-ef0d-4e03-b610-a20db98a6e2d",
+              "name": "valor_restricao",
+              "value": "=R$ {{ $(':Processos').item.json.valor_restricao }}",
+              "type": "string"
+            },
+            {
+              "id": "974b506b-b85c-4f54-86e7-384222a797e6",
+              "name": "contrato_restricao",
+              "value": "={{ $(':Processos').item.json.contrato_restricao }}",
+              "type": "string"
+            },
+            {
+              "id": "94ad6ff4-ec2a-47f3-af02-e2ee9b3baf2b",
+              "name": "orgao_restritivo",
+              "value": "={{ $(':Processos').item.json.orgao_restritivo }}",
+              "type": "string"
+            },
+            {
+              "id": "ebf5d17e-0410-4ff9-8d53-edc7ebe21a6f",
+              "name": "cliente_cpf",
+              "value": "={{ $(':Clientes').item.json.cpf }}",
+              "type": "string"
+            },
+            {
+              "id": "96b20039-5832-4798-96cb-dd0abcec1170",
+              "name": "cliente_rg",
+              "value": "={{ $(':Clientes').item.json.rg }}",
+              "type": "string"
+            },
+            {
+              "id": "8e26d370-35d9-4cd8-9d2d-2b7a812d0d11",
+              "name": "qualificacao_sexo",
+              "value": "={{ $(':Clientes').item.json.sexo === \"Masculino\" ? \"já qualificado\" : \"já qualificada\" }}",
+              "type": "string"
+            },
+            {
+              "id": "212bf27e-3a1f-4826-b40e-2277501a397f",
+              "name": "cliente_endereco",
+              "value": "={{ $(':Clientes').item.json.logradouro }}, nº {{ $(':Clientes').item.json.numero_endereco }}, {{ $(':Clientes').item.json.cidade }}/{{ $(':Clientes').item.json.estado }}, CEP {{ $(':Clientes').item.json.cep }}",
+              "type": "string"
+            },
+            {
+              "id": "be815e04-9636-40ad-b5ed-49eef25584d1",
+              "name": "cliente_email",
+              "value": "={{ $(':Clientes').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "50f0c426-5f55-4469-aa0a-be61e8a55b10",
+              "name": "cliente_profissao",
+              "value": "={{ $(':Clientes').item.json.profissao }}",
+              "type": "string"
+            },
+            {
+              "id": "0c96d068-4b38-4ae0-9846-637c852d3a49",
+              "name": "numero_processo",
+              "value": "={{ $(':Processos').item.json.numero_processo }}",
+              "type": "string"
+            },
+            {
+              "id": "3cf4fbd2-c05d-45d6-b650-bb704a506c4f",
+              "name": "tipo_peticao",
+              "value": "={{ $(':olivia_modelos_peticao').item.json.tipo_peticao }}",
+              "type": "string"
+            },
+            {
+              "id": "e37c2213-5e5b-4960-9786-1868f39e3acc",
+              "name": "fonte_letra",
+              "value": "={{ $(':Advogados').item.json.fonte_letra }}",
+              "type": "string"
+            },
+            {
+              "id": "8234e804-0adc-4235-bf6e-cfbdd655bcc7",
+              "name": "categoria_empresa",
+              "value": "={{ $(':Empresas').item.json.tipo_empresa }}",
+              "type": "string"
+            },
+            {
+              "id": "48bb0d01-d934-4e0a-bccf-f730ff6f4893",
+              "name": "categoria_empresa_id",
+              "value": "={{ $(':Empresas').item.json.categoria_id }}",
+              "type": "string"
+            },
+            {
+              "id": "19b42fa0-52b8-4b10-8330-271c2d4dce89",
+              "name": "cidade",
+              "value": "={{ $(':Advogados').item.json.cidade }}",
+              "type": "string"
+            },
+            {
+              "id": "e33947fa-fd66-47eb-b9df-e7c575a78550",
+              "name": "data_hoje",
+              "value": "={{ $now.setZone('America/Sao_Paulo').setLocale('pt-BR').toFormat(\"d 'de' LLLL 'de' yyyy\") }}",
+              "type": "string"
+            },
+            {
+              "id": "95be3c8c-9945-402f-9060-502326eec2d6",
+              "name": "empresa_endereco",
+              "value": "={{ $json.empresa_endereco }}",
+              "type": "string"
+            },
+            {
+              "id": "014a7d4a-6a11-4c0a-bd67-22bf7aee820f",
+              "name": "valor_causa",
+              "value": "={{\n  (\n    15000 +\n    Number(\n      $(':Processos').item.json.valor_restricao\n        .replace(/\\./g, '')   // remove pontos de milhar\n        .replace(',', '.')    // troca vírgula por ponto decimal\n    )\n  ).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })\n}}",
+              "type": "string"
+            },
+            {
+              "id": "8348f76b-fa4f-4fb5-a8f0-981acd256008",
+              "name": "advogado_email",
+              "value": "={{ $(':Advogados').item.json.advogado_email }}",
+              "type": "string"
+            },
+            {
+              "id": "b80722fb-2949-41cb-a168-d334d9395f2c",
+              "name": "estado_extenso",
+              "value": "={{\n(() => {\n  const sigla = ($(':Processos').item.json.estado || '').toUpperCase();\n  const mapa = {\n    RS: 'Rio Grande do Sul',\n    SP: 'São Paulo',\n    SC: 'Santa Catarina'\n  };\n  return mapa[sigla] || sigla; // se não achar, devolve a própria sigla\n})()\n}}\n",
+              "type": "string"
+            },
+            {
+              "id": "fb4a138d-4d02-45f6-bca5-b476022c02df",
+              "name": "enderecamento_vara",
+              "value": "={{ $(':Processos').item.json.enderecamento_json.vara_civel }}",
+              "type": "string"
+            },
+            {
+              "id": "05dbbf9e-e528-4d76-a4d1-1adf8d6258fa",
+              "name": "dados_bancarios",
+              "value": "={{ $(':Advogados').item.json.dados_bancarios }}",
+              "type": "string"
+            },
+            {
+              "id": "bbcb900d-6a4a-4444-a4f0-aad16c9aa95d",
+              "name": "cliente_sexo_nacionalidade",
+              "value": "={{\n  $(':Clientes').item.json.sexo === 'Masculino' \n    ? 'brasileiro' \n    : ($(':Clientes').item.json.sexo === 'Feminino' ? 'brasileira' : '')\n}}",
+              "type": "string"
+            },
+            {
+              "id": "2ceb07b4-1cda-4367-ba36-699fc0b24fbb",
+              "name": "cliente_sexo_inscrito",
+              "value": "={{   $(':Clientes').item.json.sexo === 'Masculino'      ? 'inscrito'      : ($(':Clientes').item.json.sexo === 'Feminino' ? 'inscrita' : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "0a25bc9a-1866-4222-9c26-d88a18cf65d4",
+              "name": "cliente_sexo_portador",
+              "value": "={{   $(':Clientes').item.json.sexo === 'Masculino'      ? 'portador'      : ($(':Clientes').item.json.sexo === 'Feminino' ? 'portadora' : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "a2473fba-5eb1-47a5-92f1-abed91d2bc46",
+              "name": "cliente_sexo_domiciliado",
+              "value": "={{   $(':Clientes').item.json.sexo === 'Masculino'      ? 'domiciliado'      : ($(':Clientes').item.json.sexo === 'Feminino' ? 'domiciliada' : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "764aa506-3155-47f2-ac92-d65f20ba91b9",
+              "name": "data_restricao",
+              "value": "={{ DateTime.fromISO($(':Processos').item.json.data_restricao).toFormat('dd/MM/yy') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        0
+      ],
+      "id": "2aa511bf-e529-4bcb-bbbe-6c9ff5c5f5c7",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $(':Processos').item.json.id_cliente }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -592,
+        0
+      ],
+      "id": "9bfbff4a-e470-4ad1-aff2-8c8a277a281f",
+      "name": ":Clientes",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nome: Preparar dados para Apps Script\n// Descrição: Combina dados do webhook com campos formatados para substituição\n\n// Obter dados do webhook original\nconst webhookData = $('Webhook').item.json.body;\n\n// Obter campos processados do Edit Fields\nconst camposOriginais = $input.first().json;\n\n// Validar dados essenciais\nif (!webhookData || !webhookData.modelo || !webhookData.blocos) {\n  throw new Error('Payload inválido - faltam dados essenciais');\n}\n\n// Separar campo de fonte dos demais\nconst fontePadrao = camposOriginais.fonte_letra || null;\ndelete camposOriginais.fonte_letra; // Remove para não virar tag\n\n// Formatar campos com as tags {{}}\nconst camposFormatados = {};\nfor (const [campo, valor] of Object.entries(camposOriginais)) {\n  const tag = `{{${campo}}}`;\n  camposFormatados[tag] = valor || '';\n}\n\n// Preparar dados para Apps Script\nconst dadosParaScript = {\n  body: {\n    processo: webhookData.processo,\n    modelo: webhookData.modelo,\n    blocos: webhookData.blocos || [],\n    jurisprudencias: webhookData.jurisprudencias || [],\n    campos_substituicao: camposFormatados,\n    configuracao_fonte: fontePadrao // Campo separado para configuração\n  }\n};\n\n// Log para debug\nconsole.log('Payload preparado para Apps Script');\nconsole.log('Total de campos para substituir:', Object.keys(camposFormatados).length);\nif (fontePadrao) {\n  console.log('Fonte configurada:', fontePadrao);\n}\n\nreturn {\n  json: dadosParaScript\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        0
+      ],
+      "id": "11f45798-8aea-4bfa-80df-22a50bd98285",
+      "name": "Preparar para script1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('HTTP Request').item.json.documento_id }}",
+          "mode": "id"
+        },
+        "newUpdatedFileName": "={{ $('Edit Fields').item.json.tipo_peticao }} {{ $(':Processos').item.json.numero_processo }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1808,
+        -192
+      ],
+      "id": "973f7ab7-5c57-4623-bc35-05392ff9980c",
+      "name": "Update file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "olivia_modelos_peticao",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $('Webhook').item.json.body.modelo.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -128,
+        0
+      ],
+      "id": "39493671-97b2-4ab4-8c98-65857b999d90",
+      "name": ":olivia_modelos_peticao",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $(':Advogados').item.json.nome }}",
+                    "rightValue": "Heloisa Miglioranza Schmitt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4adf747e-9763-4a8b-bfa2-146e295f3b74"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Heloisa"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "01d664c0-c70e-4604-a4b0-1356a49d95f2",
+                    "leftValue": "={{ $(':Advogados').item.json.nome }}",
+                    "rightValue": "Christian Dener Paz",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Christian Dener Paz"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1552,
+        0
+      ],
+      "id": "a3a1d7f0-e2b4-49a5-9a8d-2b3e4be3679b",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('HTTP Request').item.json.documento_id }}",
+          "mode": "id"
+        },
+        "newUpdatedFileName": "={{ $('Edit Fields').item.json.empresa_re }} - {{ $('Edit Fields').item.json.numero_processo }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1808,
+        112
+      ],
+      "id": "62403e31-193d-4a43-a543-0450600e8431",
+      "name": "Update file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "empresas",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $(':Processos').item.json.id_empresa }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -368,
+        0
+      ],
+      "id": "b5b4bf7e-f6bf-4969-a911-4f4c04a3e65b",
+      "name": ":Empresas",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1X7j4U7k6eFJ0hv1bhzCpIXRkJpU8x5fDAXq0Fw6ToK4",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Aguardando atualização",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1X7j4U7k6eFJ0hv1bhzCpIXRkJpU8x5fDAXq0Fw6ToK4/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id_drive": "={{ $('HTTP Request').item.json.documento_id }}",
+            "tipo_peticao": "={{ $('Edit Fields').item.json.tipo_peticao }}",
+            "numero_processo": "={{ $('Edit Fields').item.json.numero_processo }}",
+            "parte_autora": "={{ $('Edit Fields').item.json.parte_autora }}",
+            "empresa_re": "={{ $('Edit Fields').item.json.empresa_re }}",
+            "categoria_empresa": "={{ $('Edit Fields').item.json.categoria_empresa }}",
+            "advogado_oab_codigo": "={{ $('Edit Fields').item.json.advogado_oab_codigo }}",
+            "categoria_empresa_id": "={{ $('Edit Fields').item.json.categoria_empresa_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "id_drive",
+              "displayName": "id_drive",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "tipo_peticao",
+              "displayName": "tipo_peticao",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "numero_processo",
+              "displayName": "numero_processo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "parte_autora",
+              "displayName": "parte_autora",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "empresa_re",
+              "displayName": "empresa_re",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "categoria_empresa",
+              "displayName": "categoria_empresa",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "categoria_empresa_id",
+              "displayName": "categoria_empresa_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "advogado_oab_codigo",
+              "displayName": "advogado_oab_codigo",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2544,
+        -80
+      ],
+      "id": "301ec912-9aed-440d-83e9-aed5dd348e7f",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6s9VsR3n17AR4sDT",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2080,
+        -192
+      ],
+      "id": "8b8be24b-b410-4cd6-bcd9-84c18d367032",
+      "name": "Move file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        2096,
+        112
+      ],
+      "id": "4011d01b-7369-4bf9-be2c-a194130fe98c",
+      "name": "Move file1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este Code node assume que você tem 1 item vindo dos nós anteriores\n// e que você pode acessar os dados do cliente e da empresa.\n// Ajuste os caminhos se necessário.\n\nreturn $input.all().map(item => {\n  const cliente  = $(':Clientes').item.json;   // pega do node Clientes\n  const empresa  = $(':Empresas').item.json;   // pega do node Empresas\n\n  const ufCliente = (cliente?.estado || '').toUpperCase();\n  const enderecos = empresa?.enderecos_empresa?.enderecos || [];\n\n  // tenta encontrar endereço no mesmo estado\n  const match = enderecos.find(e => (e?.estado || '').toUpperCase() === ufCliente);\n\n  // se não houver endereço no estado, pega o primeiro disponível\n  const escolhido = match || enderecos[0] || null;\n\n  return {\n    json: {\n      ...item.json,\n      empresa_endereco: escolhido ? (escolhido.endereco || '') : ''\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        0
+      ],
+      "id": "553c3f45-dea2-4679-b3c9-87e571b9008c",
+      "name": "Filtrar endereço da empresa pelo estado"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tipo_acao }}",
+                    "rightValue": "orgao",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "43ecd510-6507-42fd-8450-913ac104e942"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "orgao"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "3f48ad21-9aa2-4173-8cb2-ae8233c2e92f",
+                    "leftValue": "={{ $json.tipo_acao }}",
+                    "rightValue": "empresa",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "empresa"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        -1536,
+        -496
+      ],
+      "id": "10859885-5a71-42b1-98d3-2a3b965138f0",
+      "name": "tipo_acao"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "messages": {
+          "values": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        -800,
+        -1728
+      ],
+      "id": "33269b2f-ac79-4527-b8a6-ad7a4354d199",
+      "name": "Message a model"
+    },
+    {
+      "parameters": {
+        "content": "# Empresas",
+        "height": 624,
+        "width": 3728,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1264,
+        -240
+      ],
+      "typeVersion": 1,
+      "id": "934e778d-b808-47dd-8ea9-b2557db30e2d",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://script.google.com/macros/s/AKfycbyNw1hVqL0VfSodWSDWSW3Tl8btsIrsnLQl5nrVkPPZJBfHolxnA-gpjeN5mmq7wVuZIg/exec",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.body }}",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3296,
+        -992
+      ],
+      "id": "d76a870d-2e0f-4c90-8e29-67fd8411b3db",
+      "name": "HTTP Request1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Processar resposta do Google Apps Script\nconst response = $input.first().json;\n\n// Verificar se houve erro\nif (!response.success) {\n  throw new Error(response.error || 'Erro ao processar petição');\n}\n\n// Mapear campos para o formato esperado pelo frontend\nconst resultado = {\n  sucesso: response.success,\n  google_doc_url: response.url,\n  arquivo_nome: response.nome_arquivo,\n  tempo_processamento: response.estatisticas.tempo_processamento_ms,\n  mensagem: `Petição gerada com sucesso! ${response.estatisticas.blocos_substituidos} blocos e ${response.estatisticas.jurisprudencias_substituidas} jurisprudências substituídas.`\n};\n\n// Retornar objeto para o próximo node\nreturn {\n  json: resultado\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3600,
+        -992
+      ],
+      "id": "27f2db0b-5542-4c7f-a3cc-2c3e68fc02f5",
+      "name": "Processar resposta do script1"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {
+          "responseCode": 200,
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3824,
+        -992
+      ],
+      "id": "0d5508f1-1e5f-45ea-be51-006a648381e6",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "advogados",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $(':Processos').item.json.id_advogado }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -1168,
+        -1008
+      ],
+      "id": "8deb37fe-0cdc-4982-b719-c217205fffb3",
+      "name": ":Advogados1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6b6446a7-c7b2-4850-b044-4ab3b0245f43",
+              "name": "advogado_nome",
+              "value": "={{ ($(':Advogados1').item.json.nome || '').toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "64b7d51a-adb4-437c-bac6-71c7a60d399a",
+              "name": "advogado_oab_codigo",
+              "value": "={{ $(':Advogados1').item.json.oab_codigo }}",
+              "type": "string"
+            },
+            {
+              "id": "08b11015-f321-4902-a5cd-45aece801244",
+              "name": "advogado_enderecamento",
+              "value": "={{ \n  (\n    $(\":Advogados1\").item.json.enderecamento_gerador_peticao + \" \" +\n    $(\":Processos\").item.json.enderecamento_json.vara_civel + \" da comarca de \" +\n    $(\":Processos\").item.json.local_distribuicao\n  ).toUpperCase() \n}}",
+              "type": "string"
+            },
+            {
+              "id": "a2dcbce8-4066-4f5e-b73b-b10860bda323",
+              "name": "advogado_rodape",
+              "value": "={{ $(':Advogados1').item.json.placeholder_rodape }}",
+              "type": "string"
+            },
+            {
+              "id": "f36f8f38-388e-40ac-a5e6-a44ca0cb1256",
+              "name": "parte_autora",
+              "value": "={{ ($(':Processos').item.json.parte_autora || '').toUpperCase() }}",
+              "type": "string"
+            },
+            {
+              "id": "3aee562b-ed03-43aa-a86e-ccd44152cca7",
+              "name": "empresa_re",
+              "value": "={{ $(':Processos').item.json.empresa_re }}",
+              "type": "string"
+            },
+            {
+              "id": "867599e2-ef0d-4e03-b610-a20db98a6e2d",
+              "name": "valor_restricao",
+              "value": "=R$ {{ $(':Processos').item.json.valor_restricao }}",
+              "type": "string"
+            },
+            {
+              "id": "974b506b-b85c-4f54-86e7-384222a797e6",
+              "name": "contrato_restricao",
+              "value": "={{ $(':Processos').item.json.contrato_restricao }}",
+              "type": "string"
+            },
+            {
+              "id": "94ad6ff4-ec2a-47f3-af02-e2ee9b3baf2b",
+              "name": "orgao_restritivo",
+              "value": "={{ $(':Processos').item.json.orgao_restritivo }}",
+              "type": "string"
+            },
+            {
+              "id": "ebf5d17e-0410-4ff9-8d53-edc7ebe21a6f",
+              "name": "cliente_cpf",
+              "value": "={{ $(':Clientes1').item.json.cpf }}",
+              "type": "string"
+            },
+            {
+              "id": "96b20039-5832-4798-96cb-dd0abcec1170",
+              "name": "cliente_rg",
+              "value": "={{ $(':Clientes1').item.json.rg }}",
+              "type": "string"
+            },
+            {
+              "id": "8e26d370-35d9-4cd8-9d2d-2b7a812d0d11",
+              "name": "qualificacao_sexo",
+              "value": "={{ $(':Clientes1').item.json.sexo === \"Masculino\" ? \"já qualificado\" : \"já qualificada\" }}",
+              "type": "string"
+            },
+            {
+              "id": "212bf27e-3a1f-4826-b40e-2277501a397f",
+              "name": "cliente_endereco",
+              "value": "={{ $(':Clientes1').item.json.logradouro }}, nº {{ $(':Clientes1').item.json.numero_endereco }}, {{ $(':Clientes1').item.json.cidade }}/{{ $(':Clientes1').item.json.estado }}, CEP {{ $(':Clientes1').item.json.cep }}",
+              "type": "string"
+            },
+            {
+              "id": "be815e04-9636-40ad-b5ed-49eef25584d1",
+              "name": "cliente_email",
+              "value": "={{ $(':Clientes1').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "50f0c426-5f55-4469-aa0a-be61e8a55b10",
+              "name": "cliente_profissao",
+              "value": "={{ $(':Clientes1').item.json.profissao }}",
+              "type": "string"
+            },
+            {
+              "id": "0c96d068-4b38-4ae0-9846-637c852d3a49",
+              "name": "numero_processo",
+              "value": "={{ $(':Processos').item.json.numero_processo }}",
+              "type": "string"
+            },
+            {
+              "id": "3cf4fbd2-c05d-45d6-b650-bb704a506c4f",
+              "name": "tipo_peticao",
+              "value": "={{ $(':olivia_modelos_peticao1').item.json.tipo_peticao }}",
+              "type": "string"
+            },
+            {
+              "id": "e37c2213-5e5b-4960-9786-1868f39e3acc",
+              "name": "fonte_letra",
+              "value": "={{ $(':Advogados1').item.json.fonte_letra }}",
+              "type": "string"
+            },
+            {
+              "id": "8234e804-0adc-4235-bf6e-cfbdd655bcc7",
+              "name": "categoria_empresa",
+              "value": "={{ $(':Empresas1').item.json.tipo_empresa }}",
+              "type": "string"
+            },
+            {
+              "id": "48bb0d01-d934-4e0a-bccf-f730ff6f4893",
+              "name": "categoria_empresa_id",
+              "value": "={{ $(':Empresas1').item.json.categoria_id }}",
+              "type": "string"
+            },
+            {
+              "id": "19b42fa0-52b8-4b10-8330-271c2d4dce89",
+              "name": "cidade",
+              "value": "={{ $(':Advogados1').item.json.cidade }}",
+              "type": "string"
+            },
+            {
+              "id": "e33947fa-fd66-47eb-b9df-e7c575a78550",
+              "name": "data_hoje",
+              "value": "={{ $now.setZone('America/Sao_Paulo').setLocale('pt-BR').toFormat(\"d 'de' LLLL 'de' yyyy\") }}",
+              "type": "string"
+            },
+            {
+              "id": "95be3c8c-9945-402f-9060-502326eec2d6",
+              "name": "empresa_endereco",
+              "value": "={{ $json.empresa_endereco }}",
+              "type": "string"
+            },
+            {
+              "id": "014a7d4a-6a11-4c0a-bd67-22bf7aee820f",
+              "name": "valor_causa",
+              "value": "={{\n  (\n    15000 +\n    Number(\n      $(':Processos').item.json.valor_restricao\n        .replace(/\\./g, '')   // remove pontos de milhar\n        .replace(',', '.')    // troca vírgula por ponto decimal\n    )\n  ).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })\n}}",
+              "type": "string"
+            },
+            {
+              "id": "8348f76b-fa4f-4fb5-a8f0-981acd256008",
+              "name": "advogado_email",
+              "value": "={{ $(':Advogados1').item.json.advogado_email }}",
+              "type": "string"
+            },
+            {
+              "id": "b80722fb-2949-41cb-a168-d334d9395f2c",
+              "name": "estado_extenso",
+              "value": "={{\n(() => {\n  const sigla = ($(':Processos').item.json.estado || '').toUpperCase();\n  const mapa = {\n    RS: 'Rio Grande do Sul',\n    SP: 'São Paulo',\n    SC: 'Santa Catarina'\n  };\n  return mapa[sigla] || sigla; // se não achar, devolve a própria sigla\n})()\n}}\n",
+              "type": "string"
+            },
+            {
+              "id": "fb4a138d-4d02-45f6-bca5-b476022c02df",
+              "name": "enderecamento_vara",
+              "value": "={{ $(':Processos').item.json.enderecamento_json.vara_civel }}",
+              "type": "string"
+            },
+            {
+              "id": "05dbbf9e-e528-4d76-a4d1-1adf8d6258fa",
+              "name": "dados_bancarios",
+              "value": "={{ $(':Advogados1').item.json.dados_bancarios }}",
+              "type": "string"
+            },
+            {
+              "id": "bbcb900d-6a4a-4444-a4f0-aad16c9aa95d",
+              "name": "cliente_sexo_nacionalidade",
+              "value": "={{\n  $(':Clientes1').item.json.sexo === 'Masculino' \n    ? 'brasileiro' \n    : ($(':Clientes1').item.json.sexo === 'Feminino' ? 'brasileira' : '')\n}}",
+              "type": "string"
+            },
+            {
+              "id": "2ceb07b4-1cda-4367-ba36-699fc0b24fbb",
+              "name": "cliente_sexo_inscrito",
+              "value": "={{   $(':Clientes1').item.json.sexo === 'Masculino'      ? 'inscrito'      : ($(':Clientes1').item.json.sexo === 'Feminino' ? 'inscrita' : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "0a25bc9a-1866-4222-9c26-d88a18cf65d4",
+              "name": "cliente_sexo_portador",
+              "value": "={{   $(':Clientes1').item.json.sexo === 'Masculino'      ? 'portador'      : ($(':Clientes1').item.json.sexo === 'Feminino' ? 'portadora' : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "a2473fba-5eb1-47a5-92f1-abed91d2bc46",
+              "name": "cliente_sexo_domiciliado",
+              "value": "={{   $(':Clientes1').item.json.sexo === 'Masculino'      ? 'domiciliado'      : ($(':Clientes1').item.json.sexo === 'Feminino' ? 'domiciliada' : '') }}",
+              "type": "string"
+            },
+            {
+              "id": "764aa506-3155-47f2-ac92-d65f20ba91b9",
+              "name": "data_restricao",
+              "value": "={{ DateTime.fromISO($(':Processos').item.json.data_restricao).toFormat('dd/MM/yy') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        256,
+        -1008
+      ],
+      "id": "36c0af5b-fe8d-48ce-adaf-41fddb2df518",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "clientes",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $(':Processos').item.json.id_cliente }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -560,
+        -1008
+      ],
+      "id": "5c9e2ed0-744e-4b5f-b18a-267c206d3676",
+      "name": ":Clientes1",
+      "alwaysOutputData": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nome: Preparar dados para Apps Script\n// Descrição: Combina dados do webhook com campos formatados para substituição\n\n// Obter dados do webhook original\nconst webhookData = $('Webhook').item.json.body;\n\n// Obter campos processados do Edit Fields\nconst camposOriginais = $input.first().json;\n\n// Validar dados essenciais\nif (!webhookData || !webhookData.modelo || !webhookData.blocos) {\n  throw new Error('Payload inválido - faltam dados essenciais');\n}\n\n// Separar campo de fonte dos demais\nconst fontePadrao = camposOriginais.fonte_letra || null;\ndelete camposOriginais.fonte_letra; // Remove para não virar tag\n\n// Formatar campos com as tags {{}}\nconst camposFormatados = {};\nfor (const [campo, valor] of Object.entries(camposOriginais)) {\n  const tag = `{{${campo}}}`;\n  camposFormatados[tag] = valor || '';\n}\n\n// Preparar dados para Apps Script\nconst dadosParaScript = {\n  body: {\n    processo: webhookData.processo,\n    modelo: webhookData.modelo,\n    blocos: webhookData.blocos || [],\n    jurisprudencias: webhookData.jurisprudencias || [],\n    campos_substituicao: camposFormatados,\n    configuracao_fonte: fontePadrao // Campo separado para configuração\n  }\n};\n\n// Log para debug\nconsole.log('Payload preparado para Apps Script');\nconsole.log('Total de campos para substituir:', Object.keys(camposFormatados).length);\nif (fontePadrao) {\n  console.log('Fonte configurada:', fontePadrao);\n}\n\nreturn {\n  json: dadosParaScript\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3008,
+        -992
+      ],
+      "id": "88e32477-8d52-442f-8108-61b7c72315e4",
+      "name": "Preparar para script"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('HTTP Request1').item.json.documento_id }}",
+          "mode": "id"
+        },
+        "newUpdatedFileName": "={{ $('Edit Fields1').item.json.tipo_peticao }} {{ $(':Processos').item.json.numero_processo }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4320,
+        -1184
+      ],
+      "id": "8054e90d-5239-489b-8307-f478a4fa5559",
+      "name": "Update file2",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "olivia_modelos_peticao",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $('Webhook').item.json.body.modelo.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -1008
+      ],
+      "id": "4122b224-f4d9-473f-8ef6-5d15c293d6c2",
+      "name": ":olivia_modelos_peticao1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $(':Advogados1').item.json.nome }}",
+                    "rightValue": "Heloisa Miglioranza Schmitt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "4adf747e-9763-4a8b-bfa2-146e295f3b74"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Heloisa"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "01d664c0-c70e-4604-a4b0-1356a49d95f2",
+                    "leftValue": "={{ $(':Advogados1').item.json.nome }}",
+                    "rightValue": "Christian Dener Paz",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Christian Dener Paz"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        4064,
+        -992
+      ],
+      "id": "04a1e860-ae9b-434e-ab70-ea4a17b039e8",
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('HTTP Request1').item.json.documento_id }}",
+          "mode": "id"
+        },
+        "newUpdatedFileName": "={{ $('Edit Fields1').item.json.empresa_re }} - {{ $('Edit Fields1').item.json.numero_processo }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4320,
+        -880
+      ],
+      "id": "46797d6b-ab58-42c7-a4cc-3f0e347288fa",
+      "name": "Update file3",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "empresas",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "keyValue": "={{ $(':Processos').item.json.id_empresa }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -336,
+        -1008
+      ],
+      "id": "ce51482d-24e6-4b71-939b-539744cf2d46",
+      "name": ":Empresas1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "eTPLmfOuR54XjbJ5",
+          "name": "Mdflow - Supabase"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4592,
+        -1184
+      ],
+      "id": "767a2882-04fc-4279-97da-7044ee10b8b4",
+      "name": "Move file2",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "move",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "driveId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "My Drive"
+        },
+        "folderId": {
+          "__rl": true,
+          "value": "1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ",
+          "mode": "id"
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        4608,
+        -880
+      ],
+      "id": "8a3ed3b4-1669-4167-b3dd-3c131df0543e",
+      "name": "Move file3",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "MLffseCnXDXK3c4l",
+          "name": "Google Drive account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Este Code node assume que você tem 1 item vindo dos nós anteriores\n// e que você pode acessar os dados do cliente e da empresa.\n// Ajuste os caminhos se necessário.\n\nreturn $input.all().map(item => {\n  const cliente  = $(':Clientes1').item.json;   // pega do node Clientes\n  const empresa  = $(':Empresas1').item.json;   // pega do node Empresas\n\n  const ufCliente = (cliente?.estado || '').toUpperCase();\n  const enderecos = empresa?.enderecos_empresa?.enderecos || [];\n\n  // tenta encontrar endereço no mesmo estado\n  const match = enderecos.find(e => (e?.estado || '').toUpperCase() === ufCliente);\n\n  // se não houver endereço no estado, pega o primeiro disponível\n  const escolhido = match || enderecos[0] || null;\n\n  return {\n    json: {\n      ...item.json,\n      empresa_endereco: escolhido ? (escolhido.endereco || '') : ''\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        -1008
+      ],
+      "id": "c1e979b5-2d4a-4590-8b7a-a9bfa072ad17",
+      "name": "Filtrar endereço da empresa pelo estado1"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "documentURL": "={{ $json.google_doc_id }}"
+      },
+      "type": "n8n-nodes-base.googleDocs",
+      "typeVersion": 2,
+      "position": [
+        1008,
+        -880
+      ],
+      "id": "76be597b-a017-4380-b784-6bc72c5e2d19",
+      "name": "Get a document",
+      "credentials": {
+        "googleDocsOAuth2Api": {
+          "id": "F83NqaV5SLFVzf9p",
+          "name": "Google Docs account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        688,
+        -1008
+      ],
+      "id": "21f35cb5-93b4-4df8-9811-9d562c443d69",
+      "name": "Loop IDs dos Documentos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nome do seu nó de gatilho. O padrão é 'Webhook'.\n// Se você renomeou seu nó, altere esta variável.\nconst NOME_DO_NO_WEBHOOK = 'Webhook';\n\n// Pega os dados diretamente do nó Webhook para garantir que temos a estrutura original.\nconst webhookData = $(NOME_DO_NO_WEBHOOK).item;\n\n// --- VERIFICAÇÃO DE SEGURANÇA ---\n// Garante que os dados do webhook foram encontrados e têm a estrutura esperada.\nif (!webhookData || !webhookData.json || !webhookData.json.body) {\n  throw new Error(`ERRO: Não foi possível encontrar a propriedade 'body' nos dados do nó '${NOME_DO_NO_WEBHOOK}'. Verifique se o nome do nó está correto e se o webhook está recebendo dados.`);\n}\n\nconst payload = webhookData.json.body;\n\n// --- EXTRAÇÃO DOS IDs ---\nconst todosOsBlocos = payload.blocos || [];\nconst todasAsJurisprudencias = payload.jurisprudencias || [];\nconst idsUnicos = new Set();\n\n// 1. Adiciona o ID do documento do modelo principal\nif (payload.modelo && payload.modelo.google_doc_id) {\n  idsUnicos.add(payload.modelo.google_doc_id);\n}\n\n// 2. Adiciona IDs dos blocos de texto e suas jurisprudências vinculadas\ntodosOsBlocos.forEach(bloco => {\n  if (bloco.google_doc_id) {\n    idsUnicos.add(bloco.google_doc_id);\n  }\n  if (bloco.jurisprudencias_vinculadas && Array.isArray(bloco.jurisprudencias_vinculadas)) {\n    bloco.jurisprudencias_vinculadas.forEach(juris => {\n      if (juris.google_doc_id) {\n        idsUnicos.add(juris.google_doc_id);\n      }\n    });\n  }\n});\n\n// 3. Adiciona IDs das jurisprudências do nível principal\ntodasAsJurisprudencias.forEach(juris => {\n    if(juris.google_doc_id) {\n        idsUnicos.add(juris.google_doc_id);\n    }\n});\n\n// --- PREPARAÇÃO DA SAÍDA ---\n// Transforma o conjunto de IDs únicos em um array de objetos,\n// que é o formato que o N8N precisa para o próximo nó (o Loop).\nconst resultado = Array.from(idsUnicos).map(id => ({\n  json: {\n    google_doc_id: id\n  }\n}));\n\n// Retorna a lista de IDs para ser usada pelo próximo nó.\nreturn resultado;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -1008
+      ],
+      "id": "c35d580b-0bc6-4355-9b70-441e525f941a",
+      "name": "Extrair IDs Únicos dos Blocos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- CONFIGURAÇÃO ---\n// Verifique se os nomes dos nós correspondem ao seu cenário.\nconst NOME_DO_NO_WEBHOOK = 'Webhook';\nconst NOME_DO_NO_LOOP = 'Loop IDs dos Documentos'; // Certifique-se de que seu nó de Loop tem este nome.\n\n// --- BUSCAR DADOS DE NÓS ANTERIORES ---\nconst webhookData = $(NOME_DO_NO_WEBHOOK).item;\nconst textosBuscados = $items(NOME_DO_NO_LOOP);\n\n// --- VERIFICAÇÕES DE SEGURANÇA ---\nif (!webhookData || !webhookData.json || !webhookData.json.body) {\n  throw new Error(`ERRO: Não foi possível ler os dados do nó '${NOME_DO_NO_WEBHOOK}'.`);\n}\nif (!textosBuscados || textosBuscados.length === 0) {\n  throw new Error(`ERRO: O nó '${NOME_DO_NO_LOOP}' não retornou nenhum texto de documento.`);\n}\n\nconst payloadOriginal = webhookData.json.body;\n\n// --- PROCESSAMENTO ---\n// 1. Criar um \"mapa\" para consulta rápida dos textos (ID -> Texto)\nconst mapaDeTextos = new Map();\ntextosBuscados.forEach(item => {\n  // CORREÇÃO AQUI: Usamos 'documentId' e 'content', que são os campos retornados pelo nó do Google Docs.\n  if (item.json.documentId && item.json.content) {\n    mapaDeTextos.set(item.json.documentId, item.json.content);\n  }\n});\n\n// 2. \"Hidratar\" os blocos do payload original com o texto buscado.\nconst blocosHidratados = (payloadOriginal.blocos || []).map(bloco => {\n  const texto_conteudo = mapaDeTextos.get(bloco.google_doc_id) || '';\n  \n  const jurisprudenciasHidratadas = (bloco.jurisprudencias_vinculadas || []).map(juris => ({\n    ...juris,\n    texto_conteudo: mapaDeTextos.get(juris.google_doc_id) || ''\n  }));\n\n  return {\n    ...bloco,\n    texto_conteudo: texto_conteudo,\n    jurisprudencias_vinculadas: jurisprudenciasHidratadas\n  };\n});\n\n// 3. \"Hidratar\" as jurisprudências do nível principal do payload\nconst jurisprudenciasPrincipaisHidratadas = (payloadOriginal.jurisprudencias || []).map(juris => ({\n    ...juris,\n    texto_conteudo: mapaDeTextos.get(juris.google_doc_id) || ''\n}));\n\n// 4. Montar o objeto final, que agora contém toda a informação necessária em um só lugar.\nconst payloadHidratado = {\n  ...payloadOriginal,\n  blocos: blocosHidratados,\n  jurisprudencias: jurisprudenciasPrincipaisHidratadas\n};\n\n// --- SAÍDA ---\nreturn [{\n  json: payloadHidratado\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1216,
+        -1024
+      ],
+      "id": "aaa8877b-4e82-4fdd-9e9b-30bac117daea",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "jsCode": "// --- NOTA IMPORTANTE ---\n// Este código assume que, para um processo do tipo \"órgão\", o payload do Lovable\n// enviará um array chamado \"restricoes\". Cada objeto nesse array terá os dados\n// da restrição, a tag selecionada e o ID do bloco de impugnação selecionado.\n// O payload de exemplo atual é do tipo \"empresa\". Estou adaptando o código\n// para a estrutura que definimos para o tipo \"órgão\".\n\n// Pega o payload \"hidratado\" do passo anterior.\nconst payload = $input.first().json;\n\n// --- DADOS DE EXEMPLO (Simulando um payload real do tipo \"órgão\") ---\n// Como o payload de teste atual não tem a estrutura de \"restrições\",\n// vamos simular uma aqui para o código funcionar.\n// NO CENÁRIO REAL, VOCÊ DEVE REMOVER OU COMENTAR ESTE BLOCO DE SIMULAÇÃO.\nif (!payload.restricoes) {\n  console.log(\"AVISO: Usando dados simulados de 'restricoes' para teste.\");\n  payload.restricoes = [\n    { dados_restricao: { contrato: \"111\", valor: \"1.500,00\" }, tag_selecionada: \"{{email}}\", bloco_selecionado_id: \"34555ba2-7539-40d5-9f90-19aee8e32ade\" },\n    { dados_restricao: { contrato: \"222\", valor: \"850,00\" }, tag_selecionada: \"{{email}}\", bloco_selecionado_id: \"34555ba2-7539-40d5-9f90-19aee8e32ade\" },\n    { dados_restricao: { contrato: \"333\", valor: \"2.100,00\" }, tag_selecionada: \"{{sms}}\", bloco_selecionado_id: \"767de523-b256-457a-97eb-6fe5b436cc95\" }\n  ];\n}\n// --- FIM DO BLOCO DE SIMULAÇÃO ---\n\n\n// Objeto para agrupar as restrições por argumento (bloco de texto)\nconst gruposDeArgumentos = {};\n\n// 1. Iterar sobre cada restrição para agrupá-las\nfor (const restricao of (payload.restricoes || [])) {\n  const blocoId = restricao.bloco_selecionado_id;\n  const tag = restricao.tag_selecionada.replace(/[{}]/g, ''); // Limpa a tag para usar como chave (ex: 'email')\n\n  // Se este argumento (bloco) ainda não foi visto, inicialize o grupo\n  if (!gruposDeArgumentos[blocoId]) {\n    // Encontrar o bloco correspondente no payload para pegar o título e o texto\n    const blocoInfo = payload.blocos.find(b => b.id === blocoId);\n    if (!blocoInfo) continue; // Pula se não encontrar o bloco\n\n    gruposDeArgumentos[blocoId] = {\n      tag: tag,\n      bloco_id: blocoId,\n      titulo_subtopico: blocoInfo.titulo, // Título do bloco será o subtópico\n      texto_base_singular: blocoInfo.texto_conteudo,\n      restricoes_associadas: []\n    };\n  }\n  // Adiciona os dados da restrição atual ao grupo correspondente\n  gruposDeArgumentos[blocoId].restricoes_associadas.push(restricao.dados_restricao);\n}\n\n// 2. Transformar os grupos na estrutura final de Tópicos e Subtópicos\nconst topicos = {};\n\nfor (const blocoId in gruposDeArgumentos) {\n  const grupo = gruposDeArgumentos[blocoId];\n  const tag = grupo.tag;\n\n  // Se o tópico principal (a tag) ainda não existe, crie-o\n  if (!topicos[tag]) {\n    topicos[tag] = {\n      topico_principal: {\n        tag_id: tag,\n        // Transforma 'email' em 'DA(S) NOTIFICAÇÃO(ÕES) ENVIADA(S) POR E-MAIL'\n        titulo: `DA(S) NOTIFICAÇÃO(ÕES) ENVIADA(S) POR ${tag.toUpperCase()}`\n      },\n      subtopicos: []\n    };\n  }\n\n  // Adiciona o grupo como um subtópico dentro do tópico principal correspondente\n  topicos[tag].subtopicos.push(grupo);\n}\n\n// 3. Converter o objeto de tópicos em um array, que é o formato final\nconst resultadoFinal = Object.values(topicos);\n\nreturn resultadoFinal;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1424,
+        -1024
+      ],
+      "id": "8196ef54-4089-40c7-9737-775dce4ad4c2",
+      "name": "Code in JavaScript1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": ":Processos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Processar resposta do script",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar resposta do script": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":Processos": {
+      "main": [
+        [
+          {
+            "node": "tipo_acao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":Advogados": {
+      "main": [
+        [
+          {
+            "node": ":Clientes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":Clientes": {
+      "main": [
+        [
+          {
+            "node": ":Empresas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Preparar para script1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar para script1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":olivia_modelos_peticao": {
+      "main": [
+        [
+          {
+            "node": "Filtrar endereço da empresa pelo estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update file": {
+      "main": [
+        [
+          {
+            "node": "Move file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Update file",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":Empresas": {
+      "main": [
+        [
+          {
+            "node": ":olivia_modelos_peticao",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update file1": {
+      "main": [
+        [
+          {
+            "node": "Move file1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar endereço da empresa pelo estado": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tipo_acao": {
+      "main": [
+        [
+          {
+            "node": ":Advogados1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": ":Advogados",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Processar resposta do script1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Processar resposta do script1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Respond to Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":Advogados1": {
+      "main": [
+        [
+          {
+            "node": ":Clientes1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Extrair IDs Únicos dos Blocos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":Clientes1": {
+      "main": [
+        [
+          {
+            "node": ":Empresas1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar para script": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update file2": {
+      "main": [
+        [
+          {
+            "node": "Move file2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":olivia_modelos_peticao1": {
+      "main": [
+        [
+          {
+            "node": "Filtrar endereço da empresa pelo estado1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Update file2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Update file3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update file3": {
+      "main": [
+        [
+          {
+            "node": "Move file3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    ":Empresas1": {
+      "main": [
+        [
+          {
+            "node": ":olivia_modelos_peticao1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar endereço da empresa pelo estado1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get a document": {
+      "main": [
+        [
+          {
+            "node": "Loop IDs dos Documentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop IDs dos Documentos": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Get a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair IDs Únicos dos Blocos": {
+      "main": [
+        [
+          {
+            "node": "Loop IDs dos Documentos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": true
+  },
+  "versionId": "0803beaf-14a6-44c4-8d42-fc6fb97097dd",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7b327af6f4663e4f9f50fb499be1f4af58352e87a6c82f22d8f5aeff62cfe702"
+  },
+  "id": "NKeskbity7PCCGPH",
+  "tags": []
+}

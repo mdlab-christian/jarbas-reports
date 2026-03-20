@@ -1,0 +1,319 @@
+/**
+ * SmartBlocks GAS v2.0 — Gerador de Petições via Google Docs
+ * Projeto: MdFlow / OlivIA SmartBlocks
+ * Atualizado: 2026-03-16
+ *
+ * Recebe payload do n8n via POST, monta documento Google combinando:
+ *   1. Cópia do doc modelo
+ *   2. Conteúdo dos blocos inserido nos placeholders {{bloco_N}}
+ *   3. Substituição de campos {{tag}} no doc final
+ *   4. Aplicação de fonte global (Arial 12)
+ *   5. Renomeação e movimentação para pasta destino
+ *
+ * Payload esperado (root):
+ *   titulo_documento  string   obrigatório
+ *   modelo            {google_doc_id}  obrigatório
+ *   blocos            [{ordem, placeholder, google_doc_id}]  obrigatório
+ *   jurisprudencias   [{placeholder, google_doc_id, titulo}]  opcional
+ *   campos_substituicao  {chave: valor}  opcional
+ *   configuracoes     {nome_arquivo, pasta_destino_id, fallback_to_root}  opcional
+ *   config            {fonte, tamanho_corpo, aplicar_fonte_global}  opcional
+ *
+ * Retorno sucesso:
+ *   {success: true, url, google_doc_id, google_doc_url}
+ *
+ * Retorno erro:
+ *   {success: false, error_code, error_message}
+ */
+
+function doPost(e) {
+  var output = ContentService.createTextOutput();
+  output.setMimeType(ContentService.MimeType.JSON);
+
+  var payload;
+
+  try {
+    // ── 1. Parse do body ──────────────────────────────────────────────────
+    if (!e || !e.postData || !e.postData.contents) {
+      return respErr(output, 'NO_BODY', 'Request body vazio ou ausente');
+    }
+
+    try {
+      payload = JSON.parse(e.postData.contents);
+    } catch (parseErr) {
+      return respErr(output, 'PARSE_ERROR', 'Falha ao parsear JSON: ' + parseErr.message);
+    }
+
+    // ── 2. Validações ─────────────────────────────────────────────────────
+    if (!payload.titulo_documento || String(payload.titulo_documento).trim() === '') {
+      return respErr(output, 'VALIDATION_ERROR',
+        'titulo_documento é obrigatório e deve ser string não-vazia');
+    }
+    if (!payload.modelo || !payload.modelo.google_doc_id) {
+      return respErr(output, 'VALIDATION_ERROR', 'modelo.google_doc_id é obrigatório');
+    }
+    if (!Array.isArray(payload.blocos) || payload.blocos.length === 0) {
+      return respErr(output, 'VALIDATION_ERROR', 'blocos deve ser array não-vazio');
+    }
+
+    // ── Extrair campos ────────────────────────────────────────────────────
+    var titulo       = String(payload.titulo_documento).trim();
+    var modeloDocId  = payload.modelo.google_doc_id;
+    var blocos       = payload.blocos.slice().sort(function(a, b) {
+      return (a.ordem || 0) - (b.ordem || 0);
+    });
+    var juris        = Array.isArray(payload.jurisprudencias) ? payload.jurisprudencias : [];
+    var camposSubst  = payload.campos_substituicao || {};
+    var cfg          = payload.configuracoes || {};
+    var config       = payload.config || {};
+
+    var nomeArquivo      = cfg.nome_arquivo || titulo;
+    var pastaId          = cfg.pasta_destino_id || null;
+    var aplicarFonte     = config.aplicar_fonte_global === true;
+    var fonteFamilia     = String(config.fonte || 'Arial');
+    var fonteSize        = Number(config.tamanho_corpo) || 12;
+
+    // ── 3. Copiar o doc modelo ────────────────────────────────────────────
+    var modeloFile = DriveApp.getFileById(modeloDocId);
+    var copiaFile  = modeloFile.makeCopy('_rascunho_' + Date.now());
+    var docId      = copiaFile.getId();
+    var doc        = DocumentApp.openById(docId);
+    var body       = doc.getBody();
+
+    // ── 4. Substituir placeholders dos blocos ─────────────────────────────
+    for (var i = 0; i < blocos.length; i++) {
+      var bloco = blocos[i];
+      if (!bloco.google_doc_id) continue;
+      var ph = bloco.placeholder || ('{{bloco_' + bloco.ordem + '}}');
+      try {
+        inserirBlocoNoPH(body, ph, bloco.google_doc_id);
+      } catch (blocoErr) {
+        // Fallback: substituir por vazio para não deixar placeholder no doc
+        try { body.replaceText(escapeRegex(ph), ''); } catch (e2) {}
+      }
+    }
+
+    // ── 4b. Substituir placeholders das jurisprudências ───────────────────
+    for (var ji = 0; ji < juris.length; ji++) {
+      var juriItem = juris[ji];
+      if (!juriItem.google_doc_id) continue;
+      var juriPh = juriItem.placeholder || ('{{jurisprudencia_' + (ji + 1) + '}}');
+      try {
+        inserirBlocoNoPH(body, juriPh, juriItem.google_doc_id);
+      } catch (juriErr) {
+        try { body.replaceText(escapeRegex(juriPh), ''); } catch (e2) {}
+      }
+    }
+
+    // ── 5. Aplicar campos_substituicao ────────────────────────────────────
+    var chaves = Object.keys(camposSubst);
+    for (var j = 0; j < chaves.length; j++) {
+      var chave = chaves[j];
+      var valor = String(camposSubst[chave] != null ? camposSubst[chave] : '');
+      try {
+        body.replaceText(escapeRegex(chave), valor);
+      } catch (subErr) {
+        // Continuar mesmo se uma substituição falhar
+      }
+    }
+
+    // ── 6. Aplicar fonte global ───────────────────────────────────────────
+    if (aplicarFonte) {
+      try {
+        aplicarFonteGlobal(body, fonteFamilia, fonteSize);
+      } catch (fonteErr) {
+        // Não crítico — continuar
+      }
+    }
+
+    // Salvar documento
+    doc.saveAndClose();
+
+    // ── 7. Renomear arquivo ───────────────────────────────────────────────
+    copiaFile.setName(nomeArquivo);
+
+    // ── 8. Mover para pasta destino ───────────────────────────────────────
+    if (pastaId) {
+      try {
+        var pastaDestino = DriveApp.getFolderById(pastaId);
+        pastaDestino.addFile(copiaFile);
+        // Remover de outras pastas (incluindo root se estiver lá)
+        var parents = copiaFile.getParents();
+        while (parents.hasNext()) {
+          var parent = parents.next();
+          if (parent.getId() !== pastaId) {
+            parent.removeFile(copiaFile);
+          }
+        }
+      } catch (moveErr) {
+        // fallback_to_root: manter onde está — não é erro fatal
+      }
+    }
+
+    // ── 9. Retornar resultado ─────────────────────────────────────────────
+    var docUrl = 'https://docs.google.com/document/d/' + docId + '/edit';
+
+    output.setContent(JSON.stringify({
+      success: true,
+      url: docUrl,
+      google_doc_id: docId,
+      google_doc_url: docUrl
+    }));
+
+  } catch (globalErr) {
+    output.setContent(JSON.stringify({
+      success: false,
+      error_code: 'INTERNAL_ERROR',
+      error_message: String(globalErr.message || globalErr)
+    }));
+  }
+
+  return output;
+}
+
+/**
+ * Insere o conteúdo de um Google Doc (blocoDocId) no placeholder dentro do body.
+ *
+ * Estratégia:
+ *   1. Encontra o parágrafo que contém o placeholder
+ *   2. Copia cada elemento do doc do bloco inserindo antes do parágrafo placeholder
+ *   3. Remove o parágrafo do placeholder
+ *
+ * Fallback: se o placeholder não for encontrado como parágrafo isolado,
+ *   usa replaceText com o texto plano do bloco.
+ */
+function inserirBlocoNoPH(bodyPrincipal, placeholder, blocoDocId) {
+  // Localizar parágrafo com o placeholder
+  var n = bodyPrincipal.getNumChildren();
+  var phIdx = -1;
+
+  for (var i = 0; i < n; i++) {
+    var child = bodyPrincipal.getChild(i);
+    if (child.getType() === DocumentApp.ElementType.PARAGRAPH &&
+        child.asParagraph().getText().indexOf(placeholder) !== -1) {
+      phIdx = i;
+      break;
+    }
+  }
+
+  // Abrir o doc do bloco (usando cópia temporária para não alterar o original)
+  var blocoFile     = DriveApp.getFileById(blocoDocId);
+  var blocoTmpCopy  = blocoFile.makeCopy('_tmp_bloco_' + Date.now());
+  var blocoDoc      = DocumentApp.openById(blocoTmpCopy.getId());
+  var blocoBody     = blocoDoc.getBody();
+
+  if (phIdx === -1) {
+    // Fallback: inserir como texto plano via replaceText
+    var textoPlano = blocoBody.getText();
+    blocoDoc.saveAndClose();
+    try { DriveApp.getFileById(blocoTmpCopy.getId()).setTrashed(true); } catch(e2) {}
+    bodyPrincipal.replaceText(escapeRegex(placeholder), textoPlano);
+    return;
+  }
+
+  // Copiar elementos do bloco para o doc principal
+  var numElem   = blocoBody.getNumChildren();
+  var insertAt  = phIdx; // inserir a partir deste índice
+
+  for (var j = 0; j < numElem; j++) {
+    var elem = blocoBody.getChild(j);
+    var tipo = elem.getType();
+
+    try {
+      if (tipo === DocumentApp.ElementType.PARAGRAPH) {
+        var paraCopy = elem.asParagraph().copy();
+        bodyPrincipal.insertParagraph(insertAt + j, paraCopy);
+      } else if (tipo === DocumentApp.ElementType.TABLE) {
+        var tableCopy = elem.asTable().copy();
+        bodyPrincipal.insertTable(insertAt + j, tableCopy);
+      } else if (tipo === DocumentApp.ElementType.LIST_ITEM) {
+        var listCopy = elem.asListItem().copy();
+        bodyPrincipal.insertListItem(insertAt + j, listCopy);
+      }
+      // Outros tipos (HR, etc.) são ignorados
+    } catch (insertErr) {
+      // Ignorar erros de elementos individuais
+    }
+  }
+
+  // Remover o parágrafo do placeholder (agora deslocado por numElem posições)
+  try {
+    var phElem = bodyPrincipal.getChild(phIdx + numElem);
+    bodyPrincipal.removeChild(phElem);
+  } catch (rmErr) {}
+
+  // Limpar arquivo temporário
+  blocoDoc.saveAndClose();
+  try { DriveApp.getFileById(blocoTmpCopy.getId()).setTrashed(true); } catch (e3) {}
+}
+
+/**
+ * Aplica família de fonte e tamanho a todo o corpo do documento.
+ * Percorre parágrafos, list items e células de tabela.
+ */
+function aplicarFonteGlobal(body, fonteFamilia, tamanho) {
+  var n = body.getNumChildren();
+  for (var i = 0; i < n; i++) {
+    var child = body.getChild(i);
+    var tipo  = child.getType();
+
+    if (tipo === DocumentApp.ElementType.PARAGRAPH) {
+      aplicarFonteParag(child.asParagraph(), fonteFamilia, tamanho);
+
+    } else if (tipo === DocumentApp.ElementType.LIST_ITEM) {
+      aplicarFonteParag(child.asListItem(), fonteFamilia, tamanho);
+
+    } else if (tipo === DocumentApp.ElementType.TABLE) {
+      var table = child.asTable();
+      for (var r = 0; r < table.getNumRows(); r++) {
+        var row = table.getRow(r);
+        for (var c = 0; c < row.getNumCells(); c++) {
+          var cell = row.getCell(c);
+          for (var p = 0; p < cell.getNumChildren(); p++) {
+            var cellChild = cell.getChild(p);
+            if (cellChild.getType() === DocumentApp.ElementType.PARAGRAPH) {
+              aplicarFonteParag(cellChild.asParagraph(), fonteFamilia, tamanho);
+            } else if (cellChild.getType() === DocumentApp.ElementType.LIST_ITEM) {
+              aplicarFonteParag(cellChild.asListItem(), fonteFamilia, tamanho);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Aplica fonte/tamanho em todos os elementos TEXT de um parágrafo.
+ */
+function aplicarFonteParag(para, fonteFamilia, tamanho) {
+  for (var t = 0; t < para.getNumChildren(); t++) {
+    var elem = para.getChild(t);
+    if (elem.getType() === DocumentApp.ElementType.TEXT) {
+      try {
+        elem.asText().setFontFamily(fonteFamilia);
+        elem.asText().setFontSize(tamanho);
+      } catch (fe) {}
+    }
+  }
+}
+
+/**
+ * Escapa caracteres especiais de regex no placeholder.
+ * Necessário para replaceText() que aceita regex.
+ */
+function escapeRegex(str) {
+  return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Helper para retornar resposta de erro padronizada.
+ */
+function respErr(output, code, msg) {
+  output.setContent(JSON.stringify({
+    success: false,
+    error_code: code,
+    error_message: msg
+  }));
+  return output;
+}

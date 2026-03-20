@@ -1,0 +1,797 @@
+/**
+ * ═══════════════════════════════════════════════════════════════════════════════
+ * MdFlow Google Doc Creator — Express Mode v1.2
+ * Projeto: MDX LegalTech — OlivIA Gerador de Petições (Modo Express)
+ *
+ * Abordagem: cria Google Doc do zero a partir de seções de texto geradas
+ * pelo Claude → aplica formatação ABNT por tipo de seção → substitui
+ * {{tags}} com dados do processo → devolve URL do doc no Drive.
+ *
+ * NÃO copia template. NÃO precisa de Google Docs de blocos.
+ * Recebe texto puro dividido em seções com tipo declarado.
+ *
+ * Deploy: Web App → Execute as Me → Anyone with link
+ * Chamado por: B8.5-CriarGoogleDoc (n8n — workflow final-olivia-express)
+ *
+ * ── Changelog v1.2 (JANA 🦊 — 2026-03-16) ──
+ * FIX: campo `url` adicionado ao retorno (D1-SalvarSucesso usa $json.url || $json.google_doc_url)
+ * FIX: campo `success` retorna false explicitamente em todos os erros (C3-CheckGAS exige boolean)
+ * FIX: tags_substituicao aceita chaves com e sem {{}} — normalização automática
+ * FIX: replaceTagsInSection agora substitui tags mesmo quando valor é string vazia
+ *      (antes pulava valores vazios, deixando placeholders no doc)
+ * FIX: cleanResidualTags não trava em docs grandes (safety counter aumentado para 500)
+ * FIX: testeLocal usa pasta real de teste via fallback_to_root: true
+ * ADD: tipo de seção `assinatura` — centralizado, sem formatação especial
+ * ADD: tipo de seção `pedidos_lista` — lista numerada automática
+ * ADD: validação de `titulo` ausente → usa nomeArquivo como fallback (não rejeita)
+ * ADD: log de execução mais rico — informa node de origem no error_stack
+ * MELHORIA: inserirSecao respects \n\n como parágrafo duplo (espaçamento visual maior)
+ * MELHORIA: campo `estatisticas.titulo_usado` no retorno para debug
+ *
+ * ── Changelog v1.0 (JANA 🦊 — 2026-03-16) ──
+ * Script dedicado ao Modo Express (backup do Modo Agente, sem JARBAS)
+ * Criação de doc do zero — Claude gera seções, GAS formata
+ * Formatação por tipo: enderecamento, qualificacao, dos_fatos, do_direito,
+ *   jurisprudencia (recuo 4cm, 11pt, itálico), dos_pedidos, fecho
+ * Cabeçalho do escritório em header do doc (cabecalho_escritorio)
+ * Substituição de {{tags}} de dados (body + header + footer)
+ * Tags residuais marcadas em [REVISAR: tag] vermelho
+ * Retry automático, idempotência por historico_id (janela 120s)
+ * Resposta rica: google_doc_url, stats, tempo de processamento
+ * ═══════════════════════════════════════════════════════════════════════════════
+ */
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 1: ENTRY POINTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * POST handler — ponto de entrada principal.
+ *
+ * Payload esperado:
+ * {
+ *   "titulo": "Petição Inicial — João Silva x Banco XYZ",
+ *   "secoes": [
+ *     { "tipo": "enderecamento",  "conteudo": "EXMO. SR. DR. JUIZ..." },
+ *     { "tipo": "qualificacao",   "titulo": "I — DAS PARTES", "conteudo": "..." },
+ *     { "tipo": "dos_fatos",      "titulo": "II — DOS FATOS",  "conteudo": "..." },
+ *     { "tipo": "do_direito",     "titulo": "III — DO DIREITO", "conteudo": "..." },
+ *     { "tipo": "jurisprudencia", "titulo": "Jurisprudência",  "conteudo": "STJ — Resp 123..." },
+ *     { "tipo": "dos_pedidos",    "titulo": "IV — DOS PEDIDOS","conteudo": "..." },
+ *     { "tipo": "fecho",          "conteudo": "Nestes termos, pede deferimento." }
+ *   ],
+ *   "tags_substituicao": {
+ *     "cliente_nome": "João Silva",
+ *     "comarca": "Porto Alegre/RS",
+ *     ...
+ *   },
+ *   "processo": { "historico_id": "uuid", "numero": "0001234-56.2026..." },
+ *   "configuracoes": {
+ *     "cabecalho_escritorio": "Midas Advocacia\nRua XV...",
+ *     "pasta_destino_id": "ID_PASTA",
+ *     "nome_arquivo": "Petição Express — João Silva",
+ *     "fallback_to_root": false,
+ *     "debug": false
+ *   }
+ * }
+ */
+function doPost(e) {
+  var startTime = new Date().getTime();
+  try {
+    // ── Parse do body ─────────────────────────────────────────────────────────
+    if (!e || !e.postData || !e.postData.contents) {
+      return jsonResponse({ success: false, error_code: 'NO_BODY', error_message: 'Request body vazio ou ausente' });
+    }
+
+    var payload;
+    try {
+      payload = JSON.parse(e.postData.contents);
+    } catch (parseErr) {
+      return jsonResponse({ success: false, error_code: 'PARSE_ERROR', error_message: 'Falha ao parsear JSON: ' + parseErr.message });
+    }
+
+    var debug = payload.configuracoes && payload.configuracoes.debug === true;
+
+    if (debug) Logger.log('[DEBUG] Payload: ' + JSON.stringify(payload).substring(0, 2000));
+
+    // Validar payload
+    var validation = validatePayload(payload);
+    if (!validation.valid) {
+      return jsonResponse({ success: false, error_code: 'VALIDATION_ERROR', error_message: validation.error });
+    }
+
+    var processo = payload.processo      || {};
+    var secoes   = payload.secoes;
+    var config   = payload.configuracoes || {};
+
+    // v1.2: normalizar tags_substituicao (aceita chaves com ou sem {{}})
+    var tagsRaw  = payload.tags_substituicao || {};
+    var tags     = normalizarTags(tagsRaw);
+
+    var nomeArquivo  = config.nome_arquivo        || ('Petição Express - ' + new Date().toISOString().substring(0, 10));
+    var pastaId      = config.pasta_destino_id    || null;
+    var fallbackRoot = config.fallback_to_root    === true;
+    var cabecalho    = config.cabecalho_escritorio || null;
+    // v1.2: titulo com fallback para nomeArquivo (não rejeita se ausente)
+    var tituloDoc    = payload.titulo || nomeArquivo;
+
+    // Idempotência por historico_id (janela 120s)
+    var idempotencyKey = generateIdempotencyKey(
+      processo.historico_id || processo.numero || nomeArquivo
+    );
+    var cachedResult = checkDuplicate(idempotencyKey);
+    if (cachedResult) {
+      if (debug) Logger.log('[DEBUG] Cache hit — retornando resultado anterior');
+      cachedResult.from_cache = true;
+      return jsonResponse(cachedResult);
+    }
+
+    // 1. Criar o documento do zero
+    var docResult = criarDocumento(nomeArquivo, pastaId, fallbackRoot);
+    if (!docResult.success) {
+      return jsonResponse({ success: false, error_code: docResult.error_code, error_message: docResult.error_message });
+    }
+
+    var doc  = docResult.doc;
+    var body = doc.getBody();
+
+    // 2. Configurar página (margens ABNT: sup 3cm, inf 2cm, esq 3cm, dir 2cm)
+    configurarPagina(doc);
+
+    // 3. Cabeçalho do escritório (se fornecido)
+    var cabecalhoOk = false;
+    if (cabecalho) {
+      cabecalhoOk = inserirCabecalhoEscritorio(doc, cabecalho);
+    }
+
+    var statsSecoes = { ok: 0, falhou: [] };
+
+    // 4. Processar cada seção
+    var primeiraSecao = true;
+    for (var i = 0; i < secoes.length; i++) {
+      var secao = secoes[i];
+      var ok = inserirSecao(body, secao, primeiraSecao, debug);
+      if (ok) {
+        statsSecoes.ok++;
+      } else {
+        statsSecoes.falhou.push(secao.tipo || ('secao_' + i));
+      }
+      primeiraSecao = false;
+    }
+
+    // 5. Substituir {{tags}} (body + header + footer)
+    var tagStats = { substituidas: 0, nao_encontradas: [], residuais_marcadas: 0 };
+
+    replaceTagsInSection(body, tags, tagStats);
+
+    var header = doc.getHeader();
+    if (header) replaceTagsInSection(header, tags, tagStats);
+    var footer = doc.getFooter();
+    if (footer) replaceTagsInSection(footer, tags, tagStats);
+
+    // 6. Limpeza de tags residuais
+    cleanResidualTags(doc, tagStats);
+
+    // 7. Salvar e fechar
+    doc.saveAndClose();
+
+    var executionTime = new Date().getTime() - startTime;
+    var docId  = doc.getId();
+    var docUrl = 'https://docs.google.com/document/d/' + docId + '/edit';
+
+    var result = {
+      success:        true,
+      // v1.2: campo `url` adicionado — n8n D1-SalvarSucesso usa $json.url || $json.google_doc_url
+      url:            docUrl,
+      google_doc_id:  docId,
+      google_doc_url: docUrl,
+      nome_arquivo:   nomeArquivo,
+      estatisticas: {
+        titulo_usado:            tituloDoc,
+        secoes_inseridas:        statsSecoes.ok,
+        secoes_falhou:           statsSecoes.falhou,
+        tags_substituidas:       tagStats.substituidas,
+        tags_nao_encontradas:    tagStats.nao_encontradas,
+        tags_residuais_marcadas: tagStats.residuais_marcadas,
+        cabecalho_escritorio:    cabecalhoOk,
+        tempo_processamento_ms:  executionTime
+      },
+      from_cache: false
+    };
+
+    saveDuplicateKey(idempotencyKey, result);
+    if (debug) Logger.log('[DEBUG] Concluído: ' + docId + ' em ' + executionTime + 'ms');
+
+    return jsonResponse(result);
+
+  } catch (error) {
+    Logger.log('[ERROR] doPost: ' + error.message + '\n' + (error.stack || ''));
+    return jsonResponse({
+      success:     false,
+      error_code:  'EXECUTION_ERROR',
+      error_message: error.message,
+      error_stack: error.stack ? error.stack.substring(0, 500) : null
+    });
+  }
+}
+
+/**
+ * GET handler — health check.
+ */
+function doGet(e) {
+  return jsonResponse({
+    success:   true,
+    service:   'MdFlow Express Doc Creator',
+    version:   '1.2',
+    timestamp: new Date().toISOString(),
+    message:   'OK — POST para criar documento express'
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 2: VALIDAÇÃO
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function validatePayload(payload) {
+  if (!payload)
+    return { valid: false, error: 'Payload vazio ou inválido' };
+  if (!payload.secoes || !Array.isArray(payload.secoes) || payload.secoes.length === 0)
+    return { valid: false, error: 'secoes é obrigatório e deve ser array não vazio' };
+
+  for (var i = 0; i < payload.secoes.length; i++) {
+    var s = payload.secoes[i];
+    // v1.2: conteudo pode ser string vazia mas deve existir
+    if (s.conteudo === undefined || s.conteudo === null)
+      return { valid: false, error: 'Cada seção deve ter campo "conteudo" (índice ' + i + ')' };
+    if (!s.tipo)
+      return { valid: false, error: 'Cada seção deve ter campo "tipo" (índice ' + i + ')' };
+  }
+  return { valid: true, error: null };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 3: CRIAÇÃO DO DOCUMENTO
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function criarDocumento(nomeArquivo, pastaId, fallbackRoot) {
+  return withRetry(function() {
+    var doc = DocumentApp.create(nomeArquivo);
+
+    // Apps Script cria doc com 1 parágrafo vazio obrigatório.
+    // NÃO tentar remover — lança exceção quando é o único filho.
+    // Deixamos como está; o inserirSecao() adiciona conteúdo após ele.
+
+    // Mover para pasta destino
+    if (pastaId) {
+      try {
+        var docFile = DriveApp.getFileById(doc.getId());
+        var pasta   = DriveApp.getFolderById(pastaId);
+        pasta.getName(); // testa permissão
+        docFile.moveTo(pasta);
+      } catch (e) {
+        if (!fallbackRoot) {
+          try { DriveApp.getFileById(doc.getId()).setTrashed(true); } catch(ex) {}
+          return {
+            success: false, doc: null,
+            error_code:    'FOLDER_ACCESS_DENIED',
+            error_message: 'Sem acesso à pasta ' + pastaId + ': ' + e.message
+          };
+        }
+        Logger.log('[WARN] Pasta inacessível, usando raiz: ' + e.message);
+      }
+    }
+
+    return { success: true, doc: doc, error_code: null, error_message: null };
+  }, 2, 1500);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 4: CONFIGURAÇÃO DE PÁGINA
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function configurarPagina(doc) {
+  try {
+    var body = doc.getBody();
+    // Margens em pontos (1cm ≈ 28.35pt)
+    // ABNT: sup 3cm, inf 2cm, esq 3cm, dir 2cm
+    body.setMarginTop(85.05);    // 3cm
+    body.setMarginBottom(56.7);  // 2cm
+    body.setMarginLeft(85.05);   // 3cm
+    body.setMarginRight(56.7);   // 2cm
+  } catch (e) {
+    Logger.log('[WARN] configurarPagina: ' + e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 5: CABEÇALHO DO ESCRITÓRIO
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function inserirCabecalhoEscritorio(doc, textoCabecalho) {
+  try {
+    var header = doc.addHeader();
+    var linhas = textoCabecalho.split('\n');
+    for (var i = 0; i < linhas.length; i++) {
+      var para;
+      if (i === 0 && header.getNumChildren() > 0) {
+        para = header.getChild(0).asParagraph();
+        para.appendText(linhas[i]);
+      } else {
+        para = header.appendParagraph(linhas[i]);
+      }
+      para.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+      para.editAsText().setFontFamily('Arial').setFontSize(10);
+      if (i === 0) {
+        para.editAsText().setBold(true);
+      }
+    }
+    return true;
+  } catch (e) {
+    Logger.log('[WARN] inserirCabecalhoEscritorio: ' + e.message);
+    return false;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 6: INSERÇÃO DE SEÇÕES COM FORMATAÇÃO
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Insere uma seção no body com formatação adequada ao tipo.
+ *
+ * Tipos suportados:
+ *   enderecamento  — negrito, centralizado, sem título de seção
+ *   qualificacao   — normal, justificado, título em negrito (se tiver)
+ *   dos_fatos      — normal, justificado, título em negrito
+ *   do_direito     — normal, justificado, título em negrito
+ *   jurisprudencia — recuo 4cm, fonte 11pt, itálico, título em negrito
+ *   dos_pedidos    — normal, justificado, título em negrito
+ *   pedidos        — alias de dos_pedidos
+ *   pedidos_lista  — lista numerada automática (v1.2)
+ *   fecho          — normal, centralizado
+ *   assinatura     — centralizado, sem formatação especial (v1.2)
+ *   body           — normal, justificado (seção genérica)
+ *   titulo_secao   — título centralizado negrito (seção decorativa)
+ */
+function inserirSecao(body, secao, primeiraSecao, debug) {
+  try {
+    var tipo     = (secao.tipo || 'body').toLowerCase();
+    var titulo   = secao.titulo || null;
+    var conteudo = secao.conteudo || '';
+
+    // Espaçamento antes (exceto primeira seção)
+    if (!primeiraSecao) {
+      var espaco = body.appendParagraph('');
+      espaco.setSpacingBefore(0);
+      espaco.setSpacingAfter(0);
+      espaco.editAsText().setFontSize(6);
+    }
+
+    switch (tipo) {
+
+      // ── Endereçamento ────────────────────────────────────────────────────────
+      case 'enderecamento':
+        var linhasEnderec = conteudo.split('\n');
+        for (var i = 0; i < linhasEnderec.length; i++) {
+          var pe = body.appendParagraph(linhasEnderec[i]);
+          pe.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+          aplicarEstiloCorpo(pe);
+          pe.editAsText().setBold(true);
+        }
+        break;
+
+      // ── Jurisprudência ────────────────────────────────────────────────────────
+      case 'jurisprudencia':
+        if (titulo) {
+          var pjt = body.appendParagraph(titulo);
+          pjt.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
+          aplicarEstiloCorpo(pjt);
+          pjt.editAsText().setBold(true);
+          var espJuris = body.appendParagraph('');
+          espJuris.editAsText().setFontSize(6);
+        }
+        var linhasJuris = conteudo.split('\n');
+        for (var j = 0; j < linhasJuris.length; j++) {
+          if (linhasJuris[j].trim() === '') continue;
+          var pj = body.appendParagraph(linhasJuris[j]);
+          pj.setAlignment(DocumentApp.HorizontalAlignment.JUSTIFY);
+          // Recuo ABNT jurisprudência: 4cm esquerda
+          pj.setIndentFirstLine(0);
+          pj.setIndentStart(113.4); // 4cm em pontos (4 * 28.35)
+          pj.editAsText()
+            .setFontFamily('Arial')
+            .setFontSize(11)
+            .setItalic(true);
+          pj.setSpacingBefore(0);
+          pj.setSpacingAfter(0);
+        }
+        break;
+
+      // ── Fecho ──────────────────────────────────────────────────────────────
+      case 'fecho':
+        var linhasFecho = conteudo.split('\n');
+        for (var k = 0; k < linhasFecho.length; k++) {
+          var pf = body.appendParagraph(linhasFecho[k]);
+          pf.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+          aplicarEstiloCorpo(pf);
+        }
+        break;
+
+      // ── Assinatura (v1.2) ──────────────────────────────────────────────────
+      case 'assinatura':
+        // Espaço antes da assinatura
+        var espAss = body.appendParagraph('');
+        espAss.editAsText().setFontSize(6);
+        var linhasAss = conteudo.split('\n');
+        for (var a = 0; a < linhasAss.length; a++) {
+          var pa = body.appendParagraph(linhasAss[a]);
+          pa.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+          aplicarEstiloCorpo(pa);
+          // Primeira linha da assinatura (nome do advogado) em negrito
+          if (a === 0 && linhasAss[a].trim() !== '') {
+            pa.editAsText().setBold(true);
+          }
+        }
+        break;
+
+      // ── Título decorativo ──────────────────────────────────────────────────
+      case 'titulo_secao':
+        var pt = body.appendParagraph(conteudo);
+        pt.setAlignment(DocumentApp.HorizontalAlignment.CENTER);
+        aplicarEstiloCorpo(pt);
+        pt.editAsText().setBold(true);
+        break;
+
+      // ── Pedidos em lista numerada (v1.2) ──────────────────────────────────
+      case 'pedidos_lista':
+        if (titulo) {
+          var ppl = body.appendParagraph(titulo);
+          ppl.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
+          aplicarEstiloCorpo(ppl);
+          ppl.editAsText().setBold(true);
+          var espPL = body.appendParagraph('');
+          espPL.editAsText().setFontSize(6);
+        }
+        var linhasPL = conteudo.split('\n');
+        var itemNum = 1;
+        for (var n = 0; n < linhasPL.length; n++) {
+          var linhaPL = linhasPL[n];
+          if (linhaPL.trim() === '') continue;
+          // Remove prefixo numérico se Claude já enviou (a), 1), etc.
+          var linhaSemNum = linhaPL.replace(/^[\sa-z\d]+[\.\)]\s*/i, '');
+          var pli = body.appendListItem(itemNum + '. ' + linhaSemNum);
+          pli.setAlignment(DocumentApp.HorizontalAlignment.JUSTIFY);
+          aplicarEstiloCorpo(pli);
+          itemNum++;
+        }
+        break;
+
+      // ── Seções padrão (qualificacao, dos_fatos, do_direito, dos_pedidos, pedidos, body) ──
+      default:
+        // Título da seção (negrito)
+        if (titulo) {
+          var pts = body.appendParagraph(titulo);
+          pts.setAlignment(DocumentApp.HorizontalAlignment.LEFT);
+          aplicarEstiloCorpo(pts);
+          pts.editAsText().setBold(true);
+          var espTitulo = body.appendParagraph('');
+          espTitulo.editAsText().setFontSize(6);
+        }
+        // Conteúdo — preserva quebras de parágrafo
+        // v1.2: \n\n gera parágrafo vazio com espaço maior (12pt) para separação visual
+        var linhasBody = conteudo.split('\n');
+        var prevWasEmpty = false;
+        for (var l = 0; l < linhasBody.length; l++) {
+          var linha = linhasBody[l];
+          if (linha.trim() === '') {
+            if (prevWasEmpty) {
+              // Duplo vazio = separador mais largo
+              var pvd = body.appendParagraph('');
+              pvd.editAsText().setFontSize(12);
+            } else {
+              var pv = body.appendParagraph('');
+              pv.editAsText().setFontSize(6);
+            }
+            prevWasEmpty = true;
+            continue;
+          }
+          prevWasEmpty = false;
+          var pb = body.appendParagraph(linha);
+          pb.setAlignment(DocumentApp.HorizontalAlignment.JUSTIFY);
+          aplicarEstiloCorpo(pb);
+        }
+        break;
+    }
+
+    if (debug) Logger.log('[DEBUG] Seção inserida: ' + tipo);
+    return true;
+
+  } catch (e) {
+    Logger.log('[ERROR] inserirSecao(' + (secao.tipo || '?') + '): ' + e.message);
+    return false;
+  }
+}
+
+/**
+ * Aplica estilo base ABNT ao parágrafo: Arial 12, espaçamento 1.5.
+ */
+function aplicarEstiloCorpo(paragrafo) {
+  paragrafo.editAsText().setFontFamily('Arial').setFontSize(12);
+  paragrafo.setLineSpacing(1.5);
+  paragrafo.setSpacingBefore(0);
+  paragrafo.setSpacingAfter(0);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 7: SUBSTITUIÇÃO DE TAGS {{dados}}
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * v1.2: normaliza chaves de tags — aceita "cliente_nome" ou "{{cliente_nome}}"
+ * e converte tudo para formato sem chaves para uso interno.
+ */
+function normalizarTags(tagsRaw) {
+  var tags = {};
+  for (var k in tagsRaw) {
+    if (!tagsRaw.hasOwnProperty(k)) continue;
+    var chave = k.replace(/^\{\{|\}\}$/g, '').trim();
+    tags[chave] = tagsRaw[k];
+  }
+  return tags;
+}
+
+function replaceTagsInSection(section, tags, tagStats) {
+  for (var tagName in tags) {
+    if (!tags.hasOwnProperty(tagName)) continue;
+    var valor = tags[tagName];
+    // v1.2: substitui mesmo quando valor é null/undefined/vazio (limpa placeholder)
+    var valorStr = (valor != null) ? String(valor) : '';
+
+    var patterns = ['\\{\\{' + escapeRegex(tagName) + '\\}\\}'];
+    // Tenta também versão com ponto no lugar de underscore (legado)
+    if (tagName.indexOf('_') !== -1) {
+      patterns.push('\\{\\{' + escapeRegex(tagName.replace(/_/g, '.')) + '\\}\\}');
+    }
+
+    for (var p = 0; p < patterns.length; p++) {
+      var searchResult = section.findText(patterns[p]);
+      var safety = 0;
+      while (searchResult && safety < 200) {
+        var elem  = searchResult.getElement().asText();
+        var start = searchResult.getStartOffset();
+        var end   = searchResult.getEndOffsetInclusive();
+        var attrs = captureTextAttributes(elem, start);
+
+        elem.deleteText(start, end);
+        if (valorStr.length > 0) {
+          elem.insertText(start, valorStr);
+          var newEnd = start + valorStr.length - 1;
+          if (newEnd >= start) applyTextAttributes(elem, start, newEnd, attrs);
+        }
+
+        tagStats.substituidas++;
+        searchResult = section.findText(patterns[p]);
+        safety++;
+      }
+    }
+  }
+}
+
+function captureTextAttributes(elem, offset) {
+  return {
+    bold:            elem.isBold(offset),
+    italic:          elem.isItalic(offset),
+    underline:       elem.isUnderline(offset),
+    fontSize:        elem.getFontSize(offset),
+    fontFamily:      elem.getFontFamily(offset),
+    foregroundColor: elem.getForegroundColor(offset)
+  };
+}
+
+function applyTextAttributes(elem, start, end, attrs) {
+  if (attrs.bold            !== null) elem.setBold(start, end, attrs.bold);
+  if (attrs.italic          !== null) elem.setItalic(start, end, attrs.italic);
+  if (attrs.underline       !== null) elem.setUnderline(start, end, attrs.underline);
+  if (attrs.fontSize        !== null) elem.setFontSize(start, end, attrs.fontSize);
+  if (attrs.fontFamily      !== null) elem.setFontFamily(start, end, attrs.fontFamily);
+  if (attrs.foregroundColor !== null) elem.setForegroundColor(start, end, attrs.foregroundColor);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 8: LIMPEZA DE TAGS RESIDUAIS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function cleanResidualTags(doc, tagStats) {
+  var sections = [doc.getBody()];
+  var header = doc.getHeader();
+  if (header) sections.push(header);
+  var footer = doc.getFooter();
+  if (footer) sections.push(footer);
+  for (var s = 0; s < sections.length; s++) {
+    cleanResidualTagsInSection(sections[s], tagStats);
+  }
+}
+
+function cleanResidualTagsInSection(section, tagStats) {
+  var pattern = '\\{\\{[^}]+\\}\\}';
+  // v1.2: safety counter aumentado para 500 (docs grandes com muitas tags)
+  var safety = 0;
+  var searchResult = section.findText(pattern);
+  while (searchResult && safety < 500) {
+    var elem  = searchResult.getElement().asText();
+    var start = searchResult.getStartOffset();
+    var end   = searchResult.getEndOffsetInclusive();
+    var originalText = elem.getText().substring(start, end + 1);
+    var tagName = originalText.replace(/\{\{|\}\}/g, '').trim();
+
+    if (tagStats.nao_encontradas.indexOf(tagName) === -1) {
+      tagStats.nao_encontradas.push(tagName);
+    }
+
+    var replacement = '[REVISAR: ' + tagName + ']';
+    elem.deleteText(start, end);
+    elem.insertText(start, replacement);
+
+    var newEnd = start + replacement.length - 1;
+    elem.setForegroundColor(start, newEnd, '#FF0000');
+    elem.setBold(start, newEnd, true);
+    elem.setFontSize(start, newEnd, 10);
+    tagStats.residuais_marcadas++;
+
+    // v1.2: reinicia busca do início após substituição (evita loop em match deslocado)
+    searchResult = section.findText(pattern);
+    safety++;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 9: UTILITIES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function jsonResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function withRetry(fn, maxRetries, delayMs) {
+  maxRetries = maxRetries || 2;
+  delayMs    = delayMs    || 1500;
+  var lastError;
+  for (var attempt = 0; attempt <= maxRetries; attempt++) {
+    try { return fn(); } catch (e) {
+      lastError = e;
+      Logger.log('[RETRY] Tentativa ' + (attempt + 1) + '/' + (maxRetries + 1) + ' falhou: ' + e.message);
+      if (attempt < maxRetries) Utilities.sleep(delayMs * (attempt + 1));
+    }
+  }
+  throw lastError;
+}
+
+function generateIdempotencyKey(historicoId) {
+  var windowKey = Math.floor(new Date().getTime() / 120000); // janela de 2min
+  var digest = Utilities.computeDigest(
+    Utilities.DigestAlgorithm.MD5,
+    (historicoId || 'sem-id') + '|express|' + windowKey
+  );
+  var hex = '';
+  for (var i = 0; i < digest.length && hex.length < 16; i++) {
+    var byte = digest[i] & 0xFF;
+    hex += (byte < 16 ? '0' : '') + byte.toString(16);
+  }
+  return 'expr_' + hex.substring(0, 16);
+}
+
+function checkDuplicate(key) {
+  try {
+    var props  = PropertiesService.getScriptProperties();
+    var cached = props.getProperty(key);
+    if (cached) {
+      var parsed = JSON.parse(cached);
+      if (parsed._ts && (new Date().getTime() - parsed._ts) > 300000) { // expira em 5min
+        props.deleteProperty(key);
+        return null;
+      }
+      return parsed;
+    }
+  } catch (e) { Logger.log('[WARN] checkDuplicate falhou: ' + e.message); }
+  return null;
+}
+
+function saveDuplicateKey(key, result) {
+  try {
+    var props = PropertiesService.getScriptProperties();
+    props.setProperty(key, JSON.stringify({
+      success:        result.success,
+      url:            result.url,
+      google_doc_id:  result.google_doc_id,
+      google_doc_url: result.google_doc_url,
+      nome_arquivo:   result.nome_arquivo,
+      estatisticas:   result.estatisticas,
+      _ts:            new Date().getTime()
+    }));
+  } catch (e) { Logger.log('[WARN] saveDuplicateKey falhou: ' + e.message); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SECTION 10: TESTE LOCAL
+// (Remover ou comentar antes de deploy em produção)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function testeLocal() {
+  var dadosTeste = {
+    titulo: 'Petição Inicial — João Silva Santos x Banco XYZ S.A.',
+    secoes: [
+      {
+        tipo: 'enderecamento',
+        conteudo: 'EXMO. SR. DR. JUIZ DE DIREITO DA {{vara}} DA COMARCA DE {{comarca}}'
+      },
+      {
+        tipo: 'qualificacao',
+        titulo: 'I — DAS PARTES',
+        conteudo: '{{cliente_nome}}, brasileiro, portador do CPF {{cliente_cpf}}, vem respeitosamente à presença de Vossa Excelência propor a presente ação em face de {{reu_nome}}, CNPJ {{reu_cnpj}}.'
+      },
+      {
+        tipo: 'dos_fatos',
+        titulo: 'II — DOS FATOS',
+        conteudo: 'O autor é cliente da ré desde 2020. Em {{data_fato}}, verificou negativação indevida de seu nome nos órgãos de proteção ao crédito, referente a dívida já quitada.\n\nApesar de notificada, a ré não providenciou a baixa no prazo legal, causando danos ao autor.'
+      },
+      {
+        tipo: 'do_direito',
+        titulo: 'III — DO DIREITO',
+        conteudo: 'A conduta da ré configura ilícito civil nos termos do art. 186 do Código Civil e violação ao Código de Defesa do Consumidor, arts. 6º e 43.'
+      },
+      {
+        tipo: 'jurisprudencia',
+        titulo: 'Jurisprudência Aplicável',
+        conteudo: 'RECURSO ESPECIAL. NEGATIVAÇÃO INDEVIDA. DANO MORAL IN RE IPSA. O dano moral decorrente de negativação indevida prescinde de prova, sendo presumido. STJ, REsp 1.682.756/RS, Rel. Min. Nancy Andrighi, DJe 12/03/2018.'
+      },
+      {
+        tipo: 'dos_pedidos',
+        titulo: 'IV — DOS PEDIDOS',
+        conteudo: 'Diante do exposto, requer:\n\na) A exclusão definitiva do nome do autor dos cadastros de inadimplentes;\nb) A condenação da ré ao pagamento de danos morais no valor de {{valor_causa}};\nc) A condenação em custas e honorários advocatícios.\n\nDá-se à causa o valor de {{valor_causa}}.'
+      },
+      {
+        tipo: 'fecho',
+        conteudo: '{{comarca}}, {{data_hoje}}.'
+      },
+      {
+        tipo: 'assinatura',
+        conteudo: '{{advogado_nome}}\n{{advogado_oab}}'
+      }
+    ],
+    tags_substituicao: {
+      cliente_nome:  'João Silva Santos',
+      cliente_cpf:   '123.456.789-00',
+      reu_nome:      'Banco XYZ S.A.',
+      reu_cnpj:      '00.000.000/0001-00',
+      vara:          '3ª Vara Cível',
+      comarca:       'Porto Alegre/RS',
+      valor_causa:   'R$ 10.000,00',
+      data_fato:     '15 de janeiro de 2026',
+      data_hoje:     '16 de março de 2026',
+      advogado_nome: 'Dr. Carlos Paz',
+      advogado_oab:  'OAB/RS 12345'
+    },
+    processo: {
+      historico_id: 'teste-local-001',
+      numero:       'TESTE-2026-001'
+    },
+    configuracoes: {
+      cabecalho_escritorio: 'Midas Advocacia\nRua XV de Novembro, 1234 — Porto Alegre/RS\ncontato@midasadvocacia.com.br',
+      pasta_destino_id:     'ID_DA_PASTA_DESTINO',
+      nome_arquivo:         'TESTE — Petição Express — João Silva x Banco XYZ',
+      fallback_to_root:     true,
+      debug:                true
+    }
+  };
+
+  var fakeE = { postData: { contents: JSON.stringify(dadosTeste) } };
+  var resultado = JSON.parse(doPost(fakeE).getContent());
+  Logger.log('=== RESULTADO TESTE ===');
+  Logger.log(JSON.stringify(resultado, null, 2));
+}

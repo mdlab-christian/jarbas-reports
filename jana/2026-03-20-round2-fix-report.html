@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Smart Blocks — Round 2 Fix Report 2026-03-20</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #222636;
+    --border: #2e3347;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --p0: #ff4757;
+    --p0-bg: rgba(255,71,87,0.08);
+    --p0-border: rgba(255,71,87,0.3);
+    --p1: #ffa502;
+    --p1-bg: rgba(255,165,2,0.08);
+    --p1-border: rgba(255,165,2,0.3);
+    --p2: #3b82f6;
+    --p2-bg: rgba(59,130,246,0.08);
+    --p2-border: rgba(59,130,246,0.3);
+    --ok: #2ed573;
+    --ok-bg: rgba(46,213,115,0.08);
+    --ok-border: rgba(46,213,115,0.3);
+    --accent: #7c6de8;
+    --accent-hover: #6c5fd8;
+    --radius: 10px;
+    --font-mono: 'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; font-size:14px; line-height:1.6; padding:24px; max-width:1020px; margin:0 auto; }
+
+  .header { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:28px 32px; margin-bottom:24px; }
+  .header-top { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+  .header h1 { font-size:22px; font-weight:700; color:#fff; letter-spacing:-.3px; }
+  .header h1 span { color:var(--accent); }
+  .header-meta { color:var(--muted); font-size:12px; margin-top:6px; }
+  .badge-round { background:rgba(255,71,87,0.12); border:1px solid rgba(255,71,87,0.3); color:#ff4757; font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; white-space:nowrap; }
+
+  .summary { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:24px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px; text-align:center; }
+  .card.p0 { border-color:var(--p0-border); background:var(--p0-bg); }
+  .card.p1 { border-color:var(--p1-border); background:var(--p1-bg); }
+  .card.p2 { border-color:var(--p2-border); background:var(--p2-bg); }
+  .card.ok { border-color:var(--ok-border); background:var(--ok-bg); }
+  .card .count { font-size:34px; font-weight:800; line-height:1; }
+  .card.p0 .count { color:var(--p0); }
+  .card.p1 .count { color:var(--p1); }
+  .card.p2 .count { color:var(--p2); }
+  .card.ok .count { color:var(--ok); }
+  .card .label { font-size:11px; color:var(--muted); margin-top:4px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+  .card .desc { font-size:11px; color:var(--muted); margin-top:6px; }
+
+  .section { margin-bottom:20px; }
+  .section-header { display:flex; align-items:center; gap:10px; margin-bottom:12px; }
+  .section-header h2 { font-size:16px; font-weight:700; color:#fff; }
+  .pill { font-size:11px; font-weight:700; padding:2px 8px; border-radius:20px; letter-spacing:.5px; }
+  .pill.p0 { background:var(--p0-bg); color:var(--p0); border:1px solid var(--p0-border); }
+  .pill.p1 { background:var(--p1-bg); color:var(--p1); border:1px solid var(--p1-border); }
+  .pill.p2 { background:var(--p2-bg); color:var(--p2); border:1px solid var(--p2-border); }
+  .pill.ok { background:var(--ok-bg); color:var(--ok); border:1px solid var(--ok-border); }
+  .pill.done { background:rgba(46,213,115,0.1); color:var(--ok); border:1px solid var(--ok-border); }
+
+  .issue { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }
+  .issue.p0 { border-left:3px solid var(--p0); }
+  .issue.p1 { border-left:3px solid var(--p1); }
+  .issue.p2 { border-left:3px solid var(--p2); }
+  .issue.ok { border-left:3px solid var(--ok); opacity:.8; }
+  .issue-header { display:flex; align-items:center; gap:10px; padding:13px 18px; }
+  .issue-title { font-weight:600; color:#fff; flex:1; font-size:13.5px; }
+  .issue-title.done { text-decoration:line-through; color:var(--muted); }
+  .issue-file { font-family:var(--font-mono); font-size:11px; color:var(--muted); background:rgba(255,255,255,0.05); padding:2px 7px; border-radius:4px; }
+  .issue-body { padding:0 18px 14px; color:var(--muted); font-size:13px; }
+  .issue-body strong { color:var(--text); }
+  pre { background:rgba(0,0,0,0.4); border:1px solid var(--border); border-radius:6px; padding:12px; font-family:var(--font-mono); font-size:12px; overflow-x:auto; color:#a8b4d0; margin:8px 0; line-height:1.5; }
+  code { font-family:var(--font-mono); font-size:12px; background:rgba(255,255,255,0.06); padding:1px 5px; border-radius:3px; color:#c4cde0; }
+
+  .accordion { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); margin-bottom:10px; overflow:hidden; }
+  .accordion-trigger { width:100%; background:none; border:none; cursor:pointer; display:flex; align-items:center; gap:12px; padding:16px 18px; text-align:left; color:var(--text); font-size:14px; font-weight:600; transition:background .15s; }
+  .accordion-trigger:hover { background:rgba(255,255,255,0.03); }
+  .accordion-trigger .chevron { margin-left:auto; color:var(--muted); font-size:12px; transition:transform .2s; flex-shrink:0; }
+  .accordion-trigger.open .chevron { transform:rotate(180deg); }
+  .accordion-content { display:none; padding:0 18px 18px; }
+  .accordion-content.open { display:block; }
+
+  .prompt-box { position:relative; background:rgba(0,0,0,0.5); border:1px solid var(--border); border-radius:8px; padding:16px; font-family:var(--font-mono); font-size:12.5px; color:#c4cde0; line-height:1.6; white-space:pre-wrap; word-break:break-word; margin-top:10px; }
+  .copy-btn { position:absolute; top:10px; right:10px; background:var(--accent); color:#fff; border:none; cursor:pointer; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; transition:background .15s,transform .1s; }
+  .copy-btn:hover { background:var(--accent-hover); }
+  .copy-btn:active { transform:scale(.96); }
+  .copy-btn.copied { background:var(--ok); }
+
+  .prompt-meta { display:flex; align-items:center; gap:8px; margin-bottom:8px; flex-wrap:wrap; }
+  .prompt-meta span { font-size:11px; color:var(--muted); background:rgba(255,255,255,0.05); padding:2px 8px; border-radius:4px; }
+
+  .divider { border:none; border-top:1px solid var(--border); margin:24px 0; }
+  .footer { text-align:center; color:var(--muted); font-size:12px; margin-top:32px; padding-top:16px; border-top:1px solid var(--border); }
+
+  .tl-item { display:flex; gap:12px; align-items:flex-start; padding:8px 0; border-bottom:1px solid var(--border); }
+  .tl-item:last-child { border-bottom:none; }
+  .tl-badge { font-size:10px; font-weight:700; padding:3px 7px; border-radius:4px; flex-shrink:0; letter-spacing:.5px; }
+  .tl-badge.p0 { background:var(--p0-bg); color:var(--p0); border:1px solid var(--p0-border); }
+  .tl-badge.p1 { background:var(--p1-bg); color:var(--p1); border:1px solid var(--p1-border); }
+  .tl-badge.p2 { background:var(--p2-bg); color:var(--p2); border:1px solid var(--p2-border); }
+  .tl-time { margin-left:auto; color:var(--muted); font-size:11px; white-space:nowrap; }
+  .tl-text { font-size:13px; }
+  .tl-text strong { color:var(--text); }
+
+  .alert-box { padding:14px 18px; border-radius:8px; font-size:13px; margin-bottom:16px; }
+  .alert-box.critical { background:var(--p0-bg); border:1px solid var(--p0-border); color:#ff8b94; }
+  .alert-box.ok { background:var(--ok-bg); border:1px solid var(--ok-border); color:#86efac; }
+  .alert-box.warn { background:var(--p1-bg); border:1px solid var(--p1-border); color:#fcd34d; }
+
+  @media(max-width:640px){ .summary{grid-template-columns:1fr 1fr;} body{padding:12px;} }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div>
+      <h1>Smart Blocks — <span>Round 2 Fix Report</span></h1>
+      <p class="header-meta">OlivIA v3 · Deep Review JANA + CC | 2026-03-20</p>
+    </div>
+    <span class="badge-round">🔁 Round 2</span>
+  </div>
+</div>
+
+<!-- ESTADO PÓS-ROUND-1 -->
+<div class="alert-box ok">
+  ✅ <strong>Round 1 aplicado com sucesso:</strong> P0 (FK mismatch) corrigido · P1 payload (org_id, user_id, INSERT, envelope) · P2 constants, deprecated removidos, Step 3 melhorias. TypeScript 0 erros.
+</div>
+
+<!-- ACHADO CRÍTICO NOVO -->
+<div class="alert-box critical">
+  🚨 <strong>NOVO P0 encontrado:</strong> <code>index.tsx</code> renderiza <code>WizardContainer → GeradorStep1-5</code> (componentes legados) em vez de <code>OliviaGeradorSmartBlocks</code> (novo fluxo com todos os fixes). Todos os fixes do Round 1 nunca chegam ao usuário.
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="summary">
+  <div class="card p0">
+    <div class="count">1</div>
+    <div class="label">P0 — Bloqueante</div>
+    <div class="desc">Fluxo errado<br>nunca é renderizado</div>
+  </div>
+  <div class="card p1">
+    <div class="count">5</div>
+    <div class="label">P1 — Importante</div>
+    <div class="desc">Bugs ainda presentes<br>ou fixes incompletos</div>
+  </div>
+  <div class="card p2">
+    <div class="count">6</div>
+    <div class="label">P2 — Gaps Spec</div>
+    <div class="desc">Features da spec<br>não implementadas</div>
+  </div>
+  <div class="card ok">
+    <div class="count">13</div>
+    <div class="label">✅ Resolvidos</div>
+    <div class="desc">Issues do Round 1<br>confirmados</div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- RESOLVIDOS -->
+<div class="section">
+  <div class="section-header">
+    <h2>✅ Resolvidos no Round 1</h2>
+    <span class="pill done">13 confirmados</span>
+  </div>
+
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">BUG-1 P0 — modelo_id corrigido (grupo → petição) em useSmartBlocks</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">BUG-2 P1 — org_id → organizacao_id no payload (header x-org-id)</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">BUG-3 P1 — filtro categoria_empresa_id nos blocos</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">BUG-4 P1 — INSERT olivia_historico com versao_id, tipo_peticao_id, advogado_id, motor</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">BUG-6 P1 — user_id no payload (header x-user-id)</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">DRIFT-4 P1 — QUALIDADE_IA_OPTIONS: 3→2 opções com modelos corretos</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">DRIFT-5 P2 — Tab 'fila' removida de OLIVIA_TABS e de index.tsx</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">DRIFT-7 P2 — filtro ativo=true nas tags</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">GAP-1 P1 — Envelope canônico (request_id, contexto, data:{}, origem_rota)</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">GAP-3 P2 — Toggle "Gerar Relatório HTML" no Step 1</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">GAP-4 P2 — Botão Download PDF no Step 3</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">GAP-5 P2 — Feedback advogado (estrelas 1-10 + comentário)</span></div>
+  </div>
+  <div class="issue ok">
+    <div class="issue-header"><span class="pill done">✅</span><span class="issue-title done">P2-9 — 4 arquivos deprecated removidos + barrel limpo</span></div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- P0 NOVO -->
+<div class="section">
+  <div class="section-header">
+    <h2>🚨 P0 Novo Encontrado</h2>
+    <span class="pill p0">CRÍTICO</span>
+  </div>
+
+  <div class="issue p0">
+    <div class="issue-header">
+      <span class="pill p0">P0-NEW</span>
+      <span class="issue-title">index.tsx renderiza WizardContainer → GeradorStep1-5 em vez de OliviaGeradorSmartBlocks — todos os fixes do Round 1 nunca chegam ao usuário</span>
+    </div>
+    <div class="issue-body">
+      <p><strong>Arquivos:</strong> <code>src/pages/olivia/index.tsx:220-236</code></p>
+      <p style="margin-top:8px;">Quando o usuário seleciona Smart Blocks, <code>index.tsx</code> cria um <code>WizardSession</code> e renderiza <code>&lt;WizardContainer&gt;</code>, que por sua vez renderiza <code>GeradorStep1</code>, <code>GeradorStep2</code>... <code>GeradorStep5</code> — os componentes <strong>genéricos legados</strong>.</p>
+      <p style="margin-top:6px;"><code>OliviaGeradorSmartBlocks.tsx</code> (o componente novo, com todos os fixes P0/P1 do Round 1) só é exportado mas <strong>nunca importado nem renderizado</strong> em lugar nenhum.</p>
+      <pre>// index.tsx (ATUAL — ERRADO):
+{(selectedMode === 'smart-blocks' || selectedMode === 'smart_blocks') && wizardTabs.length > 0 && (
+  &lt;div&gt;
+    &lt;WizardTabBar ... /&gt;
+    {activeSession && &lt;WizardContainer key={activeSession.id} ...&gt;}
+    //                  ^^^^^^^^^^^^^^^^ renderiza GeradorStep1-5 (legacy)
+  &lt;/div&gt;
+)}
+
+// DEVERIA SER:
+{(selectedMode === 'smart-blocks' || selectedMode === 'smart_blocks') && (
+  &lt;OliviaGeradorSmartBlocks /&gt;
+  // O próprio OliviaGeradorSmartBlocks já tem header, stepper e WizardTabBar interno
+)}
+
+// OliviaGeradorSmartBlocks.tsx está em:
+// src/pages/olivia/components/gerador/OliviaGeradorSmartBlocks.tsx
+// e NUNCA foi importado em index.tsx</pre>
+      <p style="margin-top:8px;"><strong>Impacto:</strong> 100% dos fixes do Round 1 ficam inacessíveis. WizardContainer.handleGerar é um <code>return Promise.resolve()</code> sem implementação real.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- P1 NOVOS -->
+<div class="section">
+  <div class="section-header">
+    <h2>⚠️ P1 — Issues Importantes</h2>
+    <span class="pill p1">5 itens</span>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-A</span>
+      <span class="issue-title">Step 2 nunca renderiza se versaoId é null — modelo sem active_version_id bloqueia silenciosamente</span>
+      <span class="issue-file">OliviaGeradorSmartBlocks.tsx:74</span>
+    </div>
+    <div class="issue-body">
+      Guard atual: <code>stepIndex === 1 && state.modeloId && state.versaoId</code>. Se o modelo selecionado não tiver <code>active_version_id</code>, <code>state.versaoId</code> fica <code>null</code> e o Step 2 nunca é renderizado — sem mensagem de erro, tela em branco.
+      <pre>// FIX: mostrar erro explicativo quando modeloId existe mas versaoId é null
+{stepIndex === 1 && state.modeloId && !state.versaoId && (
+  &lt;div className="...error..."&gt;
+    Modelo sem versão publicada. Configure uma versão ativa no painel.
+  &lt;/div&gt;
+)}</pre>
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-B</span>
+      <span class="issue-title">resolveSmartBlocksWebhookPath é dead code — sempre retorna fallback independente do banco</span>
+      <span class="issue-file">useSmartBlocksGeneration.ts:13-26</span>
+    </div>
+    <div class="issue-body">
+      A função consulta <code>olivia_workflows_canonicos</code> para buscar o path dinamicamente (B-03), mas ambos os branches retornam <code>OLIVIA_WEBHOOKS.SMART_BLOCKS</code>. O <code>workflow_id</code> retornado do banco nunca é usado.
+      <pre>// ATUAL — ambos os branches retornam o mesmo fallback:
+if (error || !data?.workflow_id || data.workflow_id === 'A_CRIAR') {
+  return OLIVIA_WEBHOOKS.SMART_BLOCKS; // ← fallback
+}
+return OLIVIA_WEBHOOKS.SMART_BLOCKS;   // ← também fallback! nunca usa data.workflow_id
+
+// FIX: usar o workflow_id do banco para construir o path, ou remover a função
+// e usar OLIVIA_WEBHOOKS.SMART_BLOCKS diretamente</pre>
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-C</span>
+      <span class="issue-title">feedback_advogado salvo como JSON string em vez de JSONB nativo — UPDATE pode falhar</span>
+      <span class="issue-file">SmartBlocksStep3Geracao.tsx:183</span>
+    </div>
+    <div class="issue-body">
+      <code>JSON.stringify({nota, comentario, enviado_em})</code> é passado para o campo <code>feedback_advogado</code>. Se o campo no banco for do tipo <code>JSONB</code>, o Supabase espera um objeto JavaScript, não uma string JSON — isso gera erro ou armazena string escapada.
+      <pre>// ATUAL (errado para JSONB):
+feedback_advogado: JSON.stringify({ nota, comentario, enviado_em })
+
+// FIX (objeto direto para JSONB):
+feedback_advogado: { nota, comentario: comentario.trim() || null, enviado_em: new Date().toISOString() }</pre>
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-D</span>
+      <span class="issue-title">AgenteSession.qualidadeIa ainda tem tipo "premium" (3 valores) — inconsistente com constants (2 opções)</span>
+      <span class="issue-file">types.ts (AgenteSession)</span>
+    </div>
+    <div class="issue-body">
+      Round 1 atualizou <code>QUALIDADE_IA_OPTIONS</code> para 2 opções (padrão/pensamento_estendido), mas <code>AgenteSession.qualidadeIa</code> em <code>types.ts</code> ainda tem <code>"padrao" | "avancado" | "premium"</code>. Inconsistência de tipo — pode causar TypeScript warnings nos outros modos.
+    </div>
+  </div>
+
+  <div class="issue p1">
+    <div class="issue-header">
+      <span class="pill p1">P1-E</span>
+      <span class="issue-title">OliviaFilaTab.tsx ainda existe no disco — arquivo morto não removido</span>
+      <span class="issue-file">components/fila/OliviaFilaTab.tsx</span>
+    </div>
+    <div class="issue-body">
+      O Round 1 removeu a referência da tab no roteamento, mas o arquivo <code>src/pages/olivia/components/fila/OliviaFilaTab.tsx</code> ainda existe no disco. Código morto não removido. Deve ser deletado junto com o diretório <code>fila/</code>.
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- P2 GAPS DA SPEC -->
+<div class="section">
+  <div class="section-header">
+    <h2>🔵 P2 — Gaps da Spec (T2-gap-analysis)</h2>
+    <span class="pill p2">6 itens</span>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-A</span>
+      <span class="issue-title">Toggle Relatório HTML é Switch boolean — spec exige botão SIM/NÃO sem default</span>
+      <span class="issue-file">SmartBlocksStep1.tsx + GAP-01 T2-gap-analysis</span>
+    </div>
+    <div class="issue-body">
+      <strong>GAP-01 da spec:</strong> "NÃO é toggle/boolean. É botão SIM/NÃO sem default — forçar escolha consciente do usuário." Atual: <code>&lt;Switch&gt;</code> com <code>checked={state.gerarRelatorioHtml}</code> (default false = NÃO selecionado, mas visualmente indistinto de "não escolheu ainda").
+      <pre>// Trocar Switch por dois botões explícitos sem default selecionado:
+//   [✓ Sim (JARBAS)]  [Não]
+// state.gerarRelatorioHtml: boolean | null (null = não escolheu)</pre>
+    </div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-B</span>
+      <span class="issue-title">Validação de placeholders usa campos hardcoded — não lê conteudo_template real do modelo</span>
+      <span class="issue-file">SmartBlocksStep1.tsx:handleAdvance + GAP-04</span>
+    </div>
+    <div class="issue-body">
+      O <code>handleAdvance</code> tem um TODO explícito: "extrair placeholders do conteudo_template do modelo quando schema estiver disponível". Atualmente verifica apenas 4 campos fixos (<code>numero_cnj</code>, <code>cliente_nome</code>, <code>empresa_nome</code>, <code>advogado_nome</code>). A spec (GAP-04) exige extração dinâmica de <code>olivia_modelos_peticao.conteudo_template</code> (pattern <code>{"{{CAMPO}}"}</code>) + campos editáveis no modal.
+      <p style="margin-top:6px;"><strong>Nota:</strong> <code>usePetitionModels</code> já busca <code>versoes</code> com <code>conteudo_template</code> — dado disponível sem nova query.</p>
+    </div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-C</span>
+      <span class="issue-title">JARBAS_ENABLED hardcoded como true — sem health check real</span>
+      <span class="issue-file">SmartBlocksStep1.tsx:25</span>
+    </div>
+    <div class="issue-body">
+      <code>const JARBAS_ENABLED = true</code> — sempre mostra o toggle de relatório. A spec diz: "condicional a JARBAS online". Deve verificar via endpoint de saúde (<code>ssh mac-mini echo ok</code> não é viável no frontend, mas existe endpoint de health no n8n ou pode ser um campo em <code>olivia_workflows_canonicos</code>).
+    </div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-D</span>
+      <span class="issue-title">GeracaoProgress usa labels genéricos de IF — deveria ser agnóstico ao caso</span>
+      <span class="issue-file">components/shared/GeracaoProgress.tsx</span>
+    </div>
+    <div class="issue-body">
+      <code>REASONING_STEPS</code> tem "Analisando restrições de crédito..." hardcoded — específico de IF. Smart Blocks é usado para múltiplos tipos de processo. Labels devem ser genéricos ou vir do n8n via <code>progresso</code> JSONB (que já está implementado como fallback no Step 3, mas os labels fixos do componente aparecem quando não há progresso real).
+    </div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-E</span>
+      <span class="issue-title">WizardContainer.handleGerar é placeholder — retorna Promise.resolve() sem implementação</span>
+      <span class="issue-file">components/shared/WizardContainer.tsx:handleGerar</span>
+    </div>
+    <div class="issue-body">
+      Mesmo que o P0-NEW seja corrigido (deixar de usar WizardContainer para Smart Blocks), o componente é usado para outros contextos. <code>handleGerar</code> tem <code>return Promise.resolve()</code> com comentário "Placeholder — integração real na Sala 3". Isso é código enganoso que pode causar bugs silenciosos em outros modos.
+    </div>
+  </div>
+
+  <div class="issue p2">
+    <div class="issue-header">
+      <span class="pill p2">P2-F</span>
+      <span class="issue-title">GAP-05 spec: categoria_empresa_override por processo — não verificado no banco</span>
+      <span class="issue-file">GAP-05 T2-gap-analysis / processos schema</span>
+    </div>
+    <div class="issue-body">
+      A spec (GAP-05) exige campo <code>categoria_empresa_override</code> na tabela <code>processos</code> para permitir override da categoria por processo (sem alterar a empresa). A query atual usa <code>processo.categoria_empresa_id</code> (que vem da seleção no Step 1 via <code>ProcessoSelecionado.categoria_empresa_id</code>). Não foi verificado se esse campo existe no banco e se o <code>ProcessoSelector</code> o retorna corretamente. Pode ser que esteja funcionando por acaso — ou pode retornar <code>null</code> sempre.
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- PROMPTS CC -->
+<div class="section">
+  <div class="section-header">
+    <h2>🤖 Prompts para Claude Code</h2>
+    <span class="pill ok">Executar na ordem</span>
+  </div>
+
+  <!-- PROMPT 1 — P0 ROUTING -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p0">P0</span>
+      <span>Fix roteamento — index.tsx deve renderizar OliviaGeradorSmartBlocks, não WizardContainer</span>
+      <span style="color:var(--muted);font-size:11px;">~10 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span><span>⏱ ~10 min</span><span>🎯 Conecta todos os fixes do Round 1 ao usuário</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="p-routing">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## PROBLEMA CRÍTICO
+
+Em `src/pages/olivia/index.tsx`, quando o usuário seleciona Smart Blocks, o código renderiza `WizardContainer` (que usa `GeradorStep1-5` — componentes legados genéricos).
+
+O componente correto para Smart Blocks é `OliviaGeradorSmartBlocks` localizado em:
+`src/pages/olivia/components/gerador/OliviaGeradorSmartBlocks.tsx`
+
+Esse componente já tem seu próprio header, WizardStepper (3 steps), Step1/Step2/Step3, e usa `useSmartBlocksGeneration`. Todos os fixes do Round 1 estão nele — mas ele NUNCA é importado nem renderizado no `index.tsx`.
+
+## O QUE FAZER
+
+### 1. Em `src/pages/olivia/index.tsx`:
+
+a) Adicionar import:
+```typescript
+import OliviaGeradorSmartBlocks from './components/gerador/OliviaGeradorSmartBlocks';
+```
+
+b) Substituir o bloco de renderização do Smart Blocks:
+```typescript
+// REMOVER o bloco inteiro de wizardTabs/WizardTabBar/WizardContainer para smart_blocks:
+// (o handleModeSelect, wizardTabs state, handleTabClose, handleTabNew podem ser simplificados)
+
+// SUBSTITUIR por renderização direta:
+{(selectedMode === 'smart-blocks' || selectedMode === 'smart_blocks') && (
+  <OliviaGeradorSmartBlocks />
+)}
+```
+
+c) Limpar o state e handlers que não são mais necessários para smart_blocks:
+   - `wizardTabs`, `activeTabId`, `handleTabClose`, `handleTabNew` só eram usados para WizardContainer/smart_blocks
+   - Se Express e Agente não os usam, podem ser removidos completamente
+   - Se algum deles ainda for usado, manter apenas o necessário
+
+d) No `handleModeSelect`, simplificar o bloco de smart_blocks para não criar WizardSession:
+```typescript
+// Ao invés de criar wizardTabs:
+if (mode === 'smart-blocks' || mode === 'smart_blocks') {
+  // Não precisa mais de wizardTabs — OliviaGeradorSmartBlocks gerencia seu próprio state
+  return;
+}
+```
+
+### 2. Verificar se `WizardContainer` e `WizardTabBar` ainda são usados por outros modes
+   - Se só eram usados para smart_blocks: marcar como @deprecated ou remover imports
+   - Não remover os arquivos sem verificar outros usos (grep antes)
+
+## CRITÉRIOS DE SUCESSO
+
+- Selecionar Smart Blocks renderiza `OliviaGeradorSmartBlocks` com Step1, Step2, Step3
+- TypeScript 0 erros
+- Express e Agente não são afetados
+- Sem imports órfãos no index.tsx</div>
+        <button class="copy-btn" onclick="copyPrompt('p-routing', this)">📋 Copiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 2 — P1 FIXES -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p1">P1</span>
+      <span>Fix P1s restantes — versaoId null, dead code webhook, feedback JSONB, tipo AgenteSession, fila dir</span>
+      <span style="color:var(--muted);font-size:11px;">~20 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span><span>⏱ ~20 min</span><span>🎯 5 P1s em arquivos diferentes</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="p-p1s">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## 5 CORREÇÕES P1 INDEPENDENTES
+
+---
+
+### CORREÇÃO 1 — Step 2 não renderiza quando versaoId é null (P1-A)
+
+**Arquivo:** `src/pages/olivia/components/gerador/OliviaGeradorSmartBlocks.tsx` (~linha 74)
+
+Guard atual:
+```typescript
+{stepIndex === 1 && state.modeloId && state.versaoId && (
+  <SmartBlocksStep2TagWizard ... />
+)}
+```
+
+Quando `state.modeloId` existe mas `state.versaoId` é null (modelo sem active_version_id), o Step 2 simplesmente não renderiza — tela em branco sem feedback.
+
+**Fix:** adicionar estado de erro explícito:
+```typescript
+{stepIndex === 1 && state.modeloId && !state.versaoId && (
+  <div className="mx-auto max-w-[600px] rounded-xl border border-destructive/30 bg-destructive/5 p-8 text-center space-y-4">
+    <AlertTriangle className="mx-auto h-10 w-10 text-destructive" />
+    <p className="text-sm font-medium">Modelo sem versão publicada</p>
+    <p className="text-xs text-muted-foreground">Configure uma versão ativa para este modelo no painel administrativo.</p>
+    <Button variant="outline" onClick={() => setStepIndex(0)}>
+      <ArrowLeft className="mr-2 h-4 w-4" /> Voltar e escolher outro modelo
+    </Button>
+  </div>
+)}
+{stepIndex === 1 && state.modeloId && state.versaoId && (
+  <SmartBlocksStep2TagWizard ... />
+)}
+```
+
+Importar `AlertTriangle` se não estiver importado.
+
+---
+
+### CORREÇÃO 2 — resolveSmartBlocksWebhookPath é dead code (P1-B)
+
+**Arquivo:** `src/pages/olivia/hooks/useSmartBlocksGeneration.ts` (linhas 13-26)
+
+A função consulta o banco mas nunca usa o resultado — ambos os branches retornam `OLIVIA_WEBHOOKS.SMART_BLOCKS`.
+
+**Fix:** duas opções, escolha a mais simples:
+a) Remover a função e usar `OLIVIA_WEBHOOKS.SMART_BLOCKS` diretamente na linha 158
+b) Corrigir para usar o `workflow_id` retornado:
+```typescript
+if (!error && data?.workflow_id && data.workflow_id !== 'A_CRIAR') {
+  return data.workflow_id; // usar o path do banco
+}
+return OLIVIA_WEBHOOKS.SMART_BLOCKS; // fallback
+```
+
+Prefira opção (a) por simplicidade — o path está confirmado como `olivia/gerar-manual` no comentário de `constants.ts`.
+
+---
+
+### CORREÇÃO 3 — feedback_advogado: JSON.stringify → objeto direto (P1-C)
+
+**Arquivo:** `src/pages/olivia/components/smart-blocks/SmartBlocksStep3Geracao.tsx` (~linha 183)
+
+```typescript
+// ATUAL (errado para campo JSONB):
+const feedback = JSON.stringify({
+  nota,
+  comentario: comentario.trim() || null,
+  enviado_em: new Date().toISOString(),
+});
+await supabase.from('olivia_historico').update({ feedback_advogado: feedback })...
+
+// FIX (objeto JavaScript direto):
+await supabase.from('olivia_historico').update({
+  feedback_advogado: {
+    nota,
+    comentario: comentario.trim() || null,
+    enviado_em: new Date().toISOString(),
+  }
+})...
+```
+
+Remover a variável `feedback` intermediária com `JSON.stringify`.
+
+---
+
+### CORREÇÃO 4 — AgenteSession.qualidadeIa tipo inconsistente (P1-D)
+
+**Arquivo:** `src/pages/olivia/types.ts` (interface AgenteSession)
+
+Encontrar:
+```typescript
+qualidadeIa: "padrao" | "avancado" | "premium";
+```
+
+Substituir por:
+```typescript
+qualidadeIa: "padrao" | "pensamento_estendido";
+```
+
+Verificar se algum componente usa `"avancado"` ou `"premium"` para `qualidadeIa` em `AgenteSession` e atualizar.
+
+---
+
+### CORREÇÃO 5 — Remover OliviaFilaTab.tsx e diretório fila/ (P1-E)
+
+```bash
+# Verificar primeiro se há imports:
+grep -r "OliviaFilaTab\|from.*fila" src/ --include="*.tsx" --include="*.ts"
+```
+
+Se não houver imports ativos, remover:
+- `src/pages/olivia/components/fila/OliviaFilaTab.tsx`
+- Diretório `src/pages/olivia/components/fila/` se estiver vazio após
+
+---
+
+## CRITÉRIOS DE SUCESSO
+
+- Step 2 exibe erro claro quando modelo não tem versão
+- `useSmartBlocksGeneration` sem função dead code
+- `feedback_advogado` salvo como objeto (não string JSON)
+- `AgenteSession.qualidadeIa` com 2 tipos válidos
+- Diretório `fila/` removido
+- TypeScript 0 erros</div>
+        <button class="copy-btn" onclick="copyPrompt('p-p1s', this)">📋 Copiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 3 — P2 GERACAOPROGRESS + PLACEHOLDER REAL -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)">
+      <span class="pill p2">P2</span>
+      <span>Melhorias P2 — labels agnósticos em GeracaoProgress + placeholder real do conteudo_template</span>
+      <span style="color:var(--muted);font-size:11px;">~25 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span><span>⏱ ~25 min</span><span>🎯 2 melhorias P2</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="p-p2a">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## MELHORIA 1 — GeracaoProgress: labels agnósticos (P2-D)
+
+**Arquivo:** `src/pages/olivia/components/shared/GeracaoProgress.tsx`
+
+`REASONING_STEPS` tem labels hardcoded específicos de IF ("Analisando restrições de crédito..."). Smart Blocks é multi-domínio.
+
+**Fix:** aceitar prop opcional de labels e ter um default genérico:
+
+```typescript
+// Substituir REASONING_STEPS por labels genéricos:
+const DEFAULT_STEPS = [
+  { icon: Search,       label: 'Analisando o processo...', min: 0,  max: 20 },
+  { icon: BookOpen,     label: 'Pesquisando fundamentação jurídica...', min: 21, max: 40 },
+  { icon: Layers,       label: 'Estruturando a petição...', min: 41, max: 60 },
+  { icon: PenTool,      label: 'Redigindo seções...', min: 61, max: 80 },
+  { icon: ScanSearch,   label: 'Revisando e refinando...', min: 81, max: 99 },
+  { icon: CheckCircle2, label: 'Petição gerada!', min: 100, max: 100 },
+];
+
+// Adicionar prop opcional à interface Props:
+interface Props {
+  progresso: number;
+  motorAtivo?: 'jana' | 'jarbas';
+  currentMsg?: string;
+  steps?: typeof DEFAULT_STEPS; // override de steps
+}
+
+// Usar `props.steps ?? DEFAULT_STEPS` na renderização
+```
+
+Isso mantém backward compatibility e permite que no futuro outros modos passem steps customizados.
+
+---
+
+## MELHORIA 2 — Validação de placeholders reais do conteudo_template (P2-B)
+
+**Arquivo:** `src/pages/olivia/components/smart-blocks/SmartBlocksStep1.tsx`
+
+O `handleAdvance` tem um TODO: "extrair placeholders do conteudo_template quando schema estiver disponível".
+
+`usePetitionModels` já retorna `versoes` com `conteudo_template`. O dado está disponível.
+
+**Fix — implementar extração real:**
+
+1. No componente, pegar `versoes` do hook `usePetitionModels` que já está instanciado.
+
+2. Encontrar a versão selecionada:
+```typescript
+const versaoSelecionada = versoes.find(v => v.id === state.versaoId);
+const template = versaoSelecionada?.conteudo_template ?? '';
+```
+
+3. Extrair placeholders do template (patterns: `{{CAMPO}}`, `{CAMPO}`, `[[CAMPO]]`):
+```typescript
+function extractPlaceholders(template: string): string[] {
+  const patterns = [
+    /\{\{([A-Z_]+)\}\}/g,     // {{NOME_CLIENTE}}
+    /\{([A-Z_]+)\}/g,          // {NOME_CLIENTE}
+    /\[\[([A-Z_]+)\]\]/g,      // [[NOME_CLIENTE]]
+  ];
+  const found = new Set<string>();
+  for (const pattern of patterns) {
+    for (const match of template.matchAll(pattern)) {
+      found.add(match[1].toLowerCase()); // normalizar para snake_case
+    }
+  }
+  return Array.from(found);
+}
+```
+
+4. Mapear placeholders → campos do processo (via `ProcessoSelecionado`):
+```typescript
+const processoData: Record<string, unknown> = {
+  nome_cliente: processo?.cliente_nome,
+  cliente_nome: processo?.cliente_nome,
+  numero_cnj: processo?.numero_cnj,
+  empresa_nome: processo?.empresa_nome,
+  advogado_nome: processo?.advogado_nome,
+  // Adicionar outros campos conforme necessário
+};
+
+const faltantes = placeholders.filter(p => !processoData[p]);
+```
+
+5. Se `template === ''` ou `versaoSelecionada` não existe: usar validação de campos básicos como fallback (comportamento atual).
+
+6. Atualizar o modal para mostrar os nomes dos placeholders de forma legível (substituir `_` por espaço, capitalizar).
+
+**Atenção:** Se `conteudo_template` for null para todos os modelos existentes, o fallback ativa automaticamente — não quebra o fluxo atual.
+
+## CRITÉRIOS DE SUCESSO
+
+- GeracaoProgress sem labels específicos de IF
+- Validação de placeholders usa template real quando disponível
+- Fallback para campos básicos quando template é null/vazio
+- TypeScript 0 erros</div>
+        <button class="copy-btn" onclick="copyPrompt('p-p2a', this)">📋 Copiar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT 4 — DEEP REVIEW CC -->
+  <div class="accordion">
+    <button class="accordion-trigger" onclick="toggleAccordion(this)" style="background:rgba(124,109,232,0.05);">
+      <span class="pill" style="background:rgba(124,109,232,0.15);color:var(--accent);border:1px solid rgba(124,109,232,0.3);">🔍</span>
+      <span style="color:#a99ff5;">Deep Review CC — comparação completa spec vs código, gerar relatório HTML de pendências</span>
+      <span style="color:var(--muted);font-size:11px;">~30-45 min</span>
+      <span class="chevron">▼</span>
+    </button>
+    <div class="accordion-content">
+      <div class="prompt-meta">
+        <span>📁 ~/beta-mdflow</span><span>📁 ~/Desktop/olivia v3/projeto</span><span>⏱ ~30-45 min</span><span>🎯 Relatório completo para Round 3</span>
+      </div>
+      <div style="position:relative;">
+        <div class="prompt-box" id="p-deepreview">Você está no repositório ~/beta-mdflow (MdFlow — React/TypeScript/Supabase).
+
+## MISSÃO: Deep Review Smart Blocks + Relatório HTML
+
+Faça uma revisão profunda comparando o código atual com os documentos de spec em `~/Desktop/olivia v3/projeto/`.
+
+## ARQUIVOS DE SPEC A LER (em ordem de prioridade)
+
+1. `~/Desktop/olivia v3/projeto/OLIVIA-V3-MASTER-PLAN.md` — visão geral, seções 3.5, 3.6, 3.8, 3.10, 3.11, 3.12
+2. `~/Desktop/olivia v3/projeto/T2-prd-frontend.md` — PRD Frontend, seções 3.9, 4.1, 4.2
+3. `~/Desktop/olivia v3/projeto/T2-gap-analysis-lapidacao.md` — GAPs identificados entre áudios e spec (GAP-01 a GAP-23)
+4. `~/Desktop/olivia v3/projeto/T2-prd-frontend-ux-addendum.md` — adendos UX
+5. `~/Desktop/olivia v3/projeto/T4-prd-automacoes.md` — seção 3 (Workflow Smart Blocks)
+
+## ARQUIVOS DE CÓDIGO A ANALISAR
+
+Smart Blocks:
+- `src/pages/olivia/components/gerador/OliviaGeradorSmartBlocks.tsx`
+- `src/pages/olivia/components/smart-blocks/SmartBlocksStep1.tsx`
+- `src/pages/olivia/components/smart-blocks/SmartBlocksStep2TagWizard.tsx`
+- `src/pages/olivia/components/smart-blocks/SmartBlocksStep3Geracao.tsx`
+- `src/pages/olivia/hooks/useSmartBlocks.ts`
+- `src/pages/olivia/hooks/useSmartBlocksGeneration.ts`
+- `src/pages/olivia/hooks/usePetitionModels.ts`
+- `src/pages/olivia/components/shared/GeracaoProgress.tsx`
+- `src/pages/olivia/index.tsx`
+- `src/pages/olivia/constants.ts`
+- `src/pages/olivia/types.ts`
+- `src/lib/webhook.ts`
+
+## METODOLOGIA
+
+1. Ler todos os arquivos de spec listados acima
+2. Ler todos os arquivos de código listados
+3. Fazer queries SQL no Supabase para verificar schema atual das tabelas relevantes:
+   - `olivia_historico` (campos: feedback_advogado, progresso, pdf_url, motor, versao_id, tipo_peticao_id)
+   - `olivia_modelo_tags` (confirmar FK)
+   - `olivia_workflows_canonicos` (verificar dados)
+   - `processos` (verificar se existe campo `categoria_empresa_override`)
+4. Verificar se OliviaFilaTab ainda existe: `src/pages/olivia/components/fila/`
+5. Para cada feature da spec, verificar: (a) implementada corretamente? (b) parcialmente? (c) ausente?
+
+## FIXES APLICADOS NO ROUND 1+2 (já feitos — não reportar como pendência)
+
+- P0: useSmartBlocks FK modelo_id corrigido
+- P1: payload envelope canônico, org_id, user_id, INSERT campos completos
+- P1: filtro categoria_empresa_id nos blocos
+- P1: filtro ativo=true nas tags
+- P1: QUALIDADE_IA_OPTIONS 2 opções
+- P2: tab fila removida, deprecated removidos, Step3 melhorias
+- P0: index.tsx renderizando OliviaGeradorSmartBlocks (aplicado no Round 2)
+- P1: feedback_advogado como objeto JSONB
+- P1: resolveSmartBlocksWebhookPath simplificado
+
+## FORMATO DO RELATÓRIO
+
+Gerar arquivo HTML em:
+`~/Desktop/olivia v3/reports/sala-smartblocks/YYYY-MM-DD-HH:mm-deepreview-cc.html`
+
+O HTML deve conter:
+
+### Seção 1 — Status Geral
+- Contadores: ✅ Resolvidos | 🔴 P0 | 🟡 P1 | 🔵 P2 | 📋 Pendente spec
+
+### Seção 2 — Issues Confirmados Resolvidos
+- Lista de tudo que foi verificado como OK no código
+
+### Seção 3 — Issues Encontrados (novos e existentes)
+Para cada issue:
+- Severidade, arquivo, linha
+- O que a spec diz
+- O que o código faz
+- Fix sugerido
+
+### Seção 4 — GAPs da Spec T2-gap-analysis
+Para cada GAP-01 a GAP-23:
+- Status: ✅ Implementado / ⚠️ Parcial / ❌ Ausente
+- Notas de implementação ou sugestão
+
+### Seção 5 — Banco de Dados
+- Schema atual vs esperado das tabelas relevantes
+- Migrations necessárias se houver
+
+### Seção 6 — Plano de Correção Priorizado
+- Lista ordenada P0 → P1 → P2
+- Estimativa de tempo por item
+
+## ESTILO DO HTML
+
+Usar dark theme profissional (mesmo estilo dos relatórios anteriores se possível).
+Usar accordions para as seções longas.
+Tabelas para os GAPs da spec.
+Incluir timestamp de geração.
+
+## CRITÉRIOS DE QUALIDADE DO RELATÓRIO
+
+- Baseado em evidências reais (linhas de código, queries SQL, campo da spec)
+- Sem especulação — se não tiver certeza, marcar como "necessita verificação"
+- Issues separados claramente: "novo" vs "persistente do Round 1"
+- GAP-analysis completo: cobrir TODOS os GAPs do arquivo T2-gap-analysis-lapidacao.md
+
+Após gerar o HTML, informar o path completo do arquivo para eu verificar.</div>
+        <button class="copy-btn" onclick="copyPrompt('p-deepreview', this)">📋 Copiar</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<hr class="divider" />
+
+<!-- ORDEM DE EXECUÇÃO -->
+<div class="section">
+  <div class="section-header">
+    <h2>📋 Ordem de Execução Round 2</h2>
+  </div>
+  <div class="issue" style="border-left:3px solid var(--accent);">
+    <div class="issue-body" style="padding:18px;">
+      <div class="tl-item">
+        <span class="tl-badge p0">1º — P0</span>
+        <div class="tl-text"><strong>Fix roteamento index.tsx</strong> — conecta OliviaGeradorSmartBlocks ao usuário</div>
+        <span class="tl-time">~10 min</span>
+      </div>
+      <div class="tl-item">
+        <span class="tl-badge p1">2º — P1</span>
+        <div class="tl-text"><strong>5 P1s restantes</strong> — versaoId null, dead code, JSONB, tipo, fila/</div>
+        <span class="tl-time">~20 min</span>
+      </div>
+      <div class="tl-item">
+        <span class="tl-badge p2">3º — P2</span>
+        <div class="tl-text"><strong>GeracaoProgress labels + placeholder real</strong></div>
+        <span class="tl-time">~25 min</span>
+      </div>
+      <div class="tl-item">
+        <span class="tl-badge" style="background:rgba(124,109,232,0.12);color:var(--accent);border:1px solid rgba(124,109,232,0.3);">4º — 🔍</span>
+        <div class="tl-text"><strong>Deep Review CC</strong> — comparar spec vs código, gerar relatório Round 3</div>
+        <span class="tl-time">~35 min</span>
+      </div>
+      <div style="margin-top:14px;padding:12px;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:8px;color:var(--ok);font-size:13px;">
+        ✅ <strong>Após Round 2:</strong> Smart Blocks terá fluxo completo funcional. O Deep Review vai mapear o que falta para Round 3 (Express, Agente, features spec restantes).
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  🦊 JANA · JARBAS Network · MdLab · 2026-03-20 · Round 2<br>
+  Deep Review: JANA in-house · Smart Blocks OlivIA v3
+</div>
+
+<script>
+function toggleAccordion(btn){
+  const c=btn.nextElementSibling;
+  const o=btn.classList.contains('open');
+  btn.classList.toggle('open',!o);
+  c.classList.toggle('open',!o);
+}
+function copyPrompt(id,btn){
+  const box=document.getElementById(id);
+  const text=box.textContent.trim();
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='✅ Copiado!'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.innerHTML='📋 Copiar'; btn.classList.remove('copied'); },2000);
+  }).catch(()=>{
+    const ta=document.createElement('textarea');
+    ta.value=text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    btn.textContent='✅ Copiado!'; btn.classList.add('copied');
+    setTimeout(()=>{ btn.innerHTML='📋 Copiar'; btn.classList.remove('copied'); },2000);
+  });
+}
+</script>
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OlivIA — PRD Definitivo v5.0 · SSOT · 21/03/2026</title>
+<title>OlivIA — PRD Definitivo v5.1 · SSOT · 21/03/2026</title>
 <style>
 :root{--bg:#0f1117;--bg2:#161b27;--bg3:#1e2535;--bd:#2a3347;--p:#4f8ef7;--pd:#1e3a6e;--g:#34d399;--gd:#0d3325;--r:#f87171;--rd:#3b1919;--y:#fbbf24;--yd:#3b2a0a;--pu:#a78bfa;--pud:#2d1f5e;--t:#2dd4bf;--td:#0d3330;--or:#fb923c;--ord:#3b1f0a;--mu:#6b7280;--tx:#e2e8f0;--tx2:#94a3b8}
 *{box-sizing:border-box;margin:0;padding:0}
@@ -90,12 +90,17 @@ tr:hover td{background:var(--bg3)}
   <a href="#ondas">Ondas CC</a>
   <a href="#regras">Regras CC</a>
   <a href="#avaliacao">Avaliação</a>
+  <a href="#busca-juris">Busca Juris</a>
+  <a href="#obsidian">Obsidian</a>
+  <a href="#grupos-existentes">Grupos</a>
+  <a href="#truncate">Truncate</a>
+  <a href="#cc-deepreview">Prompt CC</a>
 </div>
 
 <div class="wrap">
 
 <div class="hdr">
-  <div class="hbadge">⚖️ OlivIA · PRD Definitivo v5.0 · SSOT · 21/03/2026</div>
+  <div class="hbadge">⚖️ OlivIA · PRD Definitivo v5.1 · SSOT · 21/03/2026</div>
   <h1>Modo Olivia — PRD Definitivo para Execução</h1>
   <p>Documento único e definitivo. Incorpora: PRD v4 + Validação Final + Relatório CC. Qualquer conversa ou grupo que contradizer este documento está errada. Leia do início ao fim antes de qualquer execução.</p>
   <div class="meta">
@@ -1049,9 +1054,313 @@ Incluir trecho ANTES e DEPOIS no prompt.
   </div>
 </section>
 
+<!-- ═══════ SEÇÃO 11: OLIVIA-BUSCA-JURIS ═══════ -->
+<section id="busca-juris">
+  <div class="st">11 — olivia-busca-juris — Skill Centralizada de Jurisprudências</div>
+  <div class="al ok"><div class="ai">✅</div><div class="at"><strong>Dados reais confirmados</strong> olivia_modelo_juris tem 2.440 vínculos ativos. Cada modelo tem até 20 jurisprudências vinculadas por assunto. Essa tabela é a fonte centralizada — skills 4 e 5 devem chamar olivia-busca-juris em vez de query direta.</div></div>
+
+  <div class="g2">
+    <div class="card">
+      <h3>📊 Estrutura olivia_modelo_juris (dados reais)</h3>
+      <table>
+        <tr><th>Campo</th><th>Tipo</th><th>Uso</th></tr>
+        <tr><td>modelo_grupo_id</td><td>uuid → FK</td><td>Modelo de petição selecionado</td></tr>
+        <tr><td>juris_id</td><td>uuid → FK</td><td>Jurisprudência vinculada</td></tr>
+        <tr><td>assunto_id</td><td>uuid → FK</td><td>Assunto/tópico do vínculo</td></tr>
+        <tr><td>advogado_id</td><td>uuid</td><td>NULL = global, preenchido = específico</td></tr>
+      </table>
+      <div class="al info" style="margin-top:8px"><div class="ai">📈</div><div class="at">Modelos reais com mais juris: "Cartão de Crédito" (20), "Serviço de crédito online" (20), "Cheque Especial" (20). Cobertura: ~120 modelos com vínculos confirmados.</div></div>
+    </div>
+    <div class="card">
+      <h3>🔗 olivia-busca-juris.mjs — Spec</h3>
+      <p><strong>Input:</strong> { modelo_grupo_id, assunto_ids[], uf_processo, limite: 10 }</p>
+      <p style="margin-top:6px"><strong>Output:</strong> { juris: [{id, ementa, tribunal, data, texto_integral, embedding_similarity}] }</p>
+      <p style="margin-top:6px"><strong>Lógica:</strong></p>
+      <ol style="padding-left:14px; margin-top:4px">
+        <li>SELECT juris via olivia_modelo_juris WHERE modelo_grupo_id = $id</li>
+        <li>Filtrar por uf_processo.tribunal (TJRS/TJSC/TJSP) primeiro</li>
+        <li>Se &lt; 3 resultados por UF → fallback: outras UFs</li>
+        <li>Ordenar por embedding_similarity com o contexto do processo (fn_rag_search)</li>
+        <li>Retornar top N mais relevantes</li>
+      </ol>
+      <div class="al teal" style="margin-top:8px"><div class="ai">💡</div><div class="at">Skill reutilizável — chamada por olivia-gera-perguntas (para perguntar sobre juris ausentes) e olivia-smartblocks (para incluir juris na petição-base).</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:10px">
+    <h3>🔄 Como olivia-busca-juris se encaixa nas outras skills</h3>
+    <div class="flow">
+      <div class="fb"><div class="fn">olivia-smartblocks</div><div class="fd">chama busca-juris</div></div><div class="fa">→</div>
+      <div class="fb"><div class="fn">busca-juris</div><div class="fd">modelo_juris + RAG</div></div><div class="fa">→</div>
+      <div class="fb"><div class="fn">juris_usadas[]</div><div class="fd">entra na petição-base</div></div>
+    </div>
+    <div class="flow">
+      <div class="fb"><div class="fn">olivia-gera-perguntas</div><div class="fd">chama busca-juris</div></div><div class="fa">→</div>
+      <div class="fb"><div class="fn">busca-juris</div><div class="fd">juris por modelo</div></div><div class="fa">→</div>
+      <div class="fb"><div class="fn">alertar se UF</div><div class="fd">sem juris → perguntar</div></div>
+    </div>
+    <div class="code" style="font-size:11px; margin-top:8px">
+<span class="cm">// Exemplo de uso em olivia-smartblocks.mjs</span>
+const { juris } = await oliviaBuscaJuris({
+  modelo_grupo_id: payload.modelo_grupo_id,
+  assunto_ids: tagsDoModelo.map(t => t.assunto_id),
+  uf_processo: processo.uf,  <span class="cm">// RS | SC | SP</span>
+  limite: 8
+});
+<span class="cm">// juris vai direto para o prompt de geração da petição-base</span>
+    </div>
+  </div>
+
+  <div class="al warn" style="margin-top:10px"><div class="ai">⚠️</div><div class="at"><strong>Skill 9 adicionada ao plano</strong> olivia-busca-juris.mjs deve ser criada no G2 antes das skills 4 e 5, pois ambas dependem dela. Atualizar ordem no grupo G2: criar busca-juris antes de gera-perguntas e smartblocks.</div></div>
+</section>
+
+<!-- ═══════ SEÇÃO 12: OBSIDIAN ═══════ -->
+<section id="obsidian">
+  <div class="st">12 — Obsidian — Integração e Checkpoint por Grupo</div>
+  <div class="al info"><div class="ai">📓</div><div class="at"><strong>Regra</strong> Cada grupo Telegram salva seu checkpoint no Obsidian ao concluir. OlivIA também lê do Obsidian via skill antes de gerar. Vault em ~/Desktop/olivia v3/Projeto/</div></div>
+
+  <div class="g2">
+    <div class="card">
+      <h3>📁 Estrutura Obsidian atual</h3>
+      <ul>
+        <li><code>projeto-olivia/plano-mestre.md</code> — SSOT do projeto</li>
+        <li><code>projeto-olivia/estado-atual.md</code> — estado dos modos</li>
+        <li><code>projeto-olivia/prd/frontend.md</code></li>
+        <li><code>projeto-olivia/prd/backend.md</code></li>
+        <li><code>projeto-olivia/prd/automacoes.md</code></li>
+        <li><code>projeto-olivia/prd/gap-analysis.md</code></li>
+        <li><code>projeto-olivia/prd/revisao-complemento.md</code></li>
+        <li><code>projeto-olivia/gas/gas-revisao.md</code></li>
+        <li><code>projeto-olivia/sessoes/2026-03-21.md</code></li>
+        <li><code>projeto-olivia/specs/</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📝 Arquivos a criar por grupo (checkpoint obrigatório)</h3>
+      <table>
+        <tr><th>Grupo</th><th>Arquivo Obsidian</th><th>Quando salvar</th></tr>
+        <tr><td>G1 Backend</td><td>prd/backend-v5.md</td><td>Após migration executada</td></tr>
+        <tr><td>G2 Skills</td><td>specs/skills-spec.md</td><td>Após cada skill criada</td></tr>
+        <tr><td>G3 Frontend</td><td>prd/frontend-v5.md</td><td>Após cada onda</td></tr>
+        <tr><td>G4 Integração</td><td>specs/integracao.md</td><td>Após tunnel OK</td></tr>
+        <tr><td>G5 Editor</td><td>specs/editor-docx.md</td><td>Após olivia-cria-doc OK</td></tr>
+        <tr><td>G6 E2E</td><td>sessoes/e2e-resultado.md</td><td>Após teste real</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:10px">
+    <h3>📋 Template de checkpoint por grupo (incluir no prompt de cada grupo)</h3>
+    <div class="code" id="obs-checkpoint">
+      <button class="copy" onclick="cp('obs-checkpoint')">Copiar template</button>
+<span class="cm"># Instrução para todos os grupos — adicionar ao final de cada prompt:</span>
+
+Ao concluir cada tarefa, salvar checkpoint no Obsidian:
+Arquivo: ~/Desktop/olivia v3/Projeto/projeto-olivia/[pasta]/[arquivo].md
+
+Formato:
+---
+data: YYYY-MM-DD HH:MM
+grupo: G[N] — [nome]
+status: concluido | parcial | bloqueado
+---
+
+## O que foi feito
+- [lista de tarefas concluídas]
+
+## Decisões tomadas
+- [decisões e motivos]
+
+## Divergências encontradas
+- [o que diferiu do PRD e por quê]
+
+## Próximos passos
+- [o que falta]
+
+## Arquivos modificados
+- [lista de arquivos]
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:10px">
+    <h3>🔗 OlivIA lendo o Obsidian — skill olivia-busca-contexto</h3>
+    <p>Antes de cada geração, OlivIA pode ler o vault local para contexto adicional. Vault espelhado em <code>/Users/Shared/olivia-vault/</code> (Mac Mini). A skill olivia-smartblocks pode incluir leitura de playbooks do vault antes de montar a petição-base.</p>
+    <div class="code" style="font-size:11px; margin-top:8px">
+<span class="cm">// Em olivia-smartblocks.mjs — opcional mas recomendado</span>
+const playbook = await fs.readFile(
+  `/Users/Shared/olivia-vault/playbooks/${tipoReu}.md`, 'utf-8'
+);
+<span class="cm">// Inclui instruções específicas do playbook no prompt de smartblocks</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ SEÇÃO 13: GRUPOS EXISTENTES ═══════ -->
+<section id="grupos-existentes">
+  <div class="st">13 — Grupos Telegram Existentes — Reutilizar</div>
+  <div class="al ok"><div class="ai">✅</div><div class="at"><strong>Não precisa criar todos do zero</strong> Alguns grupos já existem. Usar o mesmo grupo, enviar o prompt desta seção correspondente.</div></div>
+
+  <table>
+    <tr><th>Grupo</th><th>chat_id</th><th>Usar para</th><th>Estado atual</th></tr>
+    <tr><td>[Jana] /olivia - Backend</td><td>-5134800985</td><td><strong>G1 Backend</strong> — mesmo grupo</td><td>Ativo — usado para lapidação de playbooks</td></tr>
+    <tr><td>S3 — Modo Express</td><td>-5108371071</td><td><strong>Este grupo</strong> — orquestração</td><td>Ativo — planejamento PRD</td></tr>
+    <tr><td>[Jn] Modo Agente</td><td>-5149953569</td><td><strong>G2 Skills</strong> (ou criar novo)</td><td>Concluído — Modo Agente v2</td></tr>
+    <tr><td>[Jana] Olivia</td><td>-5219977942</td><td>Arquivado</td><td>Histórico antigo</td></tr>
+  </table>
+
+  <div class="al warn"><div class="ai">⚠️</div><div class="at"><strong>Grupo Cérebro OlivIA</strong> Se existe um grupo dedicado ao Cérebro/migração, usar o mesmo para o G1 Backend — contexto já está lá. Enviar apenas o prompt atualizado do G1.</div></div>
+
+  <div class="card" style="margin-top:10px">
+    <h3>💬 Instrução para salvar contexto no Obsidian (adicionar em TODOS os prompts)</h3>
+    <p>Adicionar ao final de cada prompt enviado nos grupos:</p>
+    <div class="code" id="obs-save-rule">
+      <button class="copy" onclick="cp('obs-save-rule')">Copiar</button>
+REGRA DE CHECKPOINT OBSIDIAN:
+Ao concluir qualquer tarefa não-trivial neste grupo, salvar checkpoint em:
+~/Desktop/olivia v3/Projeto/projeto-olivia/[arquivo específico deste grupo]
+
+Formato: data + o que foi feito + decisões + arquivos modificados + próximos passos.
+Confirmar com "✅ Checkpoint salvo: [caminho]" ao final de cada entrega.
+    </div>
+  </div>
+</section>
+
+<!-- ═══════ SEÇÃO 14: CONFIRMAR TRUNCATE ═══════ -->
+<section id="truncate">
+  <div class="st">14 — Confirmação: TRUNCATE olivia_historico</div>
+  <div class="al warn"><div class="ai">⚠️</div><div class="at"><strong>Aguardando confirmação explícita de Christian</strong> 103 registros serão deletados permanentemente. Nenhum deles gerou petição válida — todos são testes com motor n8n/smart-blocks/jarbas que falharam ou foram abandonados.</div></div>
+
+  <table>
+    <tr><th>Status / Motor</th><th>Qtd</th><th>O que são</th><th>Pode deletar?</th></tr>
+    <tr><td>ABANDONADO / n8n</td><td>37</td><td>Testes abandonados sem petição</td><td><span class="tag ok">SIM</span></td></tr>
+    <tr><td>ERRO / smart-blocks</td><td>22</td><td>Erros de geração</td><td><span class="tag ok">SIM</span></td></tr>
+    <tr><td>ERRO / n8n</td><td>15</td><td>fetch() quebrado</td><td><span class="tag ok">SIM</span></td></tr>
+    <tr><td>SUCESSO / smart-blocks</td><td>14</td><td>Gerados mas nunca aprovados</td><td><span class="tag warn">SIM — nunca validados</span></td></tr>
+    <tr><td>SUCESSO / n8n</td><td>10</td><td>Gerados via N8n (motor eliminado)</td><td><span class="tag warn">SIM — motor obsoleto</span></td></tr>
+    <tr><td>SUCESSO / olivia-juridico</td><td>2</td><td>Motor legacy</td><td><span class="tag ok">SIM</span></td></tr>
+    <tr><td>ERRO/SUCESSO / outros</td><td>3</td><td>agente, jarbas, express</td><td><span class="tag ok">SIM</span></td></tr>
+    <tr><td><strong>TOTAL</strong></td><td><strong>103</strong></td><td>Nenhum aprovado para produção real</td><td><span class="tag ok">SIM — limpar</span></td></tr>
+  </table>
+
+  <div class="al err"><div class="ai">❌</div><div class="at"><strong>SQL para executar no G1 (após confirmação)</strong> TRUNCATE TABLE olivia_historico RESTART IDENTITY CASCADE; · Esta ação também deleta cascade: olivia_relatorios (0 rows), olivia_messages vinculadas, olivia_threads vinculadas.</div></div>
+  <div class="al ok" style="margin-top:6px"><div class="ai">✅</div><div class="at"><strong>Christian confirmou (sessão 21/03)</strong> "Deleta todo o histórico de petições geradas, nunca gerou uma petição certa" — confirmação registrada neste PRD. G1 pode executar o TRUNCATE.</div></div>
+</section>
+
+<!-- ═══════ SEÇÃO 15: PROMPT DEEP REVIEW CC ═══════ -->
+<section id="cc-deepreview">
+  <div class="st">15 — Prompt para Claude Code — Deep Review e Complemento deste HTML</div>
+  <div class="al info"><div class="ai">📋</div><div class="at"><strong>Como usar</strong> Copie o prompt abaixo, cole no terminal do Claude Code. Ele faz deep review de cada detalhe do plano, verifica dados reais do banco e do código, e complementa diretamente este HTML com o que encontrar.</div></div>
+
+  <div class="acc open">
+    <div class="ah" onclick="ta(this)">
+      <div class="an info">CC</div>
+      <div class="atitle">Prompt CC — Deep Review + Complementar o PRD Definitivo</div>
+      <span class="aarrow">▼</span>
+    </div>
+    <div class="ab">
+      <div class="code" id="cc-deepreview-prompt">
+        <button class="copy" onclick="cp('cc-deepreview-prompt')">Copiar prompt</button>
+Você é o revisor técnico do PRD Definitivo da OlivIA.
+Sua missão: fazer deep review de CADA DETALHE do plano, verificar dados reais,
+identificar gaps e complementar o HTML diretamente.
+
+## ARQUIVO PRINCIPAL
+~/jarbas-reports/jana/olivia/olivia-prd-definitivo.html
+
+## ARQUIVOS DE REFERÊNCIA (leia todos antes de começar)
+1. ~/Desktop/olivia v3/Projeto/projeto-olivia/prd/backend.md
+2. ~/Desktop/olivia v3/Projeto/projeto-olivia/prd/frontend.md
+3. ~/Desktop/olivia v3/Projeto/projeto-olivia/prd/automacoes.md
+4. ~/Desktop/olivia v3/Projeto/projeto-olivia/prd/gap-analysis.md
+5. ~/Desktop/olivia v3/Projeto/projeto-olivia/prd/revisao-complemento.md
+6. ~/Desktop/olivia v3/Projeto/projeto-olivia/plano-mestre.md
+7. ~/Desktop/olivia v3/Projeto/projeto-olivia/estado-atual.md
+8. ssh mac-mini "cat /Users/olivia/.openclaw/workspace-olivia/SOUL.md"
+9. ssh mac-mini "cat /Users/olivia/.openclaw/workspace-olivia/TOOLS.md"
+10. ~/beta-mdflow/src/pages/olivia/ (estrutura atual do frontend)
+11. ~/beta-mdflow/src/pages/olivia/hooks/useExpressGeneration.ts
+12. ~/beta-mdflow/src/lib/jarbas-url.ts
+
+## QUERIES SQL OBRIGATÓRIAS (executar via Supabase API — credenciais em ~/jarbas/.env)
+1. Schema completo olivia_historico: colunas, tipos, defaults
+2. Verificar se progresso_pct já existe: SELECT column_name FROM information_schema.columns WHERE table_name='olivia_historico' AND column_name='progresso_pct'
+3. Verificar tabelas com FK para olivia_historico (para cascade do TRUNCATE): SELECT tc.table_name, kcu.column_name FROM information_schema.table_constraints tc JOIN information_schema.key_column_usage kcu ON tc.constraint_name=kcu.constraint_name WHERE tc.constraint_type='FOREIGN KEY' AND ccu.table_name='olivia_historico'
+4. Verificar olivia_threads e olivia_messages (FKs para historico): SELECT COUNT(*) FROM olivia_threads; SELECT COUNT(*) FROM olivia_messages
+5. Schema olivia_modelo_juris + sample data (já feito — confirmar 2440 rows)
+6. Verificar olivia_busca_juris ou fn_olivia_busca_juris existe como RPC: SELECT proname FROM pg_proc WHERE proname LIKE '%juris%'
+7. Verificar campos olivia_blocos_texto.juris_ids: SELECT COUNT(*) FROM olivia_blocos_texto WHERE juris_ids IS NOT NULL AND jsonb_array_length(juris_ids) > 0
+8. Verificar olivia_versoes schema (FK versao_id no historico): SELECT column_name, data_type FROM information_schema.columns WHERE table_name='olivia_versoes' ORDER BY ordinal_position
+9. Verificar olivia_modelos_peticao: relação com olivia_modelos_grupo (como versao_id conecta a modelo_grupo_id)
+10. Verificar olivia_types_prova.nivel_impugnacao: SELECT DISTINCT nivel_impugnacao FROM olivia_tipos_prova
+
+## O QUE REVISAR (ponto a ponto)
+
+### Backend
+- Verificar se novos campos do PRD já existem na tabela (migration já rodou?)
+- Confirmar que TRUNCATE cascade não vai afetar tabelas importantes não mencionadas
+- Verificar relação exata versao_id → modelo_grupo_id (como a FK funciona)
+- Confirmar existência e schema de olivia_versoes
+
+### Skills
+- Verificar se olivia_modelo_juris tem campo assunto_id FK para qual tabela
+- Confirmar que fn_rag_search está disponível como RPC: SELECT proname FROM pg_proc WHERE proname='fn_rag_search'
+- Verificar se olivia_blocos_texto.juris_ids é usado em alguma parte do código atual
+- A skill olivia-busca-juris deve usar modelo_juris OU blocos.juris_ids OU ambos?
+
+### Frontend
+- Verificar versão atual do componente ExpressStep2Triagem.tsx — tem campo tipo_prova?
+- Verificar se Zustand usePeticaoStore já existe ou é realmente novo
+- Verificar se useExpressGeneration.ts já tem o FK correto ou confirmar que ainda está errado
+- Listar todos os arquivos que fazem chamada para N8n/JARBAS (para substituir por OlivIA)
+
+### OlivIA Mac Mini
+- Verificar se porta é 18791 ou 18793 (SOUL.md vs tunnel config)
+- Listar arquivos existentes em /Users/olivia/.openclaw/workspace-olivia/skills/
+
+## O QUE FAZER COM OS RESULTADOS
+
+1. Gerar uma seção adicional no HTML com:
+   - Tabela: item revisado | dado esperado | dado real | divergência | ação necessária
+   - Lista de gaps encontrados que o PRD não cobriu
+   - Confirmação ou correção de cada decisão técnica
+
+2. Complementar a seção de skills com:
+   - Spec detalhada de olivia-busca-juris.mjs (input/output/lógica SQL)
+   - Clarificação: usa olivia_modelo_juris ou blocos.juris_ids ou ambos?
+
+3. Complementar a seção de banco com:
+   - Schema real de olivia_versoes
+   - Relação exata versao_id → modelo_grupo_id (JOIN que a FK precisa)
+   - Impacto real do TRUNCATE (tabelas em cascade)
+
+4. Complementar os prompts dos grupos G1 e G2 com:
+   - Detalhes adicionais descobertos na revisão
+
+5. Adicionar seção de troubleshooting:
+   - Erros mais prováveis por skill e como debugar
+   - Checklist pré-lançamento completo
+
+## REGRAS DE EDIÇÃO DO HTML
+- Adicionar APENAS seções novas — não remover nada existente
+- Inserir antes do <div style="text-align:center;margin-top:40px..."> (rodapé)
+- Manter o mesmo CSS do documento (usar as classes existentes: .card, .al, .acc, .code, etc)
+- Título de cada seção nova: id="cc-review-[N]", número sequencial
+- Após editar: fazer push para GitHub
+
+## APÓS COMPLEMENTAR
+cd ~/jarbas-reports && git add jana/olivia/olivia-prd-definitivo.html && git commit -m "olivia: prd v5 complementado cc deep review - [resumo do que adicionou]" && git push origin main
+
+Confirmar ao final: "✅ PRD complementado e publicado: [lista do que adicionou] · Commit: [hash]"
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- RODAPÉ -->
 <div style="text-align:center;margin-top:40px;padding-top:20px;border-top:1px solid var(--bd);color:var(--mu);font-size:11px">
-  ⚖️ OlivIA · PRD Definitivo v5.0 · SSOT · 21/03/2026 · 🦊 JANA<br>
-  Incorpora: PRD v4 + Validação Final + CC Validation · Este documento orienta todos os grupos de execução
+  ⚖️ OlivIA · PRD Definitivo v5.1 · SSOT · 21/03/2026 · 🦊 JANA<br>
+  Incorpora: PRD v4 + Validação Final + CC Validation + Deep Review v5.1<br>
+  Este documento orienta todos os grupos de execução · Salvar checkpoint no Obsidian ao concluir cada grupo
 </div>
 
 </div>

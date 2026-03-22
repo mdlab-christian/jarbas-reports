@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G1 Backend — Plano de Execução | OlivIA</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3a;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --green: #22c55e;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #a855f7;
+    --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Pro Text', -apple-system, sans-serif; font-size: 14px; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #1a1d27 0%, #0f1117 100%); border-bottom: 1px solid var(--border); padding: 28px 40px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #fff; }
+  .header .meta { color: var(--muted); margin-top: 6px; font-size: 13px; }
+  .header .badge { display: inline-block; background: #22c55e22; color: var(--green); border: 1px solid #22c55e44; border-radius: 12px; padding: 2px 10px; font-size: 11px; font-weight: 600; margin-right: 8px; }
+  .badge.warn { background: #f59e0b22; color: var(--yellow); border-color: #f59e0b44; }
+  .badge.danger { background: #ef444422; color: var(--red); border-color: #ef444444; }
+  .badge.info { background: #3b82f622; color: var(--blue); border-color: #3b82f644; }
+  .container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+  .summary-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .summary-card .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .summary-card .value { font-size: 26px; font-weight: 700; margin-top: 4px; }
+  .summary-card .detail { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .green { color: var(--green); }
+  .red { color: var(--red); }
+  .yellow { color: var(--yellow); }
+  .blue { color: var(--blue); }
+
+  .section { margin-bottom: 32px; }
+  .section-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .section-title .num { background: var(--blue); color: #fff; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+
+  .step-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 16px; overflow: hidden; }
+  .step-header { padding: 16px 20px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+  .step-num { background: var(--blue); color: #fff; border-radius: 6px; padding: 2px 10px; font-size: 13px; font-weight: 700; }
+  .step-num.danger { background: var(--red); }
+  .step-num.warn { background: var(--yellow); color: #000; }
+  .step-num.ok { background: var(--green); color: #000; }
+  .step-num.purple { background: var(--purple); }
+  .step-title { font-weight: 700; color: #fff; font-size: 15px; }
+  .step-badge { margin-left: auto; }
+  .step-body { padding: 16px 20px; }
+  .step-body p { color: var(--muted); margin-bottom: 12px; }
+
+  .fact-row { display: flex; gap: 24px; margin-bottom: 12px; flex-wrap: wrap; }
+  .fact { background: #0f1117; border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; }
+  .fact .fact-label { color: var(--muted); font-size: 11px; }
+  .fact .fact-value { font-size: 14px; font-weight: 600; margin-top: 2px; }
+
+  pre, code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; }
+  .sql-block { background: #0a0d14; border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; margin: 12px 0; }
+  .sql-block code { color: #a5d6ff; }
+  .sql-block .kw { color: #ff79c6; }
+  .sql-block .tbl { color: #8be9fd; }
+  .sql-block .str { color: #f1fa8c; }
+  .sql-block .cmt { color: #6272a4; }
+
+  .warning-box { background: #f59e0b11; border: 1px solid #f59e0b44; border-radius: 8px; padding: 14px 16px; margin: 12px 0; color: var(--yellow); font-size: 13px; }
+  .danger-box { background: #ef444411; border: 1px solid #ef444444; border-radius: 8px; padding: 14px 16px; margin: 12px 0; color: var(--red); font-size: 13px; }
+  .ok-box { background: #22c55e11; border: 1px solid #22c55e44; border-radius: 8px; padding: 14px 16px; margin: 12px 0; color: var(--green); font-size: 13px; }
+  .info-box { background: #3b82f611; border: 1px solid #3b82f644; border-radius: 8px; padding: 14px 16px; margin: 12px 0; color: var(--blue); font-size: 13px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th { background: #0f1117; color: var(--muted); text-align: left; padding: 8px 12px; font-weight: 600; border-bottom: 1px solid var(--border); }
+  td { padding: 8px 12px; border-bottom: 1px solid #1e2133; }
+  tr:last-child td { border-bottom: none; }
+
+  .checklist { list-style: none; }
+  .checklist li { padding: 6px 0; color: var(--text); display: flex; align-items: center; gap: 8px; }
+  .checklist li::before { content: '□'; color: var(--muted); font-size: 16px; }
+  .checklist li.done::before { content: '✅'; }
+
+  .vault-section { background: #1a1d27; border: 1px solid #2a2d3a; border-left: 3px solid var(--purple); border-radius: 10px; padding: 20px; margin-top: 32px; }
+  .vault-title { color: var(--purple); font-weight: 700; font-size: 15px; margin-bottom: 12px; }
+
+  .footer { text-align: center; color: var(--muted); font-size: 12px; padding: 32px; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🤖 G1 Backend — Plano de Execução OlivIA</h1>
+  <div class="meta">
+    <span class="badge">Migration G1</span>
+    <span class="badge warn">Aguardando Aprovação</span>
+    <span class="badge info">Supabase qdivfairxhdihaqqypgb</span>
+    <span style="color: var(--muted)">JANA 🦊 · 21/03/2026</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ESTADO ATUAL -->
+  <div class="section">
+    <div class="section-title"><span class="num">📊</span> Estado Atual do Banco (verificado agora)</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="label">olivia_flow</div>
+        <div class="value green">0 rows</div>
+        <div class="detail">RLS: ✅ ON · Seguro para DROP</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">olivia_historico_gerador</div>
+        <div class="value green">0 rows</div>
+        <div class="detail">RLS: ❌ OFF · Seguro para DROP</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">olivia_historico</div>
+        <div class="value yellow">103 rows</div>
+        <div class="detail">⚠️ TRUNCATE pendente — confirmar</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">olivia_modelo_juris</div>
+        <div class="value red">2.440 rows</div>
+        <div class="detail">RLS: ❌ OFF · Apenas habilitar RLS</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">olivia_tipos_prova</div>
+        <div class="value">10 rows</div>
+        <div class="detail">Adicionar 5 novos · Total: 15</div>
+      </div>
+      <div class="summary-card">
+        <div class="label">olivia_relatorios</div>
+        <div class="value red">NÃO EXISTE</div>
+        <div class="detail">P0 — CREATE TABLE obrigatório</div>
+      </div>
+    </div>
+
+    <div class="warning-box">
+      ⚠️ <strong>LIÇÃO APLICADA:</strong> olivia_modelo_juris tem 2.440 rows (NÃO estava vazia). Conforme vault/03_licoes/olivia-modelo-juris-nao-estava-vazia.md — apenas habilitar RLS, jamais dropar.
+    </div>
+  </div>
+
+  <!-- CHECK ATUAL -->
+  <div class="section">
+    <div class="section-title"><span class="num">🔍</span> CHECKs Encontrados em olivia_historico</div>
+    <table>
+      <tr><th>Constraint</th><th>Estado atual</th><th>Ação G1</th></tr>
+      <tr>
+        <td><code>chk_olivia_historico_modo</code></td>
+        <td>IA_ASSISTIDA | JARBAS | MANUAL | EXPRESS | SMART_BLOCKS | VIBELAW | OLIVIA | olivia</td>
+        <td><span style="color:var(--green)">✅ Já correto</span></td>
+      </tr>
+      <tr>
+        <td><code>chk_olivia_historico_status</code></td>
+        <td>PENDENTE | EM_PROGRESSO | SUCESSO | ERRO | ABANDONADO | CONCLUIDO | AGUARDA_REVISAO | PROCESSANDO</td>
+        <td><span style="color:var(--green)">✅ Já correto</span></td>
+      </tr>
+      <tr>
+        <td><code>chk_olivia_historico_qualidade_ia</code></td>
+        <td>padrao | avancado | <strong style="color:var(--red)">pensamento_estendido | opus</strong></td>
+        <td><span style="color:var(--red)">❌ Migrar → apenas padrao|avancado</span></td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- COLUNAS NOVAS -->
+  <div class="section">
+    <div class="section-title"><span class="num">📋</span> Colunas novas em olivia_historico</div>
+    <div class="ok-box">
+      ✅ <strong>score_revisor, tokens_usados, url_publica</strong> já existem no banco.
+    </div>
+    <table>
+      <tr><th>Coluna</th><th>Existe?</th><th>Ação</th></tr>
+      <tr><td>progresso_pct</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>progresso_msg</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>perguntas_geradas</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>analise_provas</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>chance_ganho</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>docx_url</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>codigo_peticao</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>dados_reu</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>reclame_aqui</td><td>❌ Não</td><td>ADD COLUMN</td></tr>
+      <tr><td>score_revisor</td><td>✅ Existe</td><td>Nenhuma</td></tr>
+      <tr><td>tokens_usados</td><td>✅ Existe</td><td>Nenhuma</td></tr>
+      <tr><td>url_publica</td><td>✅ Existe</td><td>Nenhuma</td></tr>
+      <tr><td>relatorio_html_url</td><td>✅ Existe</td><td>Nenhuma</td></tr>
+    </table>
+  </div>
+
+  <!-- PLANO DE EXECUÇÃO -->
+  <div class="section">
+    <div class="section-title"><span class="num">▶</span> Plano de Execução — Passo a Passo</div>
+
+    <!-- PASSO 1 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num danger">P1</span>
+        <div>
+          <div class="step-title">DROP olivia_flow + olivia_historico_gerador</div>
+          <div style="color:var(--muted); font-size:12px">Tabelas mortas (0 rows) — remoção limpa</div>
+        </div>
+        <div class="step-badge"><span class="badge">Irreversível</span></div>
+      </div>
+      <div class="step-body">
+        <div class="fact-row">
+          <div class="fact"><div class="fact-label">olivia_flow</div><div class="fact-value green">0 rows · RLS ON</div></div>
+          <div class="fact"><div class="fact-label">olivia_historico_gerador</div><div class="fact-value green">0 rows · RLS OFF</div></div>
+          <div class="fact"><div class="fact-label">Risco</div><div class="fact-value green">ZERO — tabelas vazias</div></div>
+        </div>
+        <div class="sql-block"><code><span class="kw">DROP TABLE IF EXISTS</span> <span class="tbl">olivia_flow</span>;
+<span class="kw">DROP TABLE IF EXISTS</span> <span class="tbl">olivia_historico_gerador</span>;</code></div>
+        <p><strong>Verificação após:</strong></p>
+        <div class="sql-block"><code><span class="kw">SELECT</span> table_name <span class="kw">FROM</span> information_schema.tables
+<span class="kw">WHERE</span> table_schema=<span class="str">'public'</span>
+<span class="kw">AND</span> table_name <span class="kw">IN</span> (<span class="str">'olivia_flow'</span>, <span class="str">'olivia_historico_gerador'</span>);
+<span class="cmt">-- Esperado: 0 rows (tabelas removidas)</span></code></div>
+      </div>
+    </div>
+
+    <!-- PASSO 2 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num warn">P2</span>
+        <div>
+          <div class="step-title">TRUNCATE olivia_historico — ⚠️ CONFIRMAR ANTES</div>
+          <div style="color:var(--muted); font-size:12px">103 rows inválidos — todos motor n8n/jarbas antigo, nenhum aprovado</div>
+        </div>
+        <div class="step-badge"><span class="badge warn">Aguarda confirmação Christian</span></div>
+      </div>
+      <div class="step-body">
+        <div class="danger-box">
+          🚨 <strong>PARAR AQUI e confirmar com Christian antes de executar.</strong>
+          <br>103 registros serão apagados permanentemente (RESTART IDENTITY).
+          <br>Análise: SUCESSO=23 (25.6%), ERRO=28 (31.1%), ABANDONADO=37 (41.1%), PENDENTE=2 (2.2%)
+          <br>Todos criados com motor n8n/smart-blocks/jarbas — inválidos para o novo motor OliviaMDBot.
+        </div>
+        <div class="sql-block"><code><span class="cmt">-- SÓ EXECUTAR APÓS CONFIRMAÇÃO EXPLÍCITA DO CHRISTIAN</span>
+<span class="kw">TRUNCATE TABLE</span> <span class="tbl">olivia_historico</span> <span class="kw">RESTART IDENTITY</span>;</code></div>
+        <p><strong>Verificação após:</strong></p>
+        <div class="sql-block"><code><span class="kw">SELECT</span> count(*) as rows <span class="kw">FROM</span> <span class="tbl">olivia_historico</span>;
+<span class="cmt">-- Esperado: 0</span></code></div>
+      </div>
+    </div>
+
+    <!-- PASSO 3 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">P3</span>
+        <div>
+          <div class="step-title">CREATE TABLE olivia_relatorios (P0 — não existe)</div>
+          <div style="color:var(--muted); font-size:12px">Tabela crítica para relatórios gerados pela OlivIA</div>
+        </div>
+        <div class="step-badge"><span class="badge info">P0 Bloqueante</span></div>
+      </div>
+      <div class="step-body">
+        <div class="sql-block"><code><span class="kw">CREATE TABLE</span> <span class="tbl">olivia_relatorios</span> (
+  id          uuid <span class="kw">DEFAULT</span> gen_random_uuid() <span class="kw">PRIMARY KEY</span>,
+  organizacao_id uuid <span class="kw">REFERENCES</span> <span class="tbl">organizacoes</span>(id),
+  processo_id    uuid <span class="kw">REFERENCES</span> <span class="tbl">processos</span>(id),
+  historico_id   uuid <span class="kw">REFERENCES</span> <span class="tbl">olivia_historico</span>(id),
+  codigo      text <span class="kw">NOT NULL</span>,
+  url_html    text,
+  tipo        text <span class="kw">DEFAULT</span> <span class="str">'express'</span>,
+  created_at  timestamptz <span class="kw">DEFAULT</span> now()
+);
+
+<span class="kw">ALTER TABLE</span> <span class="tbl">olivia_relatorios</span> <span class="kw">ENABLE ROW LEVEL SECURITY</span>;</code></div>
+        <p><strong>Verificação após:</strong></p>
+        <div class="sql-block"><code><span class="kw">SELECT</span> count(*) as rows,
+  (pg_class.relrowsecurity)::text as rls_on
+<span class="kw">FROM</span> <span class="tbl">olivia_relatorios</span>
+<span class="kw">JOIN</span> pg_class <span class="kw">ON</span> relname=<span class="str">'olivia_relatorios'</span>;
+<span class="cmt">-- Esperado: rows=0, rls_on=true</span></code></div>
+      </div>
+    </div>
+
+    <!-- PASSO 4 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">P4</span>
+        <div>
+          <div class="step-title">ADD COLUMNS em olivia_historico</div>
+          <div style="color:var(--muted); font-size:12px">9 colunas novas para suporte ao motor OliviaMDBot (3 já existem)</div>
+        </div>
+        <div class="step-badge"><span class="badge">Reversível</span></div>
+      </div>
+      <div class="step-body">
+        <div class="info-box">
+          ℹ️ <strong>score_revisor, tokens_usados, url_publica</strong> já existem — usando IF NOT EXISTS para segurança.
+        </div>
+        <div class="sql-block"><code><span class="kw">ALTER TABLE</span> <span class="tbl">olivia_historico</span>
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> progresso_pct     integer <span class="kw">DEFAULT</span> 0,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> progresso_msg     text,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> perguntas_geradas jsonb <span class="kw">DEFAULT</span> <span class="str">'[]'</span>,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> analise_provas    jsonb,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> chance_ganho      numeric,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> docx_url          text,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> codigo_peticao    integer,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> dados_reu         jsonb,
+  <span class="kw">ADD COLUMN IF NOT EXISTS</span> reclame_aqui      jsonb;</code></div>
+        <p><strong>Verificação após:</strong></p>
+        <div class="sql-block"><code><span class="kw">SELECT</span> column_name <span class="kw">FROM</span> information_schema.columns
+<span class="kw">WHERE</span> table_schema=<span class="str">'public'</span> <span class="kw">AND</span> table_name=<span class="str">'olivia_historico'</span>
+<span class="kw">AND</span> column_name <span class="kw">IN</span> (
+  <span class="str">'progresso_pct'</span>, <span class="str">'perguntas_geradas'</span>, <span class="str">'analise_provas'</span>,
+  <span class="str">'chance_ganho'</span>, <span class="str">'docx_url'</span>, <span class="str">'codigo_peticao'</span>,
+  <span class="str">'dados_reu'</span>, <span class="str">'reclame_aqui'</span>
+);
+<span class="cmt">-- Esperado: 8 rows</span></code></div>
+      </div>
+    </div>
+
+    <!-- PASSO 5 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num ok">P5</span>
+        <div>
+          <div class="step-title">RLS em olivia_modelo_juris (2.440 rows — NÃO dropar)</div>
+          <div style="color:var(--muted); font-size:12px">Habilitar RLS + criar policies. Lição do vault aplicada.</div>
+        </div>
+        <div class="step-badge"><span class="badge">Reversível</span></div>
+      </div>
+      <div class="step-body">
+        <div class="warning-box">
+          ⚠️ <strong>LIÇÃO CRÍTICA APLICADA:</strong> olivia_modelo_juris tem 2.440 rows ativos. JAMAIS dropar. Apenas habilitar RLS.
+        </div>
+        <div class="sql-block"><code><span class="kw">ALTER TABLE</span> <span class="tbl">olivia_modelo_juris</span> <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="kw">CREATE POLICY</span> <span class="str">"org_access"</span> <span class="kw">ON</span> <span class="tbl">olivia_modelo_juris</span>
+  <span class="kw">FOR ALL USING</span> (organizacao_id = get_current_org_id());</code></div>
+        <div class="info-box">
+          ℹ️ <strong>Nota sobre a policy:</strong> o nome da função get_current_org_id() será verificado contra as funções existentes no banco antes da execução. Alternativas: get_org_id() ou org_id().
+        </div>
+        <p><strong>Verificação após:</strong></p>
+        <div class="sql-block"><code><span class="kw">SELECT</span> relrowsecurity <span class="kw">FROM</span> pg_class <span class="kw">WHERE</span> relname=<span class="str">'olivia_modelo_juris'</span>;
+<span class="cmt">-- Esperado: true</span>
+<span class="kw">SELECT</span> count(*) <span class="kw">FROM</span> <span class="tbl">olivia_modelo_juris</span>;
+<span class="cmt">-- Esperado: 2440 (dados intactos)</span></code></div>
+      </div>
+    </div>
+
+    <!-- PASSO 6 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num">P6</span>
+        <div>
+          <div class="step-title">Seeds olivia_tipos_prova (adicionar 5 que faltam)</div>
+          <div style="color:var(--muted); font-size:12px">Já tem 10 rows. Adicionar 5 para total ≥15.</div>
+        </div>
+        <div class="step-badge"><span class="badge">Reversível</span></div>
+      </div>
+      <div class="step-body">
+        <div class="ok-box">
+          ✅ Já existem (10): Comprovante de Restrição, Contestação, Contrato, Correspondência, Email de Cobrança, Extrato Bancário, Laudo Pericial, Print de Tela, Procuração, SMS de Cobrança
+        </div>
+        <p><strong>Adicionar (5 novos):</strong> Boleto, Declaração, Comprovante de Pagamento, Notificação Extrajudicial, Documento de Identidade</p>
+        <div class="sql-block"><code><span class="kw">INSERT INTO</span> <span class="tbl">olivia_tipos_prova</span>
+  (organizacao_id, nome, categoria, nivel_impugnacao, peso_relevancia, ativo)
+<span class="kw">VALUES</span>
+  (<span class="str">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>, <span class="str">'Boleto'</span>, <span class="str">'documental'</span>, <span class="str">'medio'</span>, 6, true),
+  (<span class="str">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>, <span class="str">'Declaração'</span>, <span class="str">'documental'</span>, <span class="str">'medio'</span>, 6, true),
+  (<span class="str">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>, <span class="str">'Comprovante de Pagamento'</span>, <span class="str">'documental'</span>, <span class="str">'alto'</span>, 8, true),
+  (<span class="str">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>, <span class="str">'Notificação Extrajudicial'</span>, <span class="str">'comunicacao'</span>, <span class="str">'alto'</span>, 9, true),
+  (<span class="str">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>, <span class="str">'Documento de Identidade'</span>, <span class="str">'documental'</span>, <span class="str">'medio'</span>, 5, true)
+<span class="kw">ON CONFLICT</span> (organizacao_id, nome) <span class="kw">DO NOTHING</span>;</code></div>
+        <p><strong>Verificação após:</strong></p>
+        <div class="sql-block"><code><span class="kw">SELECT</span> count(*) <span class="kw">FROM</span> <span class="tbl">olivia_tipos_prova</span>;
+<span class="cmt">-- Esperado: ≥15</span></code></div>
+      </div>
+    </div>
+
+    <!-- PASSO 7 -->
+    <div class="step-card">
+      <div class="step-header">
+        <span class="step-num warn">P7</span>
+        <div>
+          <div class="step-title">Migrar CHECK qualidade_ia → apenas padrao|avancado</div>
+          <div style="color:var(--muted); font-size:12px">Remove pensamento_estendido e opus do enum</div>
+        </div>
+        <div class="step-badge"><span class="badge warn">DDL + DML</span></div>
+      </div>
+      <div class="step-body">
+        <div class="info-box">
+          ℹ️ Dados atuais: após TRUNCATE do historico, não haverá rows com valores antigos. Por segurança, o UPDATE de migração é executado antes do DROP da constraint.
+        </div>
+        <div class="sql-block"><code><span class="cmt">-- 1. Migrar dados existentes (segurança caso TRUNCATE não tenha executado)</span>
+<span class="kw">UPDATE</span> <span class="tbl">olivia_historico</span>
+  <span class="kw">SET</span> qualidade_ia = <span class="str">'padrao'</span>
+  <span class="kw">WHERE</span> qualidade_ia = <span class="str">'pensamento_estendido'</span>;
+<span class="kw">UPDATE</span> <span class="tbl">olivia_historico</span>
+  <span class="kw">SET</span> qualidade_ia = <span class="str">'avancado'</span>
+  <span class="kw">WHERE</span> qualidade_ia = <span class="str">'opus'</span>;
+
+<span class="cmt">-- 2. Drop a constraint antiga</span>
+<span class="kw">ALTER TABLE</span> <span class="tbl">olivia_historico</span>
+  <span class="kw">DROP CONSTRAINT IF EXISTS</span> chk_olivia_historico_qualidade_ia;
+
+<span class="cmt">-- 3. Recriar com os valores corretos</span>
+<span class="kw">ALTER TABLE</span> <span class="tbl">olivia_historico</span>
+  <span class="kw">ADD CONSTRAINT</span> chk_olivia_historico_qualidade_ia
+  <span class="kw">CHECK</span> (qualidade_ia <span class="kw">IS NULL OR</span> qualidade_ia = <span class="kw">ANY</span> (<span class="kw">ARRAY</span>[<span class="str">'padrao'</span>, <span class="str">'avancado'</span>]));</code></div>
+        <p><strong>Verificação após:</strong></p>
+        <div class="sql-block"><code><span class="kw">SELECT</span> pg_get_constraintdef(oid)
+<span class="kw">FROM</span> pg_constraint
+<span class="kw">WHERE</span> conrelid=<span class="str">'olivia_historico'</span>::regclass
+  <span class="kw">AND</span> conname=<span class="str">'chk_olivia_historico_qualidade_ia'</span>;
+<span class="cmt">-- Esperado: CHECK com apenas 'padrao', 'avancado'</span></code></div>
+      </div>
+    </div>
+
+  </div><!-- fim section plano -->
+
+  <!-- VAULT OLIVIA -->
+  <div class="vault-section">
+    <div class="vault-title">🗂️ Vault OlivIA — Tarefa Adicional</div>
+    <p style="color:var(--muted); margin-bottom:16px">Após migration concluída. Path: <code>/Users/Shared/olivia-vault/</code></p>
+
+    <table>
+      <tr><th>#</th><th>Tarefa</th><th>Comando</th></tr>
+      <tr>
+        <td>1</td>
+        <td>Verificar memory block no openclaw.json da OlivIA</td>
+        <td><code>ssh mac-mini "cat /Users/olivia/.openclaw/openclaw.json | python3 -m json.tool | grep -A5 memory"</code></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>Se sem memory block → executar setup</td>
+        <td><code>ssh mac-mini "python3 /Users/Shared/olivia-vault/01_config/setup-olivia-vault.py"</code></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>Verificar SOUL.md e TOOLS.md da OlivIA</td>
+        <td><code>ssh mac-mini "grep -n 'Vault' /Users/olivia/.openclaw/workspace-olivia/SOUL.md"</code></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>Contar notas do vault por pasta</td>
+        <td><code>ssh mac-mini "find /Users/Shared/olivia-vault -name '*.md' | sed 's|/[^/]*$||' | sort | uniq -c"</code></td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td>Publicar HTML status do vault</td>
+        <td>~/jarbas-reports/jana/olivia/vault-status.html</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- CRITÉRIOS DE SUCESSO -->
+  <div class="section" style="margin-top:32px">
+    <div class="section-title"><span class="num">✅</span> Critérios de Sucesso</div>
+    <div class="step-card">
+      <div class="step-body">
+        <ul class="checklist">
+          <li>olivia_flow: DROP confirmado</li>
+          <li>olivia_historico_gerador: DROP confirmado</li>
+          <li>olivia_historico: 0 rows após TRUNCATE</li>
+          <li>olivia_relatorios: existe, RLS ON, 0 rows</li>
+          <li>olivia_modelo_juris: RLS ON, 2.440 rows intactos</li>
+          <li>olivia_tipos_prova: ≥15 rows</li>
+          <li>olivia_historico: tem progresso_pct, analise_provas, chance_ganho, docx_url, dados_reu, reclame_aqui</li>
+          <li>qualidade_ia CHECK: apenas padrao|avancado (sem pensamento_estendido)</li>
+          <li>OlivIA openclaw.json: memory block apontando para /Users/Shared/olivia-vault</li>
+          <li>SOUL.md + TOOLS.md da OlivIA: têm seção de vault</li>
+          <li>HTML status vault publicado em ~/jarbas-reports/jana/olivia/vault-status.html</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- REGRAS ABSOLUTAS -->
+  <div class="danger-box" style="margin-top:8px">
+    🚨 <strong>REGRAS ABSOLUTAS desta execução:</strong><br>
+    1. Mostrar SQL antes de executar qualquer operação<br>
+    2. Um passo por vez — verificar antes de avançar<br>
+    3. PARAR no P2 (TRUNCATE) e aguardar confirmação explícita do Christian<br>
+    4. olivia_modelo_juris: JAMAIS dropar (2.440 rows valiosos)
+  </div>
+
+</div>
+
+<div class="footer">
+  🦊 JANA · G1 Backend OlivIA · 21/03/2026 · Supabase qdivfairxhdihaqqypgb
+</div>
+
+</body>
+</html>

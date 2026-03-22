@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Relatório Lapidação Noturna + Plano de Correção</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a;
+    --border: #2d3148; --primary: #6c63ff; --success: #22c55e;
+    --warning: #f59e0b; --danger: #ef4444; --info: #38bdf8;
+    --text: #e2e8f0; --muted: #94a3b8; --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+  h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+  h2 { font-size: 20px; font-weight: 600; color: var(--primary); margin: 32px 0 16px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 15px; font-weight: 600; color: var(--text); margin: 20px 0 10px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .badge-ok { background: #166534; color: #4ade80; }
+  .badge-bug { background: #7f1d1d; color: #fca5a5; }
+  .badge-warn { background: #78350f; color: #fcd34d; }
+  .badge-info { background: #1e3a5f; color: #93c5fd; }
+  .badge-p0 { background: #7f1d1d; color: #fca5a5; }
+  .badge-p1 { background: #78350f; color: #fcd34d; }
+  .badge-p2 { background: #1c3829; color: #6ee7b7; }
+  
+  /* Score card */
+  .score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 20px 0; }
+  .score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .score-num { font-size: 36px; font-weight: 700; color: var(--primary); }
+  .score-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .score-sub { font-size: 11px; color: var(--success); margin-top: 2px; }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 24px; margin: 16px 0; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 20px; }
+  .tl-item::before { content: ''; position: absolute; left: -20px; top: 5px; width: 10px; height: 10px; border-radius: 50%; background: var(--primary); border: 2px solid var(--bg); }
+  .tl-item.ok::before { background: var(--success); }
+  .tl-item.bug::before { background: var(--danger); }
+  .tl-item.warn::before { background: var(--warning); }
+  .tl-time { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .tl-title { font-weight: 600; font-size: 14px; }
+  .tl-desc { font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .tl-commit { font-family: monospace; font-size: 11px; color: var(--info); background: var(--code-bg); padding: 2px 8px; border-radius: 4px; display: inline-block; margin-top: 4px; }
+
+  /* Bug table */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { background: var(--surface2); color: var(--muted); font-weight: 500; padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--surface); }
+  .code { font-family: monospace; font-size: 12px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--info); }
+
+  /* Code block */
+  pre { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-family: monospace; font-size: 12px; line-height: 1.6; color: #e2e8f0; margin: 12px 0; }
+  .keyword { color: #c792ea; }
+  .string { color: #c3e88d; }
+  .comment { color: #546e7a; font-style: italic; }
+  .fn { color: #82aaff; }
+
+  /* Alert */
+  .alert { border-radius: 8px; padding: 14px 16px; margin: 12px 0; font-size: 13px; border-left: 4px solid; }
+  .alert-danger { background: #1c0a0a; border-color: var(--danger); color: #fca5a5; }
+  .alert-warn { background: #1c1000; border-color: var(--warning); color: #fcd34d; }
+  .alert-success { background: #052e16; border-color: var(--success); color: #86efac; }
+  .alert-info { background: #0c1f3a; border-color: var(--info); color: #93c5fd; }
+
+  /* Prompt box */
+  .prompt-box { background: #0d1117; border: 1px solid #2d3148; border-radius: 12px; padding: 20px; margin: 16px 0; }
+  .prompt-header { font-size: 12px; color: var(--muted); margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* Steps */
+  .steps { counter-reset: step; }
+  .step { counter-increment: step; display: flex; gap: 16px; margin-bottom: 20px; }
+  .step::before { content: counter(step); display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; min-width: 28px; border-radius: 50%; background: var(--primary); color: #fff; font-weight: 700; font-size: 13px; }
+  .step-content { flex: 1; padding-top: 4px; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .card h3 { margin-top: 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🦊 OlivIA — Relatório Lapidação Noturna</h1>
+  <p class="subtitle">22/03/2026 • 23:00–17:54 BRT • JANA MacBook Air M4 • Gerado em modo /plan</p>
+
+  <!-- SCORES -->
+  <div class="score-grid">
+    <div class="score-card">
+      <div class="score-num" style="color:#22c55e">9/10</div>
+      <div class="score-label">Score Revisor IA</div>
+      <div class="score-sub">↑ era 3/10 no início</div>
+    </div>
+    <div class="score-card">
+      <div class="score-num" style="color:#6c63ff">11KB</div>
+      <div class="score-label">DOCX Gerado</div>
+      <div class="score-sub">↑ era 2.4KB (vazio)</div>
+    </div>
+    <div class="score-card">
+      <div class="score-num" style="color:#38bdf8">5/5</div>
+      <div class="score-label">Steps E2E ✅</div>
+      <div class="score-sub">bugs: 0 no Playwright</div>
+    </div>
+    <div class="score-card">
+      <div class="score-num" style="color:#f59e0b">4</div>
+      <div class="score-label">Bugs Ativos</div>
+      <div class="score-sub">frontend críticos</div>
+    </div>
+  </div>
+
+  <!-- TIMELINE DO QUE FOI FEITO -->
+  <h2>📋 Timeline — O Que Foi Feito na Noite</h2>
+  <div class="timeline">
+    <div class="tl-item ok">
+      <div class="tl-time">~23:00 BRT — Loop 1</div>
+      <div class="tl-title">Diagnóstico do bug crítico de placeholders</div>
+      <div class="tl-desc">Identificado: <code>server.mjs</code> nunca buscava dados reais do processo no Supabase. Claude gerava com <code>[NOME DO REQUERENTE]</code>, <code>[NOME DA EMPRESA]</code> etc. Score: 3/10.</div>
+    </div>
+    <div class="tl-item ok">
+      <div class="tl-time">~01:00 BRT — Loops 2-3</div>
+      <div class="tl-title">Fix buscarDadosProcesso() no server.mjs</div>
+      <div class="tl-desc">Adicionada query real ao Supabase: <code>processos</code> JOIN <code>clientes</code> + <code>empresas</code> + <code>advogados</code>. Resultado: THAINA BASSO GRANVILLE ✅, BANCO DO BRASIL ✅, CNJ ✅, OAB ✅. Score: 7/10.</div>
+    </div>
+    <div class="tl-item ok">
+      <div class="tl-time">~02:30 BRT — Loop 4</div>
+      <div class="tl-title">Fix tipo da peça + DOCX real</div>
+      <div class="tl-desc">Adicionado <code>tipo_peticao_nome</code> via JOIN. Instrução explícita no system prompt. Tipo corrigido: RÉPLICA ✅. DOCX: 2.4KB → 11.7KB. Score: 8/10.</div>
+    </div>
+    <div class="tl-item ok">
+      <div class="tl-time">~03:30 BRT — Loop 5</div>
+      <div class="tl-title">Fix markdown literal no DOCX</div>
+      <div class="tl-desc">docx-generator.mjs: sanitização de <code># ## **</code> e <code>---</code> literais dentro de tags HTML. Resultado: zero markdown no DOCX ✅. Score: 9/10.</div>
+      <div class="tl-commit">commit: ca8a3624</div>
+    </div>
+    <div class="tl-item ok">
+      <div class="tl-time">~10:00 BRT</div>
+      <div class="tl-title">Fix Step 2 auto-advance + E2E Playwright completo</div>
+      <div class="tl-desc">ExpressStep2Triagem: isLoading=false quando pipeline conclui sem perguntas. Auto-advance via useEffect após 1.5s. E2E v7: Step1→5 verde, 0 bugs, score 9/10, download .docx ✅ .pdf ✅.</div>
+      <div class="tl-commit">commit: bcdbdadc</div>
+    </div>
+    <div class="tl-item warn">
+      <div class="tl-time">~17:54 BRT — Revisão Manual Christian</div>
+      <div class="tl-title">4 bugs críticos encontrados no frontend real</div>
+      <div class="tl-desc">Upload drawer RLS, microfone, download 404 (bucket privado), relatório HTML inacessível.</div>
+    </div>
+  </div>
+
+  <!-- BUGS ATIVOS -->
+  <h2>🔴 Bugs Ativos (reportados pela revisão manual)</h2>
+  
+  <div class="alert alert-danger">
+    ⚠️ O E2E Playwright não capturou esses bugs porque usa URLs diretas do Supabase REST API — o teste não simula o fluxo real de download via frontend com autenticação.
+  </div>
+
+  <table>
+    <tr>
+      <th>ID</th><th>Severidade</th><th>Componente</th><th>Sintoma</th><th>Causa Raiz</th><th>Fix</th>
+    </tr>
+    <tr>
+      <td><strong>B1</strong></td>
+      <td><span class="badge badge-p0">P0</span></td>
+      <td>Upload Drawer</td>
+      <td>RLS Violation ao inserir em <code>processo_documentos</code></td>
+      <td>A policy INSERT usa <code>org_id()</code> mas o insert pode não estar passando <code>organizacao_id</code> correto, ou a coluna <code>arquivo_url</code> foi renomeada para <code>storage_url</code></td>
+      <td>Verificar campo correto + org_id no insert do UploadDrawer.tsx</td>
+    </tr>
+    <tr>
+      <td><strong>B2</strong></td>
+      <td><span class="badge badge-p0">P0</span></td>
+      <td>Microfone / Transcrição</td>
+      <td>Transcrição não disponível — microfone não funciona</td>
+      <td><code>useWhisperGravacao.ts</code> chama Edge Function <code>audio-transcribe</code> — pode estar sem OPENAI_API_KEY no Supabase, ou a Edge Function está caindo silenciosamente</td>
+      <td>Verificar secrets da Edge Function + testar curl direto</td>
+    </tr>
+    <tr>
+      <td><strong>B3</strong></td>
+      <td><span class="badge badge-p0">P0</span></td>
+      <td>Download DOCX/PDF</td>
+      <td>404 — bucket storage não encontrado ao clicar Download</td>
+      <td>Bucket <code>olivia-peticoes</code> é <strong>PRIVADO</strong>. URLs no banco são <code>/object/public/</code> mas o bucket não é público → 404. Frontend precisa de <strong>signed URL</strong></td>
+      <td>Tornar bucket público OU gerar signed URL no frontend antes do download</td>
+    </tr>
+    <tr>
+      <td><strong>B4</strong></td>
+      <td><span class="badge badge-p1">P1</span></td>
+      <td>Relatório HTML</td>
+      <td>Link inacessível / "componente não existe"</td>
+      <td>Provavelmente o <code>ExpressStep5Conclusao</code> tenta renderizar um componente de relatório que não foi importado</td>
+      <td>Verificar imports do Step5 + link do relatório HTML publicado</td>
+    </tr>
+  </table>
+
+  <!-- ANÁLISE DETALHADA B3 (BUCKET) -->
+  <h2>🔍 Análise Detalhada — Bug B3 (Download 404)</h2>
+  
+  <div class="alert alert-info">
+    Diagnóstico confirmado via API: bucket <code>olivia-peticoes</code> tem <code>"public": false</code>. As URLs geradas pelo servidor seguem o padrão <code>/object/public/olivia-peticoes/...</code> que só funciona em buckets públicos.
+  </div>
+
+  <h3>Solução Recomendada: Signed URL via Edge Function</h3>
+  <div class="grid2">
+    <div class="card">
+      <h3 style="color:#22c55e">✅ Opção A — Tornar bucket público</h3>
+      <p style="color:var(--muted); font-size:13px; margin-top:8px;">Simples, rápido. Petições ficam acessíveis por URL direta. Risco: qualquer um com a URL acessa — mas URLs contêm UUID de historico_id que é difícil de adivinhar.</p>
+      <pre>-- Via Supabase Dashboard:
+UPDATE storage.buckets
+SET public = true
+WHERE name = 'olivia-peticoes';</pre>
+    </div>
+    <div class="card">
+      <h3 style="color:#f59e0b">⚠️ Opção B — Signed URLs (seguro)</h3>
+      <p style="color:var(--muted); font-size:13px; margin-top:8px;">Frontend chama <code>supabase.storage.from('olivia-peticoes').createSignedUrl(path, 3600)</code> antes de redirecionar para download. Mais seguro mas requer lógica adicional no Step5.</p>
+      <pre>const { data } = await supabase.storage
+  .from('olivia-peticoes')
+  .createSignedUrl(path, 3600); // 1h
+window.open(data.signedUrl);</pre>
+    </div>
+  </div>
+
+  <div class="alert alert-warn">
+    <strong>Recomendação:</strong> Opção A (tornar público) é suficiente para o contexto — UUIDs de historico_id são unguessable e petições são documentos do próprio escritório. Resolve em 1 linha.
+  </div>
+
+  <!-- ANÁLISE B1 (UPLOAD RLS) -->
+  <h2>🔍 Análise Detalhada — Bug B1 (Upload RLS)</h2>
+  
+  <p style="color:var(--muted)">As 4 policies existem e estão corretas. O problema provável é o campo <code>arquivo_url</code> vs <code>storage_url</code> — o código foi corrigido no commit <code>54df55fc</code> mas pode ter regredido, ou o <code>organizacao_id</code> não está sendo extraído corretamente do contexto de autenticação.</p>
+  
+  <pre><span class="comment">// UploadDrawer.tsx — insert deve ter estes campos obrigatórios:</span>
+{
+  organizacao_id: organizacaoId,  <span class="comment">// OBRIGATÓRIO para a policy WITH CHECK</span>
+  processo_id: processoId,
+  nome: file.name,
+  arquivo_url: publicUrl,         <span class="comment">// não storage_url!</span>
+  tipo: 'upload',
+  storage_path: storagePath,
+  mime_type: file.type,
+}</pre>
+
+  <!-- PLANO DE CORREÇÃO -->
+  <h2>🛠️ Plano de Correção — Prioridade</h2>
+  
+  <div class="steps">
+    <div class="step">
+      <div class="step-content">
+        <strong>B3 — Tornar bucket olivia-peticoes público</strong>
+        <p style="color:var(--muted); font-size:13px; margin-top:4px;">1 query SQL via Supabase Management API. Resolve download imediatamente sem mudança de código.</p>
+        <pre>UPDATE storage.buckets SET public = true WHERE name = 'olivia-peticoes';</pre>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-content">
+        <strong>B1 — Investigar e corrigir RLS upload</strong>
+        <p style="color:var(--muted); font-size:13px; margin-top:4px;">Verificar o insert exato no UploadDrawer.tsx — campos, types, org_id. Testar com o usuário real logado (mdlab.equipe@gmail.com).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-content">
+        <strong>B2 — Diagnóstico do microfone</strong>
+        <p style="color:var(--muted); font-size:13px; margin-top:4px;">Verificar se OPENAI_API_KEY está nos secrets da Edge Function <code>audio-transcribe</code>. Testar curl direto contra a Edge Function com um arquivo de áudio.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-content">
+        <strong>B4 — Relatório HTML no Step 5</strong>
+        <p style="color:var(--muted); font-size:13px; margin-top:4px;">Verificar imports do ExpressStep5Conclusao.tsx — se há componente de relatório sendo importado de caminho incorreto.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROMPT CLAUDE CODE -->
+  <h2>🤖 Prompt para Claude Code</h2>
+  <p style="color:var(--muted); margin-bottom:12px;">Cole este prompt no terminal Claude Code (--print --permission-mode bypassPermissions) apontando para o diretório <code>~/beta-mdflow</code>:</p>
+
+  <div class="prompt-box">
+    <div class="prompt-header">Claude Code — Investigar e corrigir bugs OlivIA frontend</div>
+    <pre style="white-space: pre-wrap; font-size: 12px; color: #e2e8f0;">
+Você está no projeto MdFlow (beta-mdflow). Investigue e corrija os seguintes bugs no módulo OlivIA (src/pages/olivia/):
+
+## Bug B1 — Upload RLS Violation
+Arquivo: src/pages/olivia/components/shared/UploadDrawer.tsx
+Sintoma: ao tentar fazer upload de documentos no processo, ocorre erro "new row violates row-level security policy" na tabela processo_documentos.
+A policy INSERT exige: organizacao_id = org_id() (função RPC que retorna o org_id do usuário logado)
+Verifique:
+1. Se o campo organizacao_id está sendo passado no insert
+2. Se o campo é arquivo_url (não storage_url — houve renomeação)
+3. Se o campo NOT NULL correto está sendo usado (nome, tipo, organizacao_id, processo_id são obrigatórios)
+Corrija o insert para garantir que organizacao_id é passado.
+
+## Bug B2 — Microfone / Transcrição
+Arquivo: src/pages/olivia/hooks/useWhisperGravacao.ts
+Sintoma: botão de microfone não funciona, transcrição não disponível.
+Verifique:
+1. Se a Edge Function chamada é 'audio-transcribe' (não 'whisper-transcribe')
+2. Se o arquivo de áudio está sendo enviado no formato correto (blob/FormData)
+3. Se há tratamento de erro adequado quando a Edge Function falha
+4. Adicione um console.error claro quando a transcrição falhar para facilitar debug
+Corrija o hook para funcionar com a Edge Function audio-transcribe ativa no Supabase.
+
+## Bug B3 — Download DOCX/PDF retorna 404
+Arquivo: src/pages/olivia/components/express/ExpressStep5Conclusao.tsx (ou onde os botões Download ficam)
+Sintoma: clicar em "Download .docx" ou "Download .pdf" retorna 404. 
+Causa: bucket olivia-peticoes é privado, URLs /object/public/ não funcionam.
+Solução: nos botões de download, antes de redirecionar, gerar uma signed URL temporária:
+  const { data } = await supabase.storage.from('olivia-peticoes').createSignedUrl(storagePath, 3600);
+  window.open(data.signedUrl, '_blank');
+O storagePath é a parte da URL após '/olivia-peticoes/' (ex: 'abc-123/peticao.docx').
+Implemente a função de download com signed URL em todos os botões .docx e .pdf do Step5.
+
+## Bug B4 — Relatório HTML inacessível no Step 5
+Arquivo: src/pages/olivia/components/express/ExpressStep5Conclusao.tsx
+Sintoma: link de relatório dá erro ("componente não existe" ou link quebrado).
+Verifique se há import de componente que não existe no diretório. Se o relatório HTML não estiver implementado, remova o link ou substitua por placeholder elegante.
+
+## Instruções gerais:
+- NÃO instalar novas dependências
+- Usar supabase client existente (import { supabase } from '@/integrations/supabase/client')
+- ZERO hardcode de cores (usar tokens CSS do Design System)
+- Max 400 linhas por arquivo .tsx
+- Após cada fix, verificar se TSC passa sem erros
+- Gerar um relatório resumo ao final com: arquivos modificados, o que foi corrigido, o que não foi possível corrigir
+
+Comece investigando cada arquivo antes de editar. Prioridade: B3 > B1 > B2 > B4.
+    </pre>
+  </div>
+
+  <!-- O QUE FUNCIONA -->
+  <h2>✅ O Que Está Funcionando</h2>
+  <table>
+    <tr><th>Componente</th><th>Status</th><th>Detalhes</th></tr>
+    <tr><td>Pipeline backend (server.mjs)</td><td><span class="badge badge-ok">OK</span></td><td>9 skills, dados reais, score 9/10</td></tr>
+    <tr><td>Dados do processo</td><td><span class="badge badge-ok">OK</span></td><td>THAINA, BANCO DO BRASIL, CNJ, OAB — zero placeholders</td></tr>
+    <tr><td>Tipo da peça</td><td><span class="badge badge-ok">OK</span></td><td>RÉPLICA gerado corretamente</td></tr>
+    <tr><td>DOCX com conteúdo real</td><td><span class="badge badge-ok">OK</span></td><td>11KB, Times 12pt, recuo 1.25cm, zero markdown literal</td></tr>
+    <tr><td>PDF gerado</td><td><span class="badge badge-ok">OK</span></td><td>92KB, conteúdo real</td></tr>
+    <tr><td>Score revisor IA</td><td><span class="badge badge-ok">OK</span></td><td>9/10 consistente</td></tr>
+    <tr><td>Step 1 — Seleção</td><td><span class="badge badge-ok">OK</span></td><td>Processo + Tipo + Modelo + Versão</td></tr>
+    <tr><td>Step 2 — Análise + auto-advance</td><td><span class="badge badge-ok">OK</span></td><td>Fix aplicado — sem perguntas avança automaticamente</td></tr>
+    <tr><td>Step 3 — Estrutura</td><td><span class="badge badge-ok">OK</span></td><td>5 seções §</td></tr>
+    <tr><td>Step 4 — Geração</td><td><span class="badge badge-ok">OK</span></td><td>Petição gerada, score visível</td></tr>
+    <tr><td>Step 5 — Conclusão</td><td><span class="badge badge-warn">PARCIAL</span></td><td>Tela aparece, mas download 404 (B3)</td></tr>
+    <tr><td>Upload Drawer</td><td><span class="badge badge-bug">FALHA</span></td><td>RLS violation (B1)</td></tr>
+    <tr><td>Microfone</td><td><span class="badge badge-bug">FALHA</span></td><td>Transcrição indisponível (B2)</td></tr>
+    <tr><td>Download DOCX/PDF</td><td><span class="badge badge-bug">FALHA</span></td><td>404 bucket privado (B3)</td></tr>
+  </table>
+
+  <!-- PRÓXIMOS PASSOS -->
+  <h2>📌 Próximos Passos Recomendados</h2>
+  <div class="alert alert-info">
+    <strong>Modo /plan ativo.</strong> Abaixo está o que precisa ser executado — aguardando confirmação de Christian para cada item.
+  </div>
+  <ol style="padding-left: 20px; color: var(--text); line-height: 2.2;">
+    <li>Tornar bucket <code>olivia-peticoes</code> público (1 query) — resolve B3 imediatamente</li>
+    <li>Rodar prompt Claude Code acima para investigar e corrigir B1, B2, B3, B4</li>
+    <li>Após CC, rodar E2E Playwright com download real pelo frontend</li>
+    <li>Verificar secrets da Edge Function <code>audio-transcribe</code> no Supabase</li>
+    <li>Commit e sync MacBook Air ↔ Mac Mini após todas as correções</li>
+  </ol>
+
+  <p style="margin-top: 40px; color: var(--muted); font-size: 12px; text-align: center;">
+    Gerado por JANA 🦊 • MacBook Air M4 • 22/03/2026 18:00 BRT • Modo /plan
+  </p>
+
+</div>
+</body>
+</html>

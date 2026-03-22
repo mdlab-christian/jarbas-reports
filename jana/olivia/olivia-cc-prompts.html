@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Prompts Claude Code | Missão Pré-Lançamento</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --surface2: #22263a; --surface3: #2a2f45;
+    --border: #2d3148; --primary: #6c63ff; --success: #22c55e;
+    --warning: #f59e0b; --danger: #ef4444; --info: #38bdf8;
+    --text: #e2e8f0; --muted: #94a3b8; --code-bg: #0d1117;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+  .container { max-width: 1000px; margin: 0 auto; padding: 40px 24px; }
+  h1 { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+
+  /* Accordion */
+  .accordion { margin-bottom: 12px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.2s; }
+  .accordion:hover { border-color: var(--primary); }
+  .accordion.open { border-color: var(--primary); }
+  .acc-header { display: flex; align-items: center; gap: 12px; padding: 16px 20px; cursor: pointer; background: var(--surface); user-select: none; transition: background 0.2s; }
+  .acc-header:hover { background: var(--surface2); }
+  .acc-num { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .acc-num.p0 { background: #7f1d1d; color: #fca5a5; }
+  .acc-num.p1 { background: #78350f; color: #fcd34d; }
+  .acc-num.p2 { background: #1c3829; color: #86efac; }
+  .acc-num.info { background: #1e3a5f; color: #93c5fd; }
+  .acc-title { flex: 1; font-weight: 600; font-size: 15px; }
+  .acc-badge { font-size: 11px; padding: 2px 10px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+  .badge-p0 { background: #7f1d1d; color: #fca5a5; border: 1px solid #ef4444; }
+  .badge-p1 { background: #78350f; color: #fcd34d; border: 1px solid #f59e0b; }
+  .badge-p2 { background: #1c3829; color: #86efac; border: 1px solid #22c55e; }
+  .badge-info { background: #1e3a5f; color: #93c5fd; border: 1px solid #38bdf8; }
+  .acc-arrow { color: var(--muted); font-size: 16px; transition: transform 0.3s; flex-shrink: 0; }
+  .accordion.open .acc-arrow { transform: rotate(180deg); }
+  .acc-body { display: none; padding: 20px; background: var(--surface); border-top: 1px solid var(--border); }
+  .accordion.open .acc-body { display: block; }
+
+  /* Prompt box */
+  .prompt-wrap { position: relative; margin-top: 12px; }
+  .prompt-box { background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; white-space: pre-wrap; color: #e2e8f0; max-height: 500px; overflow-y: auto; }
+  .copy-btn { position: absolute; top: 10px; right: 10px; background: var(--primary); color: #fff; border: none; border-radius: 6px; padding: 6px 14px; font-size: 12px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+  .copy-btn:hover { background: #5a54e0; }
+  .copy-btn.copied { background: var(--success); }
+
+  .desc { color: var(--muted); font-size: 13px; margin-bottom: 8px; line-height: 1.6; }
+  .tag-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; font-size: 11px; color: var(--muted); }
+
+  .alert { border-radius: 8px; padding: 12px 16px; margin: 12px 0; font-size: 13px; border-left: 4px solid; }
+  .alert-warn { background: #1c1000; border-color: var(--warning); }
+  .alert-info { background: #0c1f3a; border-color: var(--info); }
+  .alert-success { background: #052e16; border-color: var(--success); }
+
+  .timeline { display: flex; gap: 0; margin: 20px 0; overflow-x: auto; padding-bottom: 8px; }
+  .tl-item { flex: 1; min-width: 120px; text-align: center; position: relative; }
+  .tl-item::after { content: '→'; position: absolute; right: -8px; top: 14px; color: var(--muted); }
+  .tl-item:last-child::after { display: none; }
+  .tl-dot { width: 32px; height: 32px; border-radius: 50%; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; }
+  .tl-dot.p0 { background: #7f1d1d; color: #fca5a5; border: 2px solid #ef4444; }
+  .tl-dot.p1 { background: #78350f; color: #fcd34d; border: 2px solid #f59e0b; }
+  .tl-dot.p2 { background: #1e3a5f; color: #93c5fd; border: 2px solid #38bdf8; }
+  .tl-label { font-size: 11px; color: var(--muted); }
+
+  footer { margin-top: 40px; text-align: center; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>🤖 OlivIA — Prompts para Claude Code</h1>
+  <p class="subtitle">Missão Pré-Lançamento • 22/03/2026 • Cada bloco = 1 sessão CC independente • Execute em ordem</p>
+
+  <div class="alert alert-info">
+    <strong>Como usar:</strong> Clique no bloco para expandir → clique "Copiar Prompt" → cole no terminal Claude Code: <code>claude --print --permission-mode bypassPermissions</code> no diretório <code>~/beta-mdflow</code> (frontend) ou <code>/Users/Shared/olivia-skills/</code> (backend/skills).
+  </div>
+
+  <!-- Timeline -->
+  <div class="timeline">
+    <div class="tl-item"><div class="tl-dot p0">1</div><div class="tl-label">JURIS DOCX</div></div>
+    <div class="tl-item"><div class="tl-dot p0">2</div><div class="tl-label">Pipeline Skills</div></div>
+    <div class="tl-item"><div class="tl-dot p1">3</div><div class="tl-label">Upload+Mic</div></div>
+    <div class="tl-item"><div class="tl-dot p1">4</div><div class="tl-label">EPROC Plug</div></div>
+    <div class="tl-item"><div class="tl-dot p1">5</div><div class="tl-label">Banco/Limpeza</div></div>
+    <div class="tl-item"><div class="tl-dot p2">6</div><div class="tl-label">Relatório Final</div></div>
+  </div>
+
+  <!-- BLOCO 1 -->
+  <div class="accordion open" id="acc1">
+    <div class="acc-header" onclick="toggle('acc1')">
+      <div class="acc-num p0">1</div>
+      <div class="acc-title">Fix Formatação JURIS no DOCX + Revisar Pipeline Skills</div>
+      <span class="acc-badge badge-p0">P0 — Backend Skills</span>
+      <div class="acc-arrow">▼</div>
+    </div>
+    <div class="acc-body">
+      <div class="tag-row">
+        <span class="tag">📁 /Users/Shared/olivia-skills/</span>
+        <span class="tag">docx-generator.mjs</span>
+        <span class="tag">olivia-formata-peticao.mjs</span>
+        <span class="tag">olivia-revisor.mjs</span>
+        <span class="tag">olivia-cria-doc.mjs</span>
+      </div>
+      <p class="desc">Corrige a formatação de jurisprudências no DOCX e verifica que as skills de formatação e revisão estão sendo utilizadas corretamente no pipeline com outputs e inputs bem definidos.</p>
+      <div class="prompt-wrap">
+        <button class="copy-btn" onclick="copy('prompt1', this)">Copiar Prompt</button>
+        <div class="prompt-box" id="prompt1">Você está no diretório /Users/Shared/olivia-skills/ no Mac Mini M4.
+
+## MISSÃO 1 — Fix JURIS + Validar Pipeline Skills
+
+### Contexto
+OlivIA é um gerador de petições jurídicas. O pipeline tem 9 skills:
+analisa-provas → busca-juris → gera-perguntas → smartblocks → gera-peticao → formata-peticao → revisor → cria-doc
+
+### TAREFA 1: Fix formatação JURIS no docx-generator.mjs (CRÍTICO — P0)
+
+O arquivo `olivia-gera-peticao.mjs` instrui o modelo a envolver jurisprudências com marcadores:
+  >>> JURIS
+  [texto da jurisprudência]
+  <<< JURIS
+
+O arquivo `docx-generator.mjs` atualmente NÃO processa esses marcadores.
+
+IMPLEMENTAR em `docx-generator.mjs`:
+1. Detectar blocos `>>> JURIS ... <<< JURIS` no HTML/texto da petição
+2. Para o conteúdo desses blocos, aplicar formatação específica ABNT:
+   - Fonte: Times New Roman, tamanho 10pt (não 12pt)
+   - Recuo esquerdo: 4cm (3cm do texto + 1cm da margem padrão = total 4cm do limite da página)
+   - Estilo: itálico
+   - Espaçamento: 1.0 (simples, não 1.5)
+3. Remover os marcadores `>>> JURIS` e `<<< JURIS` do texto final
+4. Garantir que o texto antes e depois dos blocos JURIS continue com formatação normal (Times 12pt, recuo 1.25cm)
+
+Verifique a função `parsearParaBlocos()` e o helper de criação de parágrafos — é lá onde a formatação deve ser aplicada.
+
+### TAREFA 2: Verificar e solidificar outputs das skills
+
+Leia cada skill e verifique se o output segue o contrato esperado pelo server.mjs:
+
+**olivia-formata-peticao.mjs** deve retornar:
+- `peticao_formatada`: string HTML com a petição formatada
+- `score_formatacao`: número 1-10
+- `observacoes`: array de strings
+Verifique se esses campos existem no return. Se não, adicione valores padrão.
+
+**olivia-revisor.mjs** deve retornar:
+- `aprovado`: boolean
+- `score`: número 1-10 (campo PRINCIPAL — não `score_revisor`)
+- `feedback`: string
+- `pontos_fortes`: array
+- `pontos_melhoria`: array
+Verifique se existe validação de que `score` é numérico antes de retornar. Se vier null/undefined, default para 7.
+
+**olivia-cria-doc.mjs** deve retornar:
+- `docx_url`: URL pública do Supabase Storage
+- `pdf_url`: URL pública do Supabase Storage  
+- `storage_path`: caminho no bucket
+Verifique se usa `olivia-peticoes` como bucket (não outro). O bucket agora é PÚBLICO.
+
+### TAREFA 3: Verificar que marcadores JURIS chegam até o docx-generator
+
+Em `olivia-gera-peticao.mjs`, confirme que o output `peticao_html` contém os marcadores >>> JURIS quando há jurisprudências na fundamentação. Se os marcadores estiverem sendo removidos antes de chegar ao docx-generator, corrija o fluxo.
+
+Em `olivia-formata-peticao.mjs`, confirme que os marcadores >>> JURIS são PRESERVADOS durante a formatação (não removidos pelo modelo de IA). Se necessário, adicione instrução explícita no system prompt: "PRESERVE os marcadores >>> JURIS ... <<< JURIS exatamente como estão".
+
+### TAREFA 4: Teste de integração
+
+Após todas as correções, execute um teste sintético:
+1. Crie um HTML de petição fake com 1 parágrafo normal + 1 bloco JURIS + 1 parágrafo normal
+2. Chame `docx-generator.mjs` com esse HTML
+3. Verifique que o DOCX gerado tem os estilos corretos (pode usar `node --check` para validar sintaxe)
+
+### Regras obrigatórias:
+- NUNCA usar fetch() — usar require("https") para chamadas HTTP
+- Não instalar novas dependências npm
+- Preservar todos os campos existentes nas funções
+- Após cada arquivo modificado, rodar: node --check [arquivo].mjs
+
+### Relatório final:
+Ao terminar, gere um resumo com:
+- Arquivos modificados e o que foi alterado
+- Resultado do teste de integração (JURIS formatado corretamente?)
+- Campos de output de cada skill (tabela: skill | campo | tipo | ok/corrigido)
+- Qualquer issue encontrado mas não corrigido</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO 2 -->
+  <div class="accordion" id="acc2">
+    <div class="acc-header" onclick="toggle('acc2')">
+      <div class="acc-num p0">2</div>
+      <div class="acc-title">Pipeline Completo — Verificar Todas as Skills no server.mjs</div>
+      <span class="acc-badge badge-p0">P0 — server.mjs</span>
+      <div class="acc-arrow">▼</div>
+    </div>
+    <div class="acc-body">
+      <div class="tag-row">
+        <span class="tag">📁 /Users/Shared/olivia-server/</span>
+        <span class="tag">server.mjs</span>
+        <span class="tag">9 skills</span>
+        <span class="tag">Supabase Realtime</span>
+      </div>
+      <p class="desc">Audita o server.mjs garantindo que todas as 9 skills estão integradas corretamente com inputs/outputs bem definidos, Realtime atualizado e tratamento de erros robusto.</p>
+      <div class="prompt-wrap">
+        <button class="copy-btn" onclick="copy('prompt2', this)">Copiar Prompt</button>
+        <div class="prompt-box" id="prompt2">Você está no Mac Mini M4. Os arquivos são:
+- /Users/Shared/olivia-server/server.mjs (orquestrador, 551 linhas)
+- /Users/Shared/olivia-skills/*.mjs (9 skills)
+
+## MISSÃO 2 — Auditar e Solidificar Pipeline Completo
+
+### Contexto do sistema
+OlivIA é um gerador de petições jurídicas. Pipeline:
+S1: analisa-provas → S2: busca-juris → S3: gera-perguntas → S4: smartblocks → 
+S5: gera-peticao → S6: formata-peticao → S7: revisor → S8: cria-doc → DOCX+PDF
+
+Supabase project: qdivfairxhdihaqqypgb
+Org Midas: 55a0c7ba-1a23-4ae1-b69b-a13811324735
+Tabela histórico: olivia_historico
+Bucket petições: olivia-peticoes (PÚBLICO)
+
+### TAREFA 1: Auditoria completa do server.mjs
+
+Leia o server.mjs inteiro e verifique:
+
+a) **Todas as 9 skills estão sendo chamadas?**
+   Pipeline esperado (em ordem):
+   1. olivia-analisa-provas.mjs → output: analise, dados_processo
+   2. olivia-busca-juris.mjs → output: jurisprudencias (array)
+   3. olivia-gera-perguntas.mjs → output: perguntas_usuario (array)
+   4. olivia-smartblocks.mjs → output: smartblocks_html, blocos
+   5. olivia-gera-peticao.mjs → output: peticao_html (com marcadores JURIS)
+   6. olivia-formata-peticao.mjs → output: peticao_formatada, score_formatacao
+   7. olivia-revisor.mjs → output: score, aprovado, feedback
+   8. olivia-cria-doc.mjs → output: docx_url, pdf_url
+   Se alguma skill não está sendo chamada, adicione.
+
+b) **Os outputs de cada skill chegam como input para a próxima?**
+   Exemplo: `peticao_html` de S5 deve chegar em S6 (formata). `peticao_formatada` de S6 deve chegar em S7 (revisor) e S8 (cria-doc).
+   Corrija qualquer quebra de cadeia.
+
+c) **Supabase Realtime: progresso atualizado em cada etapa?**
+   A tabela `olivia_historico` deve receber UPDATE com:
+   - `progresso_pct`: 0, 15, 30, 45, 60, 75, 85, 95, 100
+   - `progresso_msg`: mensagem amigável por etapa
+   - `perguntas_geradas`: array de perguntas (após S3)
+   - `peticao_html`: HTML final (após S5 ou S6)
+   - `score_revisor`: número (após S7)
+   - `docx_url`, `pdf_url`: URLs (após S8)
+   - `status`: PROCESSANDO → CONCLUIDO (ou ERRO em falha)
+   Verifique se todos esses campos são atualizados. Se não, adicione os UPDATEs.
+
+d) **Tratamento de erro robusto?**
+   Se uma skill falha, o status deve ir para ERRO com mensagem clara.
+   Nunca deixar status PROCESSANDO eternamente.
+
+e) **buscarDadosProcesso() está completa?**
+   Deve retornar: nome_cliente, cpf_cnpj, cidade, nome_empresa, cnpj_empresa,
+   numero_cnj, nome_advogado, oab, oab_uf, reu_nome, objeto, tipo_peticao_nome
+   Verifique se o JOIN com olivia_tipos_peticao está funcionando para tipo_peticao_nome.
+
+### TAREFA 2: Verificar modo qualidade_ia='avancado' (Opus)
+
+No server.mjs, quando `qualidade_ia === 'avancado'`:
+- olivia-gera-peticao.mjs deve usar `claude-opus-4-5` (não sonnet)
+- olivia-formata-peticao.mjs deve usar `claude-opus-4-5`
+- Tempo estimado: ~90s (não ~30s)
+Verifique se esse switch está implementado. Se não, implemente passando `qualidade` como parâmetro para as skills.
+
+### TAREFA 3: Garantir que server.mjs usa require("https") e não fetch()
+
+Faça grep em server.mjs e em todas as skills por `fetch(`. Se encontrar (exceto dentro de comentários), substitua por chamada https nativa ou marque como TODO com comentário detalhado.
+
+### TAREFA 4: PORT configurável
+
+Confirme que server.mjs usa:
+  const PORT = process.env.OLIVIA_PORT || 19100;
+Se estiver hardcoded como 19100, corrija.
+
+### Relatório final:
+- Skills chamadas no pipeline: lista com ✅/❌
+- Campos Realtime atualizados: lista com ✅/❌  
+- Erros encontrados e corrigidos
+- Erros encontrados mas não corrigidos (com razão)
+- Linhas do server.mjs antes/depois</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO 3 -->
+  <div class="accordion" id="acc3">
+    <div class="acc-header" onclick="toggle('acc3')">
+      <div class="acc-num p1">3</div>
+      <div class="acc-title">Frontend — Upload, Microfone, Step5 e UX Polishes</div>
+      <span class="acc-badge badge-p1">P1 — Frontend</span>
+      <div class="acc-arrow">▼</div>
+    </div>
+    <div class="acc-body">
+      <div class="tag-row">
+        <span class="tag">📁 ~/beta-mdflow/src/pages/olivia/</span>
+        <span class="tag">UploadDrawer.tsx</span>
+        <span class="tag">useWhisperGravacao.ts</span>
+        <span class="tag">ExpressStep5Conclusao.tsx</span>
+        <span class="tag">useOliviaWizard.ts</span>
+      </div>
+      <p class="desc">Valida e melhora o upload de documentos, transcrição de voz, Step 5 de conclusão e pequenos polishes de UX que ficaram pendentes.</p>
+      <div class="prompt-wrap">
+        <button class="copy-btn" onclick="copy('prompt3', this)">Copiar Prompt</button>
+        <div class="prompt-box" id="prompt3">Você está no diretório ~/beta-mdflow no MacBook Air M4.
+Stack: React + TypeScript + Tailwind CSS + Framer Motion + Radix UI + Supabase.
+
+## MISSÃO 3 — Frontend: Upload, Microfone, Step5 e UX
+
+### Contexto
+OlivIA é um wizard de 5 steps para geração de petições jurídicas.
+Commit atual: 1c1c50cd. TSC deve permanecer 0 erros.
+ZERO hardcode de cores — usar tokens CSS do Design System Warm Charcoal.
+Max 400 linhas por arquivo .tsx.
+
+### TAREFA 1: Validar e melhorar UploadDrawer.tsx
+
+Arquivo: src/pages/olivia/components/shared/UploadDrawer.tsx
+
+a) Confirme que o upload vai para bucket 'olivia-docs' (não 'olivia-peticoes')
+b) Confirme que o insert em 'processos_documentos' inclui: organizacao_id, processo_id, nome, entidade_tipo='processo', tipo='upload', categoria='outros', status='disponivel', storage_path, arquivo_url, tamanho_bytes
+c) A tabela 'processos_documentos' tem RLS: organizacao_id = org_id(). Verifique se organizacao_id está sendo passado SEMPRE.
+d) Se o insert falhar com RLS violation, adicione logging: console.error('[UploadDrawer] RLS error:', insertErr)
+e) Adicione feedback visual quando upload falha por RLS (toast com mensagem amigável, não técnica)
+
+### TAREFA 2: Validar useWhisperGravacao.ts
+
+Arquivo: src/pages/olivia/hooks/useWhisperGravacao.ts
+
+a) Confirme que o FormData usa: formData.append('audio', blob, 'audio.webm') — campo 'audio', não 'file'
+b) A Edge Function 'audio-transcribe' exige JWT de usuário autenticado. O hook usa supabase.functions.invoke que envia o auth header automaticamente ✅
+c) Adicione estado de erro separado: const [erroTranscricao, setErroTranscricao] = useState<string | null>(null)
+d) Quando a transcrição falhar, mostrar mensagem específica no componente (não apenas toast)
+e) Teste sintético: verifique se o hook exporta { gravando, transcrevendo, iniciarGravacao, pararGravacao } — se não, adicione os campos faltantes
+
+### TAREFA 3: ExpressStep5Conclusao.tsx — melhorias
+
+Arquivo: src/pages/olivia/components/express/ExpressStep5Conclusao.tsx
+
+a) Verifique se os botões Download .docx e .pdf funcionam:
+   - Se dados.docx_url contém '/object/public/olivia-peticoes/', usar URL diretamente (bucket público)
+   - Fallback: createSignedUrl para URLs antigas (bucket ainda privado)
+   - Implementar função handleDownload que tenta URL direta primeiro, depois signed URL
+   
+b) Adicione botão "Nova Petição" que reseta o wizard (chama onReset ou navega para /olivia)
+
+c) Se score_revisor >= 8: mostrar badge "✨ Aprovado" em verde
+   Se score_revisor 6-7: mostrar badge "⚠️ Revisar" em amarelo
+   Se score_revisor < 6: mostrar badge "❌ Melhorar" em vermelho
+
+d) Exibir tempo de geração se disponível (tempo_geracao_ms / 1000 arredondado em segundos)
+
+### TAREFA 4: useOliviaWizard.ts — robustez
+
+Arquivo: src/pages/olivia/hooks/useOliviaWizard.ts
+
+a) Confirme que o modo enviado ao servidor é 'OLIVIA' (não 'EXPRESS' ou outro)
+   Verificar: o campo `modo` no payload para /olivia/gerar deve ser 'OLIVIA'
+   
+b) O historico_id é criado com status 'PROCESSANDO' antes de chamar o servidor?
+   Se não, adicionar INSERT em olivia_historico antes de chamar /olivia/gerar para que o Realtime funcione desde o início.
+
+c) Verificar se qualidade_ia é passada corretamente: 'padrao' ou 'avancado'
+
+### Após todas as correções:
+- Rodar: npx tsc --noEmit (deve passar 0 erros)
+- Gerar relatório: arquivos modificados, o que foi corrigido, o que ficou pendente
+- NUNCA modificar arquivos em components/smart-blocks/ ou hooks/useSmartBlocks*.ts</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO 4 -->
+  <div class="accordion" id="acc4">
+    <div class="acc-header" onclick="toggle('acc4')">
+      <div class="acc-num p1">4</div>
+      <div class="acc-title">EPROC — Estrutura Plug and Play</div>
+      <span class="acc-badge badge-p1">P1 — Backend Skills</span>
+      <div class="acc-arrow">▼</div>
+    </div>
+    <div class="acc-body">
+      <div class="tag-row">
+        <span class="tag">📁 /Users/Shared/olivia-skills/</span>
+        <span class="tag">olivia-eproc-baixar.mjs</span>
+        <span class="tag">server.mjs</span>
+        <span class="tag">olivia-analisa-provas.mjs</span>
+      </div>
+      <p class="desc">O EPROC não está funcional (DNS inatingível), mas precisa estar estruturado de forma que quando as credenciais forem adicionadas, tudo funcione automaticamente.</p>
+      <div class="prompt-wrap">
+        <button class="copy-btn" onclick="copy('prompt4', this)">Copiar Prompt</button>
+        <div class="prompt-box" id="prompt4">Você está no Mac Mini M4.
+Arquivos principais:
+- /Users/Shared/olivia-skills/olivia-eproc-baixar.mjs
+- /Users/Shared/olivia-server/server.mjs
+
+## MISSÃO 4 — EPROC: Plug and Play
+
+### Contexto
+O EPROC (sistema de processos judiciais do RS) não está funcional porque:
+1. DNS inatingível no ambiente atual
+2. EPROC_USER e EPROC_PASS não configurados no .env
+O objetivo é que quando as credenciais forem adicionadas, tudo funcione automaticamente.
+
+### TAREFA 1: Verificar estrutura da skill olivia-eproc-baixar.mjs
+
+Leia o arquivo e verifique:
+a) A skill verifica se EPROC_USER e EPROC_PASS estão configurados?
+   Se não, adicionar: 
+   if (!process.env.EPROC_USER || !process.env.EPROC_PASS) {
+     return { mock: true, motivo: 'EPROC_USER/EPROC_PASS não configurados', documentos: [] }
+   }
+   
+b) A skill tem timeout adequado para chamadas ao EPROC? (máximo 30s)
+   Se não, adicionar timeout de 30s nas chamadas https.
+
+c) Quando EPROC falha (DNS error, timeout, auth error):
+   - Retornar { mock: true, motivo: 'EPROC indisponível', documentos: [] }
+   - Nunca lançar exceção não tratada
+   - Logar o erro para diagnóstico
+
+d) O output da skill é compatível com o que olivia-analisa-provas.mjs espera?
+   Verifique qual campo olivia-analisa-provas.mjs usa para lista de documentos do EPROC.
+   Garanta que o campo existe no output mesmo quando mock=true.
+
+### TAREFA 2: Integração no pipeline do server.mjs
+
+No server.mjs, o EPROC deve ser chamado ANTES de analisa-provas (para baixar os documentos):
+Pipeline correto:
+  [0] eproc-baixar (opcional — se disponível, baixa docs automaticamente)
+  S1: analisa-provas (usa documentos do EPROC + documentos do Supabase)
+  ...
+
+Verifique se o server.mjs chama eproc-baixar antes de analisa-provas.
+Se não, adicione:
+- Chamar eproc-baixar com o numero_cnj do processo
+- Se retornar mock=true, continuar com documentos do Supabase apenas
+- Se retornar documentos, adicioná-los à lista de docs para analisa-provas
+
+### TAREFA 3: Variáveis de ambiente necessárias
+
+Documente no início do server.mjs (comentário) todas as env vars necessárias:
+// Env vars necessárias (adicionar ao .env):
+// OLIVIA_PORT=19100 (opcional, default 19100)
+// SUPABASE_URL=https://qdivfairxhdihaqqypgb.supabase.co
+// SUPABASE_KEY=... (service_role)
+// ANTHROPIC_API_KEY=...
+// OPENAI_API_KEY=... (para Whisper)
+// EPROC_USER=... (opcional — para baixar docs do EPROC automaticamente)
+// EPROC_PASS=... (opcional)
+// PERPLEXITY_API_KEY=... (opcional — para pesquisa Reclame Aqui)
+
+Verifique se todas essas vars são lidas corretamente no server.mjs e nas skills relevantes.
+
+### Relatório final:
+- olivia-eproc-baixar.mjs: lista de proteções implementadas
+- Integração no server.mjs: ✅/❌ + o que foi feito
+- Env vars documentadas: lista completa
+- O que ainda precisa de config humana para funcionar</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO 5 -->
+  <div class="accordion" id="acc5">
+    <div class="acc-header" onclick="toggle('acc5')">
+      <div class="acc-num p1">5</div>
+      <div class="acc-title">Banco — Limpeza de Dados de Teste + Migrations Pendentes</div>
+      <span class="acc-badge badge-p1">P1 — Supabase</span>
+      <div class="acc-arrow">▼</div>
+    </div>
+    <div class="acc-body">
+      <div class="tag-row">
+        <span class="tag">Supabase qdivfairxhdihaqqypgb</span>
+        <span class="tag">olivia_historico</span>
+        <span class="tag">olivia_modelos_grupo</span>
+        <span class="tag">Management API</span>
+      </div>
+      <p class="desc">Limpa dados de teste que ficaram do desenvolvimento, oculta modelos de teste e executa as migrations P0 pendentes.</p>
+      <div class="prompt-wrap">
+        <button class="copy-btn" onclick="copy('prompt5', this)">Copiar Prompt</button>
+        <div class="prompt-box" id="prompt5">Você está no Mac Mini M4.
+Supabase project: qdivfairxhdihaqqypgb
+SUPABASE_ACCESS_TOKEN: sbp_38632a902ee36a28bfb42396bed19a667cffaead
+Org Midas: 55a0c7ba-1a23-4ae1-b69b-a13811324735
+
+Para executar SQL use:
+node -e "
+const https = require('https');
+const TOKEN = 'sbp_38632a902ee36a28bfb42396bed19a667cffaead';
+const q = \`SQL_AQUI\`;
+const body = JSON.stringify({query: q});
+const opts = {hostname:'api.supabase.com',path:'/v1/projects/qdivfairxhdihaqqypgb/database/query',
+  method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+TOKEN,'Content-Length':Buffer.byteLength(body)}};
+const r = https.request(opts,res=>{let d='';res.on('data',c=>d+=c);res.on('end',()=>console.log(d))});r.write(body);r.end();
+"
+
+## MISSÃO 5 — Banco: Limpeza e Migrations
+
+### TAREFA 1: Ocultar modelos de teste
+
+Execute:
+UPDATE olivia_modelos_grupo 
+SET status = 'draft' 
+WHERE nome LIKE '%EXCLUIR%' OR nome LIKE '%Teste%' OR nome LIKE '%teste%'
+AND organizacao_id = '55a0c7ba-1a23-4ae1-b69b-a13811324735';
+
+Verifique quantos foram afetados e liste os nomes.
+
+### TAREFA 2: Arquivar históricos de teste (lapidação noturna)
+
+Os primeiros históricos (score < 5, criados antes de 2026-03-22 12:00 UTC) são testes de desenvolvimento.
+Eles não devem aparecer na listagem do usuário.
+
+Adicione coluna de_teste se não existir:
+ALTER TABLE olivia_historico ADD COLUMN IF NOT EXISTS de_teste BOOLEAN DEFAULT FALSE;
+
+Marque como de_teste os históricos antigos com score baixo:
+UPDATE olivia_historico 
+SET de_teste = TRUE 
+WHERE score_revisor < 6 
+  AND created_at < '2026-03-22 20:00:00+00'
+  AND organizacao_id = '55a0c7ba-1a23-4ae1-b69b-a13811324735';
+
+Verifique o resultado.
+
+### TAREFA 3: Fix qualidade_ia 'pensamento_estendido'
+
+Verifique se existe algum histórico com qualidade_ia = 'pensamento_estendido':
+SELECT id, qualidade_ia FROM olivia_historico WHERE qualidade_ia = 'pensamento_estendido' LIMIT 5;
+
+Se existir, corrigir para 'avancado':
+UPDATE olivia_historico SET qualidade_ia = 'avancado' WHERE qualidade_ia = 'pensamento_estendido';
+
+### TAREFA 4: Verificar olivia_relatorios RLS
+
+A tabela olivia_relatorios tem apenas 2 policies (org_access ALL).
+Verifique se as policies existentes cobrem SELECT, INSERT, UPDATE, DELETE:
+
+SELECT policyname, cmd FROM pg_policies WHERE tablename = 'olivia_relatorios';
+
+Se faltar algum CRUD, adicione policies granulares:
+CREATE POLICY "olivia_relatorios_select" ON olivia_relatorios FOR SELECT USING (organizacao_id = org_id());
+CREATE POLICY "olivia_relatorios_insert" ON olivia_relatorios FOR INSERT WITH CHECK (organizacao_id = org_id());
+CREATE POLICY "olivia_relatorios_update" ON olivia_relatorios FOR UPDATE USING (organizacao_id = org_id());
+CREATE POLICY "olivia_relatorios_delete" ON olivia_relatorios FOR DELETE USING (organizacao_id = org_id());
+
+### TAREFA 5: Verificar campo de_teste no frontend
+
+No arquivo ~/beta-mdflow/src/pages/olivia/ (qualquer query que liste olivia_historico),
+adicione filtro .eq('de_teste', false) ou .neq('de_teste', true) para não mostrar históricos de teste.
+
+Procure por:
+grep -r "olivia_historico" src/pages/olivia/ --include="*.ts" --include="*.tsx" -l
+
+Para cada arquivo que faça query na tabela, adicione o filtro.
+
+### Relatório final:
+- Modelos ocultados: lista
+- Históricos marcados como de_teste: quantidade
+- qualidade_ia corrigidos: quantidade  
+- olivia_relatorios policies: antes/depois
+- Arquivos frontend modificados</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BLOCO 6 -->
+  <div class="accordion" id="acc6">
+    <div class="acc-header" onclick="toggle('acc6')">
+      <div class="acc-num p2">6</div>
+      <div class="acc-title">Relatório Final — Cross-check PRD + Obsidian + Sistema Real</div>
+      <span class="acc-badge badge-info">Final — Relatório HTML</span>
+      <div class="acc-arrow">▼</div>
+    </div>
+    <div class="acc-body">
+      <div class="tag-row">
+        <span class="tag">📁 ~/Desktop/olivia v3/Projeto/</span>
+        <span class="tag">estado-atual.md</span>
+        <span class="tag">plano-mestre.md</span>
+        <span class="tag">prd/</span>
+        <span class="tag">~/jarbas-reports/jana/olivia/</span>
+      </div>
+      <p class="desc">Após executar todos os blocos anteriores, este prompt gera o relatório definitivo cross-checking tudo: PRD vs implementado, banco, frontend, skills, gaps e score final.</p>
+      <div class="prompt-wrap">
+        <button class="copy-btn" onclick="copy('prompt6', this)">Copiar Prompt</button>
+        <div class="prompt-box" id="prompt6">Você está no MacBook Air M4.
+Diretórios relevantes:
+- ~/beta-mdflow/src/pages/olivia/ (frontend)
+- /Users/Shared/olivia-skills/ (skills — via ssh mac-mini)
+- /Users/Shared/olivia-server/server.mjs (servidor — via ssh mac-mini)
+- ~/Desktop/olivia v3/Projeto/ (vault Obsidian)
+- ~/jarbas-reports/jana/olivia/ (onde salvar o relatório)
+
+Supabase project: qdivfairxhdihaqqypgb
+SUPABASE_KEY: leia de ~/jarbas/.env
+
+## MISSÃO FINAL — Relatório Cross-check PRD
+
+### PARTE 1: Ler contexto completo
+
+1. Leia: ~/Desktop/olivia v3/Projeto/projeto-olivia/estado-atual.md
+2. Leia: ~/Desktop/olivia v3/Projeto/projeto-olivia/plano-mestre.md (primeiros 200 linhas)
+3. Liste: ~/Desktop/olivia v3/Projeto/projeto-olivia/prd/ — leia o PRD mais recente
+
+### PARTE 2: Auditar sistema real
+
+Para cada área, faça uma verificação real:
+
+**Frontend:**
+- npx tsc --noEmit em ~/beta-mdflow (contar erros)
+- Contar linhas de cada arquivo .tsx em src/pages/olivia/ > 400 linhas
+- Verificar se ZERO hardcode de cores Tailwind (grep 'text-blue\|text-green\|text-red\|bg-blue\|bg-green\|bg-red' src/pages/olivia/)
+- Verificar se import de Smart Blocks permanece intacto (não removido)
+
+**Backend (via ssh mac-mini):**
+- Verificar health: curl http://localhost:19100/health
+- Contar skills em /Users/Shared/olivia-skills/*.mjs
+- Verificar que server.mjs PORT usa env var
+- Verificar último log: tail -50 /tmp/olivia-server.log
+
+**Banco Supabase:**
+- Contar: olivia_historico (total, CONCLUIDO, média score_revisor últimos 10)
+- Contar: olivia_modelos_grupo com status='published'
+- Verificar: olivia_historico sem registros de_teste=true visíveis
+- Verificar: CHECK constraint qualidade_ia (deve ter apenas 'padrao' e 'avancado')
+
+**Última petição gerada:**
+- Buscar último historico CONCLUIDO
+- Verificar: docx_url acessível (curl -I)
+- Verificar: zero placeholders [VARIÁVEIS] no peticao_html
+- Verificar: dados reais (nome do cliente, empresa, CNJ, OAB)
+
+### PARTE 3: Tabela PRD vs Implementado
+
+Para cada item do PRD, marque: ✅ Implementado | ⚠️ Parcial | ❌ Pendente
+
+Use as categorias:
+- Motor / Arquitetura
+- Frontend Wizard (5 steps)
+- Pipeline Skills (9 skills)
+- Formatação DOCX
+- Upload de Documentos
+- Microfone / Transcrição
+- EPROC Integração
+- Banco / RLS / Migrations
+- Segurança (sem JARBAS na UI, sem métricas visíveis)
+
+### PARTE 4: Gaps e Pendências
+
+Liste todos os gaps encontrados:
+- P0: bloqueador de lançamento
+- P1: importante mas não bloqueia MVP
+- P2: melhoria futura
+
+### PARTE 5: Score Final por Dimensão
+
+| Dimensão | Score | Justificativa |
+|---|---|---|
+| Pipeline Backend | X/10 | ... |
+| Frontend Wizard | X/10 | ... |
+| Qualidade Petição | X/10 | ... |
+| Infraestrutura | X/10 | ... |
+| Aderência PRD | X/10 | ... |
+| **Overall** | **X/10** | ... |
+
+### PARTE 6: Gerar HTML
+
+Salve o relatório em ~/jarbas-reports/jana/olivia/olivia-review-final.html
+
+O HTML deve ter:
+- Design dark (fundo #0f1117)
+- Seções colapsáveis
+- Tabela PRD vs Implementado com cores (verde/amarelo/vermelho)
+- Scores por dimensão
+- Lista de pendências com prioridade
+- Seção "Pronto para lançamento?" com resposta clara (SIM/NÃO/CONDICIONAL)
+
+Após salvar, execute:
+cd ~/jarbas-reports && git add jana/olivia/olivia-review-final.html && git commit -m "report: review final OlivIA pré-lançamento" && git push
+
+Confirme o commit hash e URL: https://mdlab-christian.github.io/jarbas-reports/jana/olivia/olivia-review-final.html</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert alert-warn" style="margin-top: 24px;">
+    <strong>⚠️ Ordem recomendada:</strong> Execute Bloco 1 → 2 → 3 → 4 → 5 → 6. Cada bloco é independente mas o 6 (relatório final) deve ser executado por último, depois de todas as correções. Após cada bloco, reinicie o servidor OlivIA: <code>ssh mac-mini "pkill -f server.mjs && nohup node /Users/Shared/olivia-server/server.mjs &"</code>
+  </div>
+
+  <footer>
+    Gerado por JANA 🦊 • MacBook Air M4 • 22/03/2026 • PRD v5.7 + commit 1c1c50cd
+  </footer>
+
+</div>
+
+<script>
+function toggle(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
+}
+
+function copy(id, btn) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copiar Prompt';
+      btn.classList.remove('copied');
+    }, 2500);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copiar Prompt';
+      btn.classList.remove('copied');
+    }, 2500);
+  });
+}
+</script>
+</body>
+</html>

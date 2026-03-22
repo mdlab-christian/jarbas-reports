@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G1 Backend — Deep Review | OlivIA 21/03/2026</title>
+<style>
+  :root {
+    --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+    --text: #e2e8f0; --muted: #8892a4;
+    --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+    --blue: #3b82f6; --purple: #a855f7; --orange: #f97316;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'SF Pro Text', -apple-system, sans-serif; font-size: 14px; line-height: 1.6; }
+
+  .header { background: linear-gradient(135deg, #0a1a0a 0%, #0f1117 100%); border-bottom: 2px solid var(--green); padding: 28px 40px; }
+  .header h1 { font-size: 24px; font-weight: 800; color: #fff; }
+  .header .sub { color: var(--muted); margin-top: 6px; font-size: 13px; }
+  .badge { display: inline-block; border-radius: 20px; padding: 3px 12px; font-size: 11px; font-weight: 700; margin-right: 6px; }
+  .bg { background: #22c55e22; color: var(--green); border: 1px solid #22c55e55; }
+  .bw { background: #f59e0b22; color: var(--yellow); border: 1px solid #f59e0b55; }
+  .br { background: #ef444422; color: var(--red); border: 1px solid #ef444455; }
+  .bb { background: #3b82f622; color: var(--blue); border: 1px solid #3b82f655; }
+  .bp { background: #a855f722; color: var(--purple); border: 1px solid #a855f755; }
+
+  .container { max-width: 1000px; margin: 0 auto; padding: 36px 24px; }
+
+  /* Score banner */
+  .score-banner { background: linear-gradient(135deg, #0a1a0a, #1a1d27); border: 2px solid var(--green); border-radius: 14px; padding: 28px 36px; margin-bottom: 36px; display: flex; align-items: center; gap: 32px; }
+  .score-circle { width: 100px; height: 100px; border-radius: 50%; border: 4px solid var(--green); display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; }
+  .score-num { font-size: 36px; font-weight: 900; color: var(--green); line-height: 1; }
+  .score-den { font-size: 13px; color: var(--muted); }
+  .score-text h2 { font-size: 20px; font-weight: 800; color: var(--green); }
+  .score-text p { color: var(--muted); margin-top: 6px; font-size: 13px; line-height: 1.7; }
+
+  /* Checklist principal */
+  .checklist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 36px; }
+  .check-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+  .check-card.pass { border-left: 4px solid var(--green); }
+  .check-card.fail { border-left: 4px solid var(--red); }
+  .check-header { padding: 14px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+  .check-icon { font-size: 20px; }
+  .check-title { font-weight: 700; font-size: 14px; flex: 1; }
+  .status-pill { border-radius: 20px; padding: 2px 10px; font-size: 11px; font-weight: 700; }
+  .pass-pill { background: #22c55e22; color: var(--green); border: 1px solid #22c55e44; }
+  .fail-pill { background: #ef444422; color: var(--red); border: 1px solid #ef444444; }
+  .check-body { padding: 14px 18px; }
+  .check-body .expected { color: var(--muted); font-size: 12px; margin-bottom: 4px; }
+  .check-body .actual { font-size: 13px; font-weight: 600; }
+  .check-body .actual.ok { color: var(--green); }
+  .check-body .actual.nok { color: var(--red); }
+  .check-body .detail { color: var(--muted); font-size: 12px; margin-top: 6px; }
+
+  /* Seções */
+  .section { margin-bottom: 36px; }
+  .section-title { font-size: 16px; font-weight: 800; color: #fff; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .section-title .icon { font-size: 18px; }
+
+  /* Tabelas */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { background: #0a0d14; color: var(--muted); text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--border); font-weight: 600; letter-spacing: 0.3px; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1e2133; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 16px; }
+
+  /* Code */
+  pre, code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; }
+  .code-block { background: #070a10; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; margin: 10px 0; }
+  .code-block code { color: #a5d6ff; }
+  .kw { color: #ff79c6; }
+  .str { color: #f1fa8c; }
+  .cmt { color: #6272a4; }
+  .ok-val { color: var(--green); }
+  .warn-val { color: var(--yellow); }
+
+  /* Alert boxes */
+  .alert { border-radius: 8px; padding: 14px 16px; margin: 12px 0; font-size: 13px; }
+  .alert-ok { background: #22c55e11; border: 1px solid #22c55e44; color: var(--green); }
+  .alert-warn { background: #f59e0b11; border: 1px solid #f59e0b44; color: var(--yellow); }
+  .alert-info { background: #3b82f611; border: 1px solid #3b82f644; color: var(--blue); }
+
+  /* Timeline */
+  .timeline { position: relative; padding-left: 28px; }
+  .timeline::before { content: ''; position: absolute; left: 8px; top: 8px; bottom: 8px; width: 2px; background: var(--border); }
+  .tl-item { position: relative; margin-bottom: 20px; }
+  .tl-item::before { content: ''; position: absolute; left: -24px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--green); border: 2px solid var(--bg); }
+  .tl-item.warn::before { background: var(--yellow); }
+  .tl-time { color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .tl-title { font-weight: 700; font-size: 13px; }
+  .tl-desc { color: var(--muted); font-size: 12px; margin-top: 3px; }
+
+  /* Chips */
+  .chip { display: inline-block; background: #1e2133; border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 11px; font-family: monospace; margin: 2px; }
+  .chip.ok { background: #22c55e11; border-color: #22c55e44; color: var(--green); }
+  .chip.nok { background: #ef444411; border-color: #ef444444; color: var(--red); }
+  .chip.new { background: #3b82f611; border-color: #3b82f644; color: var(--blue); }
+
+  /* Vault grid */
+  .vault-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .vault-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; }
+  .vault-card .vn { font-size: 28px; font-weight: 800; }
+  .vault-card .vl { color: var(--muted); font-size: 11px; margin-top: 4px; }
+  .vault-card.empty { border-color: #ef444433; }
+  .vault-card.empty .vn { color: var(--red); }
+
+  .footer { text-align: center; color: var(--muted); font-size: 12px; padding: 32px; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>✅ G1 Backend OlivIA — Deep Review</h1>
+  <div class="sub">
+    <span class="badge bg">11/11 Critérios OK</span>
+    <span class="badge bb">Supabase qdivfairxhdihaqqypgb</span>
+    <span class="badge bp">Vault /Users/Shared/olivia-vault</span>
+    <span style="color:var(--muted)">JANA 🦊 · 21/03/2026 · 22h17</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SCORE -->
+  <div class="score-banner">
+    <div class="score-circle">
+      <div class="score-num">11</div>
+      <div class="score-den">de 11</div>
+    </div>
+    <div class="score-text">
+      <h2>✅ G1 Backend — 100% Concluído</h2>
+      <p>Todos os critérios de sucesso definidos no prompt original foram atingidos e verificados diretamente no banco Supabase e no Mac Mini.<br>
+      Banco limpo, novas tabelas/colunas criadas, CHECKs corrigidos, vault conectado à OlivIA, processo online.</p>
+    </div>
+  </div>
+
+  <!-- CHECKLIST PRINCIPAL -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📋</span> Checklist — Critérios de Sucesso (verificados ao vivo)</div>
+    <div class="checklist-grid">
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">🗑️</span>
+          <span class="check-title">olivia_flow — DROP</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: tabela removida (estava com 0 rows)</div>
+          <div class="actual ok">Tabela não existe no banco</div>
+          <div class="detail">SELECT table_name FROM information_schema.tables → 0 rows</div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">🗑️</span>
+          <span class="check-title">olivia_historico_gerador — DROP</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: tabela removida (estava com 0 rows, RLS OFF)</div>
+          <div class="actual ok">Tabela não existe no banco</div>
+          <div class="detail">Tabela fantasma (schema legado pré-refactor) eliminada</div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">🧹</span>
+          <span class="check-title">olivia_historico — 0 rows após TRUNCATE</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: 0 rows (eram 103 inválidos)</div>
+          <div class="actual ok">0 rows ✓</div>
+          <div class="detail">TRUNCATE CASCADE — dependentes (processos_insights, processos_documentos, olivia_agente_contexto) todos com 0 refs, sem perda de dados reais</div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">🆕</span>
+          <span class="check-title">olivia_relatorios — CREATE TABLE</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: tabela criada, 0 rows, RLS ON</div>
+          <div class="actual ok">Existe · 0 rows · RLS ON ✓</div>
+          <div class="detail">7 colunas: id, organizacao_id, processo_id, historico_id, codigo, url_html, tipo, created_at</div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">🔒</span>
+          <span class="check-title">olivia_modelo_juris — RLS ON (não dropada)</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: RLS habilitado · 2.440 rows intactos</div>
+          <div class="actual ok">RLS ON · 2.440 rows preservados ✓</div>
+          <div class="detail">Policy "org_access" FOR ALL USING (organizacao_id = get_org_id()) — lição do vault aplicada: tabela NÃO estava vazia</div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">📂</span>
+          <span class="check-title">olivia_tipos_prova — ≥15 rows</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: ≥15 rows (eram 10)</div>
+          <div class="actual ok">15 rows ✓</div>
+          <div class="detail">+5 adicionados: Boleto, Declaração, Comprovante de Pagamento, Notificação Extrajudicial, Documento de Identidade</div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">➕</span>
+          <span class="check-title">olivia_historico — colunas novas</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: progresso_pct, perguntas_geradas, analise_provas, chance_ganho, docx_url + mais</div>
+          <div class="actual ok">9/9 colunas confirmadas ✓</div>
+          <div class="detail">
+            <span class="chip new">progresso_pct</span><span class="chip new">progresso_msg</span><span class="chip new">perguntas_geradas</span><span class="chip new">analise_provas</span><span class="chip new">chance_ganho</span><span class="chip new">docx_url</span><span class="chip new">codigo_peticao</span><span class="chip new">dados_reu</span><span class="chip new">reclame_aqui</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">✔️</span>
+          <span class="check-title">qualidade_ia CHECK — padrao|avancado</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: remover pensamento_estendido e opus</div>
+          <div class="actual ok">CHECK correto ✓</div>
+          <div class="detail"><code>CHECK (qualidade_ia IS NULL OR qualidade_ia = ANY (ARRAY['padrao','avancado']))</code></div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">🗂️</span>
+          <span class="check-title">VAULT — openclaw.json memory block</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: memorySearch.extraPaths apontando para /Users/Shared/olivia-vault</div>
+          <div class="actual ok">Configurado ✓</div>
+          <div class="detail"><code>"memorySearch": {"extraPaths": ["/Users/Shared/olivia-vault"]}</code></div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">📝</span>
+          <span class="check-title">VAULT — SOUL.md + TOOLS.md com seção vault</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: seção "Vault Jurídico" em ambos os arquivos</div>
+          <div class="actual ok">Ambos configurados ✓</div>
+          <div class="detail">SOUL.md linha 69: "## Vault Jurídico — Cérebro Permanente" · TOOLS.md linha 134: vault path + comandos</div>
+        </div>
+      </div>
+
+      <div class="check-card pass">
+        <div class="check-header">
+          <span class="check-icon">🌐</span>
+          <span class="check-title">VAULT — HTML status publicado</span>
+          <span class="status-pill pass-pill">✅ PASS</span>
+        </div>
+        <div class="check-body">
+          <div class="expected">Esperado: HTML publicado em ~/jarbas-reports/jana/olivia/vault-status.html</div>
+          <div class="actual ok">Publicado ✓</div>
+          <div class="detail"><a href="https://mdlab-christian.github.io/jarbas-reports/jana/olivia/vault-status.html" style="color:var(--blue)">vault-status.html</a></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BANCO — DETALHAMENTO -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🗄️</span> Banco Supabase — Estado Final Verificado</div>
+
+    <div class="tbl-wrap">
+      <table>
+        <tr>
+          <th>Tabela</th><th>Rows</th><th>RLS</th><th>Status</th><th>Observação</th>
+        </tr>
+        <tr>
+          <td><code>olivia_historico</code></td>
+          <td><span style="color:var(--green)">0</span></td>
+          <td><span style="color:var(--green)">ON</span></td>
+          <td><span class="badge bg">✅ OK</span></td>
+          <td>Truncado + 9 colunas adicionadas + CHECK corrigido</td>
+        </tr>
+        <tr>
+          <td><code>olivia_relatorios</code></td>
+          <td><span style="color:var(--green)">0</span></td>
+          <td><span style="color:var(--green)">ON</span></td>
+          <td><span class="badge bg">✅ CRIADA</span></td>
+          <td>P0 — não existia antes do G1</td>
+        </tr>
+        <tr>
+          <td><code>olivia_modelo_juris</code></td>
+          <td><span style="color:var(--green)">2.440</span></td>
+          <td><span style="color:var(--green)">ON</span></td>
+          <td><span class="badge bg">✅ OK</span></td>
+          <td>Lição aplicada: não dropada, apenas RLS habilitado</td>
+        </tr>
+        <tr>
+          <td><code>olivia_tipos_prova</code></td>
+          <td><span style="color:var(--green)">15</span></td>
+          <td><span style="color:var(--green)">ON</span></td>
+          <td><span class="badge bg">✅ OK</span></td>
+          <td>+5 seeds adicionados (total: 15)</td>
+        </tr>
+        <tr>
+          <td><code>olivia_flow</code></td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="badge bw">🗑️ DROPADA</span></td>
+          <td>Era 0 rows, schema legado não utilizado</td>
+        </tr>
+        <tr>
+          <td><code>olivia_historico_gerador</code></td>
+          <td>—</td>
+          <td>—</td>
+          <td><span class="badge bw">🗑️ DROPADA</span></td>
+          <td>Era 0 rows + RLS OFF, schema pré-refactor</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top:24px"><span class="icon">✔️</span> CHECKs olivia_historico — Estado Final</div>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Constraint</th><th>Valores</th><th>Status</th></tr>
+        <tr>
+          <td><code>chk_olivia_historico_modo</code></td>
+          <td><span class="chip">IA_ASSISTIDA</span><span class="chip">JARBAS</span><span class="chip">MANUAL</span><span class="chip">EXPRESS</span><span class="chip">SMART_BLOCKS</span><span class="chip">VIBELAW</span><span class="chip ok">OLIVIA</span><span class="chip ok">olivia</span></td>
+          <td><span class="badge bg">✅ Já correto</span></td>
+        </tr>
+        <tr>
+          <td><code>chk_olivia_historico_status</code></td>
+          <td><span class="chip">PENDENTE</span><span class="chip">EM_PROGRESSO</span><span class="chip">SUCESSO</span><span class="chip">ERRO</span><span class="chip">ABANDONADO</span><span class="chip ok">CONCLUIDO</span><span class="chip ok">AGUARDA_REVISAO</span><span class="chip ok">PROCESSANDO</span></td>
+          <td><span class="badge bg">✅ Já correto</span></td>
+        </tr>
+        <tr>
+          <td><code>chk_olivia_historico_qualidade_ia</code></td>
+          <td><span class="chip ok">padrao</span><span class="chip ok">avancado</span> <span style="color:var(--muted);font-size:11px">— removidos: pensamento_estendido, opus</span></td>
+          <td><span class="badge bg">✅ MIGRADO</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top:24px"><span class="icon">➕</span> Colunas adicionadas em olivia_historico</div>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Coluna</th><th>Tipo</th><th>Default</th><th>Uso</th></tr>
+        <tr><td><code>progresso_pct</code></td><td>integer</td><td>0</td><td>% de progresso em tempo real (Realtime)</td></tr>
+        <tr><td><code>progresso_msg</code></td><td>text</td><td>null</td><td>Mensagem do step atual ("Analisando documentos...")</td></tr>
+        <tr><td><code>perguntas_geradas</code></td><td>jsonb</td><td>[]</td><td>Perguntas dinâmicas geradas pela OlivIA no Step 2</td></tr>
+        <tr><td><code>analise_provas</code></td><td>jsonb</td><td>null</td><td>JSON da análise de provas do réu</td></tr>
+        <tr><td><code>chance_ganho</code></td><td>numeric</td><td>null</td><td>Percentual de chance de ganho estimado</td></tr>
+        <tr><td><code>docx_url</code></td><td>text</td><td>null</td><td>URL do DOCX gerado via docxtemplater</td></tr>
+        <tr><td><code>codigo_peticao</code></td><td>integer</td><td>null</td><td>Código numérico da petição</td></tr>
+        <tr><td><code>dados_reu</code></td><td>jsonb</td><td>null</td><td>Dados da parte contrária</td></tr>
+        <tr><td><code>reclame_aqui</code></td><td>jsonb</td><td>null</td><td>Dados scraping Reclame Aqui (Modo Avançado)</td></tr>
+      </table>
+    </div>
+
+    <div class="section-title" style="margin-top:24px"><span class="icon">📂</span> olivia_tipos_prova — 15 rows (completo)</div>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Nome</th><th>Categoria</th><th>Nível Impugnação</th><th>Peso</th><th>Origem</th></tr>
+        <tr><td>Boleto</td><td>banco</td><td>moderado</td><td>6</td><td><span class="badge bg">+G1</span></td></tr>
+        <tr><td>Comprovante de Pagamento</td><td>banco</td><td>forte</td><td>8</td><td><span class="badge bg">+G1</span></td></tr>
+        <tr><td>Comprovante de Restrição</td><td>banco</td><td>forte</td><td>10</td><td>pré-G1</td></tr>
+        <tr><td>Contestação</td><td>banco</td><td>forte</td><td>9</td><td>pré-G1</td></tr>
+        <tr><td>Contrato</td><td>cartao</td><td>forte</td><td>8</td><td>pré-G1</td></tr>
+        <tr><td>Correspondência</td><td>loja</td><td>moderado</td><td>6</td><td>pré-G1</td></tr>
+        <tr><td>Declaração</td><td>outros</td><td>moderado</td><td>6</td><td><span class="badge bg">+G1</span></td></tr>
+        <tr><td>Documento de Identidade</td><td>outros</td><td>moderado</td><td>5</td><td><span class="badge bg">+G1</span></td></tr>
+        <tr><td>Email de Cobrança</td><td>fintech</td><td>moderado</td><td>7</td><td>pré-G1</td></tr>
+        <tr><td>Extrato Bancário</td><td>banco</td><td>moderado</td><td>7</td><td>pré-G1</td></tr>
+        <tr><td>Laudo Pericial</td><td>outros</td><td>forte</td><td>10</td><td>pré-G1</td></tr>
+        <tr><td>Notificação Extrajudicial</td><td>outros</td><td>forte</td><td>9</td><td><span class="badge bg">+G1</span></td></tr>
+        <tr><td>Print de Tela</td><td>fintech</td><td>fraco</td><td>5</td><td>pré-G1</td></tr>
+        <tr><td>Procuração</td><td>outros</td><td>forte</td><td>8</td><td>pré-G1</td></tr>
+        <tr><td>SMS de Cobrança</td><td>telefonia</td><td>moderado</td><td>7</td><td>pré-G1</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- VAULT -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🌸</span> Vault OlivIA — Estado Final</div>
+
+    <div class="vault-grid" style="margin-bottom:20px">
+      <div class="vault-card">
+        <div class="vn" style="color:var(--purple)">1.351</div>
+        <div class="vl">Jurisprudências (TJRS+SC+SP)</div>
+      </div>
+      <div class="vault-card">
+        <div class="vn" style="color:var(--blue)">182</div>
+        <div class="vl">Grupos de Blocos</div>
+      </div>
+      <div class="vault-card">
+        <div class="vn" style="color:var(--green)">168</div>
+        <div class="vl">Modelos de Petição</div>
+      </div>
+      <div class="vault-card">
+        <div class="vn" style="color:var(--yellow)">183</div>
+        <div class="vl">Tags Processuais</div>
+      </div>
+      <div class="vault-card">
+        <div class="vn" style="color:var(--green)">11</div>
+        <div class="vl">Playbooks</div>
+      </div>
+      <div class="vault-card">
+        <div class="vn" style="color:var(--green)">4</div>
+        <div class="vl">Decisões Arquiteturais</div>
+      </div>
+    </div>
+
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Componente</th><th>Status</th><th>Detalhe</th></tr>
+        <tr>
+          <td>memorySearch.extraPaths no openclaw.json</td>
+          <td><span class="badge bg">✅ Ativo</span></td>
+          <td><code>/Users/Shared/olivia-vault</code> — indexado no boot</td>
+        </tr>
+        <tr>
+          <td>SOUL.md — seção Vault Jurídico</td>
+          <td><span class="badge bg">✅ OK</span></td>
+          <td>Linha 69 — instruções de quando e como usar o vault</td>
+        </tr>
+        <tr>
+          <td>TOOLS.md — seção Vault Jurídico</td>
+          <td><span class="badge bg">✅ OK</span></td>
+          <td>Linha 134 — comandos para ler playbooks, buscar e adicionar ao inbox</td>
+        </tr>
+        <tr>
+          <td>@OlivIA_mdbot processo</td>
+          <td><span class="badge bg">✅ Online</span></td>
+          <td>PID 53847 · usuário olivia · porta 18793 · uptime 22h10</td>
+        </tr>
+        <tr>
+          <td>04_teses/</td>
+          <td><span class="badge bw">⏳ Vazio</span></td>
+          <td>Aguarda OlivIA em produção para capturar primeiras teses</td>
+        </tr>
+        <tr>
+          <td>05_casos-referencia/</td>
+          <td><span class="badge bw">⏳ Vazio</span></td>
+          <td>Aguarda primeiros casos bem-sucedidos</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="section">
+    <div class="section-title"><span class="icon">⏱️</span> Timeline da Sessão G1</div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-time">21:33 — Início</div>
+        <div class="tl-title">Leitura dos 7 arquivos do vault + verificação do banco</div>
+        <div class="tl-desc">README.md, migration-g1.md, prd-backend.md, gap-analysis.md, decisões, lições — estado real do banco confirmado</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:45 — Plano gerado</div>
+        <div class="tl-title">HTML do plano publicado e aprovado por Christian</div>
+        <div class="tl-desc">7 passos detalhados com SQL exato, facts do banco real, alertas de risco</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:47 — Aprovação</div>
+        <div class="tl-title">"Todo o plano confirmado, pode executar"</div>
+        <div class="tl-desc">Execução iniciada em sequência</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:48 — P1</div>
+        <div class="tl-title">DROP olivia_flow + olivia_historico_gerador</div>
+        <div class="tl-desc">Verificado: tabelas não existem mais no information_schema</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:49 — P2</div>
+        <div class="tl-title">TRUNCATE olivia_historico CASCADE</div>
+        <div class="tl-desc">FK bloqueou → verificado que dependentes tinham 0 refs → CASCADE seguro executado</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:50 — P3/P4</div>
+        <div class="tl-title">CREATE olivia_relatorios + ADD 9 colunas olivia_historico</div>
+        <div class="tl-desc">Ambos em sequência, verificados via SELECT</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:51 — P5</div>
+        <div class="tl-title">RLS olivia_modelo_juris</div>
+        <div class="tl-desc">Função verificada no banco (get_org_id(), não get_current_org_id()). 2.440 rows intactos.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:52 — P6</div>
+        <div class="tl-title">Seeds olivia_tipos_prova — +5 rows</div>
+        <div class="tl-desc">CHECK de categoria identificado (banco/fintech/loja/etc). Seeds corrigidos para valores válidos. Total: 15.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">21:53 — P7</div>
+        <div class="tl-title">Migração CHECK qualidade_ia</div>
+        <div class="tl-desc">UPDATE dados + DROP + recreate constraint com apenas padrao|avancado</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">22:00 — Vault</div>
+        <div class="tl-title">Setup vault OlivIA — bloqueio de permissão</div>
+        <div class="tl-desc">Sem sudo SSH não foi possível editar /Users/olivia/. Christian forneceu senha sudo (010597)</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">22:07 — Vault OK</div>
+        <div class="tl-title">openclaw.json + SOUL.md + TOOLS.md configurados via sudo</div>
+        <div class="tl-desc">memorySearch.extraPaths correto (estrutura válida do OpenClaw). Hooks inválidos corrigidos.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-time">22:10 — OlivIA online</div>
+        <div class="tl-title">Gateway reiniciado via launchctl + @OlivIA_mdbot respondendo</div>
+        <div class="tl-desc">PID 53847 · porta 18793 · Telegram polling ativo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DESVIOS / NOTAS -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📌</span> Desvios do Plano Original — Documentados</div>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Situação</th><th>Plano</th><th>Real</th><th>Impacto</th></tr>
+        <tr>
+          <td>TRUNCATE olivia_historico</td>
+          <td>TRUNCATE simples</td>
+          <td>TRUNCATE CASCADE — FK processos_insights bloqueou</td>
+          <td>✅ Nenhum — todas as tabelas dependentes tinham 0 refs</td>
+        </tr>
+        <tr>
+          <td>Seeds olivia_tipos_prova</td>
+          <td>categoria: documental/comunicacao/etc</td>
+          <td>categoria: banco/fintech/loja/outros (CHECK real do banco)</td>
+          <td>✅ Corrigido na hora — primeiro INSERT falhou, CHECK inspecionado</td>
+        </tr>
+        <tr>
+          <td>Policy RLS olivia_modelo_juris</td>
+          <td>get_current_org_id()</td>
+          <td>get_org_id() (função verificada no banco)</td>
+          <td>✅ Corrigido — função inexistente teria quebrado a policy</td>
+        </tr>
+        <tr>
+          <td>memory block openclaw.json</td>
+          <td>memory.path (formato genérico)</td>
+          <td>memorySearch.extraPaths dentro de agents.defaults (formato real do OpenClaw)</td>
+          <td>✅ Corrigido — formato inválido causou erro no boot (detectado via logs)</td>
+        </tr>
+        <tr>
+          <td>Vault setup permissão</td>
+          <td>python3 setup-olivia-vault.py via SSH</td>
+          <td>Requereu senha sudo — arquivos de /Users/olivia/ bloqueados</td>
+          <td>✅ Resolvido com sudo fornecido pelo Christian</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- PRÓXIMOS -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🚀</span> Próximos Passos — G2 e além</div>
+    <div class="tbl-wrap">
+      <table>
+        <tr><th>Grupo</th><th>O que faz</th><th>Dependência</th><th>Status</th></tr>
+        <tr>
+          <td><strong>G2 Skills</strong></td>
+          <td>9 skills em /Users/Shared/olivia-skills/ (S1-S9)</td>
+          <td>G1 ✅</td>
+          <td><span class="badge bb">Pronto para disparar</span></td>
+        </tr>
+        <tr>
+          <td><strong>G3 Frontend</strong></td>
+          <td>Fix FK + Realtime + substituir N8n por OlivIA</td>
+          <td>G2</td>
+          <td><span class="badge bw">Aguarda G2</span></td>
+        </tr>
+        <tr>
+          <td><strong>G4 Integração</strong></td>
+          <td>Tunnel + env + smoke test end-to-end</td>
+          <td>G2+G3</td>
+          <td><span class="badge bw">Aguarda G2+G3</span></td>
+        </tr>
+        <tr>
+          <td><strong>Vault 04_teses/</strong></td>
+          <td>Criar 5 teses iniciais baseadas nos playbooks</td>
+          <td>—</td>
+          <td><span class="badge bb">Pode fazer agora</span></td>
+        </tr>
+        <tr>
+          <td><strong>Vault 05_casos-referencia/</strong></td>
+          <td>Primeiros casos bem-sucedidos</td>
+          <td>OlivIA em produção</td>
+          <td><span class="badge bw">Após G4</span></td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="alert alert-ok">
+    ✅ <strong>G1 Backend OlivIA — 100% concluído.</strong> Banco limpo e preparado para o novo motor OliviaMDBot. Vault jurídico conectado. @OlivIA_mdbot online e indexando 1.700+ notas. Próximo: G2 Skills.
+  </div>
+
+</div>
+
+<div class="footer">
+  🦊 JANA · Deep Review G1 Backend OlivIA · 21/03/2026 · Supabase qdivfairxhdihaqqypgb · Mac Mini M4
+</div>
+
+</body>
+</html>

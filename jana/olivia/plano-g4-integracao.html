@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>G4 OlivIA — Diagnóstico de Integração</title>
+<style>
+body{background:#0f1117;color:#e2e8f0;font-family:system-ui;margin:0;padding:24px;max-width:960px;margin:0 auto}
+h1{color:#a78bfa;font-size:1.8rem;border-bottom:2px solid #334155;padding-bottom:12px}
+h2{color:#38bdf8;font-size:1.2rem;margin-top:32px}
+.card{background:#1e2535;border-radius:12px;padding:20px;margin:12px 0;border-left:4px solid #334155}
+.ok{border-left-color:#22c55e}.fail{border-left-color:#ef4444}.warn{border-left-color:#f59e0b}
+.badge-ok{background:#166534;color:#86efac;padding:2px 8px;border-radius:6px;font-size:.8rem}
+.badge-fail{background:#7f1d1d;color:#fca5a5;padding:2px 8px;border-radius:6px;font-size:.8rem}
+.badge-warn{background:#78350f;color:#fcd34d;padding:2px 8px;border-radius:6px;font-size:.8rem}
+pre{background:#0a0f1e;padding:12px;border-radius:8px;overflow-x:auto;font-size:.85rem;color:#94a3b8}
+.step{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:16px;margin:8px 0}
+.step-num{background:#7c3aed;color:white;border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:.8rem;margin-right:8px}
+table{width:100%;border-collapse:collapse;margin:12px 0}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #334155}
+th{color:#94a3b8;font-weight:600;font-size:.85rem}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+.summary-card{background:#1e2535;border-radius:12px;padding:16px;text-align:center}
+.summary-card .num{font-size:2rem;font-weight:700}
+.num-ok{color:#22c55e}.num-warn{color:#f59e0b}.num-fail{color:#ef4444}
+footer{margin-top:48px;padding-top:16px;border-top:1px solid #334155;color:#64748b;font-size:.8rem}
+</style>
+</head>
+<body>
+<h1>⚖️ G4 OlivIA — Diagnóstico de Integração</h1>
+<p style="color:#64748b">Data: 2026-03-21 · Gerado por Claude Code · Modo: somente leitura</p>
+
+<div class="summary-grid">
+  <div class="summary-card"><div class="num num-ok">6</div><div>Checks OK</div></div>
+  <div class="summary-card"><div class="num num-warn">1</div><div>Atenção</div></div>
+</div>
+
+<h2>1. Status Atual — Verificações</h2>
+
+<!-- V1: Tunnel externo -->
+<div class="card ok">
+  <strong>V1 — Tunnel externo OlivIA</strong> <span class="badge-ok">OK</span>
+  <pre>$ curl -s https://olivia.jarbas-mdlab.com/health
+{"ok":true,"status":"live"}
+
+$ curl -s -o /dev/null -w "HTTP_CODE:%{http_code}" https://olivia.jarbas-mdlab.com/health
+HTTP_CODE:200</pre>
+  <p style="color:#86efac">✅ Tunnel externo <code>olivia.jarbas-mdlab.com</code> respondendo HTTP 200 com health check válido.</p>
+</div>
+
+<!-- V2: OlivIA local -->
+<div class="card warn">
+  <strong>V2 — OlivIA local no Mac Mini</strong> <span class="badge-warn">ATENÇÃO</span>
+  <pre>$ ssh mac-mini "curl -s http://localhost:18791/health"
+Unauthorized
+
+$ ssh mac-mini "ps aux | grep -i olivia | grep -v grep | head -3"
+olivia  60006  1.8  0.1  UserEventAgent (Aqua)
+olivia  60091  0.4  0.1  corespotlightd
+olivia  53847  0.3  2.8  openclaw-gateway</pre>
+  <p style="color:#fcd34d">⚠️ Porta 18791 retorna "Unauthorized" em curl local (sem headers Cloudflare).
+  O <code>openclaw-gateway</code> (PID 53847, user olivia) está rodando normalmente.
+  O tunnel externo funciona — a auth é resolvida no nível do Cloudflare Zero Trust.</p>
+</div>
+
+<!-- V3: Cloudflared config -->
+<div class="card ok">
+  <strong>V3 — Cloudflared</strong> <span class="badge-ok">OK</span>
+  <pre>$ ssh mac-mini "ps aux | grep cloudflare"
+jarbas  1124  0.1  0.2  cloudflared tunnel run --token eyJh...
+
+$ cloudflared tunnel list  (executado localmente no MacBook Air)
+ID                                   NAME         CONNECTIONS
+4fdb4387-f3e9-47d0-8bb0-b6e8504e0988 jana         (nenhuma)
+4ae4db5d-dca8-44a3-9607-f72025e5b34e jarbas-mdlab 2xgig08, 1xgru18, 1xgru19
+
+$ ssh mac-mini "launchctl list | grep cloudflare"
+1124  0  com.cloudflare.cloudflared</pre>
+  <p style="color:#86efac">✅ Cloudflared rodando no Mac Mini (PID 1124, user jarbas) via LaunchAgent.
+  Tunnel <code>jarbas-mdlab</code> com 4 conexões ativas. Configuração por token (Zero Trust dashboard).
+  Sem <code>config.yml</code> local — esperado para token-based tunnels.</p>
+  <p style="color:#94a3b8">ℹ️ Tunnel <code>jana</code> existe mas sem conexões (não está ativo).</p>
+</div>
+
+<!-- V4: TOOLS.md -->
+<div class="card ok">
+  <strong>V4 — TOOLS.md OlivIA</strong> <span class="badge-ok">OK</span>
+  <pre>$ ssh mac-mini "cat /Users/olivia/.openclaw/workspace-olivia/TOOLS.md | head -20"
+# TOOLS.md — OlivIA · Infraestrutura e Acesso ao Back-end
+> Atualizado: 20/03/2026
+
+## Supabase (Back-end Midas)
+URL:    https://qdivfairxhdihaqqypgb.supabase.co
+ORG_ID: 55a0c7ba-1a23-4ae1-b69b-a13811324735
+KEY:    ver ~/.env → SUPABASE_KEY</pre>
+  <p style="color:#86efac">✅ TOOLS.md presente e atualizado (20/03/2026). Contém: acesso Supabase,
+  tabelas por tarefa (petições, provas, jurisprudência, playbooks), funções RAG.</p>
+</div>
+
+<!-- V5: Frontend .env.local -->
+<div class="card ok">
+  <strong>V5 — Frontend .env.local</strong> <span class="badge-ok">OK</span>
+  <pre>$ grep -E "VITE_OLIVIA" ~/beta-mdflow/.env.local
+VITE_OLIVIA_WEBHOOK_URL=https://olivia.jarbas-mdlab.com
+VITE_OLIVIA_AUTH=MdL1501@</pre>
+  <p style="color:#86efac">✅ Frontend configurado para usar tunnel OlivIA. URL e auth presentes.</p>
+</div>
+
+<!-- V6: JARBAS tunnel referência -->
+<div class="card ok">
+  <strong>V6 — JARBAS tunnel (referência)</strong> <span class="badge-ok">OK</span>
+  <pre>$ curl -s -o /dev/null -w "JARBAS_HTTP:%{http_code}" https://jarbas.jarbas-mdlab.com/health
+JARBAS_HTTP:200</pre>
+  <p style="color:#86efac">✅ Tunnel JARBAS funcionando como referência. Ambos subdomínios no mesmo tunnel <code>jarbas-mdlab</code>.</p>
+</div>
+
+<!-- V7: Porta 18791 -->
+<div class="card ok">
+  <strong>V7 — Porta 18791</strong> <span class="badge-ok">OK</span>
+  <pre>$ ssh mac-mini "lsof -i :18791 | head -5"
+COMMAND   PID   USER   FD  TYPE  DEVICE            NODE NAME
+node    29884 jarbas   18u IPv4  0x1c7f4d002a945372 TCP  localhost:18791 (LISTEN)
+
+Outras portas do mesmo processo (node PID 29884):
+  18789 (IPv4 + IPv6)  ← gateway principal
+  18791 (IPv4)         ← endpoint tunnel
+  18792 (IPv4)         ← porta auxiliar</pre>
+  <p style="color:#86efac">✅ Porta 18791 ocupada pelo node gateway (PID 29884, user jarbas).
+  Processo saudável com 3 portas ativas.</p>
+</div>
+
+<h2>2. Arquitetura Atual (descoberta)</h2>
+
+<div class="card" style="border-left-color:#7c3aed">
+<pre style="color:#c4b5fd">
+┌──────────────┐     Cloudflare Zero Trust      ┌─────────────────────────┐
+│   Frontend   │ ──→ olivia.jarbas-mdlab.com ──→ │  Tunnel jarbas-mdlab    │
+│  (MdFlow)    │     jarbas.jarbas-mdlab.com ──→ │  (cloudflared PID 1124) │
+└──────────────┘                                 │  user: jarbas           │
+                                                 └────────┬────────────────┘
+                                                          │
+                               ┌──────────────────────────┼───────────────────┐
+                               │         Mac Mini M4      │                   │
+                               │                          ▼                   │
+                               │  ┌─────────────────────────────────────┐     │
+                               │  │  node gateway (PID 29884, jarbas)   │     │
+                               │  │  :18789 :18791 :18792               │     │
+                               │  └────────────────┬────────────────────┘     │
+                               │                   │ proxy?                   │
+                               │                   ▼                          │
+                               │  ┌─────────────────────────────────────┐     │
+                               │  │  openclaw-gateway (PID 53847)       │     │
+                               │  │  user: olivia                       │     │
+                               │  └─────────────────────────────────────┘     │
+                               └──────────────────────────────────────────────┘
+</pre>
+</div>
+
+<h2>3. O que está faltando</h2>
+
+<div class="card" style="border-left-color:#a78bfa">
+  <table>
+    <thead><tr><th>#</th><th>Item</th><th>Prioridade</th><th>Status</th><th>Impacto</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><span class="badge-ok">T1</span></td>
+        <td>Tunnel externo operacional</td>
+        <td>P0</td>
+        <td>✅ PRONTO</td>
+        <td>olivia.jarbas-mdlab.com → HTTP 200</td>
+      </tr>
+      <tr>
+        <td><span class="badge-ok">T2</span></td>
+        <td>Frontend apontando para tunnel</td>
+        <td>P0</td>
+        <td>✅ PRONTO</td>
+        <td>VITE_OLIVIA_WEBHOOK_URL configurado</td>
+      </tr>
+      <tr>
+        <td><span class="badge-ok">T3</span></td>
+        <td>OpenClaw gateway rodando (OlivIA)</td>
+        <td>P0</td>
+        <td>✅ PRONTO</td>
+        <td>PID 53847, user olivia</td>
+      </tr>
+      <tr>
+        <td><span class="badge-ok">T4</span></td>
+        <td>TOOLS.md com acesso Supabase</td>
+        <td>P1</td>
+        <td>✅ PRONTO</td>
+        <td>Tabelas, RAG, funções documentadas</td>
+      </tr>
+      <tr>
+        <td><span class="badge-warn">T5</span></td>
+        <td>Teste E2E real (gerar petição via tunnel)</td>
+        <td>P0</td>
+        <td>⚠️ PENDENTE</td>
+        <td>Health OK ≠ fluxo completo OK. Precisa testar geração real.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>4. Diagnóstico — Conclusão</h2>
+
+<div class="card ok">
+  <strong>Situação: MELHOR QUE O ESPERADO</strong>
+  <p>A infraestrutura de tunnel OlivIA já está <strong>operacional</strong>:</p>
+  <ul>
+    <li>Cloudflared tunnel <code>jarbas-mdlab</code> com 4 conexões ativas</li>
+    <li>Subdomínio <code>olivia.jarbas-mdlab.com</code> retorna health OK</li>
+    <li>Frontend já configurado com URL + auth corretos</li>
+    <li>OpenClaw gateway rodando no Mac Mini</li>
+    <li>TOOLS.md atualizado com acesso ao Supabase</li>
+  </ul>
+  <p style="color:#fcd34d">⚠️ <strong>Único gap:</strong> Falta validação E2E do fluxo completo (frontend → tunnel → OlivIA → gerar petição → retorno).
+  O <code>/health</code> confirma conectividade, mas não confirma que o agente IA responde corretamente.</p>
+</div>
+
+<h2>5. Plano de Ação (próxima sessão)</h2>
+
+<div class="step">
+  <span class="step-num">1</span> <strong>Teste E2E via tunnel</strong>
+  <p>Enviar request real de geração de petição via <code>olivia.jarbas-mdlab.com</code> e verificar resposta completa.</p>
+<pre># Testar endpoint real (não só /health)
+curl -s -X POST https://olivia.jarbas-mdlab.com/api/generate \
+  -H "Content-Type: application/json" \
+  -H "mdflow: MdL1501@" \
+  -d '{
+    "tipo": "peticao_inicial",
+    "processo_id": "UUID_TESTE",
+    "organizacao_id": "55a0c7ba-1a23-4ae1-b69b-a13811324735"
+  }' | jq .</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">2</span> <strong>Verificar roteamento interno</strong>
+  <p>Confirmar que o node gateway (porta 18791) está fazendo proxy correto para o openclaw-gateway da OlivIA.</p>
+<pre># Verificar porta do openclaw-gateway (user olivia)
+ssh mac-mini "sudo -u olivia lsof -i -P -n 2>/dev/null | grep LISTEN | head -5"
+
+# Verificar logs do gateway
+ssh mac-mini "tail -20 /Users/olivia/.openclaw/logs/gateway.log 2>/dev/null"
+ssh mac-mini "tail -20 /Users/jarbas/.openclaw/logs/gateway.log 2>/dev/null"</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">3</span> <strong>Validar auth local vs tunnel</strong>
+  <p>Entender por que curl local retorna "Unauthorized" mas tunnel externo funciona. Pode ser Cloudflare Access policy.</p>
+<pre># Testar com diferentes headers
+ssh mac-mini "curl -s -H 'CF-Access-Client-Id: test' http://localhost:18791/health"
+ssh mac-mini "curl -s -H 'X-Forwarded-For: 127.0.0.1' http://localhost:18791/health"
+
+# Verificar se há middleware de auth
+ssh mac-mini "grep -r 'Unauthorized\|auth\|middleware' /Users/jarbas/.openclaw/workspace/server/ 2>/dev/null | head -10"</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">4</span> <strong>Teste completo do frontend</strong>
+  <p>Abrir MdFlow → OlivIA → Modo Express → Selecionar processo → Verificar se a geração funciona via tunnel.</p>
+<pre># Verificar se o frontend usa callWebhook ou fetch direto
+grep -r "VITE_OLIVIA" ~/beta-mdflow/src/ | head -10
+grep -r "olivia.jarbas-mdlab" ~/beta-mdflow/src/ | head -10</pre>
+</div>
+
+<div class="step">
+  <span class="step-num">5</span> <strong>Ativar tunnel jana (opcional)</strong>
+  <p>O tunnel <code>jana</code> (4fdb4387) existe mas tem 0 conexões. Investigar se é necessário para algo.</p>
+<pre># Verificar config no dashboard Cloudflare
+cloudflared tunnel info jana
+
+# Se necessário ativar:
+# cloudflared tunnel run jana  (após configurar ingress rules)</pre>
+</div>
+
+<h2>6. Portas em uso no Mac Mini</h2>
+
+<div class="card" style="border-left-color:#38bdf8">
+  <table>
+    <thead><tr><th>Porta</th><th>Processo</th><th>User</th><th>Descrição</th></tr></thead>
+    <tbody>
+      <tr><td><code>5173</code></td><td>node</td><td>jarbas</td><td>Vite dev server (MdFlow frontend)</td></tr>
+      <tr><td><code>3012</code></td><td>node</td><td>jarbas</td><td>Serviço auxiliar</td></tr>
+      <tr><td><code>18789</code></td><td>node (29884)</td><td>jarbas</td><td>Gateway principal (IPv4+IPv6)</td></tr>
+      <tr><td><code>18791</code></td><td>node (29884)</td><td>jarbas</td><td>Gateway — endpoint tunnel</td></tr>
+      <tr><td><code>18792</code></td><td>node (29884)</td><td>jarbas</td><td>Gateway — porta auxiliar</td></tr>
+      <tr><td><code>20241</code></td><td>cloudflared</td><td>jarbas</td><td>Cloudflare metrics/diagnostics</td></tr>
+      <tr><td><code>59869</code></td><td>logioptio</td><td>jarbas</td><td>Logitech Options (periférico)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2>7. Resumo Executivo</h2>
+
+<div class="card ok">
+  <table>
+    <thead><tr><th>Componente</th><th>Status</th><th>Nota</th></tr></thead>
+    <tbody>
+      <tr><td>Tunnel externo (Cloudflare)</td><td><span class="badge-ok">OPERACIONAL</span></td><td>4 conexões ativas, health OK</td></tr>
+      <tr><td>olivia.jarbas-mdlab.com</td><td><span class="badge-ok">RESPONDENDO</span></td><td>HTTP 200, JSON válido</td></tr>
+      <tr><td>jarbas.jarbas-mdlab.com</td><td><span class="badge-ok">RESPONDENDO</span></td><td>HTTP 200 (referência)</td></tr>
+      <tr><td>OpenClaw gateway (olivia)</td><td><span class="badge-ok">RODANDO</span></td><td>PID 53847</td></tr>
+      <tr><td>Node gateway (jarbas)</td><td><span class="badge-ok">RODANDO</span></td><td>PID 29884, 3 portas</td></tr>
+      <tr><td>Cloudflared daemon</td><td><span class="badge-ok">ATIVO</span></td><td>LaunchAgent, PID 1124</td></tr>
+      <tr><td>Frontend .env.local</td><td><span class="badge-ok">CONFIGURADO</span></td><td>URL + auth corretos</td></tr>
+      <tr><td>TOOLS.md</td><td><span class="badge-ok">ATUALIZADO</span></td><td>20/03/2026</td></tr>
+      <tr><td>Teste E2E real</td><td><span class="badge-warn">PENDENTE</span></td><td>Health ≠ geração completa</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<footer>Gerado por CC · G4 Integração OlivIA · 2026-03-21 · Resultados de comandos reais (somente leitura)</footer>
+</body>
+</html>

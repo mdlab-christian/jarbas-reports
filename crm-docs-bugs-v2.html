@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CRM MdFlow — Bugs de Documentos v2 | Diagnóstico Completo</title>
+<style>
+  :root {
+    --bg:       #12100e;
+    --card:     #1a1714;
+    --surface:  #211e1a;
+    --border:   #3a3530;
+    --fg:       #f2efe8;
+    --muted:    #9e978a;
+    --primary:  #20c997;
+    --red:      #ef4444;
+    --amber:    #f59e0b;
+    --green:    #22c55e;
+    --violet:   #a78bfa;
+    --sky:      #38bdf8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px 20px;
+  }
+  a { color: var(--primary); text-decoration: none; }
+  h1 { font-size: 22px; font-weight: 700; font-family: 'Manrope', system-ui, sans-serif; }
+  h2 { font-size: 16px; font-weight: 700; font-family: 'Manrope', system-ui, sans-serif; margin-bottom: 14px; }
+  h3 { font-size: 13px; font-weight: 600; margin-bottom: 8px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+
+  .wrap { max-width: 960px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .report-header {
+    border: 1px solid var(--border);
+    background: var(--card);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+  }
+  .report-header .meta { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; }
+  .meta-item { font-size: 12px; color: var(--muted); }
+  .meta-item strong { color: var(--fg); }
+
+  /* ── KPI bar ── */
+  .kpi-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .kpi-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .kpi-value { font-size: 28px; font-weight: 700; font-family: 'Manrope', system-ui; line-height: 1; }
+  .kpi-value.red   { color: var(--red); }
+  .kpi-value.amber { color: var(--amber); }
+  .kpi-value.green { color: var(--green); }
+  .kpi-value.sky   { color: var(--sky); }
+
+  /* ── Bug card ── */
+  .bug-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .bug-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 20px 24px 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .bug-number {
+    font-size: 11px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--muted);
+    min-width: 26px;
+    padding-top: 2px;
+  }
+  .bug-title-block { flex: 1; }
+  .bug-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .bug-subtitle { font-size: 12px; color: var(--muted); }
+  .badge {
+    display: inline-flex; align-items: center;
+    font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 20px;
+    white-space: nowrap;
+  }
+  .badge-p0   { background: rgba(239,68,68,.15);  color: var(--red);    border: 1px solid rgba(239,68,68,.3); }
+  .badge-p1   { background: rgba(245,158,11,.12); color: var(--amber);  border: 1px solid rgba(245,158,11,.3); }
+  .badge-confirmed { background: rgba(34,197,94,.12); color: var(--green); border: 1px solid rgba(34,197,94,.3); }
+  .badge-partial   { background: rgba(245,158,11,.12); color: var(--amber); border: 1px solid rgba(245,158,11,.3); }
+  .badge-new   { background: rgba(167,139,250,.12); color: var(--violet); border: 1px solid rgba(167,139,250,.3); }
+
+  .bug-body { padding: 20px 24px; }
+  .bug-body > * + * { margin-top: 18px; }
+
+  /* ── Sections inside bug ── */
+  .section-label {
+    font-size: 10px; font-weight: 700; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 6px;
+  }
+
+  .symptom-box {
+    background: rgba(239,68,68,.06);
+    border: 1px solid rgba(239,68,68,.2);
+    border-left: 3px solid var(--red);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: #fca5a5;
+    font-style: italic;
+  }
+
+  .root-cause-box {
+    background: rgba(245,158,11,.06);
+    border: 1px solid rgba(245,158,11,.2);
+    border-left: 3px solid var(--amber);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 13px;
+  }
+  .root-cause-box .rc-title {
+    font-weight: 700; color: var(--amber); margin-bottom: 6px; font-size: 12px;
+  }
+
+  .critical-box {
+    background: rgba(239,68,68,.08);
+    border: 1px solid rgba(239,68,68,.3);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .critical-box .ct { font-weight: 700; color: var(--red); font-size: 12px; margin-bottom: 6px; }
+
+  code {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid var(--border);
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--primary);
+  }
+  pre {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    line-height: 1.7;
+    color: var(--fg);
+  }
+  pre .kw  { color: #c084fc; } /* keyword */
+  pre .fn  { color: #60a5fa; } /* function */
+  pre .str { color: var(--primary); } /* string */
+  pre .cm  { color: #6b7280; font-style: italic; } /* comment */
+  pre .err { color: var(--red); font-weight: bold; }
+  pre .hi  { background: rgba(239,68,68,.15); border-radius: 3px; padding: 1px 3px; }
+
+  ul.findings { list-style: none; padding: 0; }
+  ul.findings li {
+    padding: 6px 0 6px 20px;
+    position: relative;
+    font-size: 13px;
+    border-bottom: 1px solid rgba(255,255,255,.04);
+    color: var(--fg);
+  }
+  ul.findings li:last-child { border-bottom: none; }
+  ul.findings li::before { content: '›'; position: absolute; left: 4px; color: var(--muted); }
+  ul.findings li.ok::before  { content: '✓'; color: var(--green); }
+  ul.findings li.bad::before { content: '✗'; color: var(--red); }
+  ul.findings li.warn::before { content: '⚠'; color: var(--amber); }
+  ul.findings li.new::before { content: '★'; color: var(--violet); }
+
+  /* ── Fix section ── */
+  .fix-block {
+    background: rgba(32,201,151,.05);
+    border: 1px solid rgba(32,201,151,.2);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .fix-block .fix-title { font-weight: 700; color: var(--primary); font-size: 12px; margin-bottom: 8px; }
+
+  /* ── Files table ── */
+  table.files {
+    width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 6px;
+  }
+  table.files th {
+    text-align: left; color: var(--muted); font-weight: 600;
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+    text-transform: uppercase; letter-spacing: .05em; font-size: 11px;
+  }
+  table.files td {
+    padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: top;
+  }
+  table.files tr:last-child td { border-bottom: none; }
+  table.files td.file { font-family: 'JetBrains Mono', monospace; color: var(--sky); font-size: 11px; }
+  table.files td.line { font-family: 'JetBrains Mono', monospace; color: var(--muted); font-size: 11px; }
+  .status-bug      { color: var(--red); font-weight: 700; font-size: 11px; }
+  .status-ok       { color: var(--green); font-weight: 700; font-size: 11px; }
+  .status-partial  { color: var(--amber); font-weight: 700; font-size: 11px; }
+  .status-critical { color: var(--red); font-weight: 700; font-size: 11px; background: rgba(239,68,68,.1); padding: 2px 6px; border-radius: 4px; }
+
+  /* ── Summary table ── */
+  .summary-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  table.summary {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  table.summary th {
+    text-align: left; color: var(--muted); font-weight: 600;
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    text-transform: uppercase; letter-spacing: .05em; font-size: 11px;
+  }
+  table.summary td {
+    padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,.04);
+    vertical-align: middle;
+  }
+  table.summary tr:last-child td { border-bottom: none; }
+  table.summary td.num { font-family: 'JetBrains Mono', monospace; font-weight: 700; font-size: 16px; }
+  table.summary td.bug-name { font-weight: 600; }
+
+  /* ── Execution order ── */
+  .steps { counter-reset: steps; padding: 0; list-style: none; }
+  .steps li {
+    counter-increment: steps;
+    display: flex; gap: 14px; align-items: flex-start;
+    padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,.05);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(steps);
+    min-width: 24px; height: 24px;
+    background: rgba(32,201,151,.15); border: 1px solid rgba(32,201,151,.4);
+    color: var(--primary); font-size: 11px; font-weight: 700;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .step-content { flex: 1; }
+  .step-title   { font-weight: 600; font-size: 13px; }
+  .step-desc    { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* ── DB result box ── */
+  .db-result {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .db-result .err-line { color: var(--red); font-weight: bold; }
+  .db-result .ok-line  { color: var(--green); }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border);
+    font-size: 11px; color: var(--muted); display: flex;
+    justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+
+  @media (max-width: 640px) {
+    .kpi-bar { grid-template-columns: 1fr 1fr; }
+    .bug-header { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ── HEADER ── -->
+  <div class="report-header">
+    <h1>CRM MdFlow — Bugs de Documentos</h1>
+    <p style="color:var(--muted);margin-top:6px;font-size:13px;">
+      Diagnóstico técnico v2 — investigação com leitura de código-fonte + banco de produção
+    </p>
+    <div class="meta">
+      <div class="meta-item">Gerado por <strong>JARBAS</strong></div>
+      <div class="meta-item">Data <strong>23/03/2026</strong></div>
+      <div class="meta-item">Versão <strong>v2.0 (completo)</strong></div>
+      <div class="meta-item">Ambiente <strong>Produção — qdivfairxhdihaqqypgb</strong></div>
+      <div class="meta-item">Arquivos lidos <strong>9</strong></div>
+      <div class="meta-item">Queries SQL <strong>6</strong></div>
+    </div>
+  </div>
+
+  <!-- ── KPIs ── -->
+  <div class="kpi-bar">
+    <div class="kpi">
+      <div class="kpi-label">P0 críticos</div>
+      <div class="kpi-value red">3</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">P1 importantes</div>
+      <div class="kpi-value amber">1</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Bugs novos vs v1</div>
+      <div class="kpi-value sky">+1</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Correções aplicadas</div>
+      <div class="kpi-value green">0</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       BUG #1 — DOWNLOAD
+  ═══════════════════════════════════════════ -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-number">#1</div>
+      <div class="bug-title-block">
+        <div class="bug-title">Botão "Baixar" abre arquivo em nova aba em vez de fazer download</div>
+        <div class="bug-subtitle">
+          DocumentoItem.tsx — handleBaixar &nbsp;|&nbsp;
+          ClienteDrawerTabDocumentosLead.tsx — handleBaixarSelecionados
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        <span class="badge badge-p0">P0</span>
+        <span class="badge badge-confirmed">CONFIRMADO</span>
+      </div>
+    </div>
+    <div class="bug-body">
+
+      <div>
+        <div class="section-label">Sintoma</div>
+        <div class="symptom-box">
+          Clicar em "Baixar" abre o arquivo em nova aba igual ao botão "Abrir". Nenhum download acontece.
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Causa raiz — código confirmado</div>
+        <div class="root-cause-box">
+          <div class="rc-title">🔴 CONFIRMADO — leitura direta do arquivo</div>
+          <p>
+            <code>handleBaixar</code> (linha 57–61) e <code>handleAbrir</code> (linha 51–55) são <strong>idênticos</strong> —
+            ambos chamam <code>window.open(url, '_blank')</code>. Não há distinção entre abrir e baixar.
+          </p>
+          <p style="margin-top:8px;">
+            Adicionalmente, <code>handleBaixarSelecionados</code> em
+            <code>ClienteDrawerTabDocumentosLead.tsx</code> (linha 164–176) tem o <strong>mesmo problema</strong>
+            — também usa <code>window.open(url, '_blank')</code> para os documentos selecionados. <strong>Bug #1 tem duas superfícies.</strong>
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Código problemático</div>
+        <pre><span class="cm">// DocumentoItem.tsx — linhas 51–61</span>
+<span class="cm">// handleAbrir e handleBaixar são IDÊNTICOS ↓</span>
+
+<span class="kw">const</span> <span class="fn">handleAbrir</span> = <span class="kw">async</span> () => {
+  <span class="kw">const</span> url = <span class="kw">await</span> resolveUrl()
+  <span class="kw">if</span> (url) <span class="hi">window.open(url, '_blank', 'noopener,noreferrer')</span>
+  <span class="kw">else</span> toast.error(<span class="str">'URL não disponível para este documento'</span>)
+}
+
+<span class="kw">const</span> <span class="fn">handleBaixar</span> = <span class="kw">async</span> () => {
+  <span class="kw">const</span> url = <span class="kw">await</span> resolveUrl()
+  <span class="kw">if</span> (url) <span class="hi">window.open(url, '_blank', 'noopener,noreferrer')</span>   <span class="cm">// ← igual ao handleAbrir!</span>
+  <span class="kw">else</span> toast.error(<span class="str">'Documento sem URL disponível'</span>)
+}
+
+<span class="cm">// ClienteDrawerTabDocumentosLead.tsx — linha 173</span>
+<span class="kw">if</span> (url) <span class="hi">window.open(url, '_blank')</span>   <span class="cm">// ← mesmo problema no batch</span></pre>
+      </div>
+
+      <div>
+        <div class="section-label">Arquivos afetados</div>
+        <table class="files">
+          <tr><th>Arquivo</th><th>Linha</th><th>Status</th><th>Observação</th></tr>
+          <tr>
+            <td class="file">src/components/shared/cliente_drawer/tabs/DocumentoItem.tsx</td>
+            <td class="line">57–61</td>
+            <td><span class="status-bug">BUG</span></td>
+            <td>handleBaixar — superfície primária</td>
+          </tr>
+          <tr>
+            <td class="file">src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDocumentosLead.tsx</td>
+            <td class="line">164–176</td>
+            <td><span class="status-bug">BUG</span></td>
+            <td>handleBaixarSelecionados — superfície secundária (nova)</td>
+          </tr>
+        </table>
+      </div>
+
+      <div>
+        <div class="section-label">Correção necessária</div>
+        <div class="fix-block">
+          <div class="fix-title">Fix para DocumentoItem.tsx — handleBaixar</div>
+          <pre><span class="kw">const</span> <span class="fn">handleBaixar</span> = <span class="kw">async</span> () => {
+  <span class="kw">const</span> url = <span class="kw">await</span> resolveUrl()
+  <span class="kw">if</span> (!url) { toast.error(<span class="str">'Documento sem URL disponível'</span>); <span class="kw">return</span> }
+  <span class="kw">try</span> {
+    <span class="kw">const</span> res = <span class="kw">await</span> fetch(url)
+    <span class="kw">const</span> blob = <span class="kw">await</span> res.blob()
+    <span class="kw">const</span> a = document.createElement(<span class="str">'a'</span>)
+    a.href = URL.createObjectURL(blob)
+    a.download = doc.nome ?? <span class="str">'documento'</span>
+    a.click()
+    URL.revokeObjectURL(a.href)
+  } <span class="kw">catch</span> {
+    <span class="cm">// fallback: tenta forçar via parâmetro</span>
+    window.open(url + <span class="str">'?download'</span>, <span class="str">'_blank'</span>)
+  }
+}</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">
+            Aplicar mesmo padrão em <code>handleBaixarSelecionados</code> no componente principal.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       BUG #2 — TIER 1 PROPAGATION
+  ═══════════════════════════════════════════ -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-number">#2</div>
+      <div class="bug-title-block">
+        <div class="bug-title">Docs Tier 1 não aparecem nas pastas de restrição após upload</div>
+        <div class="bug-subtitle">
+          ClienteDrawerTabDocumentosLead.tsx — handleUploadCentral &nbsp;|&nbsp;
+          documentos_lead_hooks.ts — useRestricaoDocs
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        <span class="badge badge-p0">P0</span>
+        <span class="badge badge-partial">DIAGNÓSTICO REFINADO</span>
+      </div>
+    </div>
+    <div class="bug-body">
+
+      <div>
+        <div class="section-label">Sintoma</div>
+        <div class="symptom-box">
+          Documentos enviados na área central do lead (Tier 1) não aparecem nas pastas de cada restrição
+          imediatamente após o upload. Recarregar a página ou fechar/reabrir o drawer resolve, mas a UX está quebrada.
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Diagnóstico v1 vs v2</div>
+        <ul class="findings">
+          <li class="ok">Hipótese 1 do v1 (<code>restricao_id: null</code> não explícito) — <strong>DESCARTADA</strong>. O insert em <code>handleUploadCentral</code> linha 206 passa <code>restricao_id: null</code> explicitamente.</li>
+          <li class="bad">Hipótese 2 do v1 (invalidação incompleta do cache) — <strong>CONFIRMADA COMO CAUSA REAL</strong>.</li>
+          <li class="new">Finding novo: a lógica de query em <code>useRestricaoDocs</code> está correta — já busca Tier 1 com <code>.is('restricao_id', null)</code>. O banco retornaria os dados certos se o cache fosse invalidado.</li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="section-label">Causa raiz — código confirmado</div>
+        <div class="root-cause-box">
+          <div class="rc-title">🔴 CONFIRMADO — invalidação incompleta de cache React Query</div>
+          <p>
+            Após upload central (Tier 1), <code>handleUploadCentral</code> invalida apenas o query key
+            <code>['lead-docs-upload', lead.id, organizacaoId]</code> — que é a lista central.
+          </p>
+          <p style="margin-top:8px;">
+            Os cards de restrição usam o query key
+            <code>['restricao-docs-upload', restricaoId, leadId, organizacaoId]</code> — <strong>nunca invalidado</strong>
+            após upload central. O React Query mantém o cache antigo por 30 segundos (<code>staleTime: 30_000</code>),
+            então as pastas não refletem o novo documento.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Código problemático</div>
+        <pre><span class="cm">// ClienteDrawerTabDocumentosLead.tsx — handleUploadCentral (linhas 198–221)</span>
+<span class="cm">// Após insert bem-sucedido:</span>
+
+toast.success(<span class="str">`"${nomeEscolhido}" enviado`</span>)
+<span class="kw">await</span> queryClient.invalidateQueries({
+  queryKey: [<span class="str">'lead-docs-upload'</span>, lead.id, organizacaoId]   <span class="cm">// ← apenas lista central</span>
+})
+<span class="hi"><span class="cm">// ↑ NÃO invalida ['restricao-docs-upload', restricaoId, ...]</span>
+<span class="cm">// As pastas de restrição ficam com cache desatualizado por 30s</span></span></pre>
+      </div>
+
+      <div>
+        <div class="section-label">Correção necessária</div>
+        <div class="fix-block">
+          <div class="fix-title">Adicionar invalidação das pastas após upload central</div>
+          <pre><span class="cm">// Após o invalidateQueries atual, adicionar:</span>
+<span class="kw">for</span> (<span class="kw">const</span> r <span class="kw">of</span> restricoes) {
+  queryClient.invalidateQueries({
+    queryKey: [<span class="str">'restricao-docs-upload'</span>, r.id, lead.id, organizacaoId]
+  })
+}</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">
+            <code>restricoes</code> já está disponível no componente (linha 112). Sem custo de rede adicional
+            — apenas invalida o cache, o refetch ocorre quando o usuário abre a pasta.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       BUG #3 — PROCESSO PAGE CRASH
+  ═══════════════════════════════════════════ -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-number">#3</div>
+      <div class="bug-title-block">
+        <div class="bug-title">Erro ao carregar página/modal de processo distribuído</div>
+        <div class="bug-subtitle">
+          rpc_processo_get_completo — PostgreSQL ERROR 54023 — jsonb_build_object > 100 args
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        <span class="badge badge-p0">P0</span>
+        <span class="badge badge-confirmed">CAUSA RAIZ ENCONTRADA</span>
+      </div>
+    </div>
+    <div class="bug-body">
+
+      <div>
+        <div class="section-label">Sintoma</div>
+        <div class="symptom-box">
+          Ao clicar em qualquer processo na lista (/processos), o modal lateral abre e exibe
+          "Erro ao carregar processo" com botão "Tentar novamente". O erro persiste indefinidamente.
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Diagnóstico v1 vs v2</div>
+        <ul class="findings">
+          <li class="bad">v1 dizia "investigação necessária" sem conclusão. <strong>v2 encontrou a causa raiz.</strong></li>
+          <li class="new">Causa raiz: <code>rpc_processo_get_completo</code> quebra com erro PostgreSQL 54023 em produção.</li>
+          <li class="ok"><code>ProcessoPage</code> (/processos/:cnj) usa <code>useProcessoBySlug</code> — query PostgREST direta, <strong>NÃO usa a RPC</strong>. Funciona.</li>
+          <li class="bad"><code>ProcessoModalShell</code> (modal em /processos, /controller) usa a RPC diretamente — <strong>SEMPRE falha</strong>.</li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="section-label">Causa raiz — erro PostgreSQL confirmado em produção</div>
+        <div class="critical-box">
+          <div class="ct">🔴 PostgreSQL ERROR 54023 — execução real no banco de produção</div>
+          <div class="db-result">
+<span class="err-line">ERROR:  54023: cannot pass more than 100 arguments to a function</span>
+QUERY:  SELECT jsonb_build_object(
+  <span class="err-line">-- 40+ campos flat do processo</span>
+  'id', p.id,
+  'organizacao_id', p.organizacao_id,
+  'numero_processo', p.numero_processo,
+  'numero_cnj', p.numero_cnj,
+  ... (36 campos)
+  <span class="err-line">-- + 6 relações (clientes, empresas, advogados, ...)</span>
+  -- + 4 counters (total_documentos, total_movimentacoes, ...)
+  <span class="err-line">-- TOTAL: > 100 argumentos = CRASH</span>
+)
+CONTEXT:  PL/pgSQL function rpc_processo_get_completo(uuid) line 8 at SQL statement
+          </div>
+          <p style="margin-top:10px;font-size:12px;color:var(--muted);">
+            O PostgreSQL limita <code>jsonb_build_object()</code> a <strong>100 argumentos</strong> (50 pares chave-valor).
+            A RPC tem ~40 campos flat + relações aninhadas = excede o limite em qualquer chamada.
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Superfícies afetadas</div>
+        <table class="files">
+          <tr><th>Componente</th><th>Função</th><th>Status</th></tr>
+          <tr>
+            <td class="file">src/components/processo/ProcessoModalShell.tsx</td>
+            <td>Chama <code>.rpc('rpc_processo_get_completo', ...)</code> — linha 43</td>
+            <td><span class="status-critical">QUEBRADO</span></td>
+          </tr>
+          <tr>
+            <td class="file">src/pages/ProcessoPage.tsx</td>
+            <td>Usa <code>useProcessoBySlug</code> — PostgREST direto, não usa RPC</td>
+            <td><span class="status-ok">FUNCIONA</span></td>
+          </tr>
+        </table>
+      </div>
+
+      <div>
+        <div class="section-label">Diagnóstico complementar — banco de produção</div>
+        <ul class="findings">
+          <li class="ok">5 processos com <code>cliente_id IS NOT NULL</code> existem no banco (processos distribuídos).</li>
+          <li class="warn">Processos mais recentes têm <code>cliente_id = null</code> — importados pelo JARBAS/EPROC sem vinculação de cliente ainda. Não afetam este bug.</li>
+          <li class="ok">RPC existe no banco: <code>rpc_processo_get_completo</code> listada em <code>information_schema.routines</code>.</li>
+          <li class="bad">RPC não executável: limite de 100 args do PostgreSQL impede qualquer chamada.</li>
+        </ul>
+      </div>
+
+      <div>
+        <div class="section-label">Correção necessária</div>
+        <div class="fix-block">
+          <div class="fix-title">Substituir único jsonb_build_object() por composição com ||</div>
+          <pre><span class="cm">-- Em vez de um único jsonb_build_object() com 100+ args,</span>
+<span class="cm">-- quebrar em partes e concatenar com o operador ||:</span>
+
+<span class="kw">SELECT</span>
+  jsonb_build_object(
+    <span class="str">'id'</span>, p.id, <span class="str">'organizacao_id'</span>, p.organizacao_id,
+    <span class="str">'numero_processo'</span>, p.numero_processo, <span class="str">'numero_cnj'</span>, p.numero_cnj,
+    <span class="str">'cliente_id'</span>, p.cliente_id, <span class="str">'empresa_id'</span>, p.empresa_id
+    <span class="cm">-- ... até ~40 args (20 pares)</span>
+  )
+  || jsonb_build_object(
+    <span class="str">'advogado_id'</span>, p.advogado_id, <span class="str">'status'</span>, p.status,
+    <span class="str">'valor_causa'</span>, p.valor_causa
+    <span class="cm">-- ... mais campos</span>
+  )
+  || jsonb_build_object(
+    <span class="str">'clientes'</span>, <span class="kw">CASE WHEN</span> c.id <span class="kw">IS NOT NULL THEN</span> jsonb_build_object(...) <span class="kw">ELSE NULL END</span>,
+    <span class="str">'empresas'</span>, ...,
+    <span class="str">'total_documentos'</span>, (SELECT COUNT(*)::INT ...)
+  )
+<span class="kw">INTO</span> v_result
+<span class="kw">FROM</span> processos p ...</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">
+            O operador <code>||</code> de JSONB concatena objetos sem limite de argumentos.
+            Dividir em blocos de ~20 pares cada resolve o limite do PostgreSQL.
+            <strong>Requer migration no Supabase.</strong>
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       BUG #4 — IMAGE TO PDF
+  ═══════════════════════════════════════════ -->
+  <div class="bug-card">
+    <div class="bug-header">
+      <div class="bug-number">#4</div>
+      <div class="bug-title-block">
+        <div class="bug-title">Upload de imagens (JPG/PNG) não converte para PDF automaticamente</div>
+        <div class="bug-subtitle">src/hooks/useDocumentUpload.ts — função upload</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end;">
+        <span class="badge badge-p1">P1</span>
+        <span class="badge badge-confirmed">CONFIRMADO</span>
+      </div>
+    </div>
+    <div class="bug-body">
+
+      <div>
+        <div class="section-label">Sintoma</div>
+        <div class="symptom-box">
+          JPG e PNG são salvos como imagem no Supabase Storage. O sistema jurídico espera PDFs para anexos processuais.
+          Documentos de identidade e comprovantes digitalizados chegam como imagens.
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Causa raiz — código confirmado</div>
+        <div class="root-cause-box">
+          <div class="rc-title">🟡 CONFIRMADO — ausência de conversão pré-upload</div>
+          <p>
+            Em <code>useDocumentUpload.ts</code>, o arquivo é enviado diretamente ao storage sem verificação
+            de <code>file.type</code>. Não há função de conversão imagem → PDF. O <code>contentType: file.type</code>
+            é passado literal, mantendo MIME type de imagem.
+          </p>
+          <p style="margin-top:8px;">
+            Nota: este hook é usado pela aba de documentos do <strong>processo</strong> (pagina_processo).
+            O upload do <strong>CRM/lead</strong> está em <code>handleUploadCentral</code> diretamente no componente
+            — também sem conversão. <strong>Dois pontos de upload sem cobertura.</strong>
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Arquivos afetados</div>
+        <table class="files">
+          <tr><th>Arquivo</th><th>Linha</th><th>Status</th><th>Observação</th></tr>
+          <tr>
+            <td class="file">src/hooks/useDocumentUpload.ts</td>
+            <td class="line">34–43</td>
+            <td><span class="status-bug">AUSENTE</span></td>
+            <td>Upload processo — sem conversão</td>
+          </tr>
+          <tr>
+            <td class="file">src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDocumentosLead.tsx</td>
+            <td class="line">198–221</td>
+            <td><span class="status-bug">AUSENTE</span></td>
+            <td>Upload CRM/lead — sem conversão</td>
+          </tr>
+        </table>
+      </div>
+
+      <div>
+        <div class="section-label">Correção necessária</div>
+        <div class="fix-block">
+          <div class="fix-title">Utilitário converterParaPdf() com jsPDF ou pdf-lib</div>
+          <pre><span class="cm">// src/utils/imageUtils.ts — novo arquivo utilitário</span>
+<span class="kw">import</span> jsPDF <span class="kw">from</span> <span class="str">'jspdf'</span>
+
+<span class="kw">export async function</span> <span class="fn">converterParaPdf</span>(file: File): Promise&lt;File&gt; {
+  <span class="kw">const</span> tipos = [<span class="str">'image/jpeg'</span>, <span class="str">'image/png'</span>, <span class="str">'image/webp'</span>]
+  <span class="kw">if</span> (!tipos.includes(file.type)) <span class="kw">return</span> file  <span class="cm">// já é PDF ou outro</span>
+
+  <span class="kw">const</span> url = URL.createObjectURL(file)
+  <span class="kw">const</span> img = <span class="kw">await</span> loadImage(url)
+  URL.revokeObjectURL(url)
+
+  <span class="kw">const</span> portrait = img.height >= img.width
+  <span class="kw">const</span> pdf = <span class="kw">new</span> jsPDF(portrait ? <span class="str">'p'</span> : <span class="str">'l'</span>, <span class="str">'px'</span>, [img.width, img.height])
+  pdf.addImage(img, <span class="str">'JPEG'</span>, 0, 0, img.width, img.height)
+
+  <span class="kw">const</span> blob = pdf.output(<span class="str">'blob'</span>)
+  <span class="kw">return new</span> File(
+    [blob],
+    file.name.replace(/\.(jpg|jpeg|png|webp)$/i, <span class="str">'.pdf'</span>),
+    { type: <span class="str">'application/pdf'</span> }
+  )
+}</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">
+            Chamar <code>converterParaPdf(file)</code> antes do upload em ambos os pontos.
+            Requer <code>npm install jspdf</code>. Alternativa mais leve: <code>pdf-lib</code> + <code>canvas</code>.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       TABELA RESUMO
+  ═══════════════════════════════════════════ -->
+  <div class="summary-section">
+    <h2>Resumo de Diagnóstico</h2>
+    <table class="summary">
+      <tr>
+        <th>#</th>
+        <th>Bug</th>
+        <th>Prioridade</th>
+        <th>Causa Raiz</th>
+        <th>Pronto para codar?</th>
+        <th>Escopo</th>
+      </tr>
+      <tr>
+        <td class="num" style="color:var(--red)">1</td>
+        <td class="bug-name">Botão Baixar</td>
+        <td><span class="badge badge-p0">P0</span></td>
+        <td><code>window.open()</code> ao invés de blob download</td>
+        <td><span style="color:var(--green);font-weight:700">✓ SIM</span></td>
+        <td>2 arquivos, 2 funções</td>
+      </tr>
+      <tr>
+        <td class="num" style="color:var(--red)">2</td>
+        <td class="bug-name">Tier 1 → pastas</td>
+        <td><span class="badge badge-p0">P0</span></td>
+        <td>Cache React Query não invalidado após upload central</td>
+        <td><span style="color:var(--green);font-weight:700">✓ SIM</span></td>
+        <td>1 arquivo, ~4 linhas</td>
+      </tr>
+      <tr>
+        <td class="num" style="color:var(--red)">3</td>
+        <td class="bug-name">Processo modal crash</td>
+        <td><span class="badge badge-p0">P0</span></td>
+        <td>RPC com >100 args em <code>jsonb_build_object()</code></td>
+        <td><span style="color:var(--green);font-weight:700">✓ SIM</span></td>
+        <td>1 migration SQL</td>
+      </tr>
+      <tr>
+        <td class="num" style="color:var(--amber)">4</td>
+        <td class="bug-name">Imagem → PDF</td>
+        <td><span class="badge badge-p1">P1</span></td>
+        <td>Ausência de conversão pré-upload</td>
+        <td><span style="color:var(--amber);font-weight:700">~ SIM (requer lib)</span></td>
+        <td>1 util + 2 pontos de chamada</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       ORDEM DE EXECUÇÃO
+  ═══════════════════════════════════════════ -->
+  <div class="summary-section">
+    <h2>Ordem de Execução Recomendada</h2>
+    <ol class="steps">
+      <li>
+        <div class="step-content">
+          <div class="step-title">Bug #3 — Migration da RPC (banco)</div>
+          <div class="step-desc">
+            Corrigir <code>rpc_processo_get_completo</code> fragmentando o <code>jsonb_build_object()</code>
+            em blocos com operador <code>||</code>. Requer <code>apply_migration</code> no Supabase.
+            Desbloqueia o modal de processo em toda a plataforma (/processos, /controller, etc.)
+          </div>
+        </div>
+      </li>
+      <li>
+        <div class="step-content">
+          <div class="step-title">Bug #2 — Invalidação de cache (4 linhas)</div>
+          <div class="step-desc">
+            Adicionar loop <code>for (const r of restricoes)</code> após upload central em
+            <code>ClienteDrawerTabDocumentosLead.tsx</code>. Mudança mínima, impacto imediato.
+          </div>
+        </div>
+      </li>
+      <li>
+        <div class="step-content">
+          <div class="step-title">Bug #1 — Download via blob (2 locais)</div>
+          <div class="step-desc">
+            Substituir <code>window.open()</code> por fetch + blob + <code>a.download</code> em
+            <code>DocumentoItem.tsx</code> e <code>ClienteDrawerTabDocumentosLead.tsx</code>.
+          </div>
+        </div>
+      </li>
+      <li>
+        <div class="step-content">
+          <div class="step-title">Bug #4 — Conversão imagem → PDF (P1)</div>
+          <div class="step-desc">
+            Instalar <code>jspdf</code>, criar <code>src/utils/imageUtils.ts</code> com <code>converterParaPdf()</code>,
+            aplicar nos 2 pontos de upload.
+          </div>
+        </div>
+      </li>
+    </ol>
+  </div>
+
+  <!-- ════════════════════════════════════════
+       LEADS PARA VALIDAÇÃO
+  ═══════════════════════════════════════════ -->
+  <div class="summary-section">
+    <h2>Leads para Validação E2E</h2>
+    <ul class="findings">
+      <li>Roberto César — validar Bug #1 (download), Bug #2 (Tier 1 → pastas), Bug #4 (upload imagem)</li>
+      <li>Cheyenne Lopes — validar mesmos bugs com conjunto diferente de restrições</li>
+      <li class="warn">CNJ <code>5064330-48.2026.8.21.0001</code> — processo com cliente vinculado, usar para validar Bug #3 após migration</li>
+      <li class="warn">CNJ <code>5064317-49.2026.8.21.0001</code> — segundo processo distribuído disponível para teste</li>
+    </ul>
+  </div>
+
+  <footer>
+    <span>JARBAS — MdLab LegalTech | Diagnóstico automático via leitura de código-fonte + banco de produção</span>
+    <span>v2.0 — 23/03/2026 — 4 bugs, 9 arquivos lidos, 6 queries SQL executadas</span>
+  </footer>
+
+</div>
+</body>
+</html>

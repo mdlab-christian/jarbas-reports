@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA EPROC Auto-Análise — Prompts CC | MdLab</title>
+<style>
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424; --border: #2e2e2e;
+    --text: #e8e8e8; --muted: #888;
+    --accent: #f59e0b; --green: #22c55e; --red: #ef4444;
+    --blue: #60a5fa; --orange: #fb923c; --teal: #2dd4bf;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.65; }
+  .header { background: linear-gradient(135deg, #0a0a1a 0%, #1a0800 100%); padding: 48px 24px; text-align: center; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 2rem; font-weight: 900; color: var(--accent); margin-bottom: 8px; }
+  .header p { color: #aaa; font-size: 0.95rem; margin-bottom: 8px; }
+  .verdict { display: inline-flex; align-items: center; gap: 8px; background: #1a2f1a; border: 2px solid var(--green); border-radius: 10px; padding: 10px 24px; font-size: 1rem; font-weight: 800; color: var(--green); }
+  .nav { position: sticky; top: 0; background: #111; border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 100; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 0.8rem; padding: 4px 10px; border-radius: 6px; }
+  .nav a:hover { background: var(--surface2); color: var(--text); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  section { margin-bottom: 48px; scroll-margin-top: 60px; }
+  h2 { font-size: 1.25rem; font-weight: 800; color: var(--accent); margin-bottom: 16px; padding-bottom: 8px; border-bottom: 2px solid #222; }
+  h3 { font-size: 0.95rem; font-weight: 700; color: var(--blue); margin: 14px 0 6px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; margin-bottom: 12px; }
+  .card-green { border-left: 4px solid var(--green); }
+  .card-yellow { border-left: 4px solid var(--accent); }
+  code { background: #1c1c1c; color: var(--orange); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 0.83rem; border: 1px solid #333; }
+  pre { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 14px; overflow-x: auto; font-family: monospace; font-size: 0.8rem; line-height: 1.6; margin: 8px 0; }
+  pre code { background: none; border: none; padding: 0; color: #c9d1d9; }
+  ul, ol { padding-left: 20px; font-size: 0.88rem; color: #ccc; }
+  li { margin: 5px 0; }
+  /* Accordion */
+  details { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+  details[open] { border-color: var(--accent); }
+  summary { padding: 14px 18px; cursor: pointer; font-weight: 700; font-size: 0.95rem; color: var(--accent); display: flex; align-items: center; gap: 10px; list-style: none; user-select: none; }
+  summary::before { content: '▶'; font-size: 0.75rem; transition: transform 0.2s; flex-shrink: 0; }
+  details[open] summary::before { transform: rotate(90deg); }
+  summary::-webkit-details-marker { display: none; }
+  .acc-body { padding: 0 18px 18px; }
+  .copy-btn { background: #21262d; border: 1px solid #30363d; color: #8b949e; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; float: right; margin-top: -4px; transition: all 0.15s; }
+  .copy-btn:hover { background: var(--accent); color: #000; }
+  .terminal-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; margin-left: 10px; }
+  .t1 { background: #1a2a3f; color: var(--blue); }
+  .t2 { background: #2f1a3f; color: #c084fc; }
+  .wave-header { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 14px; font-size: 0.88rem; }
+  .tip { background: #111827; border: 1px solid #1d2f4a; border-radius: 8px; padding: 10px 14px; margin: 8px 0; font-size: 0.85rem; color: #93c5fd; }
+  .result-box { background: #0a1a0a; border: 1px solid #1f4428; border-radius: 8px; padding: 14px; margin: 10px 0; font-size: 0.82rem; color: #86efac; font-family: monospace; }
+  footer { text-align: center; padding: 28px; color: var(--muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 32px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th { background: #1a1a1a; color: var(--muted); font-size: 0.73rem; text-transform: uppercase; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 9px 12px; border-bottom: 1px solid #1e1e1e; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🤖 OlivIA × EPROC — Prompts para Claude Code</h1>
+  <p>Implementar skill S0.5 de acesso automático ao EPROC + toggle no frontend</p>
+  <div class="verdict">✅ TESTE CONFIRMADO — Login + Navegação + 33 docs extraídos</div>
+  <p style="margin-top:14px;font-size:0.82rem;color:#666">2 terminais CC | 3 waves | Playwright já funciona no Mac Mini</p>
+</div>
+
+<nav class="nav">
+  <a href="#teste">Resultado Teste</a>
+  <a href="#arquitetura">Arquitetura</a>
+  <a href="#wave1">Wave 1</a>
+  <a href="#wave2">Wave 2</a>
+  <a href="#wave3">Wave 3</a>
+</nav>
+
+<div class="container">
+
+  <!-- RESULTADO DO TESTE -->
+  <section id="teste">
+    <h2>✅ Resultado do Teste (23/03/2026)</h2>
+    <div class="card card-green">
+      <h3>Login TJRS RS116571 com TOTP — FUNCIONA</h3>
+      <div class="result-box">Login TJRS RS116571 (com TOTP)...
+✅ SSO → login
+🔑 TOTP: 337481
+✅ OTP + checkbox → Entrar
+✅ DENTRO DO EPROC!
+Login OK! URL: https://eproc1g.tjrs.jus.br/eproc/controlador.php?acao=painel_adv_listar...
+
+Campo de busca: #txtNumProcessoPesquisaRapida ← seletor correto
+Processo 5239642-72.2025.8.21.0001: CARREGADO ✅
+33 links de documentos extraídos ✅
+
+Docs encontrados:
+ - RÉPLICA1   (evento 29 — nov/2025)
+ - CONT1      (evento 23 — Contestação do réu)
+ - CONTR7, CONTR8, CONTR9 (contratos)
+ - DESPADEC1, ATOORD1 (despachos do juízo)
+ - INIC1 (petição inicial)
+ - PET1 (petições das partes)</div>
+      <p style="margin-top:10px;font-size:0.85rem">O Playwright do JARBAS (<code>/Users/jarbas/jarbas/node_modules/playwright</code>) roda perfeitamente para acesso EPROC. A OlivIA vai usar via import direto — <strong>sem dependência externa</strong>.</p>
+    </div>
+
+    <div class="card card-yellow">
+      <h3>⚠️ O que NÃO funciona ainda (targets do CC)</h3>
+      <ul>
+        <li>Skill de navegação do JARBAS procura <code>#txtNumProcesso</code> — seletor errado. Correto: <code>#txtNumProcessoPesquisaRapida</code></li>
+        <li>Download dos PDFs ainda não testado (mas a skill existe)</li>
+        <li>Playwright não instalado em <code>/Users/Shared/olivia-skills/node_modules</code> — precisa instalar OU usar o do JARBAS via import</li>
+        <li>Toggle frontend não existe ainda</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ARQUITETURA -->
+  <section id="arquitetura">
+    <h2>🏗️ Arquitetura Final</h2>
+    <table>
+      <tr><th>Componente</th><th>Onde fica</th><th>Status</th></tr>
+      <tr><td><code>olivia-eproc-auto.mjs</code> (S0.5)</td><td>/Users/Shared/olivia-skills/</td><td>🔨 Criar na Wave 1</td></tr>
+      <tr><td>Playwright</td><td>/Users/jarbas/jarbas/node_modules/playwright</td><td>✅ Já existe</td></tr>
+      <tr><td>skill_login_eproc.mjs</td><td>/Users/jarbas/jarbas/src/skills/</td><td>✅ Funcionando</td></tr>
+      <tr><td>skill_navegador_eproc.mjs</td><td>/Users/jarbas/jarbas/src/skills/</td><td>⚠️ Seletor errado — fix na Wave 1</td></tr>
+      <tr><td>skill_download_documentos_eproc.mjs</td><td>/Users/jarbas/jarbas/src/skills/</td><td>✅ Existe (adaptar bucket)</td></tr>
+      <tr><td>Integração server.mjs</td><td>/Users/Shared/olivia-server/server.mjs</td><td>🔨 Wave 2</td></tr>
+      <tr><td>Toggle frontend</td><td>ExpressStep1.tsx</td><td>🔨 Wave 3</td></tr>
+      <tr><td>Progresso "Acessando EPROC" Step 4</td><td>ExpressStep4Rascunho.tsx</td><td>🔨 Wave 3</td></tr>
+    </table>
+
+    <div class="tip">💡 <strong>Filosofia:</strong> A OlivIA usa as skills do JARBAS via <code>import</code> direto. Nenhuma cópia de arquivo. Nenhuma dependência externa além de playwright. Playwright já está em <code>/Users/jarbas/jarbas/node_modules/playwright</code>.</div>
+  </section>
+
+  <!-- WAVE 1 -->
+  <section id="wave1">
+    <h2>🌊 Wave 1 — Criar skill olivia-eproc-auto.mjs + fix seletor navegador</h2>
+    <div class="wave-header">
+      <strong>Terminal:</strong> <span class="terminal-badge t1">💻 Terminal 1 — Skills OlivIA</span> &nbsp;
+      <strong>Arquivos:</strong> <code>/Users/Shared/olivia-skills/</code> e <code>/Users/jarbas/jarbas/src/skills/</code><br>
+      <strong>Tempo estimado:</strong> 2–3h &nbsp; <strong>Dependências:</strong> nenhuma
+    </div>
+
+    <details>
+      <summary>🔴 Wave 1-A — Fix seletor no skill_navegador_eproc.mjs <span class="terminal-badge t1">Terminal 1</span></summary>
+      <div class="acc-body">
+        <button class="copy-btn" onclick="copyAcc(this)">📋 Copiar</button>
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md antes de começar.
+
+CONTEXTO DO TESTE (23/03/2026):
+- Login TJRS com #txtNumProcessoPesquisaRapida FUNCIONA ✅
+- skill_navegador_eproc.mjs usa seletor errado: '#txtNumProcesso, input[name="num_processo"], .infra-campo-pesquisa'
+- Seletor correto do DOM real: '#txtNumProcessoPesquisaRapida'
+
+ARQUIVO: /Users/jarbas/jarbas/src/skills/skill_navegador_eproc.mjs
+
+TAREFA:
+1. Encontrar onde a skill tenta localizar o campo de pesquisa por número de processo
+2. Substituir o seletor antigo pelo correto:
+   ANTES: '#txtNumProcesso, input[name="num_processo"], .infra-campo-pesquisa'
+   DEPOIS: '#txtNumProcessoPesquisaRapida, #txtNumProcesso, input[name="num_processo"], .infra-campo-pesquisa'
+   (mantém os antigos como fallback, mas testa o novo primeiro)
+
+3. O fluxo de navegação deve:
+   a) Tentar page.fill('#txtNumProcessoPesquisaRapida', cnj) — canto superior direito
+   b) Se não encontrar, tentar os seletores antigos
+   c) Após fill: page.keyboard.press('Enter')
+   d) Aguardar loadState('domcontentloaded') + 2000ms
+   e) Verificar se a URL mudou para processo_selecionar
+
+VERIFICAR:
+Após o fix, rodar o teste de validação:
+/opt/homebrew/bin/node /tmp/test-eproc5.mjs 2>&1 | grep -E '(Login OK|Movimentacoes|Docs para baixar|DONE|ERRO)'
+# Deve retornar: Login OK + Movimentacoes: N + Docs para baixar: 33
+
+Se funcionar, confirme com "Wave 1-A OK: [N] movimentações, [M] docs".</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>🔴 Wave 1-B — Criar olivia-eproc-auto.mjs (skill S0.5) <span class="terminal-badge t1">Terminal 1</span></summary>
+      <div class="acc-body">
+        <button class="copy-btn" onclick="copyAcc(this)">📋 Copiar</button>
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md antes de começar.
+
+CRIAR ARQUIVO: /Users/Shared/olivia-skills/olivia-eproc-auto.mjs
+
+PROPÓSITO: Skill S0.5 — acessa o EPROC automaticamente, baixa documentos relevantes
+para o tipo de petição, faz upload no bucket olivia-docs e insere em processos_documentos.
+
+CONTEXTO CONFIRMADO DO TESTE:
+- Login funciona com skill_login_eproc.mjs (eproc_url: 'https://eproc1g.tjrs.jus.br')
+- Seletor correto de busca: #txtNumProcessoPesquisaRapida
+- 33 documentos listados no processo 5239642-72.2025.8.21.0001
+- Playwright em: /Users/jarbas/jarbas/node_modules/playwright
+- Skills JARBAS em: /Users/jarbas/jarbas/src/skills/
+
+DEPENDÊNCIAS (import via caminho absoluto — NUNCA usar fetch()):
+- import { loginEproc } from '/Users/jarbas/jarbas/src/skills/skill_login_eproc.mjs'
+- import { downloadDocumentosEproc } from '/Users/jarbas/jarbas/src/skills/skill_download_documentos_eproc.mjs'
+- Ler .env de: /Users/olivia/.env (primeiro) e /Users/jarbas/jarbas/.env (fallback)
+
+ESTRUTURA DA SKILL:
+
+```js
+// olivia-eproc-auto.mjs — Skill S0.5 — Acesso automático ao EPROC para OlivIA
+// Input: { historico_id, organizacao_id, processo_id, numero_cnj, tipo_peticao_id, advogado_oab }
+// Output: { sucesso, documentos_baixados, motivo_falha? }
+// NUNCA usar fetch() — sempre require("https")
+
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const https = require("https");
+const http = require("http");
+const fs = require("fs");
+const path = require("path");
+
+// lerEnv, httpsRequest helpers (padrão das outras skills)
+
+// Mapa de documentos prioritários por tipo de petição
+// Chave: nome parcial do tipo (lowercase) | Valor: prefixos a baixar
+const DOCS_POR_TIPO = {
+  'réplica':       ['CONT', 'CONTR', 'PROC', 'RG', 'END', 'ANEXO'],
+  'replica':       ['CONT', 'CONTR', 'PROC', 'RG', 'END', 'ANEXO'],
+  'contestação':   ['INIC', 'PET', 'PROC', 'RG', 'END', 'COMP'],
+  'contestacao':   ['INIC', 'PET', 'PROC', 'RG', 'END', 'COMP'],
+  'apelação':      ['SENT', 'DEC', 'DESPADEC', 'ACORD', 'ATOORD'],
+  'apelacao':      ['SENT', 'DEC', 'DESPADEC', 'ACORD', 'ATOORD'],
+  'impugnação':    ['SENT', 'CALC', 'MEM', 'ACORD'],
+  '_default':      ['SENT', 'CONT', 'INIC', 'PET', 'DEC', 'DESPADEC', 'CONTR'],
+};
+
+// Cache de sessões por OAB (evitar re-login)
+const sessaoCache = new Map();
+
+export async function executar(input) {
+  const {
+    historico_id, organizacao_id, processo_id,
+    numero_cnj, tipo_peticao_id, advogado_oab,
+    tipo_peticao_nome = '',
+  } = input;
+
+  const env = lerEnv();
+  const authH = { apikey: env.SUPABASE_KEY, Authorization: `Bearer ${env.SUPABASE_KEY}` };
+
+  // 1. Validar inputs obrigatórios
+  if (!numero_cnj) return { sucesso: false, motivo_falha: 'numero_cnj ausente', documentos_baixados: 0 };
+  if (!advogado_oab) return { sucesso: false, motivo_falha: 'advogado_oab ausente', documentos_baixados: 0 };
+
+  // 2. Atualizar progresso
+  if (historico_id) {
+    await atualizarProgresso(env, historico_id, 3, 'Acessando o EPROC...');
+  }
+
+  // 3. Buscar credenciais do advogado no banco
+  let conta;
+  try {
+    const r = await httpsRequest("GET",
+      `${env.SUPABASE_URL}/rest/v1/jarbas_accounts?oab=eq.${encodeURIComponent(advogado_oab)}&ativo=eq.true&select=oab,login_eproc,senha_hash,totp_secret,usa_2fa,eproc_url,sso_url&limit=1`,
+      null, authH);
+    conta = r.body?.[0];
+  } catch(e) { console.warn('[eproc-auto] Erro ao buscar conta:', e.message); }
+
+  if (!conta) return { sucesso: false, motivo_falha: `conta OAB ${advogado_oab} não encontrada`, documentos_baixados: 0 };
+
+  // 4. Login com cache de sessão
+  let loginResult;
+  const cachedSession = sessaoCache.get(advogado_oab);
+  if (cachedSession && cachedSession.page && !cachedSession.expirado) {
+    console.log(`[eproc-auto] Reutilizando sessão para ${advogado_oab}`);
+    loginResult = cachedSession;
+  } else {
+    try {
+      const { loginEproc } = await import('/Users/jarbas/jarbas/src/skills/skill_login_eproc.mjs');
+      loginResult = await loginEproc({
+        login_eproc: conta.login_eproc,
+        senha_hash: conta.senha_hash,
+        tribunal: conta.tribunal || 'TJRS',
+        eproc_url: conta.eproc_url || 'https://eproc1g.tjrs.jus.br',
+        totp_secret: conta.totp_secret,
+        usa_2fa: conta.usa_2fa,
+        id: null,
+      });
+      if (loginResult?.page) {
+        sessaoCache.set(advogado_oab, { ...loginResult, expirado: false });
+        setTimeout(() => { const s = sessaoCache.get(advogado_oab); if (s) s.expirado = true; }, 20 * 60 * 1000); // 20min
+      }
+    } catch(e) {
+      console.error('[eproc-auto] Erro login:', e.message);
+      return { sucesso: false, motivo_falha: `login falhou: ${e.message}`, documentos_baixados: 0 };
+    }
+  }
+
+  if (!loginResult?.page) return { sucesso: false, motivo_falha: 'login EPROC falhou', documentos_baixados: 0 };
+
+  const page = loginResult.page;
+
+  // 5. Navegar ao processo pelo campo de pesquisa rápida
+  if (historico_id) await atualizarProgresso(env, historico_id, 6, `Navegando ao processo ${numero_cnj}...`);
+
+  try {
+    await page.fill('#txtNumProcessoPesquisaRapida', numero_cnj);
+    await page.keyboard.press('Enter');
+    await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+    await page.waitForTimeout(2000);
+  } catch(e) {
+    return { sucesso: false, motivo_falha: `navegação falhou: ${e.message}`, documentos_baixados: 0 };
+  }
+
+  const url = page.url();
+  if (!url.includes('processo_selecionar')) {
+    return { sucesso: false, motivo_falha: 'processo não encontrado no EPROC', documentos_baixados: 0 };
+  }
+
+  // 6. Extrair links de documentos da página
+  const docLinks = await page.evaluate(() => {
+    const links = [];
+    document.querySelectorAll('a[href]').forEach(a => {
+      const href = a.href || '';
+      const text = (a.textContent?.trim() || '').replace(/\s+/g, ' ');
+      if (href.includes('acao=acessar_documento')) {
+        links.push({ label: text, href });
+      }
+    });
+    return links;
+  });
+
+  // 7. Filtrar por tipo de petição
+  const tipoKey = tipo_peticao_nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const prefixos = DOCS_POR_TIPO[tipoKey] || DOCS_POR_TIPO['_default'];
+  const docsAlvo = docLinks
+    .filter(d => prefixos.some(p => d.label.toUpperCase().startsWith(p)))
+    .slice(0, 8); // máximo 8 docs
+
+  if (docsAlvo.length === 0) {
+    // Fallback: pegar os primeiros 5 docs P1
+    const p1 = ['SENT', 'CONT', 'DEC', 'DESPADEC', 'INIC'];
+    docsAlvo.push(...docLinks.filter(d => p1.some(p => d.label.toUpperCase().startsWith(p))).slice(0, 5));
+  }
+
+  console.log(`[eproc-auto] ${docLinks.length} docs totais | ${docsAlvo.length} alvo para tipo "${tipoKey}"`);
+  if (historico_id) await atualizarProgresso(env, historico_id, 10, `Baixando ${docsAlvo.length} documentos...`);
+
+  // 8. Baixar e salvar cada documento
+  const { downloadDocumentosEproc } = await import('/Users/jarbas/jarbas/src/skills/skill_download_documentos_eproc.mjs');
+
+  let documentosBaixados = 0;
+  for (const doc of docsAlvo) {
+    try {
+      // Navegar para o documento e baixar
+      await page.goto(doc.href, { timeout: 15000, waitUntil: 'domcontentloaded' });
+      await page.waitForTimeout(1500);
+
+      // Tentar baixar como PDF
+      const pdfBuffer = await page.pdf({ format: 'A4', printBackground: true }).catch(() => null);
+      if (!pdfBuffer || pdfBuffer.length < 1000) continue;
+
+      const nomeArquivo = sanitizarNome(doc.label);
+      const caminhoTmp = `/tmp/olivia-eproc-${Date.now()}-${nomeArquivo}.pdf`;
+      fs.writeFileSync(caminhoTmp, pdfBuffer);
+
+      // Upload para olivia-docs
+      const uploaded = await uploadParaOliviaDocs(env, caminhoTmp, nomeArquivo, processo_id, organizacao_id);
+      if (uploaded?.arquivo_url) {
+        // Inserir em processos_documentos
+        await httpsRequest("POST", `${env.SUPABASE_URL}/rest/v1/processos_documentos`,
+          {
+            processo_id, organizacao_id,
+            nome: doc.label,
+            arquivo_url: uploaded.arquivo_url,
+            categoria: 'eproc_auto',
+            tipo: 'pdf',
+          },
+          { ...authH, Prefer: 'return=minimal' }
+        );
+        // Disparar extração de texto (fire and forget)
+        fetch(`http://localhost:19100/olivia/extrair-texto`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer olivia-gateway-token-2026' },
+          body: JSON.stringify({ arquivo_url: uploaded.arquivo_url }),
+        }).catch(() => {});
+
+        documentosBaixados++;
+        fs.unlinkSync(caminhoTmp);
+      }
+    } catch(e) {
+      console.warn(`[eproc-auto] Falha ao baixar ${doc.label}:`, e.message);
+    }
+  }
+
+  if (historico_id) await atualizarProgresso(env, historico_id, 15, `${documentosBaixados} documentos baixados do EPROC`);
+  console.log(`[eproc-auto] CONCLUÍDO: ${documentosBaixados}/${docsAlvo.length} docs baixados`);
+
+  return { sucesso: true, documentos_baixados: documentosBaixados, docs_totais_processo: docLinks.length };
+}
+
+// Funções auxiliares: lerEnv, httpsRequest, atualizarProgresso, sanitizarNome, uploadParaOliviaDocs
+// (usar o padrão das outras skills da OlivIA)
+```
+
+ATENÇÃO:
+- A skill NÃO pode usar fetch() para o Supabase — usar httpsRequest
+- fetch() SÓ pode ser usado para o endpoint local localhost:19100 (não tem alternativa)
+- Usar page.pdf() para baixar PDFs dos documentos do visor do EPROC
+- uploadParaOliviaDocs: fazer multipart upload para o bucket olivia-docs via httpsRequest
+- Bucket path: {organizacao_id}/processos/{processo_id}/{uuid}-{nome}.pdf
+
+APÓS CRIAR:
+Testar manualmente:
+ssh mac-mini "cd /Users/Shared/olivia-server && /opt/homebrew/bin/node -e \"
+import('/Users/Shared/olivia-skills/olivia-eproc-auto.mjs').then(m => 
+  m.executar({
+    numero_cnj: '5239642-72.2025.8.21.0001',
+    advogado_oab: 'RS116571',
+    processo_id: '00015a20-fafd-42ec-a0cc-525ecd180908',
+    organizacao_id: '55a0c7ba-1a23-4ae1-b69b-a13811324735',
+    tipo_peticao_nome: 'Réplica',
+  })
+).then(r => console.log(JSON.stringify(r, null, 2))).catch(console.error)
+\" 2>&1 | tail -20"
+
+Resultado esperado: { sucesso: true, documentos_baixados: 3-8, docs_totais_processo: 33 }
+Commitar: ssh mac-mini "cd ~/beta-mdflow && git add -A && git commit -m 'feat(olivia): S0.5 olivia-eproc-auto.mjs — acesso automático EPROC'"
+Push: ssh mac-mini "cd ~/beta-mdflow && git push origin main"</code></pre>
+      </div>
+    </details>
+  </section>
+
+  <!-- WAVE 2 -->
+  <section id="wave2">
+    <h2>🌊 Wave 2 — Integrar S0.5 no server.mjs</h2>
+    <div class="wave-header">
+      <strong>Terminal:</strong> <span class="terminal-badge t1">💻 Terminal 1</span> &nbsp;
+      <strong>Pré-requisito:</strong> Wave 1 concluída<br>
+      <strong>Arquivo:</strong> <code>/Users/Shared/olivia-server/server.mjs</code>
+    </div>
+
+    <details>
+      <summary>🟡 Wave 2 — Integrar olivia-eproc-auto no pipeline do server.mjs</summary>
+      <div class="acc-body">
+        <button class="copy-btn" onclick="copyAcc(this)">📋 Copiar</button>
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md antes de começar.
+
+ARQUIVO: /Users/Shared/olivia-server/server.mjs
+
+TAREFA: Integrar skill S0.5 (olivia-eproc-auto.mjs) no pipeline de geração.
+
+1. Adicionar import da nova skill no topo com os outros imports dinâmicos:
+   const eprocAuto = dinamic('/Users/Shared/olivia-skills/olivia-eproc-auto.mjs');
+
+2. Adicionar no orquestrarGeracao(), ANTES do bloco "log('Iniciando análise de provas...')", 
+   logo após a busca dos documentos já existentes:
+
+```js
+// S0.5 — EPROC Auto-fetch (se habilitado e processo tiver número CNJ)
+const analisar_eproc = body.analisar_eproc !== false; // default true
+if (analisar_eproc && dados_processo?.numero) {
+  const oab = dados_processo?.advogado_oab || 'RS116571'; // buscar do processo
+  try {
+    const eprocResult = await eprocAuto({
+      historico_id,
+      organizacao_id,
+      processo_id,
+      numero_cnj: dados_processo.numero,
+      tipo_peticao_id,
+      tipo_peticao_nome: dados_processo.tipo_peticao_nome || '',
+      advogado_oab: oab,
+    });
+    if (eprocResult?.documentos_baixados > 0) {
+      log(`EPROC: ${eprocResult.documentos_baixados} docs baixados automaticamente`, 14);
+      // Atualizar documentos após download (para analisa-provas usar os novos)
+      const novosDocsTexto = await supabaseGet(env, 'processos_documentos',
+        `?processo_id=eq.${processo_id}&deleted_at=is.null&texto_extraido=not.is.null&select=id,nome,categoria,texto_extraido&limit=8`
+      );
+      if (novosDocsTexto?.length > 0) {
+        dados_processo.documentos = novosDocsTexto;
+      }
+    }
+  } catch(e) {
+    console.warn('[olivia-server] EPROC auto-fetch falhou (não bloqueante):', e.message);
+  }
+}
+```
+
+3. Adicionar no campo `advogado_oab` no buscarDadosProcesso():
+   - Verificar se a tabela processos tem coluna advogado_id
+   - Se sim: JOIN com advogados para pegar oab
+   - Se não: usar 'RS116571' como default
+
+4. Adicionar `analisar_eproc` como campo aceito no body do endpoint /olivia/gerar
+
+REINICIAR SERVIDOR após o fix:
+ssh mac-mini "kill \$(lsof -i :19100 -t) 2>/dev/null; sleep 2; cd /Users/Shared/olivia-server && nohup /opt/homebrew/bin/node server.mjs > /tmp/olivia-server.log 2>&1 & sleep 3 && curl -s http://localhost:19100/health"
+
+TESTE RÁPIDO:
+source ~/jarbas/.env
+HIST=$(curl -s -X POST "${SUPABASE_URL}/rest/v1/olivia_historico" \
+  -H "apikey: ${SUPABASE_KEY}" -H "Authorization: Bearer ${SUPABASE_KEY}" \
+  -H "Content-Type: application/json" -H "Prefer: return=representation" \
+  -d '{"organizacao_id":"55a0c7ba-1a23-4ae1-b69b-a13811324735","processo_id":"00015a20-fafd-42ec-a0cc-525ecd180908","tipo_peticao_id":"d09841e1-8c4c-4d76-b178-612bacc622f5","qualidade_ia":"padrao","status":"PROCESSANDO","modo":"OLIVIA","de_teste":true}')
+HIST_ID=$(echo "$HIST" | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
+
+ssh mac-mini "curl -s -X POST http://localhost:19100/olivia/gerar \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer olivia-gateway-token-2026' \
+  -d '{\"historico_id\":\"'$HIST_ID'\",\"organizacao_id\":\"55a0c7ba-1a23-4ae1-b69b-a13811324735\",\"processo_id\":\"00015a20-fafd-42ec-a0cc-525ecd180908\",\"tipo_peticao_id\":\"d09841e1-8c4c-4d76-b178-612bacc622f5\",\"modelo_grupo_id\":\"60c5c125-bb9e-4b30-b016-b1aab313119e\",\"analisar_eproc\":true,\"qualidade_ia\":\"padrao\"}'"
+
+# Verificar log para confirmar que S0.5 rodou:
+sleep 30 && ssh mac-mini "grep 'EPROC\|eproc' /tmp/olivia-server.log | tail -5"
+
+Commitar:
+cd ~/beta-mdflow && git add -A && git commit -m "feat(olivia): S0.5 integrado no server.mjs — EPROC auto-fetch antes da analisa-provas"
+git push origin main
+ssh mac-mini "cd ~/beta-mdflow && git pull origin main"</code></pre>
+      </div>
+    </details>
+  </section>
+
+  <!-- WAVE 3 -->
+  <section id="wave3">
+    <h2>🌊 Wave 3 — Frontend: Toggle + Progresso EPROC no Step 4</h2>
+    <div class="wave-header">
+      <strong>Terminal:</strong> <span class="terminal-badge t2">💻 Terminal 2 — Frontend</span> &nbsp;
+      <strong>Pode rodar em paralelo com Wave 2</strong><br>
+      <strong>Arquivos:</strong> <code>~/beta-mdflow/src/pages/olivia/</code>
+    </div>
+
+    <details>
+      <summary>🟡 Wave 3-A — Toggle "Analisar processo automaticamente" no Step 1 <span class="terminal-badge t2">Terminal 2</span></summary>
+      <div class="acc-body">
+        <button class="copy-btn" onclick="copyAcc(this)">📋 Copiar</button>
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md antes de começar.
+
+ARQUIVO: ~/beta-mdflow/src/pages/olivia/components/express/ExpressStep1.tsx
+(ou o arquivo de step 1 equivalente — verificar onde ficam os campos de seleção)
+
+TAREFA: Adicionar toggle "Analisar processo automaticamente" no Step 1.
+
+1. Adicionar campo `analisarEproc: boolean` ao tipo OliviaWizardDadosStep1 (types.ts ou interface local)
+
+2. No Step 1, após o seletor de modelo de petição, adicionar:
+
+```tsx
+{/* Análise automática de documentos */}
+<div className="flex items-center justify-between rounded-lg border border-border bg-card/40 p-4">
+  <div className="space-y-0.5">
+    <Label className="text-sm font-semibold">Analisar processo automaticamente</Label>
+    <p className="text-xs text-muted-foreground">
+      OlivIA acessa o EPROC e baixa os documentos relevantes para a petição
+    </p>
+  </div>
+  <Switch
+    checked={analisarEproc}
+    onCheckedChange={setAnalisarEproc}
+    defaultChecked={true}
+  />
+</div>
+```
+
+3. Passar `analisarEproc` no payload da Fase 1 (iniciarAnalise → callWebhook):
+   analisar_eproc: dados.analisarEproc !== false
+
+4. Manter o UploadDrawer existente como fallback abaixo do toggle:
+   - Quando toggle ON: mostrar apenas o toggle (não o drawer)
+   - Quando toggle OFF: mostrar o UploadDrawer normal
+   Usar condicional: {!analisarEproc && <UploadDrawer ... />}
+
+5. Default: analisarEproc = true
+
+REGRAS DE DESIGN:
+- ZERO hardcode de cor — usar tokens CSS do DS v5
+- Framer Motion para animação de show/hide do drawer
+- Switch component do Radix UI (@/components/ui/switch)
+- Label component (@/components/ui/label)
+
+SINCRONIZAR:
+cd ~/beta-mdflow && git add -A && git commit -m "feat(olivia): toggle analisar_eproc no Step 1"
+git push origin main
+ssh mac-mini "cd ~/beta-mdflow && git pull origin main && pkill -f vite; sleep 2; nohup /opt/homebrew/bin/node node_modules/.bin/vite --host 0.0.0.0 --port 5173 > /tmp/vite.log 2>&1 &"</code></pre>
+      </div>
+    </details>
+
+    <details>
+      <summary>🟡 Wave 3-B — Adicionar etapas EPROC na barra de progresso Step 4 <span class="terminal-badge t2">Terminal 2</span></summary>
+      <div class="acc-body">
+        <button class="copy-btn" onclick="copyAcc(this)">📋 Copiar</button>
+        <pre><code>ARQUIVO: ~/beta-mdflow/src/pages/olivia/components/express/ExpressStep4Rascunho.tsx
+
+TAREFA: Quando analisar_eproc=true, mostrar etapas adicionais na barra de progresso.
+
+1. Receber prop `analisarEproc?: boolean` no componente
+
+2. Usar SUBSTEPS dinâmico baseado se EPROC está ativo:
+
+```tsx
+const SUBSTEPS_BASE = [
+  { key: 'analisa-provas', label: 'Analisando provas...', icon: Search, range: [25, 40] },
+  { key: 'busca-juris', label: 'Buscando jurisprudências...', icon: Scale, range: [40, 55] },
+  { key: 'monta-estrutura', label: 'Montando Smart Blocks...', icon: Blocks, range: [55, 65] },
+  { key: 'gera-peticao', label: 'Gerando petição com IA...', icon: FileText, range: [65, 88] },
+  { key: 'revisor', label: 'Revisando qualidade...', icon: CheckSquare, range: [88, 100] },
+] as const;
+
+const SUBSTEPS_EPROC = [
+  { key: 'eproc-login', label: 'Acessando o EPROC...', icon: Globe, range: [0, 10] },
+  { key: 'eproc-docs', label: 'Baixando documentos...', icon: Download, range: [10, 25] },
+  ...SUBSTEPS_BASE,
+] as const;
+
+const SUBSTEPS = analisarEproc ? SUBSTEPS_EPROC : SUBSTEPS_BASE;
+```
+
+3. Importar ícones: Globe, Download from 'lucide-react'
+
+4. Quando analisarEproc=false: ranges continuam [0, 25], [25, 55] etc. (sem etapas EPROC)
+
+SINCRONIZAR após o fix igual ao Wave 3-A.
+Commitar separado: "feat(olivia): step4 etapas EPROC na barra de progresso"</code></pre>
+      </div>
+    </details>
+  </section>
+
+  <!-- OBSERVAÇÕES FINAIS -->
+  <section>
+    <h2>📝 Observações Importantes</h2>
+    <div class="card card-yellow">
+      <h3>⚠️ Aguardar extração de texto antes de analisa-provas</h3>
+      <p>O S0.5 baixa os PDFs e dispara <code>extrair-texto</code> como fire-and-forget. Mas a analisa-provas precisa do texto. O server.mjs deve aguardar ~15s após o S0.5 para dar tempo ao pdftotext processar os novos docs.</p>
+      <pre><code>// Após eprocResult, aguardar extração dos textos
+if (eprocResult?.documentos_baixados > 0) {
+  await new Promise(r => setTimeout(r, 15000)); // 15s para pdftotext
+  // Buscar novamente os docs com texto_extraido
+  ...
+}</code></pre>
+    </div>
+
+    <div class="card">
+      <h3>📌 Seletor correto do EPROC (confirmado por teste)</h3>
+      <pre><code>// Campo de busca no canto superior direito do painel:
+#txtNumProcessoPesquisaRapida  ← CORRETO (confirmado 23/03/2026)
+
+// Fluxo de navegação:
+await page.fill('#txtNumProcessoPesquisaRapida', numeroCnj);
+await page.keyboard.press('Enter');
+await page.waitForLoadState('domcontentloaded', { timeout: 15000 });
+await page.waitForTimeout(2000);
+// URL resultante: controlador.php?acao=processo_selecionar&num_processo=...</code></pre>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <p>🦊 JANA — Prompts CC EPROC Auto-Análise | 2026-03-23 | Teste confirmado: login + 33 docs extraídos</p>
+  <p style="margin-top:5px">Playwright: /Users/jarbas/jarbas/node_modules/playwright | Skills JARBAS: /Users/jarbas/jarbas/src/skills/</p>
+</footer>
+
+<script>
+function copyAcc(btn) {
+  const pre = btn.nextElementSibling.querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = '✅ Copiado!';
+    setTimeout(() => btn.textContent = '📋 Copiar', 2000);
+  });
+}
+</script>
+</body>
+</html>

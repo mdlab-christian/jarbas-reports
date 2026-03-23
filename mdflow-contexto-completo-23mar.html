@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdFlow — Contexto Completo + Pendências (23/03/2026)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #0f0f0f;
+    color: #e0e0e0;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px 16px;
+  }
+  .container { max-width: 900px; margin: 0 auto; }
+
+  /* ── Header ── */
+  .header { margin-bottom: 36px; }
+  .header h1 { font-size: 24px; font-weight: 700; color: #20c997; }
+  .header .meta { color: #6b7280; font-size: 13px; margin-top: 4px; }
+  .header .tagline {
+    margin-top: 12px;
+    background: #111;
+    border: 1px solid #1f2937;
+    border-left: 3px solid #20c997;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    font-size: 13px;
+    color: #9ca3af;
+  }
+
+  /* ── Section ── */
+  .section { margin-bottom: 32px; }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #4b5563;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap-8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .section-title span { display: flex; align-items: center; gap: 8px; }
+
+  /* ── Cards ── */
+  .card {
+    background: #111;
+    border: 1px solid #1f1f1f;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .card:hover { border-color: #2a2a2a; }
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .card-title { font-size: 13px; font-weight: 600; color: #e0e0e0; }
+  .card-desc { font-size: 12px; color: #6b7280; line-height: 1.5; }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .badge-done   { background: #052e1680; color: #20c997; border: 1px solid #20c99730; }
+  .badge-partial{ background: #2d1f0080; color: #f59e0b; border: 1px solid #f59e0b30; }
+  .badge-todo   { background: #1a1a2e80; color: #818cf8; border: 1px solid #818cf830; }
+  .badge-blocked{ background: #2d000080; color: #f87171; border: 1px solid #f8717130; }
+
+  /* ── Stats bar ── */
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 32px; }
+  .stat {
+    background: #111;
+    border: 1px solid #1f1f1f;
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+  .stat .num { font-size: 28px; font-weight: 700; line-height: 1; }
+  .stat .lbl { font-size: 11px; color: #6b7280; margin-top: 3px; }
+  .num-green  { color: #20c997; }
+  .num-yellow { color: #f59e0b; }
+  .num-red    { color: #f87171; }
+  .num-blue   { color: #818cf8; }
+
+  /* ── Context blocks ── */
+  .context-block {
+    background: #0a0a0a;
+    border: 1px solid #1a1a1a;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .context-header {
+    background: #141414;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1a1a1a;
+  }
+  .context-name { font-size: 12px; font-weight: 700; color: #20c997; font-family: monospace; }
+  .context-body { padding: 12px 16px; }
+
+  /* ── Prompt box ── */
+  .prompt-box {
+    background: #080808;
+    border: 1px solid #1a3a2a;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  .prompt-header {
+    background: #0d1f18;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #1a3a2a;
+  }
+  .prompt-title { font-size: 12px; font-weight: 700; color: #20c997; }
+  .prompt-body {
+    padding: 16px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    font-size: 11px;
+    line-height: 1.7;
+    color: #9ca3af;
+    white-space: pre-wrap;
+    overflow-x: auto;
+  }
+
+  /* ── Items list ── */
+  .item-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 0;
+    border-bottom: 1px solid #111;
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+  .item-text { flex: 1; }
+  .item-main { font-size: 13px; color: #d1d5db; }
+  .item-sub  { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .item-sub code {
+    background: #1a1a1a;
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-size: 10px;
+    color: #9ca3af;
+  }
+
+  /* ── Architecture table ── */
+  .arch-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .arch-table th {
+    text-align: left;
+    padding: 8px 12px;
+    background: #141414;
+    color: #6b7280;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid #1f1f1f;
+  }
+  .arch-table td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #111;
+    color: #9ca3af;
+    vertical-align: top;
+  }
+  .arch-table td:first-child { color: #20c997; font-family: monospace; }
+  .arch-table tr:last-child td { border-bottom: none; }
+
+  /* ── Next steps ── */
+  .next-card {
+    background: #0d1f18;
+    border: 1px solid #20c99730;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .next-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px; height: 22px;
+    background: #20c99720;
+    color: #20c997;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-right: 8px;
+  }
+  .next-title { font-size: 13px; font-weight: 600; color: #e0e0e0; display: flex; align-items: center; margin-bottom: 4px; }
+  .next-desc  { font-size: 12px; color: #6b7280; }
+  .next-urgency {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 9999px;
+    margin-left: 8px;
+  }
+  .urg-high { background: #f8717120; color: #f87171; }
+  .urg-med  { background: #f59e0b20; color: #f59e0b; }
+  .urg-low  { background: #6b728020; color: #9ca3af; }
+
+  .footer { margin-top: 40px; text-align: center; color: #374151; font-size: 11px; }
+  .divider { height: 1px; background: #1a1a1a; margin: 24px 0; }
+
+  tag { display: inline; }
+  .hl { color: #20c997; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <h1>MdFlow — Contexto Completo de Implementação</h1>
+    <div class="meta">Sessão 23/03/2026 · Módulo: ClienteDrawer + Distribuição + Processos · Gustavo Paz & JARBAS</div>
+    <div class="tagline">
+      Este documento contém <strong style="color:#e0e0e0">tudo</strong> o que foi implementado, discutido e o que falta. 
+      Pode ser usado como contexto inicial para qualquer agente de código continuar o trabalho.
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="stats">
+    <div class="stat"><div class="num num-green">13</div><div class="lbl">✅ Implementado</div></div>
+    <div class="stat"><div class="num num-yellow">2</div><div class="lbl">⚠️ Parcial</div></div>
+    <div class="stat"><div class="num num-blue">2</div><div class="lbl">🔵 Prompt pronto</div></div>
+    <div class="stat"><div class="num num-red">0</div><div class="lbl">🔴 Bloqueado</div></div>
+  </div>
+
+  <!-- SEÇÃO 1: CONTEXTO GERAL -->
+  <div class="section">
+    <div class="section-title"><span>📋 Contexto Geral do Módulo</span></div>
+    <div class="card">
+      <div class="card-title" style="margin-bottom:8px">O que é o ClienteDrawer?</div>
+      <div class="card-desc">
+        Componente central compartilhado por 3 contextos distintos no MdFlow. Renderizado via prop <code style="background:#1a1a1a;padding:1px 5px;border-radius:3px;font-size:11px">context: "crm" | "clientes" | "distribuicao"</code>.
+        Cada contexto tem tabs e comportamentos específicos. O trabalho desta sessão focou em <strong style="color:#e0e0e0">distribuicao</strong> e <strong style="color:#e0e0e0">clientes</strong>, além do módulo <strong style="color:#e0e0e0">/processos</strong>.
+      </div>
+    </div>
+
+    <div style="overflow:hidden;border-radius:10px;border:1px solid #1f1f1f;">
+      <table class="arch-table">
+        <thead>
+          <tr><th>Contexto</th><th>Tabs</th><th>Quem usa</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>crm</td><td>Dados | Restrições | Documentos | Jurídico | Atividades</td><td>CRM board — qualquer lead</td></tr>
+          <tr><td>distribuicao</td><td>Dados | Restrição | Documentos</td><td>Drawer de distribuição — 1 restrição específica</td></tr>
+          <tr><td>clientes</td><td>Dados | Restrições | Documentos</td><td>Página /clientes — pós-distribuição</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 2: TIPOS -->
+  <div class="section">
+    <div class="section-title"><span>🧱 Tipos Atualizados</span></div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">cliente.types.ts</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Novos campos adicionados ao tipo Cliente</div>
+            <div class="item-sub">+<code>renda_mensal</code>, <code>naturalidade</code>, <code>banco</code>, <code>pix</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">processo.types.ts</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main"><code>restricao_tipo</code>: string (era number)</div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">+<code>restricao_id</code></div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">JOIN clientes estendido com <code>whatsapp</code>, <code>data_nascimento</code>, <code>sexo</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 3: CONTEXT DISTRIBUICAO -->
+  <div class="section">
+    <div class="section-title"><span>📤 context="distribuicao"</span></div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ClienteDrawer.tsx</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Nova prop <code>restricaoId</code> + <code>onDistribuicaoFieldsChange</code></div>
+            <div class="item-sub">Tabs exclusivas para o contexto: Dados | Restrição | Documentos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ClienteDrawerTabDados.tsx — context=distribuicao</span>
+        <span class="badge badge-done">✅ DONE (incluindo SELECT)</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Lead read-only + card da restrição selecionada</div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Valor da causa calculado em tempo real</div>
+            <div class="item-sub"><code>restricao.valor + R$ 15.000</code> — exibido como readonly</div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">SELECT encadeado de Comarca/Vara → Julgador</div>
+            <div class="item-sub">
+              Tabela: <code>comarcas_varas</code> (vara, comarca, cidade, uf) → <code>vw_julgadores_completo</code> (nome, comarca_vara_id)<br>
+              <code>DistribuicaoFields</code> ganhou <code>comarca_vara_id: string</code> e <code>julgador_id: string</code><br>
+              Ao selecionar vara: auto-preenche cidade + comarca_vara_id, reseta julgador<br>
+              Input manual de fallback abaixo do SELECT de julgador
+            </div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Campos CNJ + data_distribuicao editáveis</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ClienteDrawerTabRestricoes.tsx</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Filtra para a <code>restricaoId</code> específica quando passada via prop</div>
+            <div class="item-sub">Campos: empresa, tipo, numero_contrato, data, valor, orgao_restritivo</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ClienteDrawerTabDocumentosLead.tsx — context=distribuicao</span>
+        <span class="badge badge-partial">⚠️ PARCIAL</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Botões Gerar Petição Inicial + Gerar Comprovantes ativos</div>
+            <div class="item-sub">Procuração e contrato ocultos no contexto distribuicao</div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Pasta Tier 2 filtrada pela <code>restricaoId</code> específica</div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">⚠️</span>
+          <div class="item-text">
+            <div class="item-main" style="color:#f59e0b">Pasta de documentos gerais ausente</div>
+            <div class="item-sub">Spec pede: segunda pasta com filtro <code>lead_id + restricao_id IS NULL</code> — Upload Central (Tier 1) não está sendo renderizado no contexto distribuicao. <strong style="color:#e0e0e0">Prompt CC pronto abaixo.</strong></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 4: CONTEXT CLIENTES -->
+  <div class="section">
+    <div class="section-title"><span>👤 context="clientes"</span></div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ClienteDrawerTabDados.tsx — context=clientes</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Cliente agora editável — formulário completo</div>
+            <div class="item-sub">View: email, RG, mãe, naturalidade, renda, banco, PIX (só se preenchidos)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ClienteDrawerTabRestricoes.tsx — context=clientes</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main"><code>showProcessoStatus=true</code> → badge "Processo vinculado" / "Sem processo"</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ClienteDrawerTabDocumentos.tsx — context=clientes</span>
+        <span class="badge badge-partial">⚠️ PARCIAL</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Realtime subscription ativo por <code>cliente_id</code></div>
+          </div>
+        </div>
+        <div class="item-row">
+          <span class="item-icon">⚠️</span>
+          <div class="item-text">
+            <div class="item-main" style="color:#f59e0b">Estrutura de pastas por restrição — a confirmar</div>
+            <div class="item-sub">
+              Spec pede: uma pasta por restrição (<code>cliente_id + restricao_id</code>) + pasta geral (<code>restricao_id IS NULL</code>).<br>
+              O componente exibe pastas pelo <code>entityLeadId</code> (client_id pode ser diferente). Verificar se o filtro está correto.
+              <strong style="color:#e0e0e0"> Prompt CC pronto abaixo.</strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 5: PROCESSOS -->
+  <div class="section">
+    <div class="section-title"><span>⚖️ /processos (ProcessoTab*)</span></div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ProcessoTabDocumentos.tsx</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Realtime subscription filtrado por <code>processo_id</code></div>
+            <div class="item-sub">Canal: <code>processos_documentos:processo_id=eq.X</code></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ProcessoDadosProcesso.tsx</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Breakdown do valor_causa</div>
+            <div class="item-sub">R$ X.XXX (restrição) + R$ 15.000 honorários — exibido separadamente</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ProcessoDadosCliente.tsx</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Dados estendidos: WhatsApp, data de nascimento, sexo</div>
+            <div class="item-sub">Via JOIN processos → clientes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="context-block">
+      <div class="context-header">
+        <span class="context-name">ProcessoRestricaoPrincipal.tsx</span>
+        <span class="badge badge-done">✅ DONE</span>
+      </div>
+      <div class="context-body">
+        <div class="item-row">
+          <span class="item-icon">✅</span>
+          <div class="item-text">
+            <div class="item-main">Todos os campos confirmados em código</div>
+            <div class="item-sub">
+              View: empresa_nome, restricao_orgao_nome, restricao_contrato, restricao_valor, restricao_data, restricao_tipo (Comprador/Devedor/Fiador/Avalista)<br>
+              Edit: Contrato (Input), Órgão (Select de orgaos_restritivos), Valor (Input number), Data (Input date)<br>
+              <em style="color:#20c997">→ Completamente implementado. Não era pendência — apenas não havia sido confirmado no resumo anterior.</em>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- SEÇÃO 6: PENDÊNCIAS + PROMPTS CC -->
+  <div class="section">
+    <div class="section-title"><span>🔵 Pendências — Prompts CC Prontos para Executar</span></div>
+
+    <!-- PENDÊNCIA 1 -->
+    <div class="next-card" style="margin-bottom:20px">
+      <div class="next-title">
+        <span class="next-num">1</span>
+        Pasta de documentos gerais no context=distribuicao
+        <span class="next-urgency urg-high">ALTA</span>
+      </div>
+      <div class="next-desc" style="margin-left:30px">
+        No contexto distribuicao, a aba Documentos mostra a pasta da restrição específica (Tier 2), mas não renderiza a pasta/upload de documentos gerais do lead (Tier 1 — <code style="background:#1a1a1a;padding:1px 4px;border-radius:3px;font-size:11px">restricao_id IS NULL</code>). Spec pede as duas.
+      </div>
+    </div>
+
+    <div class="prompt-box">
+      <div class="prompt-header">
+        <span class="prompt-title">📋 PROMPT CC #1 — Pasta Geral no context=distribuicao</span>
+        <span class="badge badge-todo">Pronto para CC</span>
+      </div>
+      <div class="prompt-body"># Adicionar Pasta de Documentos Gerais no context=distribuicao
+
+## Contexto (Pilar 1)
+Projeto: MdFlow LegalTech — módulo Distribuição
+Stack: React 18 + TypeScript + Supabase + shadcn/ui + Tailwind CSS
+Repositório: ~/beta-mdflow/
+Arquivo alvo: src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDocumentosLead.tsx
+
+Situação atual:
+- context="distribuicao" renderiza APENAS a pasta da restricaoId específica (Tier 2)
+- O Upload Central (Tier 1 — docs gerais com restricao_id IS NULL) NÃO é renderizado
+- A spec pede as duas: pasta da restrição específica + pasta de docs gerais
+
+## Referências (Pilar 2)
+
+### Estrutura atual de Tiers (já comentada no arquivo):
+// Tier 1 (central): restricao_id=null, categoria='documento_lead'
+// Tier 2 (pasta):   restricao_id=ID,   categoria='documento_restricao'
+
+### Componentes já importados no arquivo:
+import { DocumentosUploadCentral } from './DocumentosUploadCentral'
+import { DocumentoItem } from './DocumentoItem'
+
+### Hook já disponível:
+const { data: centralDocs = [] } = useLeadDocs(lead.id, organizacaoId)
+// → já busca docs com restricao_id IS NULL
+
+### Handler de upload central já existente:
+const handleUploadCentral = async (file: File, nomeEscolhido: string) => { ... }
+// → salva com restricao_id: null, categoria: 'documento_lead'
+
+### Bloco JSX atual do context=distribuicao (buscar no arquivo):
+// Renderiza: botões (Gerar Petição + Comprovantes) + pastas Tier 2 filtradas
+// NÃO renderiza: Upload Central nem lista Tier 1
+
+## Tarefa (Pilar 3)
+
+Adicionar ao JSX do context=distribuicao, APÓS as pastas Tier 2, um bloco:
+
+```tsx
+{/* Documentos Gerais — Tier 1 (distribuicao) */}
+<div className="space-y-2">
+  <p className="text-xs font-semibold uppercase text-muted-foreground tracking-wide">
+    Documentos Gerais do Lead
+  </p>
+  <DocumentosUploadCentral
+    leadNome={lead.nome ?? ''}
+    onUpload={handleUploadCentral}
+    loading={uploadingCentral}
+  />
+  {centralDocs.length > 0 && (
+    <div className="space-y-1 mt-2">
+      {centralDocs.map(doc => (
+        <DocumentoItem
+          key={doc.id}
+          doc={doc}
+          onRefetch={() => queryClient.invalidateQueries({ queryKey: ['lead-docs-upload', lead.id, organizacaoId] })}
+        />
+      ))}
+    </div>
+  )}
+</div>
+```
+
+O bloco deve ser inserido no JSX do contexto distribuicao (dentro do return do isDistribuicao).
+Verificar se o estado uploadingCentral e o handler handleUploadCentral já são
+compartilhados pelo componente — se sim, reutilizar. Se não, criar localmente seguindo
+o mesmo padrão do context=crm.
+
+## Regras de Arquitetura (Pilar 4)
+- NÃO alterar nenhuma outra seção do componente (context=crm, context=clientes)
+- NÃO criar novos arquivos
+- NÃO alterar banco/migrations
+- Manter tipagem TypeScript estrita — sem any desnecessário
+- Seguir o padrão visual do Tier 1 no context=crm como referência
+
+## Restrições
+- Alterar APENAS o bloco JSX do isDistribuicao
+- NÃO remover nem modificar a pasta Tier 2 já existente
+
+## Formato do Relatório (obrigatório)
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🧪 Como testar
+### ⚠️ O que precisa de revisão manual</div>
+    </div>
+
+    <!-- PENDÊNCIA 2 -->
+    <div class="next-card" style="margin-bottom:20px">
+      <div class="next-title">
+        <span class="next-num">2</span>
+        Verificar e corrigir estrutura de pastas no context=clientes
+        <span class="next-urgency urg-med">MÉDIA</span>
+      </div>
+      <div class="next-desc" style="margin-left:30px">
+        A aba Documentos do context=clientes usa <code style="background:#1a1a1a;padding:1px 4px;border-radius:3px;font-size:11px">entityLeadId</code> internamente. A spec pede filtros por <code>cliente_id</code>, não <code>lead_id</code>. Verificar se os hooks de pastas e upload central estão recebendo o <code>cliente_id</code> correto, ou se ainda estão usando o ID do lead original.
+      </div>
+    </div>
+
+    <div class="prompt-box">
+      <div class="prompt-header">
+        <span class="prompt-title">📋 PROMPT CC #2 — Verificar Filtros de Documentos context=clientes</span>
+        <span class="badge badge-todo">Pronto para CC</span>
+      </div>
+      <div class="prompt-body"># Verificar e Corrigir Filtros de Documentos no context=clientes
+
+## Contexto (Pilar 1)
+Projeto: MdFlow LegalTech — módulo Clientes
+Stack: React 18 + TypeScript + Supabase + shadcn/ui + Tailwind CSS
+Repositório: ~/beta-mdflow/
+Arquivos alvo:
+- src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDocumentos.tsx
+- src/components/shared/cliente_drawer/tabs/documentos_lead_hooks.ts (se existir)
+
+Situação atual:
+- O componente usa internamente entityLeadId para filtrar documentos
+- No context=clientes, o identificador correto é cliente_id (tabela clientes)
+- A spec pede: pasta por restrição (filtro: cliente_id + restricao_id) + pasta geral (restricao_id IS NULL)
+- O Realtime já está ativo por cliente_id (correto)
+
+## Referências (Pilar 2)
+
+### Tabela processos_documentos — campos relevantes:
+id, lead_id, cliente_id, processo_id, restricao_id,
+categoria, nome_arquivo, storage_path, organizacao_id
+
+### Props recebidas pelo componente (verificar no arquivo):
+// cliente_id deve ser passado via prop ou derivado do cliente
+// entityLeadId pode estar sendo usado como fallback incorreto
+
+### Padrão esperado de query para pasta geral (context=clientes):
+SELECT * FROM processos_documentos
+WHERE cliente_id = {cliente.id}
+AND restricao_id IS NULL
+AND organizacao_id = {organizacao_id}
+
+### Padrão esperado de query por pasta/restrição:
+SELECT * FROM processos_documentos
+WHERE cliente_id = {cliente.id}
+AND restricao_id = {restricao.id}
+
+## Tarefa (Pilar 3)
+
+1. Auditar o componente ClienteDrawerTabDocumentos.tsx:
+   - Verificar qual identificador está sendo passado para os hooks de busca de docs
+   - Se estiver usando lead_id onde deveria ser cliente_id → corrigir
+   - Confirmar que a pasta geral (restricao_id IS NULL) está renderizando
+
+2. Auditar os hooks de documentos:
+   - Identificar useLeadDocs, useRestricaoDocs ou equivalentes
+   - Verificar se aceitam cliente_id como parâmetro alternativo ao lead_id
+   - Se não: adicionar suporte ao cliente_id como parâmetro opcional
+
+3. Garantir estrutura de pastas:
+   - Pasta geral: Upload Central com filtro cliente_id + restricao_id IS NULL
+   - Uma pasta por restrição: filtro cliente_id + restricao_id = X
+
+4. Nenhum botão de gerar documentos no context=clientes (já correto — confirmar que não há)
+
+Output esperado:
+- Documentos do cliente filtrados por cliente_id (não lead_id)
+- Estrutura de pastas correta: geral + uma por restrição
+- Sem regressão no context=crm e context=distribuicao
+
+## Regras de Arquitetura (Pilar 4)
+- NÃO alterar context=crm — apenas context=clientes
+- NÃO criar novos arquivos sem necessidade
+- Se o hook precisar de novo parâmetro → usar parâmetro opcional com fallback
+- Manter Realtime subscription existente — não remover
+- Sem any desnecessário
+
+## Restrições
+- Se ambíguo entre cliente_id e lead_id → priorizar cliente_id para context=clientes
+- Não alterar a tabela processos_documentos nem criar migrations
+- Se encontrar outros bugs além do escopo → documentar no relatório, não corrigir
+
+## Formato do Relatório (obrigatório)
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🔍 O que foi encontrado (auditoria)
+- [o que estava correto]
+- [o que estava errado e foi corrigido]
+### 🧪 Como testar
+### ⚠️ O que precisa de revisão manual
+### 🚫 O que NÃO foi feito (e por quê)</div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 7: ARQUITETURA SUPABASE -->
+  <div class="section">
+    <div class="section-title"><span>🗄️ Tabelas Supabase Relevantes</span></div>
+    <div style="overflow:hidden;border-radius:10px;border:1px solid #1f1f1f;">
+      <table class="arch-table">
+        <thead>
+          <tr><th>Tabela / View</th><th>Campos Chave</th><th>Uso</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>comarcas_varas</td>
+            <td>id, vara, comarca, cidade, uf, juiz_titular, organizacao_id, ativo</td>
+            <td>SELECT de vara no contexto distribuicao</td>
+          </tr>
+          <tr>
+            <td>vw_julgadores_completo</td>
+            <td>id, nome, comarca_vara_id, vara, comarca, ativo</td>
+            <td>SELECT de julgador filtrado por comarca_vara_id</td>
+          </tr>
+          <tr>
+            <td>processos_documentos</td>
+            <td>id, lead_id, cliente_id, processo_id, restricao_id, categoria</td>
+            <td>Todos os documentos — filtros por contexto</td>
+          </tr>
+          <tr>
+            <td>restricoes</td>
+            <td>id, lead_id, processo_id, empresa_nome, valor, tipo, orgao_id, processavel</td>
+            <td>Restrições — filtradas por restricaoId no drawer</td>
+          </tr>
+          <tr>
+            <td>orgaos_restritivos</td>
+            <td>id, nome, organizacao_id</td>
+            <td>SELECT de órgão no edit de ProcessoRestricaoPrincipal</td>
+          </tr>
+          <tr>
+            <td>processos</td>
+            <td>id, comarca_vara_id, julgador_id, numero_cnj, valor_causa, restricao_id</td>
+            <td>FK para comarcas_varas e julgadores</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    MdFlow · Gerado por JARBAS · Sessão 23/03/2026 · Gustavo Paz &amp; JARBAS
+  </div>
+
+</div>
+</body>
+</html>

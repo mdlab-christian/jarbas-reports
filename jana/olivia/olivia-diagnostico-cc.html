@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Diagnóstico para CC | MdLab</title>
+<style>
+  :root {
+    --bg: #0f0f0f; --surface: #1a1a1a; --surface2: #242424; --border: #2e2e2e;
+    --text: #e8e8e8; --muted: #888;
+    --accent: #f59e0b; --green: #22c55e; --red: #ef4444;
+    --blue: #60a5fa; --orange: #fb923c; --teal: #2dd4bf; --purple: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.65; }
+  .header { background: linear-gradient(135deg, #0a0a1a 0%, #1a0a00 100%); padding: 48px 24px; text-align: center; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 2.2rem; font-weight: 900; color: var(--accent); margin-bottom: 8px; }
+  .header p { color: var(--muted); font-size: 0.92rem; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin: 3px; }
+  .bg { background: #1a2f1a; color: var(--green); }
+  .br { background: #2f1a1a; color: var(--red); }
+  .by { background: #2f2210; color: var(--accent); }
+  .bb { background: #1a2a3f; color: var(--blue); }
+  .nav { position: sticky; top: 0; background: #111; border-bottom: 1px solid var(--border); padding: 10px 24px; display: flex; gap: 6px; flex-wrap: wrap; z-index: 100; }
+  .nav a { color: var(--muted); text-decoration: none; font-size: 0.8rem; padding: 4px 10px; border-radius: 6px; }
+  .nav a:hover { background: var(--surface2); color: var(--text); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  section { margin-bottom: 52px; scroll-margin-top: 60px; }
+  h2 { font-size: 1.3rem; font-weight: 800; color: var(--accent); margin-bottom: 18px; padding-bottom: 10px; border-bottom: 2px solid #222; }
+  h3 { font-size: 1rem; font-weight: 700; color: var(--blue); margin: 16px 0 8px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 14px; }
+  .card-red { border-left: 3px solid var(--red); }
+  .card-green { border-left: 3px solid var(--green); }
+  .card-yellow { border-left: 3px solid var(--accent); }
+  .card-blue { border-left: 3px solid var(--blue); }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  code { background: #1c1c1c; color: var(--orange); padding: 2px 7px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.83rem; border: 1px solid #333; }
+  pre { background: #0d1117; border: 1px solid #30363d; border-radius: 8px; padding: 16px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.6; margin: 10px 0; }
+  pre code { background: none; border: none; padding: 0; color: #c9d1d9; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th { background: #1a1a1a; color: var(--muted); font-size: 0.76rem; text-transform: uppercase; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid #1e1e1e; font-size: 0.88rem; vertical-align: top; }
+  .ok { color: var(--green); font-weight: 700; }
+  .fail { color: var(--red); font-weight: 700; }
+  .warn { color: var(--accent); font-weight: 600; }
+  ul, ol { padding-left: 20px; font-size: 0.9rem; color: #ccc; }
+  li { margin: 5px 0; }
+  /* Accordion */
+  details { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+  details[open] { border-color: var(--accent); }
+  summary { padding: 14px 18px; cursor: pointer; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 10px; list-style: none; user-select: none; }
+  summary::before { content: '▶'; font-size: 0.8rem; transition: transform 0.2s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  summary::-webkit-details-marker { display: none; }
+  .accordion-body { padding: 0 18px 18px; }
+  .copy-btn { background: #21262d; border: 1px solid #30363d; color: #8b949e; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; float: right; margin-top: -4px; transition: all 0.15s; }
+  .copy-btn:hover { background: var(--accent); color: #000; }
+  .prompt-pre { position: relative; }
+  .tip { background: #111827; border: 1px solid #1d2f4a; border-radius: 8px; padding: 12px 16px; margin: 10px 0; font-size: 0.87rem; color: #93c5fd; }
+  .alert { background: #1c0000; border: 1px solid #5a1010; border-radius: 8px; padding: 12px 16px; margin: 10px 0; font-size: 0.87rem; color: #fca5a5; }
+  .flow { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 12px 0; font-size: 0.83rem; }
+  .flow-step { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; }
+  .flow-ok { border-color: #1f4428; background: #0d2818; color: var(--green); }
+  .flow-warn { border-color: #3d2c00; background: #1c1400; color: var(--accent); }
+  .flow-bad { border-color: #5a1010; background: #1c0000; color: var(--red); }
+  .flow-arrow { color: #555; }
+  footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🔍 OlivIA — Diagnóstico Completo</h1>
+  <p>Investigação de workflow: análise de provas, documentos, SmartBlocks e geração de petição</p>
+  <div style="margin-top:10px">
+    <span class="badge bg">✅ 3 pontos OK</span>
+    <span class="badge br">❌ 3 problemas encontrados</span>
+    <span class="badge by">⚠️ 2 riscos latentes</span>
+    <span class="badge bb">2026-03-23 13:45 BRT</span>
+  </div>
+</div>
+
+<nav class="nav">
+  <a href="#resumo">Resumo</a>
+  <a href="#docs">Documentos</a>
+  <a href="#analise">Análise Provas</a>
+  <a href="#smartblocks">SmartBlocks</a>
+  <a href="#peticao">Geração Petição</a>
+  <a href="#step2">Step 2</a>
+  <a href="#prompts">Prompts CC</a>
+</nav>
+
+<div class="container">
+
+  <!-- RESUMO -->
+  <section id="resumo">
+    <h2>📊 Resumo do Diagnóstico</h2>
+    <table>
+      <tr><th>Componente</th><th>Status</th><th>Detalhe</th></tr>
+      <tr>
+        <td>Documentos → Storage</td>
+        <td><span class="ok">✅ OK</span></td>
+        <td>Upload → Supabase bucket <code>olivia-docs</code> funcionando. Extração automática de texto ativada após upload.</td>
+      </tr>
+      <tr>
+        <td>Analisa-provas: busca de docs</td>
+        <td><span class="warn">⚠️ Parcial</span></td>
+        <td>Skill busca <code>texto_extraido</code> do banco diretamente (não do storage). Mas <strong>server.mjs passa <code>documentos_reu_urls</code> com apenas as URLs</strong> — a skill ignora esse campo e vai direto ao banco. Redundância causando duplicidade na análise.</td>
+      </tr>
+      <tr>
+        <td>Analisa-provas: texto dos docs</td>
+        <td><span class="ok">✅ OK</span></td>
+        <td>Skill busca <code>processos_documentos WHERE texto_extraido IS NOT NULL</code> — pega os 8 docs extraídos corretamente.</td>
+      </tr>
+      <tr>
+        <td>SmartBlocks: modelo_grupo_id</td>
+        <td><span class="ok">✅ Corrigido hoje</span></td>
+        <td>Fix aplicado: <code>modelo_grupo_id</code> agora chega ao SmartBlocks. 51 chars → 44.889 chars. Mas <strong>logs de debug ainda ativos</strong>.</td>
+      </tr>
+      <tr>
+        <td>SmartBlocks: versao_id</td>
+        <td><span class="fail">❌ Problema</span></td>
+        <td>Frontend não envia <code>versao_id</code> no payload (linha comentada: <code>// versao_id: omitido</code>). Server.mjs não tem esse campo → SmartBlocks recebe <code>versao_id=undefined</code> → <code>montarHtmlComBlocos</code> falha silenciosamente e retorna mock.</td>
+      </tr>
+      <tr>
+        <td>Geração petição: SmartBlocks como base</td>
+        <td><span class="warn">⚠️ Incompleto</span></td>
+        <td>SmartBlocks gera template HTML base. gera-peticao recebe <code>peticao_base_texto</code> e <code>peticao_html_base</code>. Mas SYSTEM_PROMPT diz "retorne INTEGRALMENTE" — Claude ainda reescreve em vez de <strong>refinar ponto a ponto</strong> como desejado.</td>
+      </tr>
+      <tr>
+        <td>Fatos concretos na petição</td>
+        <td><span class="fail">❌ Pendente</span></td>
+        <td>Wave 1-B não concluída. <code>texto_extraido</code> dos docs não está sendo injetado no prompt de geração com força suficiente. Ag. 4359 não aparece na petição.</td>
+      </tr>
+      <tr>
+        <td>Step 2: Realtime + race condition</td>
+        <td><span class="ok">✅ Corrigido</span></td>
+        <td>Commit <code>4beaabb7</code> corrigiu race condition. <code>triageStatus</code> controla o fluxo. Auto-advance só com <code>CONCLUIDO/SUCESSO</code>.</td>
+      </tr>
+      <tr>
+        <td>Step 2: perguntas_geradas formato</td>
+        <td><span class="fail">❌ Inconsistência</span></td>
+        <td>Server.mjs salva <code>perguntas_geradas = perguntas</code> (array normalizado). ExpressStep2Triagem espera <code>perguntas_geradas</code> como array de <code>TriageQuestion</code>. Mas <strong>useOliviaWizard não lê perguntas do banco</strong> — ExpressStep2Triagem faz seu próprio Realtime separado. Dois canais Realtime ouvindo o mesmo histórico pode causar conflitos.</td>
+      </tr>
+    </table>
+  </section>
+
+  <!-- DOCUMENTOS -->
+  <section id="docs">
+    <h2>📁 Documentos: Upload → Storage → Extração</h2>
+
+    <div class="card card-green">
+      <h3>✅ O que funciona</h3>
+      <ul>
+        <li>UploadDrawer faz upload para <code>olivia-docs</code> corretamente</li>
+        <li>Após upload, chama <code>/olivia/extrair-texto</code> em background (fire-and-forget)</li>
+        <li>Rota <code>/olivia/extrair-texto</code> baixa PDF, roda pdftotext, salva <code>texto_extraido</code> no banco</li>
+        <li>8 documentos do processo teste já têm <code>texto_extraido</code> populado (6k-15k chars cada)</li>
+        <li>Toggle "Analisar documentos com IA" implementado (default ON)</li>
+      </ul>
+    </div>
+
+    <div class="card card-yellow">
+      <h3>⚠️ Redundância: server.mjs passa URLs mas analisa-provas ignora</h3>
+      <p>O <code>server.mjs</code> busca documentos no banco e extrai as <code>arquivo_url</code> para passar para a skill:</p>
+      <pre><code>// server.mjs L192-207 — busca docs e extrai URLs
+documentos_reu_urls = docsProcesso.map(d => d.arquivo_url);
+
+// Passa para analisa-provas:
+analiseProvas = await analisaProvas({
+  historico_id, organizacao_id, processo_id,
+  documentos_reu_urls,  // ← passa URLs
+  qualidade_ia, dados_processo,
+});</code></pre>
+      <p>Mas a skill <strong>ignora</strong> <code>documentos_reu_urls</code> e vai direto ao banco:</p>
+      <pre><code>// olivia-analisa-provas.mjs L908 — usa banco diretamente
+if (!allDocs.length && dadosDB?.documentos?.length > 0) {
+  const docsComTexto = dadosDB.documentos.filter(d => d.texto_extraido && d.texto_extraido.length > 10);
+  // usa texto_extraido do banco
+}</code></pre>
+      <p>Isso é <strong>correto</strong> — usar <code>texto_extraido</code> do banco é a abordagem certa. Mas a passagem de URLs é trabalho desnecessário. Não é um bug, mas é limpeza a fazer.</p>
+    </div>
+
+    <div class="card card-red">
+      <h3>❌ server.mjs NÃO busca texto_extraido — analisa-provas tem que fazer sozinha</h3>
+      <pre><code>// server.mjs L192 — busca sem texto_extraido
+`?processo_id=eq.${processo_id}&select=id,nome,tipo,arquivo_url,categoria&...`
+// ↑ NÃO inclui texto_extraido na query do server.mjs
+
+// analisa-provas.mjs L335 — busca COM texto_extraido (correto)
+`...&select=id,nome,tipo,...,texto_extraido,arquivo_url&texto_extraido=not.is.null...`</code></pre>
+      <p>Resultado: o server.mjs passa URLs mas elas chegam em <code>documentos_reu_urls</code> sem conteúdo. A analisa-provas funciona <strong>apesar</strong> disso, buscando o banco por conta própria. Mas é frágil.</p>
+    </div>
+  </section>
+
+  <!-- ANALISE PROVAS -->
+  <section id="analise">
+    <h2>🔬 Análise de Provas: Fluxo Real</h2>
+
+    <div class="card card-green">
+      <h3>✅ Fluxo que realmente funciona</h3>
+      <div class="flow">
+        <div class="flow-step flow-ok">1. Recebe processo_id</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">2. buscarDadosProcesso() interno</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">3. Filtra docs com texto_extraido</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">4. Roda 22 perguntas playbook</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">5. Define tom (incisivo/neutro/defensivo)</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">6. Retorna analise_completa</div>
+      </div>
+    </div>
+
+    <div class="card card-yellow">
+      <h3>⚠️ Problema latente: texto_extraido truncado em 300 chars no contexto</h3>
+      <pre><code>// olivia-analisa-provas.mjs L413
+if (d.texto_extraido) partes.push(`  Texto: ${d.texto_extraido.slice(0, 300)}`);</code></pre>
+      <p>O contexto de cada documento está limitado a 300 chars. Para contratos de 6.000-15.000 chars, a análise perde 95%+ do conteúdo. A agência 4359 pode estar nos chars 301+.</p>
+      <p><strong>Sugestão:</strong> aumentar para 2.000 chars ou usar os primeiros + últimos 500.</p>
+    </div>
+  </section>
+
+  <!-- SMARTBLOCKS -->
+  <section id="smartblocks">
+    <h2>🧩 SmartBlocks: Problema com versao_id</h2>
+
+    <div class="card card-red">
+      <h3>❌ versao_id não chega ao SmartBlocks</h3>
+      <p>O frontend <strong>não envia <code>versao_id</code></strong> no payload (linha comentada com "FK aponta para olivia_versoes"):</p>
+      <pre><code>// useOliviaWizard.ts — Fase 1 e Fase 2
+data: {
+  historico_id: id,
+  processo_id: dados.processoId,
+  modelo_id: dados.modeloId,
+  modelo_grupo_id: dados.modeloId,  // ← modelo_id usado como grupo
+  // versao_id: omitido ← PROBLEMA
+  tipo_peticao_id: dados.tipoPeticaoId,
+  ...
+}</code></pre>
+      <p>O <code>server.mjs</code> desestrutura <code>versao_id</code> do body — recebe <code>undefined</code>. Passa para SmartBlocks:</p>
+      <pre><code>// server.mjs → SmartBlocks
+smartBlocksBase = await smartBlocks({
+  historico_id, organizacao_id, modelo_id, versao_id,  // ← undefined
+  modelo_grupo_id: modelo_grupo_id || modelo_id,
+  processo_id, ...
+});</code></pre>
+      <p>SmartBlocks tenta <code>montarHtmlComBlocos(env, versao_id, ...)</code> com <code>versao_id=undefined</code> → query retorna nenhum template → fallback mock.</p>
+      <div class="alert">🚨 Este é provavelmente o motivo de SmartBlocks ainda cair em fallback em algumas gerações. O fix do <code>modelo_grupo_id</code> ajudou a buscar as tags, mas <code>montarHtmlComBlocos</code> ainda precisa do <code>versao_id</code> para pegar o template correto.</div>
+      <h4>Fix necessário — opção A (SmartBlocks busca versao_id sozinho pelo modelo_grupo_id):</h4>
+      <pre><code>// olivia-smartblocks.mjs — dentro de montarHtmlComBlocos ou antes
+// Se versao_id não veio, buscar pelo modelo_grupo_id
+if (!versao_id && modelo_grupo_id) {
+  const r = await httpsRequest("GET",
+    `${env.SUPABASE_URL}/rest/v1/olivia_modelos_grupo?id=eq.${modelo_grupo_id}&select=active_version_id&limit=1`,
+    null, authH);
+  versao_id = r.body?.[0]?.active_version_id;
+}</code></pre>
+      <h4>Fix necessário — opção B (frontend envia versao_id):</h4>
+      <pre><code>// useOliviaWizard.ts — Fase 1 e Fase 2
+// Adicionar: buscar active_version_id do modelo antes de enviar
+// Ou: passar dados.versaoId que já vem do SeletorVersao</code></pre>
+    </div>
+
+    <div class="card card-yellow">
+      <h3>⚠️ Logs de debug temporários ainda ativos</h3>
+      <pre><code>// olivia-smartblocks.mjs L456 — remover antes do próximo release
+console.log('[smartblocks] INPUT modelo_grupo_id:', modelo_grupo_id, ...);
+
+// server.mjs L505 — remover antes do próximo release
+console.log('[olivia-server] REQUEST modelo_grupo_id:', body.modelo_grupo_id, ...);</code></pre>
+    </div>
+  </section>
+
+  <!-- GERAÇÃO PETIÇÃO -->
+  <section id="peticao">
+    <h2>📝 Geração de Petição: SmartBlocks como Base</h2>
+
+    <div class="card card-green">
+      <h3>✅ Pipeline correto implementado</h3>
+      <div class="flow">
+        <div class="flow-step flow-ok">SmartBlocks → 44.889 chars base</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">peticao_base_texto extraído</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">Passado para gera-peticao</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">Claude recebe template como base</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step flow-ok">Refina com dados do processo</div>
+      </div>
+      <p>SmartBlocks <strong>não acontece no Step 1 → Step 2</strong>. Acontece na Fase 2, após o usuário responder as perguntas. Está correto.</p>
+    </div>
+
+    <div class="card card-yellow">
+      <h3>⚠️ SYSTEM_PROMPT: Claude ainda reescreve em vez de refinar</h3>
+      <p>O SYSTEM_PROMPT atual diz:</p>
+      <pre><code>"Quando receber uma petição base: retorne-a INTEGRALMENTE com mínimas adaptações ao caso concreto."</code></pre>
+      <p>Mas na prática, quando o template SmartBlocks tem 44.889 chars, Claude retorna ~27.000 chars. Ele está <strong>condensando e reescrevendo</strong> em vez de usar o template integralmente.</p>
+      <p><strong>Causa provável:</strong> O template tem variáveis não substituídas (<code>{{NOME_CLIENTE}}</code>) que ficam no texto, e Claude "limpa" ao reescrever.</p>
+      <h4>Fix no SYSTEM_PROMPT (olivia-gera-peticao.mjs):</h4>
+      <pre><code>// Adicionar instrução mais forte:
+"MODO REFINAMENTO: Você receberá uma petição base estruturada com {N} caracteres. " +
+"Seu trabalho é APENAS: (1) substituir variáveis em branco pelos dados reais do processo, " +
+"(2) adaptar a introdução com os fatos específicos deste caso, " +
+"(3) corrigir inconsistências factuais. " +
+"NUNCA reduza o tamanho. NUNCA reescreva seções que já estão corretas. " +
+"Output esperado: petição com tamanho similar ao input ({N} chars ±20%)."</code></pre>
+    </div>
+
+    <div class="card card-red">
+      <h3>❌ Fatos concretos insuficientes no prompt (Wave 1-B pendente)</h3>
+      <p>O <code>texto_extraido</code> dos documentos não está sendo injetado com força no prompt de geração. Resultado: petição não menciona ag. 4359, datas reais dos contratos, valores específicos.</p>
+      <p>A analisa-provas injeta apenas 300 chars por doc no contexto. O prompt de gera-peticao não tem seção dedicada para fatos concretos dos documentos.</p>
+      <h4>Fix necessário em olivia-gera-peticao.mjs:</h4>
+      <pre><code>// Adicionar seção no montarPromptAdaptacao():
+if (dadosProcesso.documentos_texto) {
+  partes.push("=== FATOS CONCRETOS DOS DOCUMENTOS (USE OBRIGATORIAMENTE) ===");
+  partes.push(dadosProcesso.documentos_texto);  // texto_extraido concatenado
+  partes.push("INSTRUÇÃO: Os fatos acima DEVEM aparecer na petição — agência, datas, valores reais.");
+}</code></pre>
+    </div>
+  </section>
+
+  <!-- STEP 2 -->
+  <section id="step2">
+    <h2>🔄 Step 2: Dois Canais Realtime</h2>
+
+    <div class="card card-yellow">
+      <h3>⚠️ Dois ouvintes Realtime no mesmo histórico</h3>
+      <p><strong>useOliviaWizard.ts</strong> abre um canal Realtime em <code>olivia-wizard-{id}</code> mas <strong>só ouve SUCESSO/CONCLUIDO/ERRO/AGUARDA_REVISAO</strong>.</p>
+      <p><strong>ExpressStep2Triagem.tsx</strong> abre um canal Realtime em <code>triagem-rt-{historicoId}</code> e ouve <strong>AGUARDA_RESPOSTAS</strong> para exibir as perguntas.</p>
+      <p>Esses dois canais são independentes e corretos. Mas há um risco: se o histórico pular de <code>PROCESSANDO</code> direto para <code>CONCLUIDO</code> (sem perguntas), o wizard avança automaticamente via <code>triageStatus</code> depois de 3s — mas o canal do wizard só vai receber o evento de CONCLUIDO mais tarde e pode tentar atualizar estado já avançado.</p>
+      <div class="tip">💡 Na prática está funcionando. Mas considerar adicionar <code>CONCLUIDO</code> como evento que o canal do useOliviaWizard também ouve no Step 2, para unificar o controle.</div>
+    </div>
+
+    <div class="card card-green">
+      <h3>✅ Race condition corrigida (commit 4beaabb7)</h3>
+      <ul>
+        <li><code>triageStatus</code> state controla o fluxo</li>
+        <li>Auto-advance só se <code>triageStatus === 'CONCLUIDO' || 'SUCESSO'</code></li>
+        <li>Status <code>AGUARDA_RESPOSTAS</code> mantém loading — Realtime vai entregar as perguntas</li>
+        <li>Delay de 3s antes de avançar automaticamente</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- PROMPTS CC -->
+  <section id="prompts">
+    <h2>🤖 Prompts para o Claude Code</h2>
+    <div class="tip">💡 Use no terminal de <strong>investigação/backend</strong>. Cada accordion é uma tarefa independente em ordem de prioridade.</div>
+
+    <!-- P0-A -->
+    <details>
+      <summary>🔴 P0-A — Fix versao_id no SmartBlocks (causa raiz de fallbacks)</summary>
+      <div class="accordion-body">
+        <button class="copy-btn" onclick="copyAccordion(this)">📋 Copiar Prompt</button>
+        <div class="prompt-pre">
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md e ~/mdlab-vault/01_projetos/olivia/PLAYBOOK_SKILLS.md antes de começar.
+
+PROBLEMA: SmartBlocks recebe versao_id=undefined porque o frontend não envia esse campo.
+Isso faz com que montarHtmlComBlocos() falhe e o SmartBlocks caia em mock.
+
+INVESTIGAÇÃO NECESSÁRIA:
+1. ssh mac-mini "grep -n 'versao_id\|active_version_id\|montarHtmlComBlocos' /Users/Shared/olivia-skills/olivia-smartblocks.mjs | head -20"
+2. Verificar se versao_id chega undefined: ssh mac-mini "grep -n 'versao_id' /tmp/olivia-server.log | tail -5"
+
+FIX em /Users/Shared/olivia-skills/olivia-smartblocks.mjs:
+Dentro da função executar(), após o bloco de desestruturação do input,
+adicionar busca automática do versao_id quando ele vier undefined:
+
+```js
+// Auto-resolver versao_id pelo modelo_grupo_id se não vier no input
+let resolvedVersaoId = versao_id;
+if (!resolvedVersaoId && mgId) {
+  try {
+    const rv = await httpsRequest("GET",
+      `${env.SUPABASE_URL}/rest/v1/olivia_modelos_grupo?id=eq.${encodeURIComponent(mgId)}&select=active_version_id&limit=1`,
+      null, authH);
+    resolvedVersaoId = rv.body?.[0]?.active_version_id;
+    if (resolvedVersaoId) console.log(`[smartblocks] versao_id resolvido: ${resolvedVersaoId}`);
+  } catch (e) { console.warn('[smartblocks] falha ao resolver versao_id:', e.message); }
+}
+```
+
+Depois substituir todas as ocorrências de `versao_id` dentro da função por `resolvedVersaoId`.
+
+TAMBÉM: remover os 2 logs de debug temporários:
+1. olivia-smartblocks.mjs: linha com '[smartblocks] INPUT modelo_grupo_id:'
+2. server.mjs: linha com '[olivia-server] REQUEST modelo_grupo_id:'
+
+APÓS O FIX:
+1. Reiniciar servidor: ssh mac-mini "kill \$(lsof -i :19100 -t) 2>/dev/null; sleep 2; cd /Users/Shared/olivia-server && nohup /opt/homebrew/bin/node server.mjs > /tmp/olivia-server.log 2>&1 &"
+2. Verificar health: ssh mac-mini "curl -s http://localhost:19100/health"
+3. Ver log: ssh mac-mini "tail -20 /tmp/olivia-server.log"
+4. Confirmar que SmartBlocks log mostra "versao_id resolvido: [UUID]" (não undefined)
+
+Gere relatório do fix em ~/jarbas-reports/jana/olivia/fix-versao-id.html e faça push.</code></pre>
+        </div>
+      </div>
+    </details>
+
+    <!-- P0-B -->
+    <details>
+      <summary>🔴 P0-B — Injetar fatos concretos dos documentos na petição (Wave 1-B)</summary>
+      <div class="accordion-body">
+        <button class="copy-btn" onclick="copyAccordion(this)">📋 Copiar Prompt</button>
+        <div class="prompt-pre">
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md primeiro.
+
+PROBLEMA: A petição gerada não menciona dados concretos dos documentos (agência 4359, datas reais, valores).
+O texto_extraido dos docs está no banco mas não está chegando com força no prompt de geração.
+
+INVESTIGAÇÃO:
+ssh mac-mini "grep -n 'documentos_texto\|texto_extraido\|fatos\|FATOS\|concretos' /Users/Shared/olivia-skills/olivia-gera-peticao.mjs | head -20"
+ssh mac-mini "grep -n 'montarPromptAdaptacao\|partes.push' /Users/Shared/olivia-skills/olivia-gera-peticao.mjs | head -30"
+
+FIX PARTE 1 — sanitizarNomeArquivo (server.mjs ou analisa-provas):
+Antes de passar documentos para o LLM, mapear nomes internos para descrições jurídicas:
+```js
+function sanitizarNomeArquivo(nome) {
+  if (!nome) return "documento";
+  // Remove padrões como CONTR7, PROC2, RG4, UUID-...
+  return nome
+    .replace(/\b(CONTR|PROC|RG|EXT|FAT|CDC)\d+\b/gi, '')
+    .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, '')
+    .replace(/\.\w+$/, '')
+    .replace(/^\d+[-_]?/, '')
+    .trim() || "documento";
+}
+```
+
+FIX PARTE 2 — injetar texto_extraido no prompt (olivia-gera-peticao.mjs):
+Na função montarPromptAdaptacao(), após a seção de dados do processo, adicionar:
+
+```js
+// Fatos concretos dos documentos
+if (dados_processo?.documentos_texto || dados_processo?.documentos) {
+  const docsTexto = dados_processo.documentos_texto ||
+    (dados_processo.documentos || [])
+      .filter(d => d.texto_extraido)
+      .map(d => `[${sanitizarNomeArquivo(d.nome)}]\n${d.texto_extraido.slice(0, 1500)}`)
+      .join('\n\n---\n\n');
+  if (docsTexto) {
+    partes.push("=== FATOS CONCRETOS DOS DOCUMENTOS (USAR OBRIGATORIAMENTE) ===");
+    partes.push(docsTexto);
+    partes.push("INSTRUÇÃO CRÍTICA: Os fatos acima DEVEM aparecer na petição. Mencione agência, datas e valores reais dos documentos acima. NUNCA invente dados.");
+  }
+}
+```
+
+FIX PARTE 3 — passar documentos enriquecidos do server.mjs:
+Em server.mjs, após buscarDadosProcesso(), adicionar documentos ao dados_processo:
+```js
+// Adicionar documentos com texto ao dados_processo
+if (docsProcesso.length > 0) {
+  // Buscar texto_extraido dos docs
+  const docsComTexto = await supabaseGet(env, 'processos_documentos',
+    `?processo_id=eq.${processo_id}&deleted_at=is.null&texto_extraido=not.is.null&select=id,nome,texto_extraido&limit=8`
+  );
+  if (docsComTexto?.length > 0) {
+    dados_processo.documentos = docsComTexto;
+    dados_processo.documentos_texto = docsComTexto
+      .map(d => `[${d.nome}]\n${d.texto_extraido.slice(0, 1500)}`)
+      .join('\n\n---\n\n');
+  }
+}
+```
+
+FIX PARTE 4 — aumentar limite de texto no contexto da analisa-provas:
+Em olivia-analisa-provas.mjs L413, aumentar de 300 para 2000 chars:
+```js
+if (d.texto_extraido) partes.push(`  Texto: ${d.texto_extraido.slice(0, 2000)}`);
+```
+
+APÓS OS FIXES:
+1. Reiniciar servidor
+2. Testar com processo 00015a20-fafd-42ec-a0cc-525ecd180908
+3. Verificar que petição gerada menciona ag. 4359, datas reais
+4. Score deve manter >= 8/10
+
+Commitar: cd ~/beta-mdflow && git add -A && git commit -m "fix(olivia): injetar fatos concretos + sanitizar nomes internos"
+Sincronizar Mac Mini: ssh mac-mini "cd ~/beta-mdflow && git pull origin main"</code></pre>
+        </div>
+      </div>
+    </details>
+
+    <!-- P1-A -->
+    <details>
+      <summary>🟡 P1-A — SYSTEM_PROMPT: forçar refinamento (não reescrita) do SmartBlocks</summary>
+      <div class="accordion-body">
+        <button class="copy-btn" onclick="copyAccordion(this)">📋 Copiar Prompt</button>
+        <div class="prompt-pre">
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md primeiro.
+
+PROBLEMA: Claude recebe template SmartBlocks de 44.889 chars mas retorna ~27.000 chars.
+Ele está condensando/reescrevendo em vez de REFINAR o template existente.
+
+INVESTIGAR:
+ssh mac-mini "grep -n 'SYSTEM_PROMPT\|MODO REFINAMENTO\|INTEGRALMENTE\|retorne-a' /Users/Shared/olivia-skills/olivia-gera-peticao.mjs | head -15"
+
+FIX em /Users/Shared/olivia-skills/olivia-gera-peticao.mjs:
+Localizar o SYSTEM_PROMPT (array de strings) e modificar/adicionar as instruções:
+
+```js
+const SYSTEM_PROMPT = [
+  "Você é advogado especialista em direito do consumidor.",
+  "REGRA PRINCIPAL: O tipo da peça (Réplica, Apelação, Contestação, etc.) é DETERMINADO pelo campo 'Tipo da peça' nos DADOS DO PROCESSO.",
+  "Réplica ≠ Tríplica ≠ Dúplica — use EXATAMENTE o tipo indicado. Se o tipo é Réplica, o título deve ser # RÉPLICA.",
+  // NOVA instrução de refinamento:
+  "MODO REFINAMENTO OBRIGATÓRIO: Quando receber uma 'Petição Base' com mais de 5.000 caracteres, sua função é REFINAR — não reescrever.",
+  "Refinamento = (1) substituir variáveis {{NOME}} pelos dados reais, (2) adaptar introdução com fatos específicos do caso, (3) inserir jurisprudências relevantes, (4) corrigir inconsistências. NÃO corte seções inteiras.",
+  "O output DEVE ter tamanho similar ao input (±30%). Se o input tem 40.000 chars, o output deve ter 28.000-52.000 chars.",
+  "NUNCA duplique subtítulos que já existem nos blocos. NUNCA reescreva a fundamentação jurídica.",
+  "Quando não houver base (petição base < 500 chars): gere petição técnica completa com estrutura formal.",
+  "Não invente fatos, jurisprudências ou artigos não mencionados.",
+  "Use formatação markdown: ## apenas para seções de alto nível.",
+  "Mantenha tom formal e técnico. Use os dados reais do processo — NUNCA substitua por placeholders.",
+  "NUNCA mencione nomes de arquivo internos (CONTR7, CONTR8, CONTR9, etc.). Use: 'contrato de abertura de conta', 'extrato bancário', 'termo contratual'.",
+  "OBRIGATÓRIO: substitua SEMPRE o placeholder de data pela data de hoje em português por extenso.",
+].join(" ");
+```
+
+APÓS O FIX:
+1. Reiniciar servidor
+2. Testar geração e verificar que o output tem tamanho similar ao SmartBlocks (não 40% menor)
+3. Verificar que o template jurídico não foi descartado
+
+Commitar com: git commit -m "fix(olivia): system_prompt refinamento em vez de reescrita"</code></pre>
+        </div>
+      </div>
+    </details>
+
+    <!-- P1-B -->
+    <details>
+      <summary>🟡 P1-B — E2E Wave Final: validação completa pós-fixes</summary>
+      <div class="accordion-body">
+        <button class="copy-btn" onclick="copyAccordion(this)">📋 Copiar Prompt</button>
+        <div class="prompt-pre">
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md primeiro.
+
+Após os fixes P0-A e P0-B estarem aplicados e servidor reiniciado, executar E2E completo.
+
+RODAR:
+ssh mac-mini "cd ~/beta-mdflow && /opt/homebrew/bin/node e2e-v7.mjs 2>&1"
+
+CRITÉRIOS DE APROVAÇÃO:
+- [ ] 5/5 steps completados sem erro
+- [ ] Status final: CONCLUIDO
+- [ ] Score revisor >= 8/10
+- [ ] texto_gerado.length >= 15.000 chars (com SmartBlocks real)
+- [ ] Título correto ("# RÉPLICA" não "# PETIÇÃO SIMPLES")
+- [ ] CONTR7/CONTR8/CONTR9 NÃO aparecem no texto
+- [ ] Data preenchida (não placeholder)
+- [ ] docx_url HTTP 200 (DOCX gerado)
+- [ ] pdf_url HTTP 200 (PDF gerado)
+- [ ] DOCX size >= 10KB
+- [ ] Petição menciona dados reais (agência, datas ou valores dos documentos)
+
+Se algum critério falhar, investigar a causa no log:
+ssh mac-mini "tail -80 /tmp/olivia-server.log"
+
+Gerar relatório HTML em ~/jarbas-reports/jana/olivia/e2e-wave-final.html
+Push: cd ~/jarbas-reports && git add -A && git commit -m "E2E Wave Final — pós-fixes" && git push</code></pre>
+        </div>
+      </div>
+    </details>
+
+    <!-- P2-A -->
+    <details>
+      <summary>🔵 P2-A — Limpeza: remover docs antigos e migrations pendentes</summary>
+      <div class="accordion-body">
+        <button class="copy-btn" onclick="copyAccordion(this)">📋 Copiar Prompt</button>
+        <div class="prompt-pre">
+        <pre><code>Leia ~/mdlab-vault/01_projetos/olivia/CLAUDE_CODE_CONTEXT.md primeiro.
+
+LIMPEZAS a executar:
+
+1. Remover scripts E2E antigos do Mac Mini (manter apenas e2e-v7.mjs):
+ssh mac-mini "ls ~/beta-mdflow/e2e*.mjs"
+# Se existirem e2e-v1.mjs ... e2e-v6.mjs, remover:
+ssh mac-mini "cd ~/beta-mdflow && rm -f e2e-v1.mjs e2e-v2.mjs e2e-v3.mjs e2e-v4.mjs e2e-v5.mjs e2e-v6.mjs e2e-completo.mjs e2e-debug.mjs test-olivia2.mjs test-olivia3.mjs"
+
+2. Migration pendente no Supabase:
+source ~/jarbas/.env
+curl -s -X POST "${SUPABASE_URL}/rest/v1/rpc/exec_sql" \
+  -H "apikey: ${SUPABASE_KEY}" \
+  -H "Authorization: Bearer ${SUPABASE_KEY}" \
+  -H "Content-Type: application/json" \
+  -d '{"sql": "UPDATE olivia_historico SET qualidade_ia = '\''avancado'\'' WHERE qualidade_ia = '\''pensamento_estendido'\''"}' 
+# Verificar:
+curl -s "${SUPABASE_URL}/rest/v1/olivia_historico?qualidade_ia=eq.pensamento_estendido&select=id" \
+  -H "apikey: ${SUPABASE_KEY}" -H "Authorization: Bearer ${SUPABASE_KEY}"
+# Deve retornar []
+
+3. Verificar olivia_relatorios RLS:
+curl -s "${SUPABASE_URL}/rest/v1/olivia_relatorios?select=id&limit=1" \
+  -H "apikey: ${SUPABASE_KEY}" -H "Authorization: Bearer ${SUPABASE_KEY}"
+# Se retornar 401/403, adicionar policies SELECT + INSERT
+
+4. Commitar limpeza:
+cd ~/beta-mdflow && git add -A && git commit -m "chore(olivia): remover scripts E2E antigos" && git push
+ssh mac-mini "cd ~/beta-mdflow && git pull origin main"</code></pre>
+        </div>
+      </div>
+    </details>
+
+  </section>
+
+</div>
+
+<footer>
+  <p>🦊 JANA — Diagnóstico Olivia 2026-03-23 13:45 BRT | Modo Orquestradora ativado</p>
+  <p style="margin-top:6px">Christian executa os prompts no CC. JANA investiga e gera prompts.</p>
+</footer>
+
+<script>
+function copyAccordion(btn) {
+  const pre = btn.nextElementSibling.querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText).then(() => {
+    btn.textContent = '✅ Copiado!';
+    setTimeout(() => btn.textContent = '📋 Copiar Prompt', 2000);
+  });
+}
+</script>
+</body>
+</html>

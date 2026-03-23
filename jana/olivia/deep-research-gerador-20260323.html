@@ -350,6 +350,109 @@ partes.push(`Data da petição: ${hoje}`);</code></pre>
   <p>Quando SmartBlocks chegar corretamente, o revisor deve atuar como refinador — não como gerador substituto.</p>
 </div>
 
+<!-- OCR -->
+<h2>🔍 Skill OCR — Fallback para PDFs Escaneados</h2>
+
+<div class="card info">
+  <h3>Contexto — Como era feito no N8n</h3>
+  <p>O workflow <code>OLIVIA-ANALISE</code> usava <strong>Mistral OCR</strong> como fallback quando <code>pdf-parse</code> retornava texto < 50 chars. O fluxo:</p>
+  <ol style="padding-left:20px; margin:8px 0">
+    <li>Tentar extrair com <code>pdf-parse</code> (nativo N8n)</li>
+    <li>Se <code>qualidade_extracao < 30</code> → <code>needsMistral = true</code></li>
+    <li>Gerar <strong>signed URL</strong> do Supabase (5 min) para o arquivo no bucket</li>
+    <li>POST <code>api.mistral.ai/v1/ocr</code> com <code>document_url</code> → recebe <code>pages[].markdown</code></li>
+  </ol>
+  <p><strong>Vantagem chave:</strong> Mistral OCR aceita <code>document_url</code> direto — <strong>não precisa converter para PNG</strong>. Simples e rápido.</p>
+</div>
+
+<div class="card critical">
+  <h3>🎯 Decisão: Estratégia OCR 3 camadas</h3>
+  <p>Para o caso da OlivIA (Mac Mini, Node.js, sem N8n), a melhor abordagem:</p>
+
+  <div style="background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:14px; margin:12px 0; font-family:monospace; font-size:13px; line-height:2">
+    <strong style="color:var(--accent2)">Camada 1</strong> — <code>pdftotext</code> (já implementado)<br>
+    → texto ≥ 200 chars legíveis? ✅ Salva e para aqui<br><br>
+    <strong style="color:var(--yellow)">Camada 2</strong> — <strong>Mistral OCR</strong> (fallback principal)<br>
+    → Gera signed URL do Supabase (expiresIn: 300s)<br>
+    → POST <code>api.mistral.ai/v1/ocr</code> com <code>document_url</code><br>
+    → Concatena <code>pages[].markdown</code> → salva em <code>texto_extraido</code><br>
+    → qualidade ok? ✅ Para aqui<br><br>
+    <strong style="color:var(--red)">Camada 3</strong> — <strong>Claude Sonnet Vision</strong> (último recurso)<br>
+    → <code>pdftoppm</code> converte páginas em PNG<br>
+    → Envia imagens para Claude com prompt de extração jurídica<br>
+    → Para docs complexos, assinados, com tabelas ou marcas d'água
+  </div>
+
+  <p><strong>Por que NÃO converter para PNG por padrão?</strong> Mistral OCR native resolve 90% dos PDFs escaneados sem PNG, com menor latência e custo. PNG só entra quando Mistral também falha (docs muito degradados).</p>
+</div>
+
+<div class="card warning">
+  <h3><span class="badge p1">P1</span> Fix 7 — Nova skill <code>olivia-ocr.mjs</code></h3>
+  <p><strong>Arquivo:</strong> <code>/Users/Shared/olivia-skills/olivia-ocr.mjs</code></p>
+  <pre><code>// olivia-ocr.mjs — Extração de texto com fallback automático
+// Camada 1: pdftotext (nativo) → Camada 2: Mistral OCR → Camada 3: Claude Vision
+// NUNCA usar fetch() — sempre require("https")
+
+export async function executar({ documento_id, arquivo_url, storage_path, env }) {
+  // Camada 1: pdftotext
+  let texto = await tentarPdftotext(arquivo_url);
+  if (isLegivel(texto)) return { texto, camada: 'pdftotext', chars: texto.length };
+
+  // Camada 2: Mistral OCR (document_url — sem PNG)
+  const signedUrl = await gerarSignedUrl(env, storage_path);
+  const mistralTexto = await tentarMistralOcr(env, signedUrl);
+  if (isLegivel(mistralTexto)) return { texto: mistralTexto, camada: 'mistral', chars: mistralTexto.length };
+
+  // Camada 3: Claude Sonnet Vision (PNG via pdftoppm)
+  const pngPaths = await pdfParaPng(arquivo_url);
+  const claudeTexto = await tentarClaudeVision(env, pngPaths);
+  return { texto: claudeTexto, camada: 'claude-vision', chars: claudeTexto.length };
+}
+
+function isLegivel(texto) {
+  return texto && texto.length > 200 && /[a-zA-ZÀ-ú]{3,}/.test(texto.slice(0, 300));
+}</code></pre>
+
+  <h3>Integração na rota <code>/olivia/extrair-texto</code></h3>
+  <pre><code>// server.mjs — após tentativa de pdftotext
+let texto = execSync('pdftotext "' + tmpPath + '" -', ...).slice(0, 15000);
+const legivel = isLegivel(texto);
+
+if (!legivel) {
+  // Fallback automático — Mistral OCR
+  const { executar: ocr } = await import(`${SKILLS_DIR}/olivia-ocr.mjs`);
+  const ocrResult = await ocr({ documento_id, arquivo_url, storage_path, env: lerEnv() });
+  texto = ocrResult.texto;
+  console.log('[extrair-texto] OCR camada ' + ocrResult.camada + ': ' + ocrResult.chars + ' chars');
+}
+
+await supabaseUpdate(env, 'processos_documentos', documento_id, {
+  texto_extraido: texto,
+  status: 'disponivel',
+  meta: JSON.stringify({ ocr_camada: legivel ? 'pdftotext' : ocrResult?.camada })
+});</code></pre>
+
+  <p><strong>Requisitos:</strong></p>
+  <ul>
+    <li><code>MISTRAL_API_KEY</code> no <code>~/jarbas/.env</code> (ou <code>/Users/olivia/.env</code>) — chave: <code>otLUZLC7PvnEN1su523oo3v7k6GAxxNp</code> (visível no workflow)</li>
+    <li><code>pdftoppm</code> já instalado com poppler — <code>which pdftoppm</code> para confirmar</li>
+    <li>Signed URL do bucket <code>olivia-docs</code> via Supabase Management API</li>
+  </ul>
+</div>
+
+<div class="card good">
+  <h3>PDFs do Processo Thaina — Situação após OCR</h3>
+  <table>
+    <tr><th>Arquivo</th><th>pdftotext</th><th>Mistral</th><th>Resultado esperado</th></tr>
+    <tr><td>CONT1 (escaneado)</td><td>❌ garbage</td><td>✅ deve funcionar</td><td>Contrato com dados legíveis</td></tr>
+    <tr><td>PROC2 (imagem)</td><td>❌ 0 chars</td><td>✅ deve funcionar</td><td>Petição inicial / docs processo</td></tr>
+    <tr><td>RG4 (imagem)</td><td>❌ 0 chars</td><td>✅ deve funcionar</td><td>RG da Thaina</td></tr>
+    <tr><td>CONTR7/8/9 (nativos)</td><td>✅ 6k-15k chars</td><td>—</td><td>Já OK</td></tr>
+    <tr><td>ANEXO3/5/6</td><td>✅ 9k-15k chars</td><td>—</td><td>Já OK</td></tr>
+  </table>
+  <p style="color:var(--green); margin-top:8px">Com OCR implementado: todos os 10 docs do processo estarão disponíveis para análise.</p>
+</div>
+
 <!-- ESTADO DO BANCO -->
 <h2>🗄️ Estado do Banco — Processo Thaina</h2>
 <div class="grid2">
@@ -369,18 +472,31 @@ partes.push(`Data da petição: ${hoje}`);</code></pre>
   <div class="card warning">
     <h3>⚠️ Docs sem texto (PDFs escaneados)</h3>
     <ul>
-      <li>CONT1 — garbage OCR</li>
-      <li>PROC2 — imagem (0 chars)</li>
-      <li>RG4 — imagem (0 chars)</li>
+      <li>CONT1 — garbage OCR → <strong>Mistral resolve</strong></li>
+      <li>PROC2 — imagem (0 chars) → <strong>Mistral resolve</strong></li>
+      <li>RG4 — imagem (0 chars) → <strong>Mistral resolve</strong></li>
     </ul>
-    <p style="margin-top:8px; color: var(--yellow)">Precisam OCR (Tesseract ou Vision API) — P2</p>
+    <p style="margin-top:8px; color: var(--yellow)">Fix P1: skill <code>olivia-ocr.mjs</code> com Mistral</p>
   </div>
 </div>
+
+<!-- PLANO CONSOLIDADO -->
+<h2>📋 Plano Consolidado de Execução</h2>
+<table>
+  <tr><th>#</th><th>Fix</th><th>Camada</th><th>Prioridade</th></tr>
+  <tr><td>1</td><td>SmartBlocks chegando ao gera-peticao (<code>server.mjs</code> linha 321)</td><td>Backend</td><td><span class="badge p0">P0</span></td></tr>
+  <tr><td>2</td><td>Step 2 race condition — auto-advance só em CONCLUIDO, delay 3s (<code>ExpressStep2Triagem.tsx</code>)</td><td>Frontend</td><td><span class="badge p0">P0</span></td></tr>
+  <tr><td>3</td><td>Sanitizar nomes arquivo + injetar fatos concretos + data automática (<code>olivia-gera-peticao.mjs</code>)</td><td>Skill</td><td><span class="badge p0">P0</span></td></tr>
+  <tr><td>4</td><td>Formatação JURIS no DOCX (10pt, recuo 3cm, itálico)</td><td>Skill</td><td><span class="badge p1">P1</span></td></tr>
+  <tr><td>5</td><td>Toggle "Analisar documentos" no UploadDrawer</td><td>Frontend</td><td><span class="badge p1">P1</span></td></tr>
+  <tr><td>6</td><td>Skill <code>olivia-ocr.mjs</code> — Mistral OCR fallback automático</td><td>Skill + Backend</td><td><span class="badge p1">P1</span></td></tr>
+  <tr><td>7</td><td>Revisor como refinador do SmartBlocks (não reescritor)</td><td>Skill</td><td><span class="badge p2">P2</span></td></tr>
+</table>
 
 <!-- FOOTER -->
 <hr class="divider">
 <p style="color:var(--muted); font-size:11px; text-align:center">
-  JANA 🦊 — Deep Research OlivIA | 23/03/2026 | Análise baseada em código-fonte real + documentos do caso
+  JANA 🦊 — Deep Research OlivIA | 23/03/2026 | Análise baseada em código-fonte real + documentos do caso + workflow N8n legado
 </p>
 
 </div>

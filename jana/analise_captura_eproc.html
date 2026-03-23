@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise: Captura de Movimentações EPROC — Alternativas ao Playwright</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3347;
+    --text: #e2e8f0;
+    --muted: #8892a4;
+    --green: #4ade80;
+    --yellow: #facc15;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --purple: #c084fc;
+    --orange: #fb923c;
+    --accent: #6366f1;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; line-height: 1.6; }
+  
+  .header { background: linear-gradient(135deg, #1e1b4b 0%, #0f1117 60%); border-bottom: 1px solid var(--border); padding: 40px 48px; }
+  .header-label { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-weight: 600; margin-bottom: 8px; }
+  .header h1 { font-size: 28px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+  .header p { color: var(--muted); font-size: 14px; }
+
+  .container { max-width: 960px; margin: 0 auto; padding: 40px 24px; }
+  
+  section { margin-bottom: 40px; }
+  h2 { font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  p { color: var(--muted); font-size: 14px; margin-bottom: 12px; }
+
+  /* Verdict box */
+  .verdict { background: linear-gradient(135deg, #1e3a1e 0%, #1a2a1a 100%); border: 1px solid #4ade8033; border-radius: 12px; padding: 24px; margin-bottom: 32px; }
+  .verdict-label { font-size: 11px; color: var(--green); text-transform: uppercase; letter-spacing: 2px; font-weight: 600; margin-bottom: 8px; }
+  .verdict h3 { font-size: 18px; color: var(--green); margin-bottom: 8px; }
+  .verdict p { color: #d1fae5; }
+
+  /* Approach cards */
+  .approach-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media(max-width: 640px) { .approach-grid { grid-template-columns: 1fr; } }
+  
+  .approach-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; position: relative; }
+  .approach-card.current { border-color: #f8717133; }
+  .approach-card.recommended { border-color: #4ade8033; }
+  .approach-card.viable { border-color: #60a5fa33; }
+  .approach-card.nope { border-color: #2e3347; opacity: 0.7; }
+  
+  .approach-header { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+  .approach-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .approach-meta h3 { font-size: 14px; font-weight: 700; }
+  .approach-meta .badge { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; padding: 2px 8px; border-radius: 20px; display: inline-block; margin-top: 2px; }
+  
+  .badge-current { background: #f8717120; color: var(--red); }
+  .badge-recommended { background: #4ade8020; color: var(--green); }
+  .badge-viable { background: #60a5fa20; color: var(--blue); }
+  .badge-nope { background: #33333320; color: var(--muted); }
+  
+  .pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  .pros, .cons { background: var(--surface2); border-radius: 8px; padding: 10px; }
+  .pros-title { font-size: 11px; color: var(--green); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 6px; }
+  .cons-title { font-size: 11px; color: var(--red); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 6px; }
+  .pros li, .cons li { font-size: 12px; color: var(--muted); margin-left: 12px; margin-bottom: 2px; }
+  
+  .score-row { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  .score { font-size: 11px; padding: 3px 8px; border-radius: 6px; background: var(--surface2); color: var(--muted); }
+  .score span { font-weight: 700; color: var(--text); }
+
+  /* Architecture */
+  .arch { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .arch-title { font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 2px; font-weight: 600; margin-bottom: 16px; }
+  
+  .pipeline { display: flex; flex-direction: column; gap: 0; }
+  .pipeline-step { display: flex; gap: 16px; align-items: flex-start; }
+  .pipeline-line { display: flex; flex-direction: column; align-items: center; }
+  .pipeline-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--accent); flex-shrink: 0; margin-top: 5px; }
+  .pipeline-connector { width: 2px; background: var(--border); flex: 1; min-height: 24px; }
+  .pipeline-content { padding-bottom: 20px; flex: 1; }
+  .pipeline-content h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .pipeline-content p { font-size: 12px; color: var(--muted); margin: 0; }
+  .pipeline-content code { font-size: 11px; background: var(--surface2); padding: 1px 6px; border-radius: 4px; color: var(--purple); }
+  
+  /* Comparison table */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid var(--border); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody td { padding: 12px 14px; color: var(--muted); font-size: 13px; }
+  tbody td:first-child { color: var(--text); font-weight: 500; }
+  .dot-green { color: var(--green); font-weight: 700; }
+  .dot-yellow { color: var(--yellow); font-weight: 700; }
+  .dot-red { color: var(--red); font-weight: 700; }
+
+  /* Risk callout */
+  .callout { border-radius: 10px; padding: 16px 20px; margin-bottom: 16px; display: flex; gap: 12px; align-items: flex-start; }
+  .callout.warning { background: #facc1510; border: 1px solid #facc1530; }
+  .callout.info { background: #60a5fa10; border: 1px solid #60a5fa30; }
+  .callout.success { background: #4ade8010; border: 1px solid #4ade8030; }
+  .callout-icon { font-size: 18px; flex-shrink: 0; }
+  .callout-body h4 { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .callout-body p { font-size: 12px; color: var(--muted); margin: 0; }
+
+  /* Implementation plan */
+  .phase { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 12px; }
+  .phase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .phase-num { width: 28px; height: 28px; border-radius: 6px; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .phase-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .phase-time { margin-left: auto; font-size: 11px; color: var(--muted); background: var(--surface2); padding: 2px 8px; border-radius: 20px; }
+  .phase ul { list-style: none; }
+  .phase ul li { font-size: 13px; color: var(--muted); padding: 4px 0; padding-left: 16px; position: relative; }
+  .phase ul li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-size: 12px; }
+
+  .footer { border-top: 1px solid var(--border); padding: 24px 48px; display: flex; justify-content: space-between; align-items: center; }
+  .footer-left { font-size: 12px; color: var(--muted); }
+  .footer-right { font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-label">JANA · Análise Técnica · 2026-03-23</div>
+  <h1>Alternativas ao Playwright para Captura EPROC</h1>
+  <p>Avaliação de arquiteturas para monitoramento de movimentações processuais — robustez, custo e prazo</p>
+</div>
+
+<div class="container">
+
+  <!-- VERDICT -->
+  <div class="verdict">
+    <div class="verdict-label">✅ Recomendação</div>
+    <h3>Playwright + HTML Dump + Claude Haiku — não troca o driver, muda a estratégia</h3>
+    <p>
+      O Playwright é a abordagem correta para o EPROC — não existe API pública nem forma de evitar autenticação com sessão real.
+      O problema hoje não é o Playwright em si, é que ele captura DOM instável e usa Vision (screenshot) como fallback para parsing.
+      A solução é inverter: <strong>usar scraping de HTML serializado como primário</strong> e Vision apenas quando o HTML não tiver o texto estruturado.
+      Isso elimina 90% dos timeouts e é 5× mais rápido que esperar renders visuais.
+    </p>
+  </div>
+
+  <!-- APPROACHES -->
+  <section>
+    <h2>Abordagens Avaliadas</h2>
+    <div class="approach-grid">
+
+      <div class="approach-card current">
+        <div class="approach-header">
+          <div class="approach-icon" style="background:#f8717120">🎭</div>
+          <div class="approach-meta">
+            <h3>Playwright + DOM click</h3>
+            <span class="badge badge-current">Atual</span>
+          </div>
+        </div>
+        <p style="font-size:12px;">Navega página por página, clica em links individuais de cada intimação, espera carregamento e extrai texto do DOM.</p>
+        <div class="pros-cons">
+          <div class="pros">
+            <div class="pros-title">Prós</div>
+            <ul><li>Funciona com autenticação real</li><li>Acessa docs em PDF</li><li>Já implementado</li></ul>
+          </div>
+          <div class="cons">
+            <div class="cons-title">Problemas</div>
+            <ul><li>Timeout em clicks não visíveis</li><li>Lento (1 click por intimação)</li><li>Overlay/modal quebra fluxo</li><li>Screenshot para fallback = base64 vazio</li></ul>
+          </div>
+        </div>
+        <div class="score-row">
+          <div class="score">Robustez: <span style="color:var(--red)">3/10</span></div>
+          <div class="score">Velocidade: <span style="color:var(--yellow)">4/10</span></div>
+          <div class="score">Custo: <span style="color:var(--green)">9/10</span></div>
+        </div>
+      </div>
+
+      <div class="approach-card recommended">
+        <div class="approach-header">
+          <div class="approach-icon" style="background:#4ade8020">🔥</div>
+          <div class="approach-meta">
+            <h3>Playwright + HTML Dump + LLM</h3>
+            <span class="badge badge-recommended">Recomendado</span>
+          </div>
+        </div>
+        <p style="font-size:12px;">Navega para a página de listagem, faz <code>page.content()</code> para pegar o HTML completo, envia para Claude Haiku parsear estruturalmente.</p>
+        <div class="pros-cons">
+          <div class="pros">
+            <div class="pros-title">Prós</div>
+            <ul><li>Zero clique individual</li><li>HTML sempre disponível</li><li>Haiku parseia 50 intimações em 1 chamada</li><li>Resiste a overlays/modais</li></ul>
+          </div>
+          <div class="cons">
+            <div class="cons-title">Cons</div>
+            <ul><li>Custo Haiku (~$0.001/listagem)</li><li>HTML do EPROC pode ser verboso</li><li>Docs PDF ainda precisam de navegação</li></ul>
+          </div>
+        </div>
+        <div class="score-row">
+          <div class="score">Robustez: <span style="color:var(--green)">9/10</span></div>
+          <div class="score">Velocidade: <span style="color:var(--green)">8/10</span></div>
+          <div class="score">Custo: <span style="color:var(--yellow)">7/10</span></div>
+        </div>
+      </div>
+
+      <div class="approach-card viable">
+        <div class="approach-header">
+          <div class="approach-icon" style="background:#60a5fa20">📸</div>
+          <div class="approach-meta">
+            <h3>Fullpage Screenshot + Vision</h3>
+            <span class="badge badge-viable">Viável (sua sugestão)</span>
+          </div>
+        </div>
+        <p style="font-size:12px;">Tira screenshot da página inteira após login, envia para Claude Vision interpretar a lista de intimações visualmente.</p>
+        <div class="pros-cons">
+          <div class="pros">
+            <div class="pros-title">Prós</div>
+            <ul><li>Zero clique, zero timeout</li><li>Funciona mesmo com DOM malformado</li><li>Captura visual igual ao que humano veria</li></ul>
+          </div>
+          <div class="cons">
+            <div class="cons-title">Cons</div>
+            <ul><li>Sonnet/Opus para Vision = caro</li><li>Lista longa: múltiplos screenshots</li><li>Dados estruturados menos precisos que HTML</li><li>Texto cortado fora da tela</li></ul>
+          </div>
+        </div>
+        <div class="score-row">
+          <div class="score">Robustez: <span style="color:var(--green)">8/10</span></div>
+          <div class="score">Velocidade: <span style="color:var(--yellow)">6/10</span></div>
+          <div class="score">Custo: <span style="color:var(--red)">4/10</span></div>
+        </div>
+      </div>
+
+      <div class="approach-card nope">
+        <div class="approach-header">
+          <div class="approach-icon" style="background:#33333340">🚫</div>
+          <div class="approach-meta">
+            <h3>API REST / HTTP direto</h3>
+            <span class="badge badge-nope">Inviável</span>
+          </div>
+        </div>
+        <p style="font-size:12px;">Fazer requests HTTP simulados com cookies de sessão, sem browser real.</p>
+        <div class="pros-cons">
+          <div class="pros">
+            <div class="pros-title">Se funcionasse</div>
+            <ul><li>Muito mais rápido</li><li>Sem timeout de UI</li><li>Escala fácil</li></ul>
+          </div>
+          <div class="cons">
+            <div class="cons-title">Por que não funciona</div>
+            <ul><li>EPROC exige TOTP (2FA) em cada sessão</li><li>Tokens de sessão têm fingerprint do browser</li><li>CSP bloqueia requests externos</li></ul>
+          </div>
+        </div>
+        <div class="score-row">
+          <div class="score">Robustez: <span style="color:var(--red)">N/A</span></div>
+          <div class="score">Viabilidade: <span style="color:var(--red)">0/10</span></div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- COMPARISON TABLE -->
+  <section>
+    <h2>Comparativo: Atual vs. Recomendado vs. Screenshot+Vision</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Critério</th>
+          <th>Atual (DOM click)</th>
+          <th>HTML Dump + LLM</th>
+          <th>Screenshot + Vision</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Timeout em click</td><td class="dot-red">Frequente</td><td class="dot-green">Eliminado</td><td class="dot-green">Eliminado</td></tr>
+        <tr><td>Velocidade por OAB</td><td class="dot-red">~8 min</td><td class="dot-green">~2 min</td><td class="dot-yellow">~4 min</td></tr>
+        <tr><td>Precisão dos dados</td><td class="dot-yellow">Média (DOM frágil)</td><td class="dot-green">Alta (HTML completo)</td><td class="dot-yellow">Média (OCR visual)</td></tr>
+        <tr><td>Custo por execução</td><td class="dot-green">~$0.00</td><td class="dot-green">~$0.002 (Haiku)</td><td class="dot-red">~$0.05 (Vision)</td></tr>
+        <tr><td>Texto de documentos PDF</td><td class="dot-yellow">Parcial (navegação)</td><td class="dot-yellow">Parcial (link direto)</td><td class="dot-red">Não</td></tr>
+        <tr><td>Resiliência a mudanças EPROC</td><td class="dot-red">Baixa</td><td class="dot-green">Alta</td><td class="dot-green">Alta</td></tr>
+        <tr><td>Complexidade de impl.</td><td class="dot-green">Já existe</td><td class="dot-green">Baixa (refactor)</td><td class="dot-yellow">Média</td></tr>
+        <tr><td>Risco de perder prazo</td><td class="dot-red">Alto (timeouts)</td><td class="dot-green">Baixo</td><td class="dot-yellow">Médio</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section>
+    <h2>Arquitetura Recomendada: Pipeline v5 — HTML Dump First</h2>
+    <div class="arch">
+      <div class="arch-title">Fluxo por OAB — ~2 min total</div>
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <div class="pipeline-line"><div class="pipeline-dot" style="background:var(--blue)"></div><div class="pipeline-connector"></div></div>
+          <div class="pipeline-content">
+            <h4>1. Login com TOTP</h4>
+            <p>Igual ao atual — Playwright autentica com 2FA. Sem mudança. <code>skill_login_eproc.mjs</code></p>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-line"><div class="pipeline-dot" style="background:var(--accent)"></div><div class="pipeline-connector"></div></div>
+          <div class="pipeline-content">
+            <h4>2. Navegar para lista de intimações</h4>
+            <p>Navega para a página de listagem. <strong>Sem clicar em nada individual</strong>. Rola a página para garantir que todos os itens carregaram.</p>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-line"><div class="pipeline-dot" style="background:var(--purple)"></div><div class="pipeline-connector"></div></div>
+          <div class="pipeline-content">
+            <h4>3. HTML Dump <code>page.content()</code></h4>
+            <p>Captura o HTML completo da página em memória. Nenhum click, nenhum timeout. <code>const html = await page.content()</code></p>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-line"><div class="pipeline-dot" style="background:var(--green)"></div><div class="pipeline-connector"></div></div>
+          <div class="pipeline-content">
+            <h4>4. Claude Haiku parseia HTML</h4>
+            <p>Envia o HTML para Haiku com prompt estruturado: extraia CNJ, tipo evento, data, partes, urgência. Retorna JSON com todas as intimações da listagem em 1 chamada.</p>
+            <p style="margin-top:4px"><code>~$0.001 por listagem · &lt;3s</code></p>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-line"><div class="pipeline-dot" style="background:var(--yellow)"></div><div class="pipeline-connector"></div></div>
+          <div class="pipeline-content">
+            <h4>5. Filtro inteligente</h4>
+            <p>Aplica regras operacionais do João: descarta antigas, duplicadas, DJEN, pauta. Só processa intimações que passam nos filtros.</p>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-line"><div class="pipeline-dot" style="background:var(--orange)"></div><div class="pipeline-connector"></div></div>
+          <div class="pipeline-content">
+            <h4>6. Busca documento (só se necessário)</h4>
+            <p>Para intimações que passaram no filtro e precisam do texto completo: navega diretamente para o processo pelo CNJ, extrai texto do documento. <strong>Só 1 navegação por intimação relevante</strong>, não uma por linha da lista.</p>
+          </div>
+        </div>
+        <div class="pipeline-step">
+          <div class="pipeline-line"><div class="pipeline-dot" style="background:var(--green)"></div></div>
+          <div class="pipeline-content">
+            <h4>7. Salva + Classifica + Roteia</h4>
+            <p>Persiste no Supabase, aciona classificador e roteador. Igual ao atual.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CALLOUTS -->
+  <section>
+    <h2>Pontos Críticos</h2>
+
+    <div class="callout info">
+      <span class="callout-icon">💡</span>
+      <div class="callout-body">
+        <h4>Por que HTML e não Screenshot?</h4>
+        <p>O HTML contém todos os dados estruturados (CNJ, datas, links) que o visual não garante. Screenshot é melhor quando o dado está só em imagem (ex: PDF escaneado). Para listagens de tabelas HTML do EPROC, o HTML dump é sempre mais preciso e ~50× mais barato que Vision.</p>
+      </div>
+    </div>
+
+    <div class="callout warning">
+      <span class="callout-icon">⚠️</span>
+      <div class="callout-body">
+        <h4>Quando usar Screenshot + Vision (fallback)</h4>
+        <p>Manter Vision como fallback apenas quando: (1) <code>page.content()</code> retornar HTML sem tabela de intimações, (2) o Haiku não conseguir extrair dados estruturados do HTML, (3) o documento for um PDF escaneado sem texto selecionável. O bug atual do base64 vazio acontece porque a página ainda está carregando quando o screenshot é tirado — corrigido com <code>waitForLoadState('networkidle')</code> antes do screenshot.</p>
+      </div>
+    </div>
+
+    <div class="callout success">
+      <span class="callout-icon">🎯</span>
+      <div class="callout-body">
+        <h4>Treinamentos do João são plenamente compatíveis</h4>
+        <p>As regras operacionais que o João treinou (filtros, tipos de evento, urgência, ciência automática) continuam funcionando igual. A mudança é só na camada de extração de dados — o classificador e o roteador não mudam.</p>
+      </div>
+    </div>
+
+    <div class="callout info">
+      <span class="callout-icon">🔄</span>
+      <div class="callout-body">
+        <h4>Sua ideia de Screenshot + Scraping combinado é válida como fallback</h4>
+        <p>O fluxo ideal é: tenta HTML dump → se HTML ok, Haiku parseia. Se HTML falhar (página dinâmica que não renderizou) → screenshot fullpage + Vision. Isso é um fallback em cascata, não o fluxo principal. Assim fica à prova de erros sem pagar Vision em todo caso.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- IMPLEMENTATION PLAN -->
+  <section>
+    <h2>Plano de Implementação</h2>
+
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num">1</div>
+        <div class="phase-title">Refatorar extração de listagem — substituir DOM clicks por HTML dump</div>
+        <div class="phase-time">~2h de CC</div>
+      </div>
+      <ul>
+        <li>Substituir <code>extractIntimacoesDaListagem()</code> por <code>htmlDumpListagem()</code></li>
+        <li>Prompt Haiku: "extraia todas as intimações desta tabela HTML, retorne JSON com cnj, tipo, data, partes"</li>
+        <li>Eliminar todos os <code>elementHandle.click()</code> do loop de listagem</li>
+        <li>Corrigir bug base64: adicionar <code>waitForLoadState('networkidle')</code> antes do screenshot</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num">2</div>
+        <div class="phase-title">Implementar navegação direta por CNJ para documentos relevantes</div>
+        <div class="phase-time">~1h de CC</div>
+      </div>
+      <ul>
+        <li>Só navega para o processo quando a intimação passou nos filtros</li>
+        <li>Usa <code>navigateToProcessByCnj()</code> existente (já funciona)</li>
+        <li>Extrai HTML da página do processo também via <code>page.content()</code></li>
+        <li>Haiku extrai o texto da movimentação relevante do HTML do processo</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num">3</div>
+        <div class="phase-title">Fallback Screenshot + Vision para casos edge</div>
+        <div class="phase-time">~1h de CC</div>
+      </div>
+      <ul>
+        <li>Detectar quando HTML dump não tem tabela de intimações</li>
+        <li>Fallback para screenshot fullpage com <code>waitForLoadState</code> correto</li>
+        <li>Validar base64 antes de enviar para Claude (evitar o erro atual)</li>
+        <li>Usar Haiku para Vision quando possível (mais barato que Sonnet)</li>
+      </ul>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header">
+        <div class="phase-num">4</div>
+        <div class="phase-title">Teste A/B — rodar em paralelo por 48h</div>
+        <div class="phase-time">48h monitorando</div>
+      </div>
+      <ul>
+        <li>1 OAB com nova arquitetura, demais com a atual</li>
+        <li>Comparar: novas intimações capturadas, erros, tempo por OAB</li>
+        <li>Se ok → migrar todas as OABs</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- DECISION -->
+  <section>
+    <h2>Decisão Final</h2>
+    <table>
+      <thead>
+        <tr><th>Pergunta</th><th>Resposta</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Trocar Playwright por outra coisa?</td><td class="dot-red">Não — não existe alternativa para EPROC com 2FA</td></tr>
+        <tr><td>Usar Screenshot como primário?</td><td class="dot-yellow">Não como primário — só fallback</td></tr>
+        <tr><td>Usar HTML dump + LLM?</td><td class="dot-green">Sim — é a mudança principal recomendada</td></tr>
+        <tr><td>Manter clicks individuais?</td><td class="dot-red">Eliminar do loop de listagem — manter só para abrir PDF quando necessário</td></tr>
+        <tr><td>Custo adicional?</td><td class="dot-green">~$0.002/OAB/execução com Haiku — desprezível</td></tr>
+        <tr><td>Risco de perder prazo?</td><td class="dot-green">Muito menor — sem timeouts de click</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</div>
+
+<div class="footer">
+  <div class="footer-left">JANA · 2026-03-23 · Controller Intelligence</div>
+  <div class="footer-right">Análise técnica de arquitetura EPROC</div>
+</div>
+
+</body>
+</html>

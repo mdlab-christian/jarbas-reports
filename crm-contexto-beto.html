@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM MdFlow — Contexto & Pendências (BETO)</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --surface2: #22263a;
+      --border: #2e3347;
+      --text: #e2e8f0;
+      --muted: #8892a4;
+      --primary: #20c997;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --success: #22c55e;
+      --info: #3b82f6;
+      --accent: #7c3aed;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 2rem;
+    }
+    h1 { font-size: 1.75rem; font-weight: 700; color: var(--primary); margin-bottom: 0.25rem; }
+    h2 { font-size: 1.2rem; font-weight: 600; color: var(--primary); margin: 2rem 0 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+    h3 { font-size: 1rem; font-weight: 600; color: #c4cdd9; margin: 1.25rem 0 0.5rem; }
+    p, li { font-size: 0.9rem; color: var(--text); }
+    ul { padding-left: 1.25rem; }
+    li { margin-bottom: 0.3rem; }
+    .meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 2rem; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .badge-ok { background: #14532d; color: #86efac; border: 1px solid #16a34a44; }
+    .badge-bug { background: #450a0a; color: #fca5a5; border: 1px solid #ef444444; }
+    .badge-pend { background: #431407; color: #fdba74; border: 1px solid #f97316aa; }
+    .badge-info { background: #1e3a5f; color: #93c5fd; border: 1px solid #3b82f644; }
+    .badge-warn { background: #451a03; color: #fde68a; border: 1px solid #f59e0b44; }
+    .row { display: flex; align-items: flex-start; gap: 0.6rem; margin-bottom: 0.5rem; }
+    .row p { flex: 1; font-size: 0.875rem; }
+    .section-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 1rem; }
+    .highlight {
+      background: var(--surface2);
+      border-left: 3px solid var(--primary);
+      border-radius: 0 8px 8px 0;
+      padding: 0.75rem 1rem;
+      margin: 0.75rem 0;
+      font-size: 0.875rem;
+    }
+    .highlight.warn { border-color: var(--warning); }
+    .highlight.danger { border-color: var(--danger); }
+    .highlight.success { border-color: var(--success); }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: #2a2f45;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.78rem;
+      color: #93c5fd;
+    }
+    .pendencias-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 0.5rem;
+      list-style: none;
+    }
+    .pendencias-list { padding-left: 0; }
+    .pend-num {
+      min-width: 24px;
+      height: 24px;
+      background: var(--surface2);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+    .pend-body { flex: 1; }
+    .pend-title { font-size: 0.875rem; font-weight: 600; color: var(--text); }
+    .pend-desc { font-size: 0.8rem; color: var(--muted); margin-top: 0.2rem; }
+    hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+    .toc a { color: var(--primary); text-decoration: none; font-size: 0.85rem; }
+    .toc a:hover { text-decoration: underline; }
+    .toc li { margin-bottom: 0.2rem; }
+    .tab-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0.75rem 0; }
+    .tab-item {
+      padding: 0.3rem 0.75rem;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+    .tab-item.ok { border-color: #16a34a44; color: #86efac; }
+    .tab-item.bug { border-color: #ef444444; color: #fca5a5; }
+    .tab-item.partial { border-color: #f59e0b44; color: #fde68a; }
+  </style>
+</head>
+<body>
+
+  <h1>🗂️ CRM MdFlow — Contexto & Pendências</h1>
+  <p class="meta">Gerado por BETO · 24/03/2026 · Baseado em review ao vivo de Gustavo Paz</p>
+
+  <div class="card">
+    <p class="card-title">📌 Índice</p>
+    <ul class="toc">
+      <li><a href="#visao-geral">1. Visão Geral da Página CRM</a></li>
+      <li><a href="#dashboard">2. Dashboard</a></li>
+      <li><a href="#pipeline">3. Pipeline / Kanban</a></li>
+      <li><a href="#lista">4. Modo Lista</a></li>
+      <li><a href="#drawer">5. Drawer do Lead (cada aba)</a></li>
+      <li><a href="#botoes">6. Botões da Action Bar do Drawer</a></li>
+      <li><a href="#nova-auditoria">7. Nova Auditoria → Criar Lead</a></li>
+      <li><a href="#distribuicao">8. Fluxo de Distribuição</a></li>
+      <li><a href="#pendencias">9. Pendências Consolidadas</a></li>
+    </ul>
+  </div>
+
+  <!-- 1. VISÃO GERAL -->
+  <h2 id="visao-geral">1. Visão Geral da Página CRM</h2>
+  <div class="card">
+    <p>A página CRM é a <strong>entrada principal de leads</strong> no sistema. O fluxo completo de um lead começa aqui e termina na Distribuição (quando vira processo) ou em Arquivados.</p>
+    <div class="highlight">
+      <strong>Funil de estágios:</strong><br/>
+      Novos → Em Atendimento → Aguardando Documentos → Aguardando Assinatura → Triagem → [Distribuição] → Arquivados
+    </div>
+    <h3>Modos de visualização disponíveis</h3>
+    <ul>
+      <li><strong>Kanban</strong> — visual por colunas, drag & drop entre etapas</li>
+      <li><strong>Lista</strong> — tabela por estágio, com paginação</li>
+      <li><strong>Dashboard</strong> — métricas e gráficos do funil</li>
+    </ul>
+    <h3>Formas de criar um novo lead</h3>
+    <ul>
+      <li><strong>Via Nova Auditoria</strong> — preferencial. Já faz a consulta, cria o lead e importa as restrições automaticamente.</li>
+      <li><strong>Via Novo Lead</strong> — cadastro manual sem auditoria imediata.</li>
+    </ul>
+    <div class="highlight warn">
+      ⚠️ A forma preferencial de entrada será sempre por <strong>Nova Auditoria</strong>, pois já cadastra o lead, faz a consulta e vincula as restrições de uma vez.
+    </div>
+  </div>
+
+  <!-- 2. DASHBOARD -->
+  <h2 id="dashboard">2. Dashboard</h2>
+  <div class="card">
+    <div class="row">
+      <span class="badge badge-pend">PENDENTE</span>
+      <p>A aba/modo Dashboard existe no código (<code>CrmDashboard.tsx</code>), mas <strong>não foi validado se está 100% funcional</strong>. Gustavo mencionou que precisa verificar se os dados carregam corretamente.</p>
+    </div>
+    <h3>O que deve conter</h3>
+    <ul>
+      <li>Total de leads por estágio</li>
+      <li>Leads com e sem atendente</li>
+      <li>Leads com restrições processáveis</li>
+      <li>Funil de conversão (entradas → distribuição)</li>
+      <li>Gráfico de origem dos leads</li>
+    </ul>
+    <div class="highlight danger">
+      🔴 Bug pendente: confirmar se os gráficos (<code>CrmFunnelChart</code>, <code>CrmOrigensChart</code>, <code>CrmTrendChart</code>) estão carregando dados reais.
+    </div>
+  </div>
+
+  <!-- 3. PIPELINE / KANBAN -->
+  <h2 id="pipeline">3. Pipeline / Kanban</h2>
+  <div class="card">
+    <div class="row">
+      <span class="badge badge-ok">OK</span>
+      <p>Kanban funcionando. Cards exibem informações completas: nome, CPF, WhatsApp, data nascimento, advogado OAB, atendente, estado, origem, score, restrições, notas e status MdZap.</p>
+    </div>
+    <h3>O que o card Kanban mostra</h3>
+    <ul>
+      <li>Nome completo + CPF formatado</li>
+      <li>Data de nascimento</li>
+      <li>WhatsApp formatado + status MdZap</li>
+      <li>Badge de advogado (OAB UF/número)</li>
+      <li>Nome do atendente</li>
+      <li>Estado (UF) + origem do lead</li>
+      <li>Score IA</li>
+      <li>Contagem de restrições (total / processáveis)</li>
+      <li>Notas com tooltip da última nota</li>
+      <li>Badge pulsante quando <code>awaiting_human</code></li>
+    </ul>
+    <div class="row" style="margin-top:0.75rem">
+      <span class="badge badge-pend">VERIFICAR</span>
+      <p>Fluxo de <strong>enviar lead para Distribuição via Kanban</strong> não foi testado ao vivo. Precisa confirmar se ao distribuir um lead ele move para Arquivados corretamente com motivo "Cliente convertido em processo".</p>
+    </div>
+  </div>
+
+  <!-- 4. MODO LISTA -->
+  <h2 id="lista">4. Modo Lista</h2>
+  <div class="card">
+    <div class="row">
+      <span class="badge badge-warn">INCOMPLETO</span>
+      <p>Modo lista existe e funciona (<code>CrmListView.tsx</code>), mas exibe <strong>menos informações</strong> que o Kanban. Gustavo pediu que o modo lista mostre informações mais completas.</p>
+    </div>
+    <h3>O que mostra atualmente (7 colunas)</h3>
+    <ul>
+      <li>Nome + CPF + telefone + atendente</li>
+      <li>Badge de etapa/status</li>
+      <li>Score IA</li>
+      <li>Restrições (processáveis/total)</li>
+      <li>Advogado OAB</li>
+      <li>Data de entrada</li>
+      <li>Último contato</li>
+    </ul>
+    <h3>O que falta em comparação ao Kanban</h3>
+    <ul>
+      <li>Data de nascimento</li>
+      <li>Estado (UF) do cliente</li>
+      <li>Origem do lead</li>
+      <li>Badge de notas (com tooltip)</li>
+      <li>Status MdZap (awaiting_human)</li>
+    </ul>
+    <div class="highlight warn">
+      ⚠️ Pendência: adicionar as colunas faltantes ao modo lista para paridade com o Kanban.
+    </div>
+  </div>
+
+  <!-- 5. DRAWER -->
+  <h2 id="drawer">5. Drawer do Lead — Abas</h2>
+  <p style="color:var(--muted); margin-bottom:1rem; font-size:0.875rem;">O Drawer abre ao clicar em qualquer card. Largura: 72vw. Contém header com nome, CPF mascarado, score badge, estágio atual e status MdZap.</p>
+
+  <div class="section-grid">
+
+    <!-- ABA DADOS -->
+    <div class="card">
+      <div class="card-title">📋 Aba: Dados <span class="badge badge-ok">OK</span></div>
+      <p>Contém dados pessoais, contato, endereço e responsáveis. Funcionando conforme esperado.</p>
+      <h3>Campos necessários</h3>
+      <ul>
+        <li>Nome completo, CPF, RG, data nascimento, sexo, profissão, estado civil</li>
+        <li>Telefone, WhatsApp, e-mail</li>
+        <li>Endereço completo (logradouro, número, bairro, cidade, estado, CEP)</li>
+        <li>Origem do lead</li>
+        <li>Advogado vinculado, captador, responsável interno</li>
+      </ul>
+    </div>
+
+    <!-- ABA RESTRIÇÕES -->
+    <div class="card">
+      <div class="card-title">🛡️ Aba: Restrições <span class="badge badge-bug">2 BUGS</span></div>
+
+      <div class="row">
+        <span class="badge badge-ok">OK</span>
+        <p>Marcar restrição como "não processável" funciona. Isso é correto e <strong>não deve afetar o cadastro global da empresa</strong> — é uma exceção pontual do lead (ex: lead tem Nubank como comprovante de residência → não fazemos processo contra Nubank).</p>
+      </div>
+      <div class="row">
+        <span class="badge badge-ok">OK</span>
+        <p>Remover restrição funciona.</p>
+      </div>
+
+      <div class="row" style="margin-top:0.75rem">
+        <span class="badge badge-bug">BUG 1</span>
+        <p>Órgão restritivo aparece como <strong>Serasa</strong> mesmo quando a auditoria foi feita pelo <strong>Boa Vista</strong>. O campo <code>orgao_id</code> está sendo salvo errado pelo n8n no momento de criar as restrições.</p>
+      </div>
+
+      <div class="row">
+        <span class="badge badge-bug">BUG 2</span>
+        <p>Botão <strong>"Gerar Documento"</strong> aparece dentro do card de restrição. Não deveria estar aqui — a geração de documentos deve ficar exclusivamente na <strong>Aba Documentos</strong>.</p>
+      </div>
+
+      <div class="highlight">
+        <strong>Regra do Boa Vista:</strong> restrições do Boa Vista NÃO têm data nem código de contrato — só valor e nome da empresa "Boa Vista". O contrato não é gerado por restrição individual; o valor é <em>somado</em> de todas as restrições do Boa Vista.
+      </div>
+    </div>
+
+    <!-- ABA DOCUMENTOS -->
+    <div class="card">
+      <div class="card-title">📁 Aba: Documentos <span class="badge badge-bug">3 BUGS</span></div>
+
+      <div class="row">
+        <span class="badge badge-ok">OK</span>
+        <p>Pasta Google Drive criada e vinculada funcionando.</p>
+      </div>
+      <div class="row">
+        <span class="badge badge-ok">OK</span>
+        <p>Upload de documentos pessoais funcionando (exceto arquivos do Google). Download → conversão para PDF funcionando.</p>
+      </div>
+
+      <div class="row" style="margin-top:0.75rem">
+        <span class="badge badge-bug">BUG 1</span>
+        <p><code>webhook topo is not defined</code> ao tentar <strong>Gerar Procuração</strong>. Variável <code>topo</code> não definida no contexto do webhook.</p>
+      </div>
+      <div class="row">
+        <span class="badge badge-bug">BUG 2</span>
+        <p><code>webhook topo is not defined</code> ao tentar <strong>Gerar Contrato</strong>. Mesmo erro.</p>
+      </div>
+      <div class="row">
+        <span class="badge badge-bug">BUG 3</span>
+        <p>Upload de arquivos do <strong>Google Drive</strong> retorna erro de <code>mime type</code>. Tipos de arquivo do Google (Docs, Sheets) não são suportados — precisa bloquear na UI ou converter antes.</p>
+      </div>
+
+      <div class="highlight warn">
+        ⚠️ Pendência mapeada: definir os nomes exatos das categorias de documento disponíveis no upload (RG, Comprovante de Residência, Outros...).
+      </div>
+
+      <h3>Estados progressivos da aba (conforme briefing)</h3>
+      <ul>
+        <li><strong>A</strong> — Sem auditoria: alerta + botão para auditar</li>
+        <li><strong>B</strong> — Auditado: lista restrições + toggle processável + "Gerar Tudo"</li>
+        <li><strong>C</strong> — Triado: restrições aprovadas + geração de contratos/procurações</li>
+        <li><strong>D</strong> — Com advogado: pasta Drive + upload + todos os documentos gerados</li>
+      </ul>
+    </div>
+
+    <!-- ABA FOLLOW-UP -->
+    <div class="card">
+      <div class="card-title">📅 Aba: Follow-up <span class="badge badge-bug">1 BUG</span></div>
+
+      <p style="margin-bottom:0.75rem">Gustavo aprovou muito o design e a ideia. Follow-up direto no drawer, com data agendada, observações, status WhatsApp e tentativas — considera ideal.</p>
+
+      <div class="row">
+        <span class="badge badge-bug">BUG</span>
+        <p>Erro <strong>"lead ou usuário não encontrado"</strong> ao tentar salvar follow-up. O sistema não está conseguindo identificar o <code>lead_id</code> ou <code>user_id</code> no momento do save.</p>
+      </div>
+
+      <h3>O que deve mostrar</h3>
+      <ul>
+        <li>Data do próximo follow-up agendado</li>
+        <li>Último follow-up realizado</li>
+        <li>Status WhatsApp (MdZap)</li>
+        <li>Número de tentativas de contato</li>
+        <li>Campo de observação para o follow-up</li>
+      </ul>
+
+      <div class="highlight">
+        Deve ser integrado com o <strong>MdZap</strong> para registrar tentativas automaticamente.
+      </div>
+    </div>
+
+    <!-- ABA ATIVIDADES -->
+    <div class="card">
+      <div class="card-title">📝 Aba: Atividades <span class="badge badge-bug">1 BUG</span> <span class="badge badge-warn">RENAME</span></div>
+
+      <div class="row">
+        <span class="badge badge-warn">RENOMEAR</span>
+        <p>Gustavo sugeriu trocar o nome de <strong>"Atividades"</strong> para <strong>"Observações"</strong> ou similar, pois "atividades" remete a tarefas do lead, mas o campo é apenas para notas internas da equipe.</p>
+      </div>
+
+      <div class="row">
+        <span class="badge badge-bug">BUG</span>
+        <p>Erro <strong>"usuário não identificado"</strong> ao tentar salvar uma nota. O contexto do usuário autenticado não está sendo passado corretamente para o hook de notas.</p>
+      </div>
+    </div>
+
+    <!-- ABA MDZAP -->
+    <div class="card">
+      <div class="card-title">💬 Aba: MdZap <span class="badge badge-pend">VERIFICAR</span></div>
+
+      <p>Gustavo gostou de ter o MdZap integrado no drawer. O comportamento esperado:</p>
+      <ul>
+        <li>Clicar no botão <strong>MDZap</strong> da action bar → navega para a aba MdZap do drawer</li>
+        <li>Exibe o histórico completo de mensagens WhatsApp do lead</li>
+        <li>Painel de sentimento da conversa (positivo/neutro/negativo)</li>
+        <li>Badge pulsante quando <code>awaiting_human</code></li>
+        <li>Ações rápidas: enviar mensagem, templates</li>
+      </ul>
+
+      <div class="highlight warn">
+        ⚠️ O histórico de conversa estava vazio no teste. Verificar se o <code>lead_id</code> está sendo usado corretamente para buscar o histórico MdZap.
+      </div>
+    </div>
+
+    <!-- ABA HISTÓRICO -->
+    <div class="card">
+      <div class="card-title">📜 Aba: Histórico <span class="badge badge-bug">1 BUG</span></div>
+
+      <div class="row">
+        <span class="badge badge-bug">BUG</span>
+        <p>Após mover o lead de estágio, o histórico <strong>não registrou a movimentação</strong>. O evento de mudança de coluna não está sendo gravado na tabela de histórico CRM.</p>
+      </div>
+
+      <h3>O que deve registrar</h3>
+      <ul>
+        <li>Mudanças de estágio (quem moveu + data)</li>
+        <li>Notas adicionadas</li>
+        <li>Follow-ups registrados</li>
+        <li>Documentos gerados</li>
+        <li>Auditoria realizada</li>
+        <li>Advogado vinculado</li>
+        <li>Distribuição realizada</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- 6. BOTÕES ACTION BAR -->
+  <h2 id="botoes">6. Action Bar do Drawer — Botões</h2>
+  <div class="card">
+    <div class="section-grid">
+
+      <div>
+        <h3>🔍 Auditar</h3>
+        <p>Dispara auditoria CPF via <code>rpc_disparar_auditoria</code>. Funciona pelo modal dedicado (<code>ModalAuditar</code>). Usa bureau <code>apifull_115</code> (CPF Completo via ApiFull).</p>
+      </div>
+
+      <div>
+        <h3>⚖️ Vincular Advogado <span class="badge badge-pend">VALIDAR</span></h3>
+        <p>Deve vincular advogado <strong>automaticamente</strong> pelo estado do cliente (UF), baseado na configuração de distribuição por OAB. Configuração está em <strong>Configurações → CRM</strong> ou <strong>Admin</strong>. Após vincular, campo fica readonly. Registra <code>advogado_locked_at</code> e <code>advogado_locked_by</code>.</p>
+      </div>
+
+      <div>
+        <h3>💬 MDZap</h3>
+        <p>Navega para aba MdZap do drawer e exibe conversa WhatsApp do lead.</p>
+      </div>
+
+      <div>
+        <h3>✏️ Editar</h3>
+        <p>Habilita edição dos dados cadastrais. Funciona OK.</p>
+      </div>
+
+      <div>
+        <h3>📋 Triagem <span class="badge badge-bug">BUG</span></h3>
+        <p>Quando o lead <strong>NÃO está na etapa triagem</strong>, o botão abre um modal que gera erro de "aprovação jurídica" e fica piscando. <br/><strong>Fix:</strong> o botão triagem só deve ser exibido ou habilitado quando <code>coluna_crm === 'triagem'</code>.</p>
+      </div>
+
+      <div>
+        <h3>👤 Atendente <span class="badge badge-pend">VALIDAR</span></h3>
+        <p>Deve ser vinculado <strong>automaticamente</strong> ao usuário que cadastrou o lead (ou fez a auditoria). Não deve ser alterável após o vínculo inicial. Isso vale tanto para cadastro manual quanto para criação via Nova Auditoria.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- 7. NOVA AUDITORIA -->
+  <h2 id="nova-auditoria">7. Nova Auditoria → Criar Lead (Fluxo Principal)</h2>
+  <div class="card">
+    <p style="margin-bottom:0.75rem">Este é o <strong>fluxo principal de entrada de leads</strong>. Gustavo preferiu usar a Nova Auditoria como ponto de entrada porque ela já faz tudo: consulta CPF, cria o lead e importa as restrições.</p>
+
+    <h3>Fluxo esperado</h3>
+    <ol style="padding-left:1.25rem; font-size:0.875rem; line-height:2">
+      <li>Usuário acessa <strong>Auditorias → Nova Auditoria</strong></li>
+      <li>Preenche CPF e seleciona bureaus (padrão: Boa Vista)</li>
+      <li>Sistema faz a consulta e exibe resultado em PDF</li>
+      <li>Usuário clica em <strong>"Criar lead com restrições"</strong></li>
+      <li>Lead é criado com as restrições já importadas</li>
+      <li>Atendente logado é vinculado automaticamente ao lead</li>
+      <li>Advogado é vinculado automaticamente pelo estado do cliente</li>
+    </ol>
+
+    <hr/>
+
+    <h3>Bugs encontrados no teste ao vivo</h3>
+
+    <div class="row" style="margin-top:0.5rem">
+      <span class="badge badge-bug">BUG 1 — CRÍTICO</span>
+      <p><strong>Modal de "Novo Lead" aparece durante o fluxo de criação via auditoria.</strong> Ao tentar criar o lead a partir da auditoria, abre o modal de novo lead, que não deveria aparecer aqui. O fluxo cria o lead via auditoria, não via modal manual.</p>
+    </div>
+
+    <div class="row">
+      <span class="badge badge-bug">BUG 2 — CRÍTICO</span>
+      <p><strong>Modal quebrou ao tentar editar o nome da empresa (OmniBanco → Banco Bradesco).</strong> Não foi possível corrigir o nome e o lead não foi criado.</p>
+    </div>
+
+    <div class="row">
+      <span class="badge badge-bug">BUG 3</span>
+      <p><strong>Nome das empresas que vêm da consulta não batem com os nomes cadastrados no sistema.</strong> Ex: a consulta retorna "OmniBanco" mas o sistema tem cadastrado "Banco Bradesco S.A.". O sistema precisa fazer a correspondência (de-para) entre o nome do comprovante e o nome oficial.</p>
+    </div>
+
+    <div class="highlight warn">
+      <strong>Contexto do mapeamento de empresas:</strong><br/>
+      JARBAS fez uma varredura anterior em todos os processos com pasta vinculada no Google Drive, comparando o nome que aparecia no comprovante com o nome cadastrado no sistema e salvou as variações. Essas variações estão salvas no sistema (provavelmente no campo "variações" ou "nome fantasia" da tabela de empresas). <br/>No teste, "Banco Santander S.A." não foi encontrado mesmo buscando pelo nome exato — indicando que as variações não estão sendo usadas corretamente no lookup.
+    </div>
+
+    <div class="highlight danger">
+      🔴 Este fluxo (Nova Auditoria → Criar Lead) é o <strong>principal ponto de entrada</strong> do CRM e está <strong>quebrado</strong>. Prioridade máxima de correção.
+    </div>
+  </div>
+
+  <!-- 8. DISTRIBUIÇÃO -->
+  <h2 id="distribuicao">8. Fluxo de Distribuição</h2>
+  <div class="card">
+    <h3>Como deveria funcionar</h3>
+    <ol style="padding-left:1.25rem; font-size:0.875rem; line-height:2">
+      <li>Lead chega na etapa <strong>Triagem</strong></li>
+      <li>Usuário clica em <strong>Distribuir</strong> no drawer (aba Documentos, Estado D)</li>
+      <li>Modal de distribuição exibe: dados do cliente, restrições, petição inicial, OAB responsável</li>
+      <li>Usuário confirma → cria o processo, vincula a restrição, move lead para <strong>Arquivados</strong> com motivo "Cliente convertido em processo"</li>
+      <li>Cada restrição selecionada gera <strong>um processo individual</strong></li>
+      <li>Valor causa = <code>restricoes.valor + R$ 15.000</code></li>
+    </ol>
+
+    <div class="row" style="margin-top:0.75rem">
+      <span class="badge badge-bug">BUG — CRÍTICO</span>
+      <p><strong>Distribuição falhando com erro.</strong> Ao tentar distribuir a lead "Cheyane Lopes da Rosa" (3 restrições, em triagem), o sistema retornou erro genérico. Não foi possível ver o DevTools para detalhar o erro. O fluxo de distribuição está quebrado.</p>
+    </div>
+
+    <div class="highlight danger">
+      🔴 O botão de distribuir retorna erro mesmo com lead em triagem e com restrições processáveis. Precisa debugar o <code>ModalDistribuirLead</code> e o RPC/função de distribuição.
+    </div>
+  </div>
+
+  <!-- 9. PENDÊNCIAS -->
+  <h2 id="pendencias">9. Pendências Consolidadas</h2>
+
+  <h3 style="color:var(--danger); margin-bottom:0.75rem">🔴 Críticas (bloqueiam o fluxo principal)</h3>
+  <ul class="pendencias-list">
+    <li>
+      <div class="pend-num">1</div>
+      <div class="pend-body">
+        <div class="pend-title">Nova Auditoria → Criar Lead quebrado</div>
+        <div class="pend-desc">Modal de novo lead aparece indevidamente. Não consegue criar lead a partir da auditoria. Este é o principal fluxo de entrada.</div>
+      </div>
+      <span class="badge badge-bug">CRÍTICO</span>
+    </li>
+    <li>
+      <div class="pend-num">2</div>
+      <div class="pend-body">
+        <div class="pend-title">Distribuição falhando com erro</div>
+        <div class="pend-desc">Ao distribuir lead com restrições em triagem, retorna erro. Fluxo completo lead → processo quebrado.</div>
+      </div>
+      <span class="badge badge-bug">CRÍTICO</span>
+    </li>
+    <li>
+      <div class="pend-num">3</div>
+      <div class="pend-body">
+        <div class="pend-title">Gerar Contrato / Gerar Procuração: webhook error</div>
+        <div class="pend-desc"><code>webhook topo is not defined</code> em ambos. Documentos não podem ser gerados.</div>
+      </div>
+      <span class="badge badge-bug">CRÍTICO</span>
+    </li>
+    <li>
+      <div class="pend-num">4</div>
+      <div class="pend-body">
+        <div class="pend-title">Mapeamento de nomes de empresas não funciona</div>
+        <div class="pend-desc">Nome da consulta (ex: "OmniBanco") não bate com o sistema (ex: "Banco Bradesco S.A."). As variações de nome cadastradas por JARBAS não estão sendo usadas no lookup. Confirmar coluna onde ficam salvas as variações.</div>
+      </div>
+      <span class="badge badge-bug">CRÍTICO</span>
+    </li>
+    <li>
+      <div class="pend-num">5</div>
+      <div class="pend-body">
+        <div class="pend-title">Órgão restritivo salvo errado (Serasa em vez de Boa Vista)</div>
+        <div class="pend-desc">n8n está salvando <code>orgao_id</code> incorretamente ao processar resultado do Boa Vista. Restrições aparecem com órgão Serasa.</div>
+      </div>
+      <span class="badge badge-bug">N8N / BACKEND</span>
+    </li>
+  </ul>
+
+  <h3 style="color:var(--warning); margin: 1.25rem 0 0.75rem">🟡 Médias (funcionalidade incompleta)</h3>
+  <ul class="pendencias-list">
+    <li>
+      <div class="pend-num">6</div>
+      <div class="pend-body">
+        <div class="pend-title">Follow-up: erro ao salvar ("lead ou usuário não encontrado")</div>
+        <div class="pend-desc"><code>lead_id</code> ou <code>user_id</code> não está sendo passado corretamente ao salvar o follow-up.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">7</div>
+      <div class="pend-body">
+        <div class="pend-title">Atividades/Notas: erro "usuário não identificado"</div>
+        <div class="pend-desc">Contexto de autenticação não está chegando ao hook de notas.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">8</div>
+      <div class="pend-body">
+        <div class="pend-title">Botão Triagem visível quando lead não está em triagem</div>
+        <div class="pend-desc">Gera modal com erro de "aprovação jurídica" piscando. Deve ser ocultado ou desabilitado quando <code>coluna_crm !== 'triagem'</code>.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">9</div>
+      <div class="pend-body">
+        <div class="pend-title">Histórico não registra movimentação de estágio</div>
+        <div class="pend-desc">Após mover lead entre colunas, o histórico do drawer não exibe o evento.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">10</div>
+      <div class="pend-body">
+        <div class="pend-title">Botão "Gerar Documento" no card de restrição (deve ser removido)</div>
+        <div class="pend-desc">Geração de documentos deve ficar apenas na Aba Documentos.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">11</div>
+      <div class="pend-body">
+        <div class="pend-title">Modo lista com menos informações que o Kanban</div>
+        <div class="pend-desc">Faltam: data nascimento, estado (UF), origem, notas badge, awaiting_human.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">12</div>
+      <div class="pend-body">
+        <div class="pend-title">Upload de arquivos do Google Drive dá erro de MIME type</div>
+        <div class="pend-desc">Bloquear na UI o upload de tipos Google (Docs, Sheets, etc.) ou converter antes.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">13</div>
+      <div class="pend-body">
+        <div class="pend-title">Atendente não vinculado automaticamente ao cadastrar lead via auditoria</div>
+        <div class="pend-desc">Deve capturar o usuário logado e vinculá-lo como atendente do lead no momento da criação.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">14</div>
+      <div class="pend-body">
+        <div class="pend-title">Vínculo de advogado automático por estado</div>
+        <div class="pend-desc">Confirmar que a lógica de vínculo automático por UF está funcionando conforme configuração.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+    <li>
+      <div class="pend-num">15</div>
+      <div class="pend-body">
+        <div class="pend-title">Dashboard CRM — validar se está funcional</div>
+        <div class="pend-desc">Gráficos e métricas precisam ser verificados com dados reais.</div>
+      </div>
+      <span class="badge badge-pend">MÉDIO</span>
+    </li>
+  </ul>
+
+  <h3 style="color:var(--info); margin: 1.25rem 0 0.75rem">🔵 Menores / Melhorias</h3>
+  <ul class="pendencias-list">
+    <li>
+      <div class="pend-num">16</div>
+      <div class="pend-body">
+        <div class="pend-title">Renomear aba "Atividades" para "Observações"</div>
+        <div class="pend-desc">Nome mais adequado para notas internas da equipe sobre o lead.</div>
+      </div>
+      <span class="badge badge-info">MELHORIA</span>
+    </li>
+    <li>
+      <div class="pend-num">17</div>
+      <div class="pend-body">
+        <div class="pend-title">Mapear nomes de categorias de documento no upload</div>
+        <div class="pend-desc">Definir e padronizar as opções disponíveis: RG, Comprovante de Residência, CNH, Outros...</div>
+      </div>
+      <span class="badge badge-info">MELHORIA</span>
+    </li>
+  </ul>
+
+  <hr/>
+  <p style="color:var(--muted); font-size:0.78rem; text-align:center; margin-top:1.5rem">
+    BETO — MdLab · Gerado em 24/03/2026 · Baseado em review ao vivo (áudios Gustavo Paz)
+  </p>
+
+</body>
+</html>

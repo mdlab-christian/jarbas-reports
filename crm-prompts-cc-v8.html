@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM — Audit Schema arquivado + Pendências Finais</title>
+  <style>
+    :root {
+      --bg: #0f0e0e; --card: #1a1918; --surface: #131211; --border: #2e2c2a;
+      --teal: #20c997; --red: #ef4444; --yellow: #f59e0b;
+      --green: #22c55e; --muted: #6b6461; --text: #e8e4e0; --text-dim: #a09895;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.65; padding: 2rem; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-size: 1.45rem; font-weight: 700; color: var(--teal); margin-bottom: .2rem; }
+    .meta { color: var(--muted); font-size: .8rem; margin-bottom: 2rem; }
+    h2 { font-size: 1rem; font-weight: 600; color: var(--teal); border-bottom: 1px solid var(--border); padding-bottom: .35rem; margin: 2.5rem 0 1rem; }
+    .prompt-wrap { margin: 1.25rem 0; }
+    .prompt-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: .35rem; }
+    .prompt-box {
+      background: var(--surface); border: 1px solid var(--teal); border-radius: 8px;
+      padding: 1.25rem 1.4rem; font-family: 'Courier New', monospace; font-size: .8rem;
+      color: #c8ffe8; white-space: pre-wrap; line-height: 1.65;
+    }
+    .callout { background: #1a1918; border-left: 3px solid var(--teal); border-radius: 0 8px 8px 0; padding: .75rem 1rem; margin: 1rem 0; font-size: .85rem; color: var(--text-dim); }
+    .callout.yellow { border-color: var(--yellow); }
+    footer { text-align: center; margin-top: 3rem; color: var(--muted); font-size: .73rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>CRM — Audit Schema arquivado + Badge Follow-up</h1>
+  <p class="meta">BETO · 24/03/2026 · Pré-distribuição — limpar tudo antes de avançar</p>
+
+  <div class="callout yellow">
+    Dois pontos abertos antes de declarar o CRM 100% top:
+    1) audit do campo arquivado (boolean) vs usos errados de status = 'arquivado' no codebase;
+    2) 3º estado do badge de follow-up (ativo=false → "Automação pausada").
+    Este prompt cobre investigação + execução dos dois em uma tacada só.
+  </div>
+
+  <h2>Prompt Único — Cole no Claude Code</h2>
+
+  <div class="prompt-wrap">
+    <div class="prompt-label">▶ Prompt Investigação + Execução — Cole no Claude Code</div>
+    <div class="prompt-box">## CONTEXTO
+Auditoria final pré-distribuição do CRM MdFlow.
+Dois pontos abertos identificados no ciclo anterior.
+
+Projeto: /Users/beto/beta-mdflow
+
+---
+
+## TAREFA 1 — Audit completo: campo arquivado (boolean) vs usos incorretos
+
+Durante a execução das migrations, o CC identificou que o schema real usa:
+  - leads.arquivado = true/false  (boolean)
+  - leads.coluna_crm = 'arquivados'  (string plural, conforme CHECK constraint)
+
+Mas pode existir código no frontend/hooks filtrando por status = 'arquivado' (inexistente)
+ou coluna_crm = 'arquivado' (singular incorreto), o que retornaria zero resultados silenciosamente.
+
+### Passo 1 — Confirmar o schema real
+Execute no banco:
+SELECT column_name, data_type, column_default
+FROM information_schema.columns
+WHERE table_name = 'leads'
+  AND column_name IN ('arquivado', 'status', 'coluna_crm', 'deleted_at');
+
+Documente os campos reais, tipos e defaults.
+Se existir um campo 'status' além de 'arquivado': mapeie os valores possíveis via CHECK constraint.
+
+### Passo 2 — Varredura no codebase
+Busque todos os arquivos TypeScript/SQL que referenciam leads com filtro de arquivamento:
+
+Padrões a buscar (grep -r no src/ e supabase/):
+  - .eq('status', 'arquivado')
+  - status = 'arquivado'
+  - coluna_crm = 'arquivado'   (singular)
+  - .neq('arquivado', true)    -- forma correta, mas verificar se está sendo usada
+  - .eq('arquivado', false)    -- forma correta
+  - WHERE arquivado            -- forma correta
+  - is_archived                -- nome alternativo?
+
+### Passo 3 — Classificar achados
+Para cada ocorrência encontrada:
+  A) CORRETO: usa arquivado=true/false ou coluna_crm='arquivados' corretamente
+  B) INCORRETO: usa campo/valor inexistente → retorna resultados errados silenciosamente
+  C) SUSPEITO: precisa de verificação adicional
+
+### Passo 4 — Corrigir todos os INCORRETOS
+Para cada ocorrência classificada como B:
+  - Substituir pelo campo/valor correto conforme o schema real confirmado no Passo 1
+  - Adicionar comentário no código: // schema: arquivado (boolean), não status string
+
+---
+
+## TAREFA 2 — CRM-07: 3º estado do badge de follow-up ("Automação pausada")
+
+Arquivo: src/components/shared/cliente_drawer/tabs/CrmLeadTabFollowup.tsx
+
+O estado atual implementado:
+  - configAtual existe (ativo=true) → badge verde "Automação ativa"
+  - sem configAtual → badge cinza "Sem configuração de follow-up"
+
+O que falta:
+  - config existe mas ativo=false → badge amarelo "Automação pausada"
+
+Implementar:
+1. No hook/query que busca a configuração de follow-up, fazer uma segunda query
+   (ou modificar a existente) para buscar também configs com ativo=false:
+
+   Exemplo:
+   // Query 1: config ativa (já existe)
+   const { data: configAtiva } = await supabase
+     .from('crm_followup_config')  // ajuste o nome da tabela se necessário
+     .select('*')
+     .eq('lead_id', leadId)
+     .eq('ativo', true)
+     .single();
+
+   // Query 2: config pausada (nova)
+   const { data: configPausada } = await supabase
+     .from('crm_followup_config')
+     .select('id, ativo')
+     .eq('lead_id', leadId)
+     .eq('ativo', false)
+     .single();
+
+2. Atualizar o badge para cobrir os 3 estados:
+   - configAtiva existe → "Automação ativa" (ponto verde)
+   - configPausada existe (e configAtiva não) → "Automação pausada" (ponto amarelo)
+   - nenhuma config → "Sem configuração de follow-up" (ponto cinza)
+
+3. Se o nome da tabela de configuração de follow-up for diferente de crm_followup_config:
+   use o nome correto (verificar nas migrations ou nos hooks existentes do componente)
+
+---
+
+## ENTREGA
+
+1. npx tsc --noEmit — zero erros
+2. Commit com as correções:
+   fix(crm): audit campo arquivado + 3º estado badge follow-up [schema-audit, CRM-07]
+3. Push para main
+4. Gere: /Users/beto/jarbas-reports/crm-audit-arquivado.html com:
+   - Tabela: arquivo | linha | problema | correção aplicada (ou "correto")
+   - Confirmação do schema real (campos e tipos)
+   - Status CRM-07: badge 3 estados implementado ✅ ou detalhe se não foi possível
+   - Linha final: "CRM 100% pronto para distribuição" se tudo OK
+    </div>
+  </div>
+
+  <div class="callout">
+    Depois que o CC retornar o HTML, me manda aqui — fecho o relatório final definitivo do ciclo.
+  </div>
+
+  <footer>
+    BETO · Agente Dev/Ops · MdLab · 24/03/2026
+  </footer>
+</div>
+</body>
+</html>

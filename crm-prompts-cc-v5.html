@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM — Revisão Wave 3 + Resolução Duplicatas CPF</title>
+  <style>
+    :root {
+      --bg: #0f0e0e; --card: #1a1918; --surface: #131211; --border: #2e2c2a;
+      --teal: #20c997; --red: #ef4444; --yellow: #f59e0b; --blue: #3b82f6;
+      --green: #22c55e; --muted: #6b6461; --text: #e8e4e0; --text-dim: #a09895;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.65; padding: 2rem; }
+    .wrap { max-width: 920px; margin: 0 auto; }
+    h1 { font-size: 1.45rem; font-weight: 700; color: var(--teal); margin-bottom: .2rem; }
+    .meta { color: var(--muted); font-size: .8rem; margin-bottom: 2rem; }
+    h2 { font-size: 1rem; font-weight: 600; color: var(--teal); border-bottom: 1px solid var(--border); padding-bottom: .35rem; margin: 2.5rem 0 1rem; }
+    .badge { display: inline-block; font-size: .67rem; font-weight: 700; padding: .12rem .45rem; border-radius: 99px; text-transform: uppercase; letter-spacing: .04em; }
+    .b-red    { background: #ef44441a; color: var(--red);    border: 1px solid #ef444440; }
+    .b-yellow { background: #f59e0b1a; color: var(--yellow); border: 1px solid #f59e0b40; }
+    .b-green  { background: #22c55e1a; color: var(--green);  border: 1px solid #22c55e40; }
+    .b-muted  { background: #2e2c2a;   color: var(--muted);  border: 1px solid #3a3836; }
+    .prompt-wrap { margin: 1.25rem 0; }
+    .prompt-label { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--teal); margin-bottom: .35rem; }
+    .prompt-box {
+      background: var(--surface); border: 1px solid var(--teal); border-radius: 8px;
+      padding: 1.25rem 1.4rem; font-family: 'Courier New', monospace; font-size: .8rem;
+      color: #c8ffe8; white-space: pre-wrap; line-height: 1.65;
+    }
+    .callout { background: #1a1918; border-left: 3px solid var(--teal); border-radius: 0 8px 8px 0; padding: .7rem 1rem; margin: 1rem 0; font-size: .85rem; color: var(--text-dim); }
+    .callout.yellow { border-color: var(--yellow); }
+    .info-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: .9rem 1.1rem; margin-bottom: .75rem; }
+    .info-card p { color: var(--text-dim); font-size: .85rem; margin: .2rem 0 0; }
+    table { width: 100%; border-collapse: collapse; font-size: .82rem; margin-top: .75rem; }
+    thead th { background: #1f1d1b; color: var(--text-dim); padding: .55rem .75rem; text-align: left; border-bottom: 1px solid var(--border); font-weight: 600; }
+    tbody td { padding: .55rem .75rem; border-bottom: 1px solid #1a1918; color: var(--text-dim); vertical-align: top; }
+    .ok   { color: var(--green);  font-weight: 600; }
+    .warn { color: var(--yellow); font-weight: 600; }
+    .err  { color: var(--red);    font-weight: 600; }
+    .dim  { color: var(--muted); }
+    footer { text-align: center; margin-top: 3rem; color: var(--muted); font-size: .73rem; border-top: 1px solid var(--border); padding-top: 1.25rem; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>CRM — Revisão Wave 3 + Resolução Duplicatas CPF</h1>
+  <p class="meta">BETO · 24/03/2026 · Fechamento da Wave 3 e ação sobre os 14 leads duplicados</p>
+
+  <div class="callout yellow">
+    ⚠️ Ação pendente antes de fechar o ciclo: 14 leads com CPF duplicado impedem o UNIQUE constraint no banco.
+    O SQL de promoção do índice está comentado na migration — precisa resolver os duplicados primeiro.
+    Este HTML cobre: 1) revisão da Wave 3, 2) diagnóstico + resolução dos duplicados.
+  </div>
+
+  <!-- STATUS GERAL -->
+  <h2>Status Acumulado — Todas as Waves</h2>
+  <table>
+    <thead><tr><th>Item</th><th>Wave</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>CRM-01 — Toast warning n8n pós-distribuição</td><td>1</td><td class="ok">✅ Concluído</td></tr>
+      <tr><td>CRM-03 — Drag triagem sem advogado bloqueado</td><td>1</td><td class="ok">✅ Concluído</td></tr>
+      <tr><td>CRM-08 — Aviso enganoso kanban corrigido</td><td>1</td><td class="ok">✅ Concluído</td></tr>
+      <tr><td>CRM-02 — Validação advogado na RPC (banco)</td><td>2</td><td class="ok">✅ Concluído</td></tr>
+      <tr><td>CRM-09 — Dedup reativado + UNIQUE WhatsApp</td><td>3A</td><td class="ok">✅ Concluído</td></tr>
+      <tr><td>CRM-09 — UNIQUE CPF (índice de performance até resolver dups)</td><td>3A</td><td class="warn">⚠️ Parcial — 14 leads duplicados pendentes</td></tr>
+      <tr><td>CRM-05 — Limite atividades 50→100</td><td>3B</td><td class="ok">✅ Concluído</td></tr>
+      <tr><td>CRM-07 — Badge status automação follow-up</td><td>3B</td><td class="ok">✅ Concluído (2 estados — ativo/sem config)</td></tr>
+      <tr><td>CRM-12 — Fallback refetchInterval 60s kanban</td><td>3B</td><td class="ok">✅ Concluído</td></tr>
+      <tr><td>CRM-10 — get_org_id() delegando para org_id()</td><td>3B</td><td class="ok">✅ Concluído</td></tr>
+    </tbody>
+  </table>
+
+  <!-- PARTE 1 — REVISÃO -->
+  <h2>Parte 1 — Prompt de Revisão Wave 3</h2>
+
+  <div class="prompt-wrap">
+    <div class="prompt-label">▶ Prompt Revisão Wave 3 — Cole no Claude Code</div>
+    <div class="prompt-box">## CONTEXTO
+Revisão de qualidade da Wave 3 do CRM MdFlow.
+Verificar se as 5 correções foram implementadas corretamente e sem regressões.
+
+Projeto: /Users/beto/beta-mdflow
+
+---
+
+## ITEM 1 — CRM-09: Dedup reativado no ModalNovoLead
+
+Arquivo: src/components/crm/modals/ModalNovoLead.tsx
+
+Verificar:
+1. checkDedupBeforeInsert() está sendo chamada antes do INSERT?
+2. O ModalDedup é exibido quando encontra CPF ou WhatsApp repetidos?
+3. O usuário consegue prosseguir mesmo com a duplicata (aviso soft, não bloqueio hard)?
+   Exceto se o lead existente estiver ativo no mesmo funil — verificar esse caso
+4. A query de dedup filtra por organizacao_id (não vaza dados de outras orgs)?
+5. Se não encontrar duplicata, o fluxo normal continua sem alteração?
+
+---
+
+## ITEM 2 — CRM-05: Limite de atividades aumentado
+
+Arquivo: src/components/shared/cliente_drawer/tabs/CrmLeadTabAtividades.tsx
+
+Verificar:
+1. Ambas as queries (atividades + interações) estão com .limit(100)?
+2. Nenhum texto hardcoded "50" sobrou no componente?
+3. Nenhuma regressão visual na aba?
+
+---
+
+## ITEM 3 — CRM-07: Badge de status no follow-up
+
+Arquivo: src/components/shared/cliente_drawer/tabs/CrmLeadTabFollowup.tsx
+
+Verificar:
+1. Badge aparece sempre no topo da aba (não condicional)?
+2. Estado "Automação ativa" com ponto verde quando configAtual existe?
+3. Estado "Sem configuração de follow-up" com ponto cinza quando não existe config?
+4. Badge usa paleta de cores do projeto (sem cores fora do design system)?
+
+---
+
+## ITEM 4 — CRM-12: refetchInterval no kanban
+
+Arquivo: src/components/crm/CrmKanban.tsx (ou useCrmKanban.ts)
+
+Verificar:
+1. refetchInterval: 60_000 está adicionado à query principal?
+2. Comentário explicando que é fallback para WebSocket silencioso está presente?
+3. O realtime via supabase.channel continua funcionando (não foi removido)?
+
+---
+
+## ITEM 5 — CRM-10: get_org_id() delegando para org_id()
+
+Migration: supabase/migrations/20260324000002*.sql (ou similar)
+
+Verificar:
+1. A migration existe e está sintaticamente correta?
+2. get_org_id() foi alterada para SELECT public.org_id()?
+3. As 129 policies existentes não foram alteradas (zero risco de regressão)?
+
+---
+
+## VERIFICAÇÃO FINAL
+
+1. npx tsc --noEmit — listar qualquer erro TypeScript
+2. git log --oneline -10 — confirmar commits das waves 3A e 3B
+3. Listar qualquer efeito colateral encontrado
+
+## SAÍDA
+
+Gere: /Users/beto/jarbas-reports/crm-revisao-wave3.html
+Status por item: ✅ OK | ⚠️ PARCIAL | ❌ PROBLEMA
+Para cada ❌: corrija na hora e registre.
+Visual escuro, paleta teal.
+    </div>
+  </div>
+
+  <!-- PARTE 2 — DUPLICATAS CPF -->
+  <h2>Parte 2 — Diagnóstico e Resolução dos 14 Leads Duplicados (CPF)</h2>
+
+  <div class="callout yellow">
+    ⚠️ Antes de executar este prompt: revisar os 14 leads manualmente e decidir qual manter.
+    O CC vai gerar um relatório dos duplicados para apoiar a decisão — mas a ação destrutiva
+    (arquivar/mesclar) precisa de confirmação do Christian ou Gustavo.
+  </div>
+
+  <div class="prompt-wrap">
+    <div class="prompt-label">▶ Prompt Resolução Duplicatas CPF — Cole no Claude Code</div>
+    <div class="prompt-box">## CONTEXTO
+O CRM MdFlow tem 14 leads duplicados por CPF que impedem a criação do índice UNIQUE
+em leads.cpf. O SQL para promover o índice já está comentado na migration
+20260324000001 — precisamos resolver os duplicados primeiro.
+
+Esta tarefa é de DIAGNÓSTICO + preparação. Não arquive nem delete nada sem confirmação.
+
+Projeto: /Users/beto/beta-mdflow
+Supabase projeto: qdivfairxhdihaqqypgb
+
+CPFs com duplicatas (identificados na migration):
+- 10300123930
+- 31814847847
+- 05857811090
+- 12345678909
+
+---
+
+## TAREFA 1 — Diagnóstico completo dos duplicados
+
+Para cada CPF acima, execute (via Supabase API ou migration de diagnóstico):
+
+```sql
+SELECT
+  id,
+  nome,
+  cpf,
+  whatsapp,
+  status,
+  created_at,
+  organizacao_id,
+  advogado_id,
+  (SELECT COUNT(*) FROM processos WHERE lead_id = leads.id) as qtd_processos,
+  (SELECT COUNT(*) FROM atividades WHERE lead_id = leads.id) as qtd_atividades
+FROM leads
+WHERE cpf IN ('10300123930', '31814847847', '05857811090', '12345678909')
+ORDER BY cpf, created_at;
+```
+
+Gere uma tabela visual no HTML de resultado mostrando:
+- Para cada grupo de CPF duplicado: qual é o mais antigo, qual tem mais dados (processos, atividades)
+- Sugestão de qual MANTER (o mais antigo com mais dados) e qual arquivar
+- Alertas se algum duplicado tiver processos ativos (não pode ser arquivado sem cuidado)
+
+---
+
+## TAREFA 2 — Preparar SQL de resolução (para revisão manual antes de executar)
+
+Gere um arquivo: supabase/migrations/20260324000003_resolve_cpf_duplicatas.sql
+
+O arquivo deve conter o SQL para arquivar os duplicados sugeridos, mas:
+- TODO o SQL deve estar comentado por padrão
+- Incluir comentário: "-- REVISAR ANTES DE APLICAR: confirmar com Christian/Gustavo"
+- Para cada CPF: comentário explicando qual lead será mantido e qual arquivado
+- NÃO execute este SQL agora
+
+Após arquivar os duplicados (quando aprovado), o SQL final para promover o índice é:
+```sql
+-- Descomentar após resolver duplicatas:
+-- DROP INDEX IF EXISTS idx_leads_cpf_ativo;
+-- CREATE UNIQUE INDEX idx_leads_cpf_unique_ativo
+--   ON leads (cpf, organizacao_id)
+--   WHERE cpf IS NOT NULL AND cpf != '' AND status != 'arquivado' AND deleted_at IS NULL;
+```
+
+Inclua esse bloco no final da migration de resolução, também comentado.
+
+---
+
+## SAÍDA
+
+1. Gere: /Users/beto/jarbas-reports/crm-duplicatas-cpf.html
+   com a tabela de diagnóstico e sugestão de qual manter/arquivar para cada CPF
+
+2. Crie o arquivo: supabase/migrations/20260324000003_resolve_cpf_duplicatas.sql
+   (tudo comentado, para revisão)
+
+3. Commit apenas o arquivo SQL de diagnóstico (nada destrutivo):
+   chore(crm): migration preparatória para resolução de CPFs duplicados [CRM-09]
+
+Não aplique nenhuma mudança nos dados sem aprovação explícita.
+    </div>
+  </div>
+
+  <!-- PRÓXIMOS PASSOS -->
+  <h2>Próximos Passos após este Ciclo</h2>
+
+  <div class="info-card">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+      <span class="badge b-yellow">Ação Manual</span>
+      <strong style="font-size:.88rem">Aprovar resolução dos 14 leads duplicados</strong>
+    </div>
+    <p>Christian ou Gustavo revisam o <code>crm-duplicatas-cpf.html</code>, confirmam qual lead manter por CPF, e aprovam a execução da migration 20260324000003. Depois disso o índice UNIQUE de CPF pode ser promovido.</p>
+  </div>
+
+  <div class="info-card">
+    <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem">
+      <span class="badge b-muted">Backlog</span>
+      <strong style="font-size:.88rem">CRM-07 — Estado "pausada" para o badge de follow-up</strong>
+    </div>
+    <p>O CC não conseguiu distinguir ativo=false do hook atual (filtra eq('ativo', true)). Precisaria de nova query para cobrir os 3 estados. Baixa prioridade — 2 estados já cobrem o caso de uso principal.</p>
+  </div>
+
+  <footer>
+    BETO · Agente Dev/Ops · MdLab · 24/03/2026<br>
+    9/10 itens concluídos · 1 parcial (CPF unique — aguarda resolução manual de duplicatas)
+  </footer>
+</div>
+</body>
+</html>

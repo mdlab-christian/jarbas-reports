@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MdFlow — Distribuição: Core, Fluxo e Pendências</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg: #0f0f0f;
@@ -62,7 +61,8 @@
     .filters { display: flex; gap: 8px; flex-wrap: wrap; }
     .sel { background: #1a1a1a; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; outline: none; }
     .sel:focus { border-color: var(--primary); }
-    .chart-wrap { position: relative; height: 280px; }
+    .chart-wrap { position: relative; width: 100%; }
+    .chart-wrap canvas { display: block; width: 100% !important; }
     .legend-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
     .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); }
     .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -151,7 +151,7 @@
       </div>
 
       <div class="chart-wrap">
-        <canvas id="distChart"></canvas>
+        <canvas id="distChart" height="280"></canvas>
       </div>
 
       <div class="legend-row" id="legend-row"></div>
@@ -348,149 +348,171 @@
 </div>
 
 <script>
-  const COLORS = {
-    oab: ['#20c997','#f59e0b','#3b82f6','#a855f7'],
-    usuario: ['#20c997','#f97316','#06b6d4','#ec4899']
-  };
+/* ── Dados ── */
+const COLORS = {
+  oab:     ['#20c997','#f59e0b','#3b82f6','#a855f7'],
+  usuario: ['#20c997','#f97316','#06b6d4','#ec4899']
+};
+const LABELS = {
+  semanal: ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'],
+  mensal:  ['Semana 1','Semana 2','Semana 3','Semana 4'],
+  todos:   ['Jan','Fev','Mar','Abr','Mai','Jun']
+};
+const DATA = {
+  oab: {
+    semanal: [[12,18,15,22,19,4,2],[8,12,10,16,14,3,1],[5,9,7,11,8,0,0],[3,6,5,8,6,1,0]],
+    mensal:  [[52,61,58,55],[38,44,40,42],[21,27,24,22],[14,19,17,15]],
+    todos:   [[180,210,195,230,205,190],[120,145,132,158,140,128],[82,96,88,104,90,78],[55,68,61,75,63,58]]
+  },
+  usuario: {
+    semanal: [[10,16,13,19,17,3,1],[7,11,9,14,12,2,1],[4,8,6,9,7,0,0],[2,5,4,7,5,1,0]],
+    mensal:  [[46,54,50,48],[32,38,35,37],[18,22,20,19],[11,15,13,12]],
+    todos:   [[155,185,170,200,180,165],[105,128,115,138,122,110],[68,82,75,90,78,65],[45,58,52,65,55,48]]
+  }
+};
+const NAMES = {
+  oab:     ['OAB/SP — Dr. Carvalho','OAB/RJ — Dra. Lima','OAB/MG — Dr. Santos','OAB/PR — Dra. Oliveira'],
+  usuario: ['Carlos (Distribuição)','Fernanda (Distribuição)','Roberto (Operações)','Ana (Suporte)']
+};
 
-  const LABELS_SEMANAL  = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
-  const LABELS_MENSAL   = ['S1','S2','S3','S4'];
-  const LABELS_TODOS    = ['Jan','Fev','Mar','Abr','Mai','Jun'];
+let currentTab = 'oab';
 
-  const DATA = {
-    oab: {
-      semanal: [[12,18,15,22,19,4,2],[8,12,10,16,14,3,1],[5,9,7,11,8,0,0],[3,6,5,8,6,1,0]],
-      mensal:  [[52,61,58,55],[38,44,40,42],[21,27,24,22],[14,19,17,15]],
-      todos:   [[180,210,195,230,205,190,175],[120,145,132,158,140,128,115],[82,96,88,104,90,78,70],[55,68,61,75,63,58,50]]
-    },
-    usuario: {
-      semanal: [[10,16,13,19,17,3,1],[7,11,9,14,12,2,1],[4,8,6,9,7,0,0],[2,5,4,7,5,1,0]],
-      mensal:  [[46,54,50,48],[32,38,35,37],[18,22,20,19],[11,15,13,12]],
-      todos:   [[155,185,170,200,180,165,150],[105,128,115,138,122,110,98],[68,82,75,90,78,65,60],[45,58,52,65,55,48,42]]
+/* ── Hermite cubic spline (smooth curve) ── */
+function splinePoints(pts, tension=0.4) {
+  if (pts.length < 2) return pts;
+  const result = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[Math.max(i-1,0)];
+    const p1 = pts[i];
+    const p2 = pts[i+1];
+    const p3 = pts[Math.min(i+2, pts.length-1)];
+    for (let t = 0; t <= 1; t += 0.05) {
+      const t2=t*t, t3=t2*t;
+      const m1x = tension*(p2.x-p0.x), m1y = tension*(p2.y-p0.y);
+      const m2x = tension*(p3.x-p1.x), m2y = tension*(p3.y-p1.y);
+      const x = (2*t3-3*t2+1)*p1.x + (t3-2*t2+t)*m1x + (-2*t3+3*t2)*p2.x + (t3-t2)*m2x;
+      const y = (2*t3-3*t2+1)*p1.y + (t3-2*t2+t)*m1y + (-2*t3+3*t2)*p2.y + (t3-t2)*m2y;
+      result.push({x,y});
     }
-  };
-
-  const NAMES = {
-    oab: ['OAB/SP — Dr. Carvalho','OAB/RJ — Dra. Lima','OAB/MG — Dr. Santos','OAB/PR — Dra. Oliveira'],
-    usuario: ['Carlos (Distribuição)','Fernanda (Distribuição)','Roberto (Operações)','Ana (Suporte)']
-  };
-
-  let currentTab = 'oab';
-  let chart = null;
-
-  function getLabels(periodo) {
-    if (periodo === 'mensal') return LABELS_MENSAL;
-    if (periodo === 'todos')  return LABELS_TODOS;
-    return LABELS_SEMANAL;
   }
+  result.push(pts[pts.length-1]);
+  return result;
+}
 
-  function buildDatasets(tab, periodo, entidade) {
-    const colors = COLORS[tab];
-    const names  = NAMES[tab];
-    const rawData = DATA[tab][periodo];
-    if (entidade !== 'todos') {
-      const i = parseInt(entidade);
-      return [{
-        label: names[i],
-        data: rawData[i],
-        borderColor: colors[i],
-        backgroundColor: colors[i] + '22',
-        tension: 0.4,
-        fill: true,
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        borderWidth: 2.5
-      }];
-    }
-    return names.map((name, i) => ({
-      label: name,
-      data: rawData[i],
-      borderColor: colors[i],
-      backgroundColor: colors[i] + '18',
-      tension: 0.4,
-      fill: false,
-      pointRadius: 3,
-      pointHoverRadius: 5,
-      borderWidth: 2
-    }));
+/* ── Render ── */
+function drawChart() {
+  const canvas  = document.getElementById('distChart');
+  const periodo = document.getElementById('sel-periodo').value;
+  const entSel  = document.getElementById('sel-entidade').value;
+  const labels  = LABELS[periodo];
+  const allData = DATA[currentTab][periodo];
+  const colors  = COLORS[currentTab];
+  const names   = NAMES[currentTab];
+
+  const indices = entSel === 'todos' ? [0,1,2,3] : [parseInt(entSel)];
+
+  /* size canvas to container */
+  const wrap = canvas.parentElement;
+  const W = wrap.clientWidth || 700;
+  const H = 280;
+  canvas.width  = W;
+  canvas.height = H;
+
+  const PAD = { top:20, right:24, bottom:40, left:44 };
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top  - PAD.bottom;
+
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+
+  /* collect all values for scale */
+  const allVals = indices.flatMap(i => allData[i]);
+  const maxVal  = Math.max(...allVals, 1);
+  const step    = Math.ceil(maxVal / 5 / 5) * 5 || 5;
+  const yMax    = Math.ceil(maxVal / step) * step;
+  const n       = labels.length;
+
+  const xPos = i => PAD.left + (i / (n-1)) * cw;
+  const yPos = v => PAD.top  + ch - (v / yMax) * ch;
+
+  /* grid lines */
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth   = 1;
+  for (let g = 0; g <= 5; g++) {
+    const yv = (g / 5) * yMax;
+    const yp = yPos(yv);
+    ctx.beginPath(); ctx.moveTo(PAD.left, yp); ctx.lineTo(PAD.left+cw, yp); ctx.stroke();
+    /* y labels */
+    ctx.fillStyle = '#666'; ctx.font = '11px Segoe UI,system-ui,sans-serif';
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillText(Math.round(yv), PAD.left-6, yp);
   }
+  /* x labels */
+  ctx.fillStyle = '#666'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  labels.forEach((lbl, i) => ctx.fillText(lbl, xPos(i), PAD.top+ch+8));
 
-  function renderLegend(datasets) {
-    const row = document.getElementById('legend-row');
-    row.innerHTML = datasets.map(ds => `
-      <div class="legend-item">
-        <div class="legend-dot" style="background:${ds.borderColor}"></div>
-        ${ds.label}
-      </div>`).join('');
-  }
+  /* series */
+  indices.forEach(idx => {
+    const vals   = allData[idx];
+    const color  = colors[idx];
+    const rawPts = vals.map((v,i) => ({ x: xPos(i), y: yPos(v) }));
+    const smooth = splinePoints(rawPts);
 
-  function updateChart() {
-    const periodo  = document.getElementById('sel-periodo').value;
-    const entidade = document.getElementById('sel-entidade').value;
-    const labels   = getLabels(periodo);
-    const datasets = buildDatasets(currentTab, periodo, entidade);
+    /* fill under curve */
+    ctx.beginPath();
+    smooth.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.lineTo(xPos(n-1), yPos(0)); ctx.lineTo(xPos(0), yPos(0)); ctx.closePath();
+    const grad = ctx.createLinearGradient(0, PAD.top, 0, PAD.top+ch);
+    grad.addColorStop(0, color+'44'); grad.addColorStop(1, color+'00');
+    ctx.fillStyle = grad; ctx.fill();
 
-    if (chart) {
-      chart.data.labels   = labels;
-      chart.data.datasets = datasets;
-      chart.update('active');
-    } else {
-      const ctx = document.getElementById('distChart').getContext('2d');
-      chart = new Chart(ctx, {
-        type: 'line',
-        data: { labels, datasets },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          interaction: { mode: 'index', intersect: false },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#1e1e1e',
-              titleColor: '#e8e8e8',
-              bodyColor: '#aaa',
-              borderColor: '#333',
-              borderWidth: 1,
-              padding: 10
-            }
-          },
-          scales: {
-            x: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#888' }
-            },
-            y: {
-              grid: { color: 'rgba(255,255,255,0.05)' },
-              ticks: { color: '#888' },
-              title: { display: true, text: 'Processos distribuídos', color: '#666', font: { size: 11 } }
-            }
-          }
-        }
-      });
-    }
-    renderLegend(datasets);
-  }
+    /* line */
+    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    smooth.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.stroke();
 
-  function switchTab(tab) {
-    currentTab = tab;
-    document.getElementById('btn-oab').classList.toggle('active', tab === 'oab');
-    document.getElementById('btn-usuario').classList.toggle('active', tab === 'usuario');
-    const sel = document.getElementById('sel-entidade');
-    sel.innerHTML = tab === 'oab'
-      ? `<option value="todos">Todas as OABs</option>
-         <option value="0">OAB/SP — Dr. Carvalho</option>
-         <option value="1">OAB/RJ — Dra. Lima</option>
-         <option value="2">OAB/MG — Dr. Santos</option>
-         <option value="3">OAB/PR — Dra. Oliveira</option>`
-      : `<option value="todos">Todos os Usuários</option>
-         <option value="0">Carlos (Distribuição)</option>
-         <option value="1">Fernanda (Distribuição)</option>
-         <option value="2">Roberto (Operações)</option>
-         <option value="3">Ana (Suporte)</option>`;
-    updateChart();
-  }
+    /* dots */
+    rawPts.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
+    });
+  });
 
-  document.addEventListener('DOMContentLoaded', () => updateChart());
+  /* legend */
+  const row = document.getElementById('legend-row');
+  row.innerHTML = indices.map(i => `
+    <div class="legend-item">
+      <div class="legend-dot" style="background:${colors[i]}"></div>
+      ${names[i]}
+    </div>`).join('');
+}
+
+function updateChart() { drawChart(); }
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('btn-oab').classList.toggle('active', tab==='oab');
+  document.getElementById('btn-usuario').classList.toggle('active', tab==='usuario');
+  const sel = document.getElementById('sel-entidade');
+  sel.innerHTML = tab === 'oab'
+    ? `<option value="todos">Todas as OABs</option>
+       <option value="0">OAB/SP — Dr. Carvalho</option>
+       <option value="1">OAB/RJ — Dra. Lima</option>
+       <option value="2">OAB/MG — Dr. Santos</option>
+       <option value="3">OAB/PR — Dra. Oliveira</option>`
+    : `<option value="todos">Todos os Usuários</option>
+       <option value="0">Carlos (Distribuição)</option>
+       <option value="1">Fernanda (Distribuição)</option>
+       <option value="2">Roberto (Operações)</option>
+       <option value="3">Ana (Suporte)</option>`;
+  drawChart();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  drawChart();
+  window.addEventListener('resize', drawChart);
+});
 </script>
 </body>
 </html>

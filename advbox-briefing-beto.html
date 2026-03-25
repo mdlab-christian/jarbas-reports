@@ -250,7 +250,7 @@
 
   <div class="card warn" style="margin-top:1rem">
     <h3>⚠️ O Problema Atual</h3>
-    <p>Como o MdFlow ainda não <strong>substituiu</strong> o Advbox mas já está sendo usado em paralelo, processos distribuídos no MdFlow <strong>não estão sendo automaticamente cadastrados no Advbox</strong>. Resultado: os dois sistemas estão fora de sincronia. Advogados que trabalham no Advbox não veem os processos novos. O Advbox tem dados (empresa ré / parte contrária) que o MdFlow não tem.</p>
+    <p>Como o MdFlow ainda não <strong>substituiu</strong> o Advbox mas já está sendo usado em paralelo, processos distribuídos no MdFlow <strong>não estão sendo automaticamente cadastrados no Advbox</strong>. Resultado: os dois sistemas estão fora de sincronia. Advogados que trabalham no Advbox não veem os processos novos. O MdFlow <strong>já tem os dados de empresa ré</strong>, mas eles não estão sendo enviados para o Advbox — o fluxo <strong>MdFlow → Advbox</strong> está quebrado.</p>
   </div>
 </section>
 
@@ -656,14 +656,13 @@ LIMIT 500;</pre>
 
   <div class="card warn" style="margin-top:1rem">
     <span class="priority P1">P1</span> <strong style="margin-left:0.5rem">Autocadastro de processos pós-distribuição (n8n)</strong>
-    <p style="color:var(--text2);margin-top:0.5rem">Adicionar nó no workflow <strong>N8N-DIST-MANUAL</strong> que, após distribuição bem-sucedida:</p>
-    <ol style="padding-left:1.2rem;margin-top:0.5rem;color:var(--text2)">
-      <li>Recebe <code>processo_id</code> + <code>numero_cnj</code></li>
-      <li>Busca dados do processo no Supabase</li>
-      <li>Chama <code>POST /api/v1/lawsuits</code> no Advbox</li>
-      <li>Salva o <code>advbox_id</code> retornado em <code>processos.advbox_id</code></li>
-      <li>Trata erros: retry 3x, notifica Telegram se falhar</li>
-    </ol>
+    <div class="alert" style="margin:0.8rem 0">⚠️ <strong>NÃO modificar o N8N-DIST-MANUAL.</strong> O webhook de distribuição já está funcionando em produção e não pode ser bloqueado. Criar um workflow separado.</div>
+    <p style="color:var(--text2);margin-top:0.5rem"><strong>Abordagem correta:</strong> criar um novo workflow <code>N8N-ADVBOX-POST-DIST</code> acionado de forma assíncrona após a distribuição. Opções:</p>
+    <ul style="padding-left:1.2rem;margin-top:0.5rem;color:var(--text2)">
+      <li><strong>Opção A (recomendada):</strong> Trigger via Supabase Realtime — quando <code>processos.distribuido_em</code> é preenchido, o novo workflow é acionado automaticamente. Mais robusto: se o Advbox falhar, não impacta a distribuição.</li>
+      <li><strong>Opção B:</strong> N8N-DIST-MANUAL faz um HTTP Request fire-and-forget no final para o novo workflow (sem aguardar resposta). Mais simples, menor risco de bloqueio.</li>
+    </ul>
+    <p style="margin-top:0.8rem;color:var(--text2)">O novo workflow recebe <code>processo_id + numero_cnj</code>, busca dados no Supabase, cria no Advbox via POST, salva <code>advbox_id</code> de volta. Retry 3x, notifica Telegram se falhar definitivamente.</p>
   </div>
 
   <div class="card warn" style="margin-top:1rem">
@@ -767,8 +766,8 @@ LIMIT 500;</pre>
   <div class="step">
     <div class="step-num">4</div>
     <div class="step-content">
-      <strong>Adicionar nó no webhook n8n de distribuição</strong><br>
-      <span style="color:var(--text2)">Modificar o workflow N8N-DIST-MANUAL para chamar a API Advbox após cada distribuição. Garantir que processos futuros sejam automaticamente cadastrados. Testar com 1 processo de teste.</span>
+      <strong>Criar workflow separado N8N-ADVBOX-POST-DIST</strong><br>
+      <span style="color:var(--text2)"><strong>⚠️ Não modificar o N8N-DIST-MANUAL.</strong> Criar um novo workflow acionado via Supabase Realtime (quando <code>distribuido_em</code> é preenchido) ou via HTTP fire-and-forget do N8N-DIST-MANUAL. O novo workflow cadastra o processo no Advbox de forma assíncrona, sem risco de bloquear a distribuição.</span>
     </div>
   </div>
 

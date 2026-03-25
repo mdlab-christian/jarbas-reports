@@ -1,354 +1,379 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MdFlow — Distribuição: Core, Fluxo e Pendências</title>
-  <style>
-    :root {
-      --bg: #0f0f0f;
-      --card: #1a1a1a;
-      --border: #2a2a2a;
-      --text: #e8e8e8;
-      --muted: #888;
-      --primary: #20c997;
-      --warn: #f59e0b;
-      --danger: #ef4444;
-      --info: #3b82f6;
-      --success: #22c55e;
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; padding: 32px 20px; }
-    .container { max-width: 980px; margin: 0 auto; }
-    h1 { font-size: 2rem; color: var(--primary); margin-bottom: 4px; }
-    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 40px; }
-    h2 { font-size: 1.3rem; color: var(--primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
-    h3 { font-size: 1.05rem; color: #ddd; margin-bottom: 10px; margin-top: 20px; }
-    .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
-    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
-    .badge-warn  { background: rgba(245,158,11,0.15); color: var(--warn);    border: 1px solid rgba(245,158,11,0.3); }
-    .badge-danger{ background: rgba(239,68,68,0.15);  color: var(--danger);  border: 1px solid rgba(239,68,68,0.3); }
-    .badge-success{background: rgba(34,197,94,0.15);  color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
-    .badge-info  { background: rgba(59,130,246,0.15); color: var(--info);    border: 1px solid rgba(59,130,246,0.3); }
-    .flow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0; }
-    .flow-step { background: #222; border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; min-width: 130px; }
-    .flow-step .label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
-    .flow-step .name  { font-weight: 600; color: var(--text); font-size: 0.9rem; }
-    .flow-arrow { color: var(--primary); font-size: 1.4rem; }
-    .pending-list { list-style: none; }
-    .pending-list li { padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
-    .pending-list li:last-child { border-bottom: none; }
-    .pending-icon { font-size: 1.1rem; margin-top: 2px; flex-shrink: 0; }
-    .pending-content strong { display: block; margin-bottom: 4px; }
-    .pending-content p { color: var(--muted); font-size: 0.9rem; }
-    .tab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
-    .tab-card { background: #111; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
-    .tab-card .tab-title { font-weight: 600; margin-bottom: 8px; color: var(--primary); }
-    .tab-card ul { padding-left: 18px; color: var(--muted); font-size: 0.9rem; }
-    .tab-card ul li { margin-bottom: 4px; }
-    .note { background: rgba(245,158,11,0.08); border-left: 3px solid var(--warn); padding: 12px 16px; border-radius: 0 6px 6px 0; margin-top: 12px; font-size: 0.9rem; color: #ddd; }
-    .note-info    { background: rgba(59,130,246,0.08); border-left: 3px solid var(--info); }
-    .note-success { background: rgba(34,197,94,0.08);  border-left: 3px solid var(--success); }
-    code { background: #222; padding: 2px 7px; border-radius: 4px; font-size: 0.85rem; color: var(--primary); font-family: monospace; }
-    @media (max-width: 600px) { .tab-grid { grid-template-columns: 1fr; } .flow { flex-direction: column; } }
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>MdFlow — Distribuição: Core, Tabelas e Pendências</title>
+<style>
+:root{
+  --bg:#0f0f0f; --card:#1a1a1a; --card2:#141414; --border:#272727;
+  --text:#e8e8e8; --muted:#777; --primary:#20c997; --primary-dim:#20c99722;
+  --warn:#f59e0b; --danger:#ef4444; --info:#3b82f6; --success:#22c55e;
+  --purple:#a855f7; --orange:#f97316; --cyan:#06b6d4; --pink:#ec4899;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;line-height:1.6;padding:28px 18px}
+.container{max-width:1000px;margin:0 auto}
+h1{font-size:1.9rem;color:var(--primary);margin-bottom:2px}
+.subtitle{color:var(--muted);font-size:.9rem;margin-bottom:36px}
+h2{font-size:1.2rem;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;gap:8px}
+h3{font-size:.95rem;color:#bbb;margin:16px 0 8px;letter-spacing:.03em;text-transform:uppercase}
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:22px;margin-bottom:22px}
 
-    /* ── Chart Mockup ── */
-    .chart-shell { background: #111; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 20px; }
-    .chart-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
-    .tab-switcher { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-    .tab-switcher button { background: transparent; border: none; color: var(--muted); padding: 7px 18px; cursor: pointer; font-size: 0.85rem; transition: all .15s; }
-    .tab-switcher button.active { background: var(--primary); color: #0f0f0f; font-weight: 600; }
-    .filters { display: flex; gap: 8px; flex-wrap: wrap; }
-    .sel { background: #1a1a1a; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; outline: none; }
-    .sel:focus { border-color: var(--primary); }
-    .chart-wrap { position: relative; width: 100%; }
-    .chart-wrap canvas { display: block; width: 100% !important; }
-    .legend-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
-    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); }
-    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  </style>
+/* ── badges ── */
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.bd{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+.bw{background:rgba(245,158,11,.15);color:var(--warn);border:1px solid rgba(245,158,11,.3)}
+.bi{background:rgba(59,130,246,.15);color:var(--info);border:1px solid rgba(59,130,246,.3)}
+.bs{background:rgba(34,197,94,.15);color:var(--success);border:1px solid rgba(34,197,94,.3)}
+
+/* ── notes ── */
+.note{padding:11px 15px;border-radius:0 6px 6px 0;font-size:.88rem;color:#ddd;margin-top:12px}
+.note-warn{background:rgba(245,158,11,.07);border-left:3px solid var(--warn)}
+.note-info{background:rgba(59,130,246,.07);border-left:3px solid var(--info)}
+.note-ok  {background:rgba(34,197,94,.07); border-left:3px solid var(--success)}
+
+/* ══════════════════════════════════════
+   FLUXO DE TABELAS
+══════════════════════════════════════ */
+.tables-flow{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding-bottom:8px;margin-top:16px}
+.table-box{flex-shrink:0;min-width:220px;background:#111;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.table-header{padding:10px 14px;font-weight:700;font-size:.85rem;letter-spacing:.04em;display:flex;align-items:center;gap:8px}
+.table-header .icon{font-size:1.1rem}
+.th-crm    {background:rgba(59,130,246,.18);color:var(--info)}
+.th-dist   {background:rgba(32,201,151,.18);color:var(--primary)}
+.th-proc   {background:rgba(168,85,247,.18);color:var(--purple)}
+.th-rest   {background:rgba(245,158,11,.15);color:var(--warn)}
+.table-body{padding:8px 0}
+.field-row{padding:5px 14px;font-size:.8rem;display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(255,255,255,.04)}
+.field-row:last-child{border-bottom:none}
+.field-name{font-family:monospace;color:#ddd;flex:1}
+.field-type{color:var(--muted);font-size:.72rem;white-space:nowrap}
+.field-pk  {background:rgba(245,158,11,.15);color:var(--warn);border-radius:3px;padding:1px 5px;font-size:.65rem;font-weight:700}
+.field-fk  {background:rgba(59,130,246,.15);color:var(--info);border-radius:3px;padding:1px 5px;font-size:.65rem;font-weight:700}
+.field-key {background:rgba(32,201,151,.12);color:var(--primary);border-radius:3px;padding:1px 5px;font-size:.65rem;font-weight:700}
+
+/* conector entre tabelas */
+.table-connector{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding-top:90px;min-width:56px;flex-shrink:0}
+.conn-line{width:2px;height:24px;background:var(--border)}
+.conn-arrow{color:var(--primary);font-size:1.3rem;line-height:1}
+.conn-label{font-size:.68rem;color:var(--muted);text-align:center;margin-top:4px;white-space:nowrap}
+
+/* ── mapeamento campo a campo ── */
+.mapping-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:0 12px;align-items:center;margin-top:16px;row-gap:6px}
+.map-src{text-align:right;font-family:monospace;font-size:.8rem;color:#bbb;padding:4px 10px;background:#151515;border-radius:4px}
+.map-arr{color:var(--primary);font-size:1rem;text-align:center}
+.map-dst{text-align:left;font-family:monospace;font-size:.8rem;color:var(--primary);padding:4px 10px;background:rgba(32,201,151,.07);border-radius:4px}
+.map-header{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:8px 10px 4px;font-weight:600}
+.map-divider{grid-column:1/-1;border-top:1px solid var(--border);margin:6px 0}
+
+/* ══════════════════════════════════════
+   GRÁFICO
+══════════════════════════════════════ */
+.chart-shell{background:#111;border:1px solid var(--border);border-radius:10px;padding:18px;margin-top:16px}
+.chart-controls{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.tab-sw{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+.tab-sw button{background:transparent;border:none;color:var(--muted);padding:6px 16px;cursor:pointer;font-size:.83rem;transition:all .15s}
+.tab-sw button.active{background:var(--primary);color:#0f0f0f;font-weight:600}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.sel{background:#1a1a1a;border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 9px;font-size:.8rem;cursor:pointer;outline:none}
+.sel:focus{border-color:var(--primary)}
+.chart-wrap{width:100%;position:relative}
+canvas#distChart{display:block;width:100% !important}
+.legend-row{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px}
+.legend-item{display:flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* ── pendências ── */
+.pending-list{list-style:none}
+.pending-list li{padding:11px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px}
+.pending-list li:last-child{border-bottom:none}
+.pi{font-size:1rem;margin-top:2px;flex-shrink:0}
+.pc strong{display:block;margin-bottom:3px;font-size:.92rem}
+.pc p{color:var(--muted);font-size:.86rem}
+code{background:#1e1e1e;padding:1px 6px;border-radius:4px;font-size:.82rem;color:var(--primary);font-family:monospace}
+
+/* ── tabs de aba ── */
+.tab-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
+.tab-card{background:#111;border:1px solid var(--border);border-radius:8px;padding:14px}
+.tab-card .tt{font-weight:600;margin-bottom:7px;color:var(--primary);font-size:.88rem}
+.tab-card ul{padding-left:16px;color:var(--muted);font-size:.85rem}
+.tab-card ul li{margin-bottom:3px}
+
+@media(max-width:640px){.tab-grid,.mapping-grid{grid-template-columns:1fr}.tables-flow{flex-direction:column}.table-connector{flex-direction:row;padding:0 0 0 16px;min-width:auto;margin:8px 0}}
+</style>
 </head>
 <body>
 <div class="container">
 
-  <h1>📦 MdFlow — Distribuição</h1>
-  <p class="subtitle">Core, fluxo de dados, mockup de gráfico, pendências e especificações de melhoria · 25/03/2026</p>
+<h1>📦 MdFlow — Distribuição</h1>
+<p class="subtitle">Core · Tabelas · Fluxo de Dados · Mockup Gráfico · Pendências · 25/03/2026</p>
 
-  <!-- ═══════════════════════════════════════════════ CORE ══ -->
-  <div class="section">
-    <h2>🧭 O que é a Distribuição</h2>
-    <p>A Distribuição é o módulo onde as restrições dos clientes são <strong>efetivamente distribuídas judicialmente</strong>. Ela é o elo entre o <strong>CRM</strong> (leads/restrições) e o módulo de <strong>Processos</strong> (processos judiciais ativos).</p>
+<!-- ══════════════════════════════════════════════════
+     1. DIAGRAMA DE TABELAS + FLUXO
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>🗄️ Tabelas e Fluxo: CRM → Distribuição → Processos</h2>
+  <p style="color:var(--muted);font-size:.9rem">Cada lead gera N restrições → cada restrição processável vira 1 linha na distribuição → após efetuar, vira 1 processo judicial.</p>
 
-    <p style="margin-top:12px;">Cada <strong>lead no CRM</strong> pode ter <strong>N restrições</strong>. Somente restrições marcadas como "processáveis" são enviadas para distribuição. Cada restrição processável gera <strong>1 processo independente</strong> na fila de distribuição.</p>
+  <div class="tables-flow" style="margin-top:20px">
 
-    <blockquote style="margin:14px 0 0; padding:12px 16px; border-left:3px solid var(--primary); background:#151515; border-radius:0 6px 6px 0; color:var(--muted); font-size:0.9rem;">
-      Exemplo: lead com 10 restrições, das quais 7 são processáveis → <strong>7 processos</strong> aparecem na UI de Distribuição.
-    </blockquote>
-
-    <h3>Fluxo Completo: CRM → Distribuição → Processos</h3>
-    <div class="flow">
-      <div class="flow-step">
-        <div class="label">1 · Origem</div>
-        <div class="name">CRM (Lead)</div>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step">
-        <div class="label">2 · Filtro</div>
-        <div class="name">Empresas Processáveis</div>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step">
-        <div class="label">3 · Geração</div>
-        <div class="name">Restrições → Processos</div>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step">
-        <div class="label">4 · Fila</div>
-        <div class="name">Aguardando Distribuição</div>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step">
-        <div class="label">5 · Ação</div>
-        <div class="name">Efetuar Distribuição</div>
-      </div>
-      <span class="flow-arrow">→</span>
-      <div class="flow-step" style="border-color:var(--primary);">
-        <div class="label">6 · Destino</div>
-        <div class="name">Módulo Processos</div>
+    <!-- LEADS -->
+    <div class="table-box">
+      <div class="table-header th-crm"><span class="icon">🧑‍💼</span>leads (CRM)</div>
+      <div class="table-body">
+        <div class="field-row"><span class="field-name">id</span><span class="field-pk">PK</span></div>
+        <div class="field-row"><span class="field-name">nome</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">cpf</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">status</span><span class="field-type">enum</span></div>
+        <div class="field-row"><span class="field-name">aprovado_em</span><span class="field-type">timestamptz</span></div>
       </div>
     </div>
 
-    <div class="note note-info" style="margin-top:16px;">
-      <strong>Regra de saída da UI:</strong> Quando <code>distribuido = true</code> → processo desaparece da UI da Distribuição e aparece em <strong>Processos</strong> com número do processo, vara validada e todos os campos mapeados.
+    <!-- conector leads → restricoes -->
+    <div class="table-connector">
+      <div class="conn-line"></div>
+      <div class="conn-arrow">→</div>
+      <div class="conn-label">1 lead<br/>N restrições</div>
     </div>
+
+    <!-- RESTRICOES -->
+    <div class="table-box">
+      <div class="table-header th-rest"><span class="icon">🔒</span>restricoes</div>
+      <div class="table-body">
+        <div class="field-row"><span class="field-name">id</span><span class="field-pk">PK</span></div>
+        <div class="field-row"><span class="field-name">lead_id</span><span class="field-fk">FK</span></div>
+        <div class="field-row"><span class="field-name">orgao_restritivo</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">empresa_re</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">processavel</span><span class="field-type">bool</span></div>
+        <div class="field-row"><span class="field-name">valor</span><span class="field-type">numeric</span></div>
+        <div class="field-row"><span class="field-name">contrato</span><span class="field-type">text</span></div>
+      </div>
+    </div>
+
+    <!-- conector restricoes → distribuicao -->
+    <div class="table-connector">
+      <div class="conn-line"></div>
+      <div class="conn-arrow">→</div>
+      <div class="conn-label">processavel<br/>= true</div>
+    </div>
+
+    <!-- DISTRIBUICAO_PROCESSOS -->
+    <div class="table-box" style="border-color:var(--primary)44">
+      <div class="table-header th-dist"><span class="icon">⚖️</span>distribuicao_processos</div>
+      <div class="table-body">
+        <div class="field-row"><span class="field-name">id</span><span class="field-pk">PK</span></div>
+        <div class="field-row"><span class="field-name">restricao_id</span><span class="field-fk">FK</span></div>
+        <div class="field-row"><span class="field-name">lead_id</span><span class="field-fk">FK</span></div>
+        <div class="field-row"><span class="field-name">advogado_oab</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">status</span><span class="field-type">enum</span></div>
+        <div class="field-row"><span class="field-name">cidade</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">vara</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">foro_regional</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">agendado_para</span><span class="field-type">date</span></div>
+        <div class="field-row"><span class="field-name">distribuido</span><span class="field-type">bool</span></div>
+        <div class="field-row"><span class="field-name">data_distribuicao</span><span class="field-key">KEY</span></div>
+        <div class="field-row"><span class="field-name">usuario_id</span><span class="field-fk">FK</span></div>
+      </div>
+    </div>
+
+    <!-- conector distribuicao → processos -->
+    <div class="table-connector">
+      <div class="conn-line"></div>
+      <div class="conn-arrow">→</div>
+      <div class="conn-label">distribuido<br/>= true</div>
+    </div>
+
+    <!-- PROCESSOS -->
+    <div class="table-box">
+      <div class="table-header th-proc"><span class="icon">📁</span>processos</div>
+      <div class="table-body">
+        <div class="field-row"><span class="field-name">id</span><span class="field-pk">PK</span></div>
+        <div class="field-row"><span class="field-name">distribuicao_id</span><span class="field-fk">FK</span></div>
+        <div class="field-row"><span class="field-name">numero_processo</span><span class="field-key">KEY</span></div>
+        <div class="field-row"><span class="field-name">vara_validada</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">advogado_oab</span><span class="field-type">text</span></div>
+        <div class="field-row"><span class="field-name">status</span><span class="field-type">enum</span></div>
+        <div class="field-row"><span class="field-name">criado_em</span><span class="field-type">timestamptz</span></div>
+      </div>
+    </div>
+
+  </div><!-- /tables-flow -->
+
+  <!-- Legenda de tipos -->
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:14px;font-size:.78rem">
+    <span><span class="field-pk" style="margin-right:4px">PK</span> Chave primária</span>
+    <span><span class="field-fk" style="margin-right:4px">FK</span> Chave estrangeira (JOIN)</span>
+    <span><span class="field-key" style="margin-right:4px">KEY</span> Campo principal do fluxo</span>
   </div>
 
-  <!-- ═══════════════════════════════════════════ DASHBOARD ══ -->
-  <div class="section">
-    <h2>📊 Dashboard — Mockup do Novo Gráfico</h2>
-    <p>Substitui o gráfico de reta atual por um <strong>gráfico de linhas real</strong> (curva sobe/desce) com sistema de abas + filtros duplos. Filtra sempre por <code>data_distribuicao</code>.</p>
-
-    <div class="chart-shell">
-      <div class="chart-controls">
-        <div class="tab-switcher">
-          <button class="active" id="btn-oab" onclick="switchTab('oab')">Por OAB</button>
-          <button id="btn-usuario" onclick="switchTab('usuario')">Por Usuário</button>
-        </div>
-        <div class="filters">
-          <select class="sel" id="sel-periodo" onchange="updateChart()">
-            <option value="semanal" selected>Semanal</option>
-            <option value="mensal">Mensal</option>
-            <option value="todos">Todos</option>
-          </select>
-          <select class="sel" id="sel-entidade" onchange="updateChart()">
-            <option value="todos">Todas as OABs</option>
-            <option value="0">OAB/SP — Dr. Carvalho</option>
-            <option value="1">OAB/RJ — Dra. Lima</option>
-            <option value="2">OAB/MG — Dr. Santos</option>
-            <option value="3">OAB/PR — Dra. Oliveira</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="chart-wrap">
-        <canvas id="distChart" height="280"></canvas>
-      </div>
-
-      <div class="legend-row" id="legend-row"></div>
-    </div>
-
-    <h3 style="margin-top:20px;">Especificação dos Filtros</h3>
-    <div class="tab-grid">
-      <div class="tab-card">
-        <div class="tab-title">Aba: Por OAB</div>
-        <ul>
-          <li>Dropdown período: Semanal (padrão) / Mensal / Todos</li>
-          <li>Dropdown OAB: todos ou advogado específico</li>
-          <li>Cor distinta por OAB no gráfico</li>
-          <li>Quando "Todos": linhas sobrepostas com legenda</li>
-        </ul>
-      </div>
-      <div class="tab-card">
-        <div class="tab-title">Aba: Por Usuário</div>
-        <ul>
-          <li>Dropdown período: Semanal (padrão) / Mensal / Todos</li>
-          <li>Dropdown usuário: todos ou individual</li>
-          <li>Cor distinta por usuário no gráfico</li>
-          <li>Quando "Todos": todas as linhas visíveis</li>
-        </ul>
-      </div>
-    </div>
-
-    <div class="note note-success" style="margin-top:14px;">
-      <strong>✅ Eixo X:</strong> sempre 7 dias (Seg → Dom). Fins de semana incluídos para preparar a automação futura do JARBAS.
-    </div>
+  <!-- ── mapeamento campo a campo ── -->
+  <h3>🔗 Mapeamento: Distribuição → Processos (campo a campo)</h3>
+  <div class="mapping-grid">
+    <div class="map-header">distribuicao_processos</div><div></div><div class="map-header">processos</div>
+    <div class="map-divider"></div>
+    <div class="map-src">id</div><div class="map-arr">→</div><div class="map-dst">distribuicao_id</div>
+    <div class="map-src">advogado_oab</div><div class="map-arr">→</div><div class="map-dst">advogado_oab</div>
+    <div class="map-src">vara</div><div class="map-arr">→</div><div class="map-dst">vara_validada</div>
+    <div class="map-src">lead_id → leads.nome</div><div class="map-arr">→</div><div class="map-dst">nome_cliente</div>
+    <div class="map-src">restricao_id → restricoes.orgao_restritivo</div><div class="map-arr">→</div><div class="map-dst">orgao_restritivo</div>
+    <div class="map-src">(gerado pelo EPROC/Jarbas)</div><div class="map-arr">→</div><div class="map-dst">numero_processo</div>
   </div>
 
-  <!-- ════════════════════════════════════════════════ ABAS ══ -->
-  <div class="section">
-    <h2>📑 Abas da Página</h2>
-    <div class="tab-grid">
-      <div class="tab-card">
-        <div class="tab-title">🟡 Aguardando Preparação</div>
-        <ul>
-          <li>2.780 processos · aparente: empresa ré faltante</li>
-          <li>Drawer: mesmo do Aguardando Distribuição</li>
-          <li>Botão: "Enviar para Distribuição" (não efetuar)</li>
-          <li>Reutilizar componente existente de envio</li>
-          <li>Investigação pendente (ver pendências)</li>
-        </ul>
-      </div>
-      <div class="tab-card">
-        <div class="tab-title">🟢 Aguardando Distribuição</div>
-        <ul>
-          <li>Drawer bem estruturado ✅</li>
-          <li>Faltando: contrato na seção Restrição Principal</li>
-          <li>Advogado: só sigla + estado (tirar nome completo)</li>
-          <li>Remover Comarca/Vara do modal Efetuar Distribuição</li>
-          <li>Upload de documentos com erro</li>
-          <li>Comprovante de restrição não gera</li>
-        </ul>
-      </div>
-      <div class="tab-card">
-        <div class="tab-title">🔵 Agendados</div>
-        <ul>
-          <li>Drawer idêntico ao Aguardando Distribuição</li>
-          <li>Mesmas correções: contrato, sigla, comarca</li>
-          <li>Modal Efetuar Distribuição: remover Comarca/Vara</li>
-        </ul>
-      </div>
-      <div class="tab-card">
-        <div class="tab-title">⚫ Aba JARBAS</div>
-        <ul>
-          <li>Não funcionando — manter como placeholder</li>
-          <li>Futuramente: JARBAS distribuirá automaticamente</li>
-          <li>Nada urgente por enquanto</li>
-        </ul>
-      </div>
-    </div>
+  <div class="note note-info" style="margin-top:14px">
+    <strong>Regra de saída da UI:</strong> quando <code>distribuido = true</code> → linha desaparece da UI da Distribuição e o registro em <code>processos</code> é criado com <code>numero_processo</code>, <code>vara_validada</code> e todos os campos mapeados.
   </div>
-
-  <!-- ══════════════════════════════════════════ PENDÊNCIAS ══ -->
-  <div class="section">
-    <h2>🔧 Pendências e Bugs</h2>
-    <ul class="pending-list">
-
-      <li>
-        <span class="pending-icon">🔴</span>
-        <div class="pending-content">
-          <strong>Contrato não aparece no Drawer — Restrição Principal <span class="badge badge-danger">P1 · Bug</span></strong>
-          <p>Campo "contrato" ausente na seção Restrição Principal. Afeta Aguardando Distribuição, Agendados e (futuramente) Aguardando Preparação.</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🔴</span>
-        <div class="pending-content">
-          <strong>Upload de documentos falhando para todos os tipos <span class="badge badge-danger">P1 · Bug</span></strong>
-          <p>Erros: "Erro a enviar o contrato", "Erro a registrar comprovante". Nenhum tipo de arquivo consegue ser enviado.</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🔴</span>
-        <div class="pending-content">
-          <strong>Gerar Comprovante de Restrição travado em "gerando" <span class="badge badge-danger">P1 · Bug</span></strong>
-          <p>Botão bloqueado, não é possível baixar. Deve usar órgão restritivo correto do processo (Boa Vista → comprovante Boa Vista; Serasa → comprovante Serasa). Cenário N8N existe e está lapidado — verificar integração.</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🟡</span>
-        <div class="pending-content">
-          <strong>Remover campo "Comarca/Vara" do modal Efetuar Distribuição <span class="badge badge-warn">P2 · Melhoria</span></strong>
-          <p>Redundante: já existem Cidade, Vara e Foro Regional. Dropdown abre vazio. Remover de: Aguardando Distribuição e Agendados.</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🟡</span>
-        <div class="pending-content">
-          <strong>Advogado: exibir apenas sigla + estado <span class="badge badge-warn">P2 · Melhoria</span></strong>
-          <p>Drawer exibe nome completo. Deve exibir só sigla + estado (ex: OAB/SP). Nome já aparece no filtro de advogado.</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🟡</span>
-        <div class="pending-content">
-          <strong>Drawer Aguardando Preparação: modal inadequado <span class="badge badge-warn">P2 · Melhoria</span></strong>
-          <p>Usar mesmo drawer do Aguardando Distribuição. Trocar "Efetuar Distribuição" por "Enviar para Distribuição" (componente reutilizável existente).</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🟡</span>
-        <div class="pending-content">
-          <strong>Dashboard: substituir gráfico atual <span class="badge badge-warn">P2 · Feature</span></strong>
-          <p>Ver mockup acima. Gráfico de linhas + filtros duplos (OAB/Usuário), períodos, eixo X seg–dom, filtrar por data_distribuicao.</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🔵</span>
-        <div class="pending-content">
-          <strong>Investigar 2.780 processos em Aguardando Preparação <span class="badge badge-info">P3 · Investigação</span></strong>
-          <p>Todos aparentemente com empresa ré faltante. Investigar causa raiz após as correções de P1/P2.</p>
-        </div>
-      </li>
-
-      <li>
-        <span class="pending-icon">🔵</span>
-        <div class="pending-content">
-          <strong>Confirmar ligação completa Distribuição → Processos <span class="badge badge-info">P3 · Validação</span></strong>
-          <p>Após <code>distribuido = true</code>: some da UI? Aparece em Processos com número correto? Vara validada? Todos os campos mapeados?</p>
-        </div>
-      </li>
-
-    </ul>
+  <div class="note note-warn">
+    <strong>⚠️ Comprovante usa orgao_restritivo do processo:</strong> Boa Vista → comprovante Boa Vista; Serasa → comprovante Serasa. Não misturar.
   </div>
-
-  <!-- ══════════════════════════════════════ REGRAS NEGÓCIO ══ -->
-  <div class="section">
-    <h2>📋 Regras de Negócio</h2>
-    <div class="note note-success" style="margin-bottom:12px;">
-      <strong>✅ NÃO bloquear efetuar distribuição por falta de documentos</strong><br>
-      Clientes atuais são migrados do sistema antigo com tudo gerado externamente. Diferente do CRM (duplicata de CPF), aqui não há bloqueio.
-    </div>
-    <div class="note" style="margin-bottom:12px;">
-      <strong>⚠️ Comprovante usa órgão restritivo do processo</strong><br>
-      Boa Vista → comprovante Boa Vista. Serasa → comprovante Serasa. Não cruzar órgãos.
-    </div>
-    <div class="note note-info">
-      <strong>ℹ️ Gráfico contempla fins de semana</strong><br>
-      Hoje sem distribuição nos fins de semana. No futuro, JARBAS distribuirá automaticamente seg–dom.
-    </div>
-  </div>
-
-  <!-- ══════════════════════════════════════ ORDEM EXECUÇÃO ══ -->
-  <div class="section">
-    <h2>🚀 Ordem de Execução Sugerida</h2>
-    <ol style="padding-left:20px; line-height:2.1; color:var(--text);">
-      <li>🔴 Corrigir contrato no drawer (Restrição Principal)</li>
-      <li>🔴 Corrigir upload de documentos (todos os tipos)</li>
-      <li>🔴 Corrigir geração do comprovante de restrição (N8N)</li>
-      <li>🟡 Remover campo Comarca/Vara do modal Efetuar Distribuição</li>
-      <li>🟡 Ajustar advogado: sigla + estado only</li>
-      <li>🟡 Unificar drawer Aguardando Preparação + botão "Enviar"</li>
-      <li>🟡 Implementar novo gráfico do Dashboard (validar mockup acima)</li>
-      <li>🔵 Investigar 2.780 presos em Aguardando Preparação</li>
-      <li>🔵 Validar ligação completa Distribuição → Processos</li>
-    </ol>
-  </div>
-
-  <p style="color: var(--muted); font-size: 0.8rem; text-align:center; margin-top:8px; padding-bottom:24px;">
-    Gerado por BETO · MdLab · 25/03/2026 · baseado em áudio de Gustavo Paz
-  </p>
-
 </div>
 
+<!-- ══════════════════════════════════════════════════
+     2. DASHBOARD — GRÁFICO
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>📊 Dashboard — Mockup: Gráfico de Distribuição</h2>
+  <p style="color:var(--muted);font-size:.9rem">Substitui o gráfico atual. Linha com curva real (sobe/desce). Filtra por <code>data_distribuicao</code>.</p>
+
+  <div class="chart-shell">
+    <div class="chart-controls">
+      <div class="tab-sw">
+        <button class="active" id="btn-oab" onclick="switchTab('oab')">Por OAB</button>
+        <button id="btn-usuario" onclick="switchTab('usuario')">Por Usuário</button>
+      </div>
+      <div class="filters">
+        <select class="sel" id="sel-periodo" onchange="drawChart()">
+          <option value="semanal" selected>Semanal</option>
+          <option value="mensal">Mensal</option>
+          <option value="todos">Todos</option>
+        </select>
+        <select class="sel" id="sel-entidade" onchange="drawChart()">
+          <option value="todos">Todas as OABs</option>
+          <option value="0">OAB/SP — Dr. Carvalho</option>
+          <option value="1">OAB/RJ — Dra. Lima</option>
+          <option value="2">OAB/MG — Dr. Santos</option>
+          <option value="3">OAB/PR — Dra. Oliveira</option>
+        </select>
+      </div>
+    </div>
+    <div class="chart-wrap">
+      <canvas id="distChart" height="300"></canvas>
+    </div>
+    <div class="legend-row" id="legend-row"></div>
+  </div>
+
+  <h3 style="margin-top:18px">Especificação dos filtros</h3>
+  <div class="tab-grid">
+    <div class="tab-card">
+      <div class="tt">Aba: Por OAB</div>
+      <ul>
+        <li>Período: Semanal (padrão) / Mensal / Todos</li>
+        <li>Dropdown OAB: todos ou individual</li>
+        <li>Cor distinta por OAB</li>
+        <li>Eixo X: Seg→Dom (7 dias)</li>
+      </ul>
+    </div>
+    <div class="tab-card">
+      <div class="tt">Aba: Por Usuário</div>
+      <ul>
+        <li>Período: Semanal (padrão) / Mensal / Todos</li>
+        <li>Dropdown usuário: todos ou individual</li>
+        <li>Cor distinta por usuário</li>
+        <li>Mesmo eixo e comportamento</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     3. ABAS DA PÁGINA
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>📑 Abas da Página</h2>
+  <div class="tab-grid">
+    <div class="tab-card">
+      <div class="tt">🟡 Aguardando Preparação</div>
+      <ul>
+        <li>2.780 processos — empresa ré faltante</li>
+        <li>Drawer idêntico ao Aguardando Distribuição</li>
+        <li>Botão: "Enviar para Distribuição"</li>
+        <li>Investigação pendente (causa raiz)</li>
+      </ul>
+    </div>
+    <div class="tab-card">
+      <div class="tt">🟢 Aguardando Distribuição</div>
+      <ul>
+        <li>Drawer bem estruturado ✅</li>
+        <li>Faltando: contrato na Restrição Principal</li>
+        <li>Advogado: só sigla + estado</li>
+        <li>Remover Comarca/Vara do modal</li>
+        <li>Upload de documentos com erro</li>
+        <li>Comprovante de restrição travado</li>
+      </ul>
+    </div>
+    <div class="tab-card">
+      <div class="tt">🔵 Agendados</div>
+      <ul>
+        <li>Drawer idêntico ao Aguardando Distribuição</li>
+        <li>Mesmas correções: contrato, sigla, comarca</li>
+      </ul>
+    </div>
+    <div class="tab-card">
+      <div class="tt">⚫ Aba JARBAS</div>
+      <ul>
+        <li>Placeholder — não funcionando</li>
+        <li>Futuro: JARBAS distribuirá automaticamente</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     4. PENDÊNCIAS
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>🔧 Pendências e Bugs</h2>
+  <ul class="pending-list">
+    <li><span class="pi">🔴</span><div class="pc"><strong>Contrato ausente no Drawer — Restrição Principal <span class="badge bd">P1 Bug</span></strong><p>Campo <code>contrato</code> não aparece na seção Restrição Principal. Afeta Aguardando Distribuição e Agendados.</p></div></li>
+    <li><span class="pi">🔴</span><div class="pc"><strong>Upload de documentos falhando <span class="badge bd">P1 Bug</span></strong><p>Nenhum tipo de arquivo sobe. Erros: "Erro a enviar o contrato", "Erro a registrar comprovante".</p></div></li>
+    <li><span class="pi">🔴</span><div class="pc"><strong>Comprovante de Restrição travado em "gerando" <span class="badge bd">P1 Bug</span></strong><p>Botão bloqueado indefinidamente. Cenário N8N existe — verificar integração. Deve usar <code>orgao_restritivo</code> correto.</p></div></li>
+    <li><span class="pi">🟡</span><div class="pc"><strong>Remover Comarca/Vara do modal Efetuar Distribuição <span class="badge bw">P2 Melhoria</span></strong><p>Redundante: já existem Cidade, Vara e Foro Regional. Abre vazio.</p></div></li>
+    <li><span class="pi">🟡</span><div class="pc"><strong>Advogado: exibir só sigla + estado <span class="badge bw">P2 Melhoria</span></strong><p>Drawer mostra nome completo. Deve ser apenas <code>OAB/SP</code>, <code>OAB/RJ</code> etc.</p></div></li>
+    <li><span class="pi">🟡</span><div class="pc"><strong>Drawer Aguardando Preparação: unificar componente <span class="badge bw">P2 Melhoria</span></strong><p>Usar mesmo drawer. Botão "Enviar para Distribuição" (componente existente).</p></div></li>
+    <li><span class="pi">🟡</span><div class="pc"><strong>Dashboard: implementar novo gráfico <span class="badge bw">P2 Feature</span></strong><p>Linhas com curva real, filtros OAB/Usuário, períodos, eixo X seg–dom, filtrar por <code>data_distribuicao</code>.</p></div></li>
+    <li><span class="pi">🔵</span><div class="pc"><strong>Investigar 2.780 em Aguardando Preparação <span class="badge bi">P3 Investigação</span></strong><p>Empresa ré faltante em todos? Causa raiz após correções P1/P2.</p></div></li>
+    <li><span class="pi">🔵</span><div class="pc"><strong>Validar ligação Distribuição → Processos <span class="badge bi">P3 Validação</span></strong><p>Após <code>distribuido = true</code>: some da UI? Aparece em Processos com todos os campos?</p></div></li>
+  </ul>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     5. ORDEM DE EXECUÇÃO
+══════════════════════════════════════════════════ -->
+<div class="section">
+  <h2>🚀 Ordem de Execução</h2>
+  <ol style="padding-left:20px;line-height:2.2;font-size:.93rem">
+    <li>🔴 Contrato no drawer (Restrição Principal)</li>
+    <li>🔴 Upload de documentos (todos os tipos)</li>
+    <li>🔴 Comprovante de restrição — integração N8N</li>
+    <li>🟡 Remover Comarca/Vara do modal</li>
+    <li>🟡 Advogado: sigla + estado only</li>
+    <li>🟡 Drawer unificado Aguardando Preparação</li>
+    <li>🟡 Implementar novo gráfico (validado acima)</li>
+    <li>🔵 Investigar 2.780 presos</li>
+    <li>🔵 Validar ligação Distribuição → Processos</li>
+  </ol>
+</div>
+
+<p style="color:var(--muted);font-size:.78rem;text-align:center;padding-bottom:24px">
+  BETO · MdLab · 25/03/2026 · baseado em áudios de Gustavo Paz
+</p>
+
+</div><!-- /container -->
+
+<!-- ══════════════════════════════════════════════════
+     SCRIPT — Canvas 2D sem dependências externas
+══════════════════════════════════════════════════ -->
 <script>
-/* ── Dados ── */
 const COLORS = {
   oab:     ['#20c997','#f59e0b','#3b82f6','#a855f7'],
   usuario: ['#20c997','#f97316','#06b6d4','#ec4899']
@@ -377,118 +402,119 @@ const NAMES = {
 
 let currentTab = 'oab';
 
-/* ── Hermite cubic spline (smooth curve) ── */
-function splinePoints(pts, tension=0.4) {
-  if (pts.length < 2) return pts;
-  const result = [];
+/* catmull-rom smooth */
+function catmull(ctx, pts) {
+  if (pts.length < 2) return;
+  ctx.moveTo(pts[0].x, pts[0].y);
   for (let i = 0; i < pts.length - 1; i++) {
     const p0 = pts[Math.max(i-1,0)];
     const p1 = pts[i];
     const p2 = pts[i+1];
     const p3 = pts[Math.min(i+2, pts.length-1)];
-    for (let t = 0; t <= 1; t += 0.05) {
-      const t2=t*t, t3=t2*t;
-      const m1x = tension*(p2.x-p0.x), m1y = tension*(p2.y-p0.y);
-      const m2x = tension*(p3.x-p1.x), m2y = tension*(p3.y-p1.y);
-      const x = (2*t3-3*t2+1)*p1.x + (t3-2*t2+t)*m1x + (-2*t3+3*t2)*p2.x + (t3-t2)*m2x;
-      const y = (2*t3-3*t2+1)*p1.y + (t3-2*t2+t)*m1y + (-2*t3+3*t2)*p2.y + (t3-t2)*m2y;
-      result.push({x,y});
-    }
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+    ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
   }
-  result.push(pts[pts.length-1]);
-  return result;
 }
 
-/* ── Render ── */
 function drawChart() {
-  const canvas  = document.getElementById('distChart');
-  const periodo = document.getElementById('sel-periodo').value;
-  const entSel  = document.getElementById('sel-entidade').value;
-  const labels  = LABELS[periodo];
-  const allData = DATA[currentTab][periodo];
-  const colors  = COLORS[currentTab];
-  const names   = NAMES[currentTab];
+  const canvas   = document.getElementById('distChart');
+  const periodo  = document.getElementById('sel-periodo').value;
+  const entSel   = document.getElementById('sel-entidade').value;
+  const labels   = LABELS[periodo];
+  const allData  = DATA[currentTab][periodo];
+  const colors   = COLORS[currentTab];
+  const names    = NAMES[currentTab];
+  const indices  = entSel === 'todos' ? [0,1,2,3] : [parseInt(entSel)];
 
-  const indices = entSel === 'todos' ? [0,1,2,3] : [parseInt(entSel)];
-
-  /* size canvas to container */
+  /* dimensões — fallback para 720 se clientWidth=0 */
   const wrap = canvas.parentElement;
-  const W = wrap.clientWidth || 700;
-  const H = 280;
-  canvas.width  = W;
-  canvas.height = H;
-
-  const PAD = { top:20, right:24, bottom:40, left:44 };
-  const cw = W - PAD.left - PAD.right;
-  const ch = H - PAD.top  - PAD.bottom;
+  const W = Math.max(wrap.getBoundingClientRect().width || wrap.clientWidth || 0, 320) || 720;
+  const H = 300;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
 
   const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
   ctx.clearRect(0,0,W,H);
 
-  /* collect all values for scale */
+  const PAD = {top:20, right:20, bottom:42, left:46};
+  const cw = W - PAD.left - PAD.right;
+  const ch = H - PAD.top  - PAD.bottom;
+  const n  = labels.length;
+
   const allVals = indices.flatMap(i => allData[i]);
   const maxVal  = Math.max(...allVals, 1);
-  const step    = Math.ceil(maxVal / 5 / 5) * 5 || 5;
-  const yMax    = Math.ceil(maxVal / step) * step;
-  const n       = labels.length;
+  const nice    = v => Math.ceil(v / 5 / 5) * 5 || 5;
+  const yMax    = Math.ceil(maxVal / nice(maxVal)) * nice(maxVal);
 
-  const xPos = i => PAD.left + (i / (n-1)) * cw;
-  const yPos = v => PAD.top  + ch - (v / yMax) * ch;
+  const xPos = i => PAD.left + (n > 1 ? (i/(n-1))*cw : cw/2);
+  const yPos = v => PAD.top  + ch - (v/yMax)*ch;
 
-  /* grid lines */
-  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
-  ctx.lineWidth   = 1;
-  for (let g = 0; g <= 5; g++) {
-    const yv = (g / 5) * yMax;
+  /* grid */
+  ctx.save();
+  for (let g=0; g<=5; g++) {
+    const yv = (g/5)*yMax;
     const yp = yPos(yv);
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+    ctx.lineWidth   = 1;
     ctx.beginPath(); ctx.moveTo(PAD.left, yp); ctx.lineTo(PAD.left+cw, yp); ctx.stroke();
-    /* y labels */
-    ctx.fillStyle = '#666'; ctx.font = '11px Segoe UI,system-ui,sans-serif';
-    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    ctx.fillStyle   = '#555';
+    ctx.font        = `11px 'Segoe UI',sans-serif`;
+    ctx.textAlign   = 'right'; ctx.textBaseline = 'middle';
     ctx.fillText(Math.round(yv), PAD.left-6, yp);
   }
-  /* x labels */
-  ctx.fillStyle = '#666'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-  labels.forEach((lbl, i) => ctx.fillText(lbl, xPos(i), PAD.top+ch+8));
+  /* x axis labels */
+  ctx.fillStyle = '#555'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  labels.forEach((lbl,i) => ctx.fillText(lbl, xPos(i), PAD.top+ch+8));
+  ctx.restore();
 
   /* series */
   indices.forEach(idx => {
-    const vals   = allData[idx];
-    const color  = colors[idx];
-    const rawPts = vals.map((v,i) => ({ x: xPos(i), y: yPos(v) }));
-    const smooth = splinePoints(rawPts);
+    const vals  = allData[idx];
+    const color = colors[idx];
+    const pts   = vals.map((v,i) => ({x:xPos(i), y:yPos(v)}));
 
-    /* fill under curve */
+    /* fill */
+    ctx.save();
     ctx.beginPath();
-    smooth.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
-    ctx.lineTo(xPos(n-1), yPos(0)); ctx.lineTo(xPos(0), yPos(0)); ctx.closePath();
+    catmull(ctx, pts);
+    ctx.lineTo(xPos(n-1), yPos(0));
+    ctx.lineTo(xPos(0),   yPos(0));
+    ctx.closePath();
     const grad = ctx.createLinearGradient(0, PAD.top, 0, PAD.top+ch);
-    grad.addColorStop(0, color+'44'); grad.addColorStop(1, color+'00');
+    grad.addColorStop(0, color+'55');
+    grad.addColorStop(1, color+'05');
     ctx.fillStyle = grad; ctx.fill();
+    ctx.restore();
 
     /* line */
-    ctx.beginPath(); ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
-    smooth.forEach((p,i) => i===0 ? ctx.moveTo(p.x,p.y) : ctx.lineTo(p.x,p.y));
+    ctx.save();
+    ctx.beginPath();
+    catmull(ctx, pts);
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
     ctx.stroke();
+    ctx.restore();
 
     /* dots */
-    rawPts.forEach(p => {
-      ctx.beginPath(); ctx.arc(p.x, p.y, 4, 0, Math.PI*2);
+    pts.forEach(p => {
+      ctx.beginPath(); ctx.arc(p.x, p.y, 4.5, 0, Math.PI*2);
       ctx.fillStyle = color; ctx.fill();
       ctx.strokeStyle = '#111'; ctx.lineWidth = 1.5; ctx.stroke();
     });
   });
 
   /* legend */
-  const row = document.getElementById('legend-row');
-  row.innerHTML = indices.map(i => `
-    <div class="legend-item">
-      <div class="legend-dot" style="background:${colors[i]}"></div>
-      ${names[i]}
-    </div>`).join('');
+  document.getElementById('legend-row').innerHTML = indices.map(i =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${colors[i]}"></div>${names[i]}</div>`
+  ).join('');
 }
-
-function updateChart() { drawChart(); }
 
 function switchTab(tab) {
   currentTab = tab;
@@ -509,10 +535,14 @@ function switchTab(tab) {
   drawChart();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  drawChart();
-  window.addEventListener('resize', drawChart);
-});
+/* aguarda layout antes de desenhar — resolve htmlpreview */
+function init() {
+  requestAnimationFrame(() => {
+    setTimeout(drawChart, 80);
+  });
+}
+document.addEventListener('DOMContentLoaded', init);
+window.addEventListener('resize', drawChart);
 </script>
 </body>
 </html>

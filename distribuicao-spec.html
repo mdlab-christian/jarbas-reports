@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MdFlow — Distribuição: Core, Fluxo e Pendências</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --card: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e8e8e8;
+      --muted: #888;
+      --primary: #20c997;
+      --warn: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --success: #22c55e;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; line-height: 1.6; padding: 32px 20px; }
+    .container { max-width: 980px; margin: 0 auto; }
+    h1 { font-size: 2rem; color: var(--primary); margin-bottom: 4px; }
+    .subtitle { color: var(--muted); font-size: 0.95rem; margin-bottom: 40px; }
+    h2 { font-size: 1.3rem; color: var(--primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    h3 { font-size: 1.05rem; color: #ddd; margin-bottom: 10px; margin-top: 20px; }
+    .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-warn  { background: rgba(245,158,11,0.15); color: var(--warn);    border: 1px solid rgba(245,158,11,0.3); }
+    .badge-danger{ background: rgba(239,68,68,0.15);  color: var(--danger);  border: 1px solid rgba(239,68,68,0.3); }
+    .badge-success{background: rgba(34,197,94,0.15);  color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-info  { background: rgba(59,130,246,0.15); color: var(--info);    border: 1px solid rgba(59,130,246,0.3); }
+    .flow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 20px 0; }
+    .flow-step { background: #222; border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; text-align: center; min-width: 130px; }
+    .flow-step .label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; }
+    .flow-step .name  { font-weight: 600; color: var(--text); font-size: 0.9rem; }
+    .flow-arrow { color: var(--primary); font-size: 1.4rem; }
+    .pending-list { list-style: none; }
+    .pending-list li { padding: 12px 0; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+    .pending-list li:last-child { border-bottom: none; }
+    .pending-icon { font-size: 1.1rem; margin-top: 2px; flex-shrink: 0; }
+    .pending-content strong { display: block; margin-bottom: 4px; }
+    .pending-content p { color: var(--muted); font-size: 0.9rem; }
+    .tab-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+    .tab-card { background: #111; border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+    .tab-card .tab-title { font-weight: 600; margin-bottom: 8px; color: var(--primary); }
+    .tab-card ul { padding-left: 18px; color: var(--muted); font-size: 0.9rem; }
+    .tab-card ul li { margin-bottom: 4px; }
+    .note { background: rgba(245,158,11,0.08); border-left: 3px solid var(--warn); padding: 12px 16px; border-radius: 0 6px 6px 0; margin-top: 12px; font-size: 0.9rem; color: #ddd; }
+    .note-info    { background: rgba(59,130,246,0.08); border-left: 3px solid var(--info); }
+    .note-success { background: rgba(34,197,94,0.08);  border-left: 3px solid var(--success); }
+    code { background: #222; padding: 2px 7px; border-radius: 4px; font-size: 0.85rem; color: var(--primary); font-family: monospace; }
+    @media (max-width: 600px) { .tab-grid { grid-template-columns: 1fr; } .flow { flex-direction: column; } }
+
+    /* ── Chart Mockup ── */
+    .chart-shell { background: #111; border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-top: 20px; }
+    .chart-controls { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+    .tab-switcher { display: flex; gap: 0; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .tab-switcher button { background: transparent; border: none; color: var(--muted); padding: 7px 18px; cursor: pointer; font-size: 0.85rem; transition: all .15s; }
+    .tab-switcher button.active { background: var(--primary); color: #0f0f0f; font-weight: 600; }
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+    .sel { background: #1a1a1a; border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 6px 10px; font-size: 0.82rem; cursor: pointer; outline: none; }
+    .sel:focus { border-color: var(--primary); }
+    .chart-wrap { position: relative; height: 280px; }
+    .legend-row { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; }
+    .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: var(--muted); }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>📦 MdFlow — Distribuição</h1>
+  <p class="subtitle">Core, fluxo de dados, mockup de gráfico, pendências e especificações de melhoria · 25/03/2026</p>
+
+  <!-- ═══════════════════════════════════════════════ CORE ══ -->
+  <div class="section">
+    <h2>🧭 O que é a Distribuição</h2>
+    <p>A Distribuição é o módulo onde as restrições dos clientes são <strong>efetivamente distribuídas judicialmente</strong>. Ela é o elo entre o <strong>CRM</strong> (leads/restrições) e o módulo de <strong>Processos</strong> (processos judiciais ativos).</p>
+
+    <p style="margin-top:12px;">Cada <strong>lead no CRM</strong> pode ter <strong>N restrições</strong>. Somente restrições marcadas como "processáveis" são enviadas para distribuição. Cada restrição processável gera <strong>1 processo independente</strong> na fila de distribuição.</p>
+
+    <blockquote style="margin:14px 0 0; padding:12px 16px; border-left:3px solid var(--primary); background:#151515; border-radius:0 6px 6px 0; color:var(--muted); font-size:0.9rem;">
+      Exemplo: lead com 10 restrições, das quais 7 são processáveis → <strong>7 processos</strong> aparecem na UI de Distribuição.
+    </blockquote>
+
+    <h3>Fluxo Completo: CRM → Distribuição → Processos</h3>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="label">1 · Origem</div>
+        <div class="name">CRM (Lead)</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="label">2 · Filtro</div>
+        <div class="name">Empresas Processáveis</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="label">3 · Geração</div>
+        <div class="name">Restrições → Processos</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="label">4 · Fila</div>
+        <div class="name">Aguardando Distribuição</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">
+        <div class="label">5 · Ação</div>
+        <div class="name">Efetuar Distribuição</div>
+      </div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step" style="border-color:var(--primary);">
+        <div class="label">6 · Destino</div>
+        <div class="name">Módulo Processos</div>
+      </div>
+    </div>
+
+    <div class="note note-info" style="margin-top:16px;">
+      <strong>Regra de saída da UI:</strong> Quando <code>distribuido = true</code> → processo desaparece da UI da Distribuição e aparece em <strong>Processos</strong> com número do processo, vara validada e todos os campos mapeados.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════ DASHBOARD ══ -->
+  <div class="section">
+    <h2>📊 Dashboard — Mockup do Novo Gráfico</h2>
+    <p>Substitui o gráfico de reta atual por um <strong>gráfico de linhas real</strong> (curva sobe/desce) com sistema de abas + filtros duplos. Filtra sempre por <code>data_distribuicao</code>.</p>
+
+    <div class="chart-shell">
+      <div class="chart-controls">
+        <div class="tab-switcher">
+          <button class="active" id="btn-oab" onclick="switchTab('oab')">Por OAB</button>
+          <button id="btn-usuario" onclick="switchTab('usuario')">Por Usuário</button>
+        </div>
+        <div class="filters">
+          <select class="sel" id="sel-periodo" onchange="updateChart()">
+            <option value="semanal" selected>Semanal</option>
+            <option value="mensal">Mensal</option>
+            <option value="todos">Todos</option>
+          </select>
+          <select class="sel" id="sel-entidade" onchange="updateChart()">
+            <option value="todos">Todas as OABs</option>
+            <option value="0">OAB/SP — Dr. Carvalho</option>
+            <option value="1">OAB/RJ — Dra. Lima</option>
+            <option value="2">OAB/MG — Dr. Santos</option>
+            <option value="3">OAB/PR — Dra. Oliveira</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <canvas id="distChart"></canvas>
+      </div>
+
+      <div class="legend-row" id="legend-row"></div>
+    </div>
+
+    <h3 style="margin-top:20px;">Especificação dos Filtros</h3>
+    <div class="tab-grid">
+      <div class="tab-card">
+        <div class="tab-title">Aba: Por OAB</div>
+        <ul>
+          <li>Dropdown período: Semanal (padrão) / Mensal / Todos</li>
+          <li>Dropdown OAB: todos ou advogado específico</li>
+          <li>Cor distinta por OAB no gráfico</li>
+          <li>Quando "Todos": linhas sobrepostas com legenda</li>
+        </ul>
+      </div>
+      <div class="tab-card">
+        <div class="tab-title">Aba: Por Usuário</div>
+        <ul>
+          <li>Dropdown período: Semanal (padrão) / Mensal / Todos</li>
+          <li>Dropdown usuário: todos ou individual</li>
+          <li>Cor distinta por usuário no gráfico</li>
+          <li>Quando "Todos": todas as linhas visíveis</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note note-success" style="margin-top:14px;">
+      <strong>✅ Eixo X:</strong> sempre 7 dias (Seg → Dom). Fins de semana incluídos para preparar a automação futura do JARBAS.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════ ABAS ══ -->
+  <div class="section">
+    <h2>📑 Abas da Página</h2>
+    <div class="tab-grid">
+      <div class="tab-card">
+        <div class="tab-title">🟡 Aguardando Preparação</div>
+        <ul>
+          <li>2.780 processos · aparente: empresa ré faltante</li>
+          <li>Drawer: mesmo do Aguardando Distribuição</li>
+          <li>Botão: "Enviar para Distribuição" (não efetuar)</li>
+          <li>Reutilizar componente existente de envio</li>
+          <li>Investigação pendente (ver pendências)</li>
+        </ul>
+      </div>
+      <div class="tab-card">
+        <div class="tab-title">🟢 Aguardando Distribuição</div>
+        <ul>
+          <li>Drawer bem estruturado ✅</li>
+          <li>Faltando: contrato na seção Restrição Principal</li>
+          <li>Advogado: só sigla + estado (tirar nome completo)</li>
+          <li>Remover Comarca/Vara do modal Efetuar Distribuição</li>
+          <li>Upload de documentos com erro</li>
+          <li>Comprovante de restrição não gera</li>
+        </ul>
+      </div>
+      <div class="tab-card">
+        <div class="tab-title">🔵 Agendados</div>
+        <ul>
+          <li>Drawer idêntico ao Aguardando Distribuição</li>
+          <li>Mesmas correções: contrato, sigla, comarca</li>
+          <li>Modal Efetuar Distribuição: remover Comarca/Vara</li>
+        </ul>
+      </div>
+      <div class="tab-card">
+        <div class="tab-title">⚫ Aba JARBAS</div>
+        <ul>
+          <li>Não funcionando — manter como placeholder</li>
+          <li>Futuramente: JARBAS distribuirá automaticamente</li>
+          <li>Nada urgente por enquanto</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════ PENDÊNCIAS ══ -->
+  <div class="section">
+    <h2>🔧 Pendências e Bugs</h2>
+    <ul class="pending-list">
+
+      <li>
+        <span class="pending-icon">🔴</span>
+        <div class="pending-content">
+          <strong>Contrato não aparece no Drawer — Restrição Principal <span class="badge badge-danger">P1 · Bug</span></strong>
+          <p>Campo "contrato" ausente na seção Restrição Principal. Afeta Aguardando Distribuição, Agendados e (futuramente) Aguardando Preparação.</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🔴</span>
+        <div class="pending-content">
+          <strong>Upload de documentos falhando para todos os tipos <span class="badge badge-danger">P1 · Bug</span></strong>
+          <p>Erros: "Erro a enviar o contrato", "Erro a registrar comprovante". Nenhum tipo de arquivo consegue ser enviado.</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🔴</span>
+        <div class="pending-content">
+          <strong>Gerar Comprovante de Restrição travado em "gerando" <span class="badge badge-danger">P1 · Bug</span></strong>
+          <p>Botão bloqueado, não é possível baixar. Deve usar órgão restritivo correto do processo (Boa Vista → comprovante Boa Vista; Serasa → comprovante Serasa). Cenário N8N existe e está lapidado — verificar integração.</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🟡</span>
+        <div class="pending-content">
+          <strong>Remover campo "Comarca/Vara" do modal Efetuar Distribuição <span class="badge badge-warn">P2 · Melhoria</span></strong>
+          <p>Redundante: já existem Cidade, Vara e Foro Regional. Dropdown abre vazio. Remover de: Aguardando Distribuição e Agendados.</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🟡</span>
+        <div class="pending-content">
+          <strong>Advogado: exibir apenas sigla + estado <span class="badge badge-warn">P2 · Melhoria</span></strong>
+          <p>Drawer exibe nome completo. Deve exibir só sigla + estado (ex: OAB/SP). Nome já aparece no filtro de advogado.</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🟡</span>
+        <div class="pending-content">
+          <strong>Drawer Aguardando Preparação: modal inadequado <span class="badge badge-warn">P2 · Melhoria</span></strong>
+          <p>Usar mesmo drawer do Aguardando Distribuição. Trocar "Efetuar Distribuição" por "Enviar para Distribuição" (componente reutilizável existente).</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🟡</span>
+        <div class="pending-content">
+          <strong>Dashboard: substituir gráfico atual <span class="badge badge-warn">P2 · Feature</span></strong>
+          <p>Ver mockup acima. Gráfico de linhas + filtros duplos (OAB/Usuário), períodos, eixo X seg–dom, filtrar por data_distribuicao.</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🔵</span>
+        <div class="pending-content">
+          <strong>Investigar 2.780 processos em Aguardando Preparação <span class="badge badge-info">P3 · Investigação</span></strong>
+          <p>Todos aparentemente com empresa ré faltante. Investigar causa raiz após as correções de P1/P2.</p>
+        </div>
+      </li>
+
+      <li>
+        <span class="pending-icon">🔵</span>
+        <div class="pending-content">
+          <strong>Confirmar ligação completa Distribuição → Processos <span class="badge badge-info">P3 · Validação</span></strong>
+          <p>Após <code>distribuido = true</code>: some da UI? Aparece em Processos com número correto? Vara validada? Todos os campos mapeados?</p>
+        </div>
+      </li>
+
+    </ul>
+  </div>
+
+  <!-- ══════════════════════════════════════ REGRAS NEGÓCIO ══ -->
+  <div class="section">
+    <h2>📋 Regras de Negócio</h2>
+    <div class="note note-success" style="margin-bottom:12px;">
+      <strong>✅ NÃO bloquear efetuar distribuição por falta de documentos</strong><br>
+      Clientes atuais são migrados do sistema antigo com tudo gerado externamente. Diferente do CRM (duplicata de CPF), aqui não há bloqueio.
+    </div>
+    <div class="note" style="margin-bottom:12px;">
+      <strong>⚠️ Comprovante usa órgão restritivo do processo</strong><br>
+      Boa Vista → comprovante Boa Vista. Serasa → comprovante Serasa. Não cruzar órgãos.
+    </div>
+    <div class="note note-info">
+      <strong>ℹ️ Gráfico contempla fins de semana</strong><br>
+      Hoje sem distribuição nos fins de semana. No futuro, JARBAS distribuirá automaticamente seg–dom.
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ ORDEM EXECUÇÃO ══ -->
+  <div class="section">
+    <h2>🚀 Ordem de Execução Sugerida</h2>
+    <ol style="padding-left:20px; line-height:2.1; color:var(--text);">
+      <li>🔴 Corrigir contrato no drawer (Restrição Principal)</li>
+      <li>🔴 Corrigir upload de documentos (todos os tipos)</li>
+      <li>🔴 Corrigir geração do comprovante de restrição (N8N)</li>
+      <li>🟡 Remover campo Comarca/Vara do modal Efetuar Distribuição</li>
+      <li>🟡 Ajustar advogado: sigla + estado only</li>
+      <li>🟡 Unificar drawer Aguardando Preparação + botão "Enviar"</li>
+      <li>🟡 Implementar novo gráfico do Dashboard (validar mockup acima)</li>
+      <li>🔵 Investigar 2.780 presos em Aguardando Preparação</li>
+      <li>🔵 Validar ligação completa Distribuição → Processos</li>
+    </ol>
+  </div>
+
+  <p style="color: var(--muted); font-size: 0.8rem; text-align:center; margin-top:8px; padding-bottom:24px;">
+    Gerado por BETO · MdLab · 25/03/2026 · baseado em áudio de Gustavo Paz
+  </p>
+
+</div>
+
+<script>
+  const COLORS = {
+    oab: ['#20c997','#f59e0b','#3b82f6','#a855f7'],
+    usuario: ['#20c997','#f97316','#06b6d4','#ec4899']
+  };
+
+  const LABELS_SEMANAL  = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const LABELS_MENSAL   = ['S1','S2','S3','S4'];
+  const LABELS_TODOS    = ['Jan','Fev','Mar','Abr','Mai','Jun'];
+
+  const DATA = {
+    oab: {
+      semanal: [[12,18,15,22,19,4,2],[8,12,10,16,14,3,1],[5,9,7,11,8,0,0],[3,6,5,8,6,1,0]],
+      mensal:  [[52,61,58,55],[38,44,40,42],[21,27,24,22],[14,19,17,15]],
+      todos:   [[180,210,195,230,205,190,175],[120,145,132,158,140,128,115],[82,96,88,104,90,78,70],[55,68,61,75,63,58,50]]
+    },
+    usuario: {
+      semanal: [[10,16,13,19,17,3,1],[7,11,9,14,12,2,1],[4,8,6,9,7,0,0],[2,5,4,7,5,1,0]],
+      mensal:  [[46,54,50,48],[32,38,35,37],[18,22,20,19],[11,15,13,12]],
+      todos:   [[155,185,170,200,180,165,150],[105,128,115,138,122,110,98],[68,82,75,90,78,65,60],[45,58,52,65,55,48,42]]
+    }
+  };
+
+  const NAMES = {
+    oab: ['OAB/SP — Dr. Carvalho','OAB/RJ — Dra. Lima','OAB/MG — Dr. Santos','OAB/PR — Dra. Oliveira'],
+    usuario: ['Carlos (Distribuição)','Fernanda (Distribuição)','Roberto (Operações)','Ana (Suporte)']
+  };
+
+  let currentTab = 'oab';
+  let chart = null;
+
+  function getLabels(periodo) {
+    if (periodo === 'mensal') return LABELS_MENSAL;
+    if (periodo === 'todos')  return LABELS_TODOS;
+    return LABELS_SEMANAL;
+  }
+
+  function buildDatasets(tab, periodo, entidade) {
+    const colors = COLORS[tab];
+    const names  = NAMES[tab];
+    const rawData = DATA[tab][periodo];
+    if (entidade !== 'todos') {
+      const i = parseInt(entidade);
+      return [{
+        label: names[i],
+        data: rawData[i],
+        borderColor: colors[i],
+        backgroundColor: colors[i] + '22',
+        tension: 0.4,
+        fill: true,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        borderWidth: 2.5
+      }];
+    }
+    return names.map((name, i) => ({
+      label: name,
+      data: rawData[i],
+      borderColor: colors[i],
+      backgroundColor: colors[i] + '18',
+      tension: 0.4,
+      fill: false,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+      borderWidth: 2
+    }));
+  }
+
+  function renderLegend(datasets) {
+    const row = document.getElementById('legend-row');
+    row.innerHTML = datasets.map(ds => `
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${ds.borderColor}"></div>
+        ${ds.label}
+      </div>`).join('');
+  }
+
+  function updateChart() {
+    const periodo  = document.getElementById('sel-periodo').value;
+    const entidade = document.getElementById('sel-entidade').value;
+    const labels   = getLabels(periodo);
+    const datasets = buildDatasets(currentTab, periodo, entidade);
+
+    if (chart) {
+      chart.data.labels   = labels;
+      chart.data.datasets = datasets;
+      chart.update('active');
+    } else {
+      const ctx = document.getElementById('distChart').getContext('2d');
+      chart = new Chart(ctx, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#1e1e1e',
+              titleColor: '#e8e8e8',
+              bodyColor: '#aaa',
+              borderColor: '#333',
+              borderWidth: 1,
+              padding: 10
+            }
+          },
+          scales: {
+            x: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#888' }
+            },
+            y: {
+              grid: { color: 'rgba(255,255,255,0.05)' },
+              ticks: { color: '#888' },
+              title: { display: true, text: 'Processos distribuídos', color: '#666', font: { size: 11 } }
+            }
+          }
+        }
+      });
+    }
+    renderLegend(datasets);
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.getElementById('btn-oab').classList.toggle('active', tab === 'oab');
+    document.getElementById('btn-usuario').classList.toggle('active', tab === 'usuario');
+    const sel = document.getElementById('sel-entidade');
+    sel.innerHTML = tab === 'oab'
+      ? `<option value="todos">Todas as OABs</option>
+         <option value="0">OAB/SP — Dr. Carvalho</option>
+         <option value="1">OAB/RJ — Dra. Lima</option>
+         <option value="2">OAB/MG — Dr. Santos</option>
+         <option value="3">OAB/PR — Dra. Oliveira</option>`
+      : `<option value="todos">Todos os Usuários</option>
+         <option value="0">Carlos (Distribuição)</option>
+         <option value="1">Fernanda (Distribuição)</option>
+         <option value="2">Roberto (Operações)</option>
+         <option value="3">Ana (Suporte)</option>`;
+    updateChart();
+  }
+
+  document.addEventListener('DOMContentLoaded', () => updateChart());
+</script>
+</body>
+</html>

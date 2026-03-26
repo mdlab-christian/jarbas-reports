@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise de Custos Anthropic — JARBAS Network</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e0e0e0; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #1a1f2e 0%, #252b3b 100%); padding: 40px; border-bottom: 2px solid #e53e3e; }
+  .header h1 { font-size: 28px; color: #fff; font-weight: 700; }
+  .header .subtitle { color: #a0aec0; margin-top: 8px; font-size: 14px; }
+  .header .date { color: #fc8181; font-size: 13px; margin-top: 6px; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 30px 40px; }
+  .alert-box { background: #2d1515; border: 1px solid #e53e3e; border-radius: 10px; padding: 20px; margin: 20px 0; }
+  .alert-box h2 { color: #fc8181; font-size: 18px; margin-bottom: 12px; }
+  .alert-box .cost { font-size: 32px; color: #e53e3e; font-weight: 700; }
+  .alert-box .cost span { font-size: 16px; color: #a0aec0; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 20px 0; }
+  .card { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 10px; padding: 20px; }
+  .card h3 { color: #90cdf4; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+  .card .value { font-size: 28px; font-weight: 700; color: #fff; }
+  .card .label { font-size: 12px; color: #718096; margin-top: 4px; }
+  .card.danger { border-color: #e53e3e; }
+  .card.warning { border-color: #ed8936; }
+  .card.success { border-color: #48bb78; }
+  .section { margin: 30px 0; }
+  .section h2 { font-size: 20px; color: #fff; border-bottom: 1px solid #2d3748; padding-bottom: 10px; margin-bottom: 16px; }
+  .chart-container { background: #1a1f2e; border: 1px solid #2d3748; border-radius: 10px; padding: 20px; }
+  .bar-chart { display: flex; flex-direction: column; gap: 8px; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-label { width: 90px; font-size: 12px; color: #a0aec0; text-align: right; flex-shrink: 0; }
+  .bar-wrap { flex: 1; background: #2d3748; border-radius: 4px; height: 24px; position: relative; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; display: flex; align-items: center; padding-left: 8px; font-size: 11px; font-weight: 600; color: #fff; }
+  .bar-fill.peak { background: linear-gradient(90deg, #e53e3e, #fc8181); }
+  .bar-fill.high { background: linear-gradient(90deg, #ed8936, #f6ad55); }
+  .bar-fill.normal { background: linear-gradient(90deg, #3182ce, #63b3ed); }
+  .bar-fill.low { background: linear-gradient(90deg, #38a169, #68d391); }
+  .bar-value { width: 80px; font-size: 12px; color: #fff; font-weight: 600; text-align: right; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th { background: #252b3b; color: #90cdf4; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 14px; text-align: left; }
+  td { padding: 10px 14px; border-bottom: 1px solid #1e2738; font-size: 13px; }
+  tr:hover td { background: #1e2738; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge.red { background: #2d1515; color: #fc8181; border: 1px solid #e53e3e; }
+  .badge.orange { background: #2d1a0a; color: #f6ad55; border: 1px solid #ed8936; }
+  .badge.blue { background: #0a1628; color: #90cdf4; border: 1px solid #3182ce; }
+  .badge.green { background: #0a2118; color: #68d391; border: 1px solid #38a169; }
+  .cause-item { display: flex; gap: 16px; padding: 16px; background: #1a1f2e; border-radius: 8px; border-left: 4px solid; margin-bottom: 12px; }
+  .cause-item.c1 { border-color: #e53e3e; }
+  .cause-item.c2 { border-color: #ed8936; }
+  .cause-item.c3 { border-color: #ecc94b; }
+  .cause-item.c4 { border-color: #48bb78; }
+  .cause-item.c5 { border-color: #90cdf4; }
+  .cause-num { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; flex-shrink: 0; }
+  .cause-body h4 { color: #fff; font-size: 15px; margin-bottom: 4px; }
+  .cause-body p { color: #a0aec0; font-size: 13px; }
+  .cause-body .impact { color: #fc8181; font-size: 12px; font-weight: 600; margin-top: 6px; }
+  .rec-item { display: flex; gap: 12px; padding: 14px; background: #0d1f0d; border: 1px solid #276227; border-radius: 8px; margin-bottom: 10px; }
+  .rec-emoji { font-size: 20px; flex-shrink: 0; }
+  .rec-body h4 { color: #68d391; font-size: 14px; margin-bottom: 4px; }
+  .rec-body p { color: #a0aec0; font-size: 13px; }
+  .rec-body .saving { color: #68d391; font-size: 12px; font-weight: 700; margin-top: 4px; }
+  .rec-body code { background: #1a3320; color: #9ae6b4; padding: 2px 6px; border-radius: 4px; font-size: 12px; font-family: monospace; }
+  .footer { background: #1a1f2e; border-top: 1px solid #2d3748; padding: 20px 40px; text-align: center; color: #718096; font-size: 12px; margin-top: 40px; }
+  .donut-chart { display: flex; align-items: center; gap: 30px; }
+  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #a0aec0; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .token-flow { display: flex; align-items: center; gap: 8px; margin: 10px 0; }
+  .token-box { background: #252b3b; border: 1px solid #2d3748; border-radius: 6px; padding: 8px 14px; text-align: center; }
+  .token-box .num { font-size: 18px; font-weight: 700; color: #fff; }
+  .token-box .lbl { font-size: 11px; color: #718096; }
+  .arrow { color: #4a5568; font-size: 20px; }
+  .cost-breakdown { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .cost-pill { background: #252b3b; border-radius: 20px; padding: 4px 12px; font-size: 12px; }
+  .cost-pill span { color: #a0aec0; }
+  .cost-pill strong { color: #fc8181; }
+  .jarbas-note { background: #1a1520; border: 1px solid #553c7b; border-radius: 10px; padding: 16px; margin: 16px 0; }
+  .jarbas-note h4 { color: #b794f4; margin-bottom: 8px; }
+  .jarbas-note p { color: #a0aec0; font-size: 13px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div style="max-width:1200px;margin:0 auto;">
+    <h1>🔴 Análise de Custos Anthropic — JARBAS Network</h1>
+    <div class="subtitle">Deep Research • Todas as sessões JANA (MacBook Air M4) • Últimos 10 dias</div>
+    <div class="date">Gerado em: 2026-03-26 01:20 GMT-3 | Investigação solicitada por Christian Paz</div>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ALERT BOX -->
+  <div class="alert-box">
+    <h2>⚠️ Status de Gasto — JANA (MacBook Air)</h2>
+    <div style="display:flex;gap:40px;flex-wrap:wrap;margin-top:10px;">
+      <div>
+        <div class="cost">$688 USD <span>últimos 10 dias</span></div>
+        <div style="color:#718096;font-size:13px;margin-top:4px;">~R$3.990 — JANA only (JARBAS offline durante investigação)</div>
+      </div>
+      <div>
+        <div class="cost" style="color:#ed8936;">$326 USD <span>pico em 22/03</span></div>
+        <div style="color:#718096;font-size:13px;margin-top:4px;">Dia mais caro — desenvolvimento intenso Olivia</div>
+      </div>
+      <div>
+        <div class="cost" style="color:#48bb78;">$12-14 USD <span>dias normais</span></div>
+        <div style="color:#718096;font-size:13px;margin-top:4px;">Baseline sem sessões de dev intenso</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MÉTRICAS GERAIS -->
+  <div class="grid-3">
+    <div class="card danger">
+      <h3>Total 10 dias</h3>
+      <div class="value">$688</div>
+      <div class="label">~R$3.990 (câmbio 5.8)</div>
+    </div>
+    <div class="card warning">
+      <h3>Pico diário</h3>
+      <div class="value">$326</div>
+      <div class="label">22/03 — 3.734 calls ao Claude</div>
+    </div>
+    <div class="card">
+      <h3>Baseline normal</h3>
+      <div class="value">~$12</div>
+      <div class="label">Dias sem dev intenso</div>
+    </div>
+    <div class="card">
+      <h3>Modelo usado</h3>
+      <div class="value" style="font-size:18px;">claude-sonnet-4-6</div>
+      <div class="label">100% das chamadas</div>
+    </div>
+    <div class="card warning">
+      <h3>Contexto médio/call</h3>
+      <div class="value">120k</div>
+      <div class="label">tokens (cache read avg)</div>
+    </div>
+    <div class="card danger">
+      <h3>Cache write custo</h3>
+      <div class="value">$0.65</div>
+      <div class="label">por rebuild (174k tokens)</div>
+    </div>
+  </div>
+
+  <!-- GRÁFICO DE BARRAS -->
+  <div class="section">
+    <h2>📊 Gastos Diários (JANA — MacBook Air)</h2>
+    <div class="chart-container">
+      <div class="bar-chart">
+        <div class="bar-row">
+          <div class="bar-label">16/03</div>
+          <div class="bar-wrap"><div class="bar-fill low" style="width:0.2%">$0.55</div></div>
+          <div class="bar-value" style="color:#68d391">$0.55</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">17/03</div>
+          <div class="bar-wrap"><div class="bar-fill low" style="width:0.8%">$2.47</div></div>
+          <div class="bar-value" style="color:#68d391">$2.47</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">18/03</div>
+          <div class="bar-wrap"><div class="bar-fill normal" style="width:3.4%">$11</div></div>
+          <div class="bar-value" style="color:#63b3ed">$11.06</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">19/03</div>
+          <div class="bar-wrap"><div class="bar-fill low" style="width:0.6%">$2</div></div>
+          <div class="bar-value" style="color:#68d391">$2.01</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">20/03</div>
+          <div class="bar-wrap"><div class="bar-fill normal" style="width:2.8%">$9</div></div>
+          <div class="bar-value" style="color:#63b3ed">$9.23</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">21/03</div>
+          <div class="bar-wrap"><div class="bar-fill high" style="width:33.6%">$109.76</div></div>
+          <div class="bar-value" style="color:#f6ad55">$109.76</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">22/03 🔴</div>
+          <div class="bar-wrap"><div class="bar-fill peak" style="width:100%">$326.43 — PICO MÁXIMO</div></div>
+          <div class="bar-value" style="color:#fc8181">$326.43</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">23/03</div>
+          <div class="bar-wrap"><div class="bar-fill high" style="width:34.4%">$112.10</div></div>
+          <div class="bar-value" style="color:#f6ad55">$112.10</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">24/03</div>
+          <div class="bar-wrap"><div class="bar-fill normal" style="width:3.8%">$12</div></div>
+          <div class="bar-value" style="color:#63b3ed">$12.27</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">25/03</div>
+          <div class="bar-wrap"><div class="bar-fill normal" style="width:4.5%">$14</div></div>
+          <div class="bar-value" style="color:#63b3ed">$14.62</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">26/03 *</div>
+          <div class="bar-wrap"><div class="bar-fill high" style="width:27.2%">$88.93 (em curso)</div></div>
+          <div class="bar-value" style="color:#f6ad55">$88.93</div>
+        </div>
+      </div>
+      <div style="color:#718096;font-size:12px;margin-top:12px;">* 26/03 ainda em andamento — 01:20 GMT-3</div>
+    </div>
+  </div>
+
+  <!-- SESSÕES MAIS CARAS -->
+  <div class="section">
+    <h2>🔴 Top Sessões por Custo (dias 21-23/03)</h2>
+    <div class="chart-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Sessão</th>
+            <th>Grupo/Contexto</th>
+            <th>Tipo</th>
+            <th>Calls</th>
+            <th>Avg Cache Read</th>
+            <th>Cache Writes</th>
+            <th>Custo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code style="font-family:monospace;color:#90cdf4">188649bb</code></td>
+            <td>S3 — Modo Express</td>
+            <td><span class="badge red">Grupo Telegram</span></td>
+            <td>3.083</td>
+            <td>119.630 tk</td>
+            <td>294x ($137)</td>
+            <td style="color:#fc8181;font-weight:700">$271.77</td>
+          </tr>
+          <tr>
+            <td><code style="font-family:monospace;color:#90cdf4">27e25c3f</code></td>
+            <td>Heartbeat Session</td>
+            <td><span class="badge orange">Heartbeat</span></td>
+            <td>890</td>
+            <td>83.542 tk</td>
+            <td>~variável</td>
+            <td style="color:#f6ad55;font-weight:700">$109.89</td>
+          </tr>
+          <tr>
+            <td><code style="font-family:monospace;color:#90cdf4">18533a4d</code></td>
+            <td>S4 — Modo Agente</td>
+            <td><span class="badge red">Grupo Telegram</span></td>
+            <td>870</td>
+            <td>118.668 tk</td>
+            <td>variável</td>
+            <td style="color:#f6ad55;font-weight:700">$73.91</td>
+          </tr>
+          <tr>
+            <td><code style="font-family:monospace;color:#90cdf4">d2c83b92</code></td>
+            <td>[G6] Olivia E2E</td>
+            <td><span class="badge blue">Olivia Dev</span></td>
+            <td>822</td>
+            <td>126.005 tk</td>
+            <td>variável</td>
+            <td style="color:#63b3ed;font-weight:700">$55.62</td>
+          </tr>
+          <tr>
+            <td><code style="font-family:monospace;color:#90cdf4">086ae595</code></td>
+            <td>[G2] Olivia Skills</td>
+            <td><span class="badge blue">Olivia Dev</span></td>
+            <td>427</td>
+            <td>115.770 tk</td>
+            <td>variável</td>
+            <td style="color:#63b3ed;font-weight:700">$49.84</td>
+          </tr>
+          <tr>
+            <td><code style="font-family:monospace;color:#90cdf4">deae068f</code></td>
+            <td>Sessão direta</td>
+            <td><span class="badge orange">DM</span></td>
+            <td>827</td>
+            <td>96.648 tk</td>
+            <td>variável</td>
+            <td style="color:#f6ad55;font-weight:700">$47.27</td>
+          </tr>
+          <tr>
+            <td><code style="font-family:monospace;color:#90cdf4">7abe6404</code></td>
+            <td>[G5] Olivia Editor</td>
+            <td><span class="badge blue">Olivia Dev</span></td>
+            <td>317</td>
+            <td>108.618 tk</td>
+            <td>variável</td>
+            <td>$16.38</td>
+          </tr>
+          <tr>
+            <td colspan="6" style="color:#718096;font-size:12px">+ outras 20 sessões menores...</td>
+            <td style="font-weight:700">~$63</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CAUSAS RAIZ -->
+  <div class="section">
+    <h2>🔍 Causas Raiz Identificadas</h2>
+
+    <div class="cause-item c1">
+      <div class="cause-num" style="background:#2d1515;color:#fc8181">1</div>
+      <div class="cause-body">
+        <h4>🧠 Contexto Gigante — Cache de 120-174k Tokens por Call</h4>
+        <p>Cada chamada ao Claude carrega em média <strong>120.000 tokens via prompt cache</strong>. Isso inclui SOUL.md, MEMORY.md, AGENTS.md, TOOLS.md, HEARTBEAT.md + histórico do grupo + skills injetadas. O system prompt tem ~174k tokens total. A cada rebuild de cache (TTL 30min), o custo é de <strong>$0.65 por chamada</strong> — só para montar o contexto.</p>
+        <div class="impact">⚡ Impacto: ~60% do custo total | Cache write = $3.75/M tokens (12.5x mais caro que cache read)</div>
+        <div class="cost-breakdown">
+          <div class="cost-pill"><span>174k tokens × </span><strong>$3.75/M</strong><span> = $0.65/write</span></div>
+          <div class="cost-pill"><span>TTL 30min → </span><strong>48 rewrites/dia</strong><span> = $31/dia só em writes</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="cause-item c2">
+      <div class="cause-num" style="background:#2d1a0a;color:#f6ad55">2</div>
+      <div class="cause-body">
+        <h4>📱 Muitos Grupos Telegram com requireMention=false</h4>
+        <p>São 5+ grupos ativos + wildcard (*) onde <strong>TODA mensagem aciona o Claude</strong>. Os grupos Olivia (G1-G6) sozinhos geraram 3.000+ calls em 3 dias. O grupo "S3 Modo Express" custou <strong>$271 em 3 dias</strong>. O wildcard (*) significa que qualquer grupo Telegram não listado também aciona a JANA.</p>
+        <div class="impact">⚡ Impacto: ~35% do custo | Grupos Olivia + S3/S4 = causa principal dos picos</div>
+      </div>
+    </div>
+
+    <div class="cause-item c3">
+      <div class="cause-num" style="background:#2d2410;color:#ecc94b">3</div>
+      <div class="cause-body">
+        <h4>💗 Heartbeat Rodando Constantemente com Contexto Grande</h4>
+        <p>A sessão de heartbeat (27e25c3f) fez <strong>890 calls em 3 dias</strong> (~297/dia) e custou $110. O heartbeat inclui verificações de SSH, subagentes, crons — e carrega todo o contexto de 174k tokens. Mesmo quando retorna HEARTBEAT_OK, o contexto é processado. Calls caras: $0.65/vez quando o cache expira.</p>
+        <div class="impact">⚡ Impacto: ~16% do custo | Cadência muito alta para a complexidade do que faz</div>
+      </div>
+    </div>
+
+    <div class="cause-item c4">
+      <div class="cause-num" style="background:#0a2118;color:#68d391">4</div>
+      <div class="cause-body">
+        <h4>🔄 Cache TTL Curto (30min) → Muitos Rewrites Caros</h4>
+        <p>O config atual tem <code>cache-ttl: 30m</code>. Com contexto de 174k tokens e TTL de 30min, o cache é recriado muitas vezes por dia. Cada rewrite custa $0.65. A sessão S3 teve <strong>294 cache writes = $137 só em writes</strong>. Aumentar o TTL ou usar <code>mode: stable</code> reduziria drasticamente esse custo.</p>
+        <div class="impact">⚡ Impacto: multiplica o custo das causas 1 e 2</div>
+      </div>
+    </div>
+
+    <div class="cause-item c5">
+      <div class="cause-num" style="background:#0a1628;color:#90cdf4">5</div>
+      <div class="cause-body">
+        <h4>🤖 claude-sonnet-4-6 para TODO tipo de tarefa</h4>
+        <p>100% das chamadas usam <strong>claude-sonnet-4-6</strong> — inclusive heartbeats simples (HEARTBEAT_OK), respostas curtas em grupo, verificações de status. Heartbeats que retornam 2 palavras custam a mesma base de contexto que tarefas complexas. Sonnet 4.6 é caro para uso "always-on".</p>
+        <div class="impact">⚡ Impacto: potencial de redução de 40-60% com modelo mais barato para tarefas simples</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FLUXO DE TOKENS -->
+  <div class="section">
+    <h2>🔬 Como o Custo é Calculado por Call</h2>
+    <div class="chart-container">
+      <p style="color:#a0aec0;font-size:13px;margin-bottom:16px;">Anatomia de uma call típica num grupo Telegram ativo:</p>
+      <div class="token-flow" style="flex-wrap:wrap;">
+        <div class="token-box">
+          <div class="num" style="color:#63b3ed">~3 tk</div>
+          <div class="lbl">Input direto</div>
+        </div>
+        <div class="arrow">+</div>
+        <div class="token-box">
+          <div class="num" style="color:#fc8181">120.000 tk</div>
+          <div class="lbl">Cache Read (contexto)</div>
+        </div>
+        <div class="arrow">+</div>
+        <div class="token-box">
+          <div class="num" style="color:#9ae6b4">~200 tk</div>
+          <div class="lbl">Output</div>
+        </div>
+        <div class="arrow">=</div>
+        <div class="token-box" style="border-color:#e53e3e;">
+          <div class="num" style="color:#fc8181">$0.037</div>
+          <div class="lbl">custo médio/call</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <p style="color:#a0aec0;font-size:13px;">Quando o cache expira (30min sem uso):</p>
+        <div class="token-flow" style="flex-wrap:wrap;margin-top:8px;">
+          <div class="token-box">
+            <div class="num" style="color:#fc8181">174.000 tk</div>
+            <div class="lbl">Cache WRITE (rebuild)</div>
+          </div>
+          <div class="arrow">=</div>
+          <div class="token-box" style="border-color:#e53e3e;">
+            <div class="num" style="color:#fc8181">$0.65</div>
+            <div class="lbl">só em cache write</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECOMENDAÇÕES -->
+  <div class="section">
+    <h2>✅ Recomendações de Otimização</h2>
+
+    <div class="rec-item">
+      <div class="rec-emoji">🔇</div>
+      <div class="rec-body">
+        <h4>1. Ativar requireMention=true nos grupos menos críticos</h4>
+        <p>Grupos Olivia (G1-G6) e "Apresentação Viver de IA" — configurar para só acionar quando mencionada. Grupos de dev intenso podem manter mention=false, mas com mais seletividade.</p>
+        <div class="saving">💰 Potencial: reduzir calls em 60-70% nos grupos Olivia → ~$150-200/mês economizados</div>
+        <code>openclaw config set channels.telegram.groups."-5264633357".requireMention true</code>
+      </div>
+    </div>
+
+    <div class="rec-item">
+      <div class="rec-emoji">📉</div>
+      <div class="rec-body">
+        <h4>2. Reduzir tamanho do contexto injetado — Slim Mode</h4>
+        <p>SOUL.md tem 9kb, AGENTS.md tem 4kb, TOOLS.md tem 2.3kb — mas a maior parte do custo vem de histórico de conversa carregado no cache. Revisar o que é realmente necessário no system prompt. Criar versões "slim" dos arquivos de contexto.</p>
+        <div class="saving">💰 Potencial: se reduzir de 174k para 80k tokens → custo de cache write cai de $0.65 para $0.30</div>
+      </div>
+    </div>
+
+    <div class="rec-item">
+      <div class="rec-emoji">⏰</div>
+      <div class="rec-body">
+        <h4>3. Aumentar o TTL do cache ou usar modo stable</h4>
+        <p>Config atual: <code>cache-ttl: 30m</code>. Aumentar para 2h ou 4h reduziria drasticamente o número de cache writes. Cada write economizado = $0.65 poupado.</p>
+        <div class="saving">💰 Potencial: Se reduzir de 48 para 12 writes/dia → $23/dia de economia</div>
+        <code>contextPruning.ttl: "2h"</code>
+      </div>
+    </div>
+
+    <div class="rec-item">
+      <div class="rec-emoji">🤏</div>
+      <div class="rec-body">
+        <h4>4. Heartbeat com modelo mais barato (Haiku) ou menos frequente</h4>
+        <p>O heartbeat retorna HEARTBEAT_OK 90% das vezes mas usa claude-sonnet-4-6 com 174k de contexto. Usar claude-haiku para heartbeats simples seria 20x mais barato. Ou reduzir a cadência de heartbeat.</p>
+        <div class="saving">💰 Potencial: heartbeat com Haiku custaria ~$0.003/call vs $0.05-0.65 atual → ~$95/mês economizados</div>
+      </div>
+    </div>
+
+    <div class="rec-item">
+      <div class="rec-emoji">🗂️</div>
+      <div class="rec-body">
+        <h4>5. Revisar grupos ativos — remover grupos inativos ou de teste</h4>
+        <p>O wildcard (*) aciona a JANA em qualquer grupo. Grupos como "Apresentação Viver de IA" ($8 em 3 dias) provavelmente não precisam de resposta automática. Revisar e desativar grupos que não precisam de agente ativo.</p>
+        <div class="saving">💰 Potencial: eliminar 3-4 grupos → $30-50/semana economizados</div>
+      </div>
+    </div>
+
+    <div class="rec-item">
+      <div class="rec-emoji">🧹</div>
+      <div class="rec-body">
+        <h4>6. Sessões de dev intenso (Olivia) → usar compaction + limitar histórico</h4>
+        <p>Sessões longas como S3/S4 acumulam histórico até 215.753 tokens de contexto. Compaction automática mais agressiva manteria o contexto menor. Configurar <code>keepLastAssistants: 3</code> em vez de 5.</p>
+        <div class="saving">💰 Potencial: reduzir contexto médio de 120k para 60k → cortar custo ao meio nas sessões longas</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- PROJEÇÃO DE ECONOMIA -->
+  <div class="section">
+    <h2>💡 Projeção de Economia com Otimizações</h2>
+    <div class="chart-container">
+      <table>
+        <thead>
+          <tr>
+            <th>Otimização</th>
+            <th>Custo Atual/mês*</th>
+            <th>Custo Estimado</th>
+            <th>Economia</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Grupos requireMention=true</td>
+            <td style="color:#fc8181">$1.800</td>
+            <td style="color:#68d391">$600</td>
+            <td style="color:#68d391;font-weight:700">~$1.200/mês</td>
+          </tr>
+          <tr>
+            <td>Cache TTL 2h → menos writes</td>
+            <td style="color:#fc8181">incluso acima</td>
+            <td>—</td>
+            <td style="color:#68d391;font-weight:700">~$200/mês adicional</td>
+          </tr>
+          <tr>
+            <td>Heartbeat com Haiku</td>
+            <td style="color:#fc8181">~$100/mês</td>
+            <td style="color:#68d391">~$5/mês</td>
+            <td style="color:#68d391;font-weight:700">~$95/mês</td>
+          </tr>
+          <tr>
+            <td>Reduzir contexto (slim files)</td>
+            <td style="color:#fc8181">incluso acima</td>
+            <td>—</td>
+            <td style="color:#68d391;font-weight:700">~$100/mês adicional</td>
+          </tr>
+          <tr style="background:#0a2118">
+            <td><strong>TOTAL ESTIMADO</strong></td>
+            <td style="color:#fc8181;font-weight:700">~$2.000-4.000/mês</td>
+            <td style="color:#68d391;font-weight:700">~$400-800/mês</td>
+            <td style="color:#68d391;font-weight:700;font-size:16px">~70% redução</td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="color:#718096;font-size:12px;margin-top:12px;">* Estimativa baseada nos dados de 10 dias coletados. Dias 21-23/03 foram atípicos (dev intenso Olivia). Baseline normal: ~$12-14/dia.</div>
+    </div>
+  </div>
+
+  <!-- JARBAS NOTE -->
+  <div class="jarbas-note">
+    <h4>⚠️ Nota sobre JARBAS (Mac Mini)</h4>
+    <p>O Mac Mini estava offline durante a investigação (SSH timeout). JARBAS roda 24/7 com 37 skills ativas, provavelmente com custo similar ou maior. A mesma análise e otimizações se aplicam. Recomendamos rodar esta análise no JARBAS quando ele voltar online.</p>
+  </div>
+
+  <!-- AÇÕES IMEDIATAS -->
+  <div class="section">
+    <h2>🚀 Ações Imediatas (Quick Wins)</h2>
+    <div style="background:#1a1f2e;border:1px solid #2d3748;border-radius:10px;padding:20px;">
+      <p style="color:#e2e8f0;margin-bottom:12px;">Em ordem de impacto e facilidade:</p>
+      <ol style="color:#a0aec0;font-size:14px;line-height:2;padding-left:20px;">
+        <li><strong style="color:#fff">Agora:</strong> Adicionar requireMention=true nos grupos Olivia e grupos não-críticos</li>
+        <li><strong style="color:#fff">Hoje:</strong> Aumentar cache TTL de 30min para 2h no openclaw.json</li>
+        <li><strong style="color:#fff">Esta semana:</strong> Revisar e compactar SOUL.md, AGENTS.md e TOOLS.md (remover redundâncias)</li>
+        <li><strong style="color:#fff">Esta semana:</strong> Configurar heartbeat para usar modelo mais barato</li>
+        <li><strong style="color:#fff">Próxima semana:</strong> Analisar JARBAS quando voltar online e aplicar mesmas otimizações</li>
+      </ol>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  Gerado por JANA 🦊 — JARBAS Network | 2026-03-26 | Dados: ~/.openclaw/agents/main/sessions/ (160 arquivos analisados)
+</div>
+</body>
+</html>

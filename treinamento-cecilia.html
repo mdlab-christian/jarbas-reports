@@ -657,6 +657,55 @@
     </div>
 
     <div class="card">
+      <div class="card-title">🔑 2FA / TOTP — Como funciona e o que fazer quando falha</div>
+      <p style="font-size:14px; margin-bottom:16px;">
+        Todos os tribunais (RS, SC, SP) exigem autenticação de dois fatores (TOTP). O sistema resolve isso automaticamente
+        usando <strong>códigos TOTP gerados pelo próprio JARBAS</strong> — sem precisar de app externo.
+      </p>
+      <div class="section-sub" style="font-weight:600; margin-bottom:8px;">Como funciona normalmente:</div>
+      <ul class="steps">
+        <li><p>O <code>totp_secret</code> de cada OAB fica salvo na tabela <code>advogados</code> no Supabase</p></li>
+        <li><p>Na hora do login, <code>skill_login_eproc.mjs</code> gera o código de 6 dígitos usando <code>lib/totp.mjs</code> (zero dependências — usa crypto nativo do Node)</p></li>
+        <li><p>O código é inserido automaticamente no campo OTP da tela do EPROC</p></li>
+        <li><p>O sistema detecta a tela de 2FA pelo seletor <code>#otp</code> ou pelo texto "Código gerado" / "2 fatores"</p></li>
+      </ul>
+      <div class="section-sub" style="font-weight:600; margin:16px 0 8px;">Cenários de falha e o que fazer:</div>
+      <table class="data-table">
+        <thead><tr><th>Erro</th><th>Causa provável</th><th>Ação</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>2FA sem TOTP</code></td>
+            <td><code>totp_secret</code> está nulo ou vazio na tabela <code>advogados</code></td>
+            <td>Avisar JARBAS: <code>"totp_secret da OAB RS116571 está vazio"</code> — JARBAS recadastra a secret</td>
+          </tr>
+          <tr>
+            <td>Código recusado pelo tribunal</td>
+            <td>Relógio do Mac Mini dessincronizado (TOTP é sensível ao tempo)</td>
+            <td>Avisar JARBAS: <code>"TOTP rejeitado no TJRS"</code> — JARBAS verifica e sincroniza o relógio (<code>sudo sntp -sS time.apple.com</code>)</td>
+          </tr>
+          <tr>
+            <td>Tela 2FA não detectada</td>
+            <td>Tribunal mudou o layout da tela de login</td>
+            <td>Clayton Visual Fallback entra automaticamente (Vision + screenshot). Se persistir → avisar JARBAS</td>
+          </tr>
+          <tr>
+            <td>Bloqueio de conta</td>
+            <td>Múltiplas tentativas falhas ou sessão concorrente</td>
+            <td>Aguardar 30 min antes de tentar novamente. Se persistir → Christian deve acessar manualmente e desbloquear</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="alert alert-warn" style="margin-top:16px;">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Clayton Visual Fallback:</strong> Se os seletores normais falharem, o sistema ativa automaticamente o Playwright com Vision (Claude Sonnet analisa um screenshot e tenta preencher os campos). Você recebe uma notificação no Telegram quando isso acontece. Custo: ~R$0,02 por ativação.</div>
+      </div>
+      <div class="alert alert-warn" style="margin-top:8px;">
+        <span class="alert-icon">⚠️</span>
+        <div>Nunca tente logar em vários tribunais ao mesmo tempo com a mesma OAB — pode invalidar a sessão e bloquear o acesso.</div>
+      </div>
+    </div>
+
+    <div class="card">
       <div class="card-title">🔍 Navegação processo a processo</div>
       <p style="font-size:14px; margin-bottom:16px;">
         O JARBAS usa o <strong>Playwright</strong> (browser automatizado) para navegar.
@@ -1149,6 +1198,114 @@ curl -s "https://api.supabase.com/v1/projects/<span class="hl">qdivfairxhdihaqqy
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div class="card">
+      <div class="card-title">⚙️ n8n — Workflows do Controller</div>
+      <p style="font-size:14px; margin-bottom:16px;">
+        O n8n roda em Railway (<code>https://primary-production-e209.up.railway.app</code>) e complementa o JARBAS com automações assíncronas.
+        Os workflows relevantes para o Controller são:
+      </p>
+      <table class="data-table">
+        <thead><tr><th>Workflow</th><th>O que faz</th><th>Quando acionar</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>N8N-CONTROLLER-RETRY-CRON-v1</code></td>
+            <td>Roda a cada 6h — reprocessa intimações com <code>ia_status='erro'</code> automaticamente</td>
+            <td>Automático. Se quiser forçar: <code>"reprocessa intimações com erro"</code></td>
+          </tr>
+          <tr>
+            <td><code>N8N-CONTROLLER-REPROCESSAR-v1</code></td>
+            <td>Webhook que reprocessa o pipeline de IA para uma intimação específica</td>
+            <td>Quando uma intimação ficou presa em <code>ia_status='erro'</code></td>
+          </tr>
+          <tr>
+            <td><code>WH-CTRL-09 — Ciencia com Renuncia</code></td>
+            <td>Marca intimação como ciência + renúncia automática (Classe D) e cria tarefa no JARBAS</td>
+            <td>Acionado automaticamente pelo Controller frontend quando João clica em "Ciência"</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="alert alert-info" style="margin-top:16px; background: rgba(108,99,255,0.1); border-color: var(--accent);">
+        <span class="alert-icon">💡</span>
+        <div>Você <strong>não precisa acionar o n8n diretamente</strong>. O Controller frontend e o JARBAS fazem isso automaticamente. Se um workflow falhar, o JARBAS notifica Christian via Telegram.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">🤖 Como acionar a OlivIA em batch manualmente</div>
+      <p style="font-size:14px; margin-bottom:16px;">
+        Normalmente a OlivIA processa intimações automaticamente após a captura. Mas se precisar forçar a análise de um lote:
+      </p>
+      <ul class="steps">
+        <li>
+          <p><strong>Via comando Telegram:</strong> Diga <code>"analisa as intimações pendentes"</code><br/>
+          O JARBAS busca todas com <code>ia_status='pendente'</code> e processa em batch de 20.</p>
+        </li>
+        <li>
+          <p><strong>Via n8n (fallback):</strong> Acionar <code>N8N-CONTROLLER-REPROCESSAR-v1</code> pelo webhook<br/>
+          Usado automaticamente pelo RETRY-CRON a cada 6h para intimações com erro.</p>
+        </li>
+        <li>
+          <p><strong>Verificar fila pendente:</strong></p>
+          <pre style="background:#0f1117; padding:12px; border-radius:8px; font-size:12px; overflow-x:auto;">SELECT ia_status, count(*) FROM intimacoes GROUP BY ia_status;</pre>
+        </li>
+      </ul>
+      <div class="alert alert-warn" style="margin-top:12px;">
+        <span class="alert-icon">⚠️</span>
+        <div>Cada intimação analisada pela OlivIA consome ~R$0,03 de API (Claude Sonnet + vault Obsidian ~14KB). Não force batch de >100 de uma vez sem avisar o JARBAS.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📂 Processos sem empresa vinculada (4.952)</div>
+      <p style="font-size:14px; margin-bottom:16px;">
+        Existem <strong>4.952 processos</strong> no banco sem empresa (<code>empresa_id = NULL</code>). Isso é esperado e não é erro.
+      </p>
+      <table class="data-table">
+        <thead><tr><th>Situação</th><th>O que significa</th><th>Ação</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Processo sem empresa</td>
+            <td>Réu ainda não foi identificado/cadastrado na tabela <code>empresas</code></td>
+            <td>Nenhuma. O Controller exibe o nome do réu como texto livre. A OlivIA ainda analisa normalmente.</td>
+          </tr>
+          <tr>
+            <td>Intimação de processo sem empresa</td>
+            <td>A matriz de roteamento não consegue atribuir automaticamente o advogado responsável</td>
+            <td>A OlivIA tenta inferir pelo nome do réu. Se não conseguir → fica como "sem responsável" no Controller → João atribui manualmente.</td>
+          </tr>
+          <tr>
+            <td>Relatório com réu desconhecido</td>
+            <td>Aparece como "Outros" ou nome de texto no relatório</td>
+            <td>Normal. Se quiser vincular, pedir: <code>"vincula o processo [CNJ] à empresa [nome]"</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="alert alert-info" style="margin-top:16px; background: rgba(108,99,255,0.1); border-color: var(--accent);">
+        <span class="alert-icon">💡</span>
+        <div>A ausência de empresa não bloqueia nenhum fluxo. O Controller funciona normalmente — só perde o roteamento automático por carteira de advogado.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">📣 Fluxo de notificação — Christian e Heloísa</div>
+      <p style="font-size:14px; margin-bottom:16px;">
+        Quando uma intimação crítica é detectada, o JARBAS segue este fluxo de notificação:
+      </p>
+      <table class="data-table">
+        <thead><tr><th>Classe</th><th>Quem é notificado</th><th>Canal</th><th>Urgência</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Classe A — CRÍTICO</strong></td><td>Heloísa + Christian</td><td>Telegram — mensagem direta</td><td>Imediato — não espera fila</td></tr>
+          <tr><td><strong>Classe B — URGENTE</strong></td><td>Heloísa ou advogado da carteira</td><td>Controller frontend</td><td>Badge na tela + notificação</td></tr>
+          <tr><td><strong>SISBAJUD somos executado</strong></td><td>João Victor + Christian</td><td>Telegram — alerta P0</td><td>Imediato — prioridade máxima</td></tr>
+          <tr><td><strong>Multa litigância</strong></td><td>Heloísa obrigatório</td><td>Telegram direto</td><td>Imediato — sem exceção</td></tr>
+        </tbody>
+      </table>
+      <div class="alert alert-warn" style="margin-top:12px;">
+        <span class="alert-icon">⚠️</span>
+        <div><strong>Regra D-012 (JARBAS):</strong> Notificações automáticas NÃO vão para o DM do Christian — vão para o grupo Telegram <code>-5251265489</code>. Só Christian decide quando ler. Alertas P0 (Classe A) quebram essa regra e vão direto para ele.</div>
+      </div>
     </div>
 
     <div class="card">

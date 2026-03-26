@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM — Relatório de Investigação Técnica</title>
+<style>
+  :root {
+    --bg: #0f0e0e;
+    --card: #1a1714;
+    --surface: #211e1a;
+    --border: #3a3530;
+    --fg: #f2efe8;
+    --muted: #9e978a;
+    --primary: #20c997;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #60a5fa;
+    --violet: #a78bfa;
+    --green: #22c55e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-family: 'Manrope', system-ui, sans-serif; font-size: 1.8rem; font-weight: 700; color: var(--fg); margin-bottom: 0.25rem; }
+  h2 { font-family: 'Manrope', system-ui, sans-serif; font-size: 1.1rem; font-weight: 600; color: var(--fg); }
+  h3 { font-size: 0.95rem; font-weight: 600; }
+  .meta { color: var(--muted); font-size: 0.8rem; margin-bottom: 2rem; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  /* Severity sections */
+  .section-title {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 1rem; margin-top: 2rem;
+  }
+  .section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* Cards */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+  }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.75rem; }
+  .card-id { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--muted); white-space: nowrap; }
+
+  /* Badges */
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+  .badge-confirmado  { background: rgba(239,68,68,0.15);  color: var(--red);    border: 1px solid rgba(239,68,68,0.3); }
+  .badge-refutado    { background: rgba(34,197,94,0.12);  color: var(--green);  border: 1px solid rgba(34,197,94,0.3); }
+  .badge-parcial     { background: rgba(245,158,11,0.12); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-incerto     { background: rgba(96,165,250,0.12); color: var(--blue);   border: 1px solid rgba(96,165,250,0.3); }
+
+  .action-badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    padding: 0.15rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .action-corrigir  { background: rgba(239,68,68,0.12);  color: var(--red);    border: 1px solid rgba(239,68,68,0.25); }
+  .action-ignorar   { background: rgba(34,197,94,0.1);   color: var(--green);  border: 1px solid rgba(34,197,94,0.25); }
+  .action-monitorar { background: rgba(245,158,11,0.1);  color: var(--yellow); border: 1px solid rgba(245,158,11,0.25); }
+  .action-sprint    { background: rgba(167,139,250,0.1); color: var(--violet); border: 1px solid rgba(167,139,250,0.25); }
+
+  .complexity-badge {
+    display: inline-flex; align-items: center; padding: 0.1rem 0.45rem;
+    border-radius: 4px; font-size: 0.68rem; font-weight: 700;
+    background: rgba(32,201,151,0.1); color: var(--primary); border: 1px solid rgba(32,201,151,0.25);
+  }
+
+  /* Diagnostic block */
+  .diag-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-top: 0.75rem; margin-bottom: 0.3rem; font-weight: 600; }
+  .diag-body  { color: var(--fg); line-height: 1.65; }
+  .code { font-family: 'JetBrains Mono', monospace; background: #2a2520; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.82em; color: #e8d5b4; }
+  pre { background: #1e1b17; border: 1px solid var(--border); border-radius: 6px; padding: 0.85rem 1rem; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #c9bfaa; margin-top: 0.5rem; line-height: 1.5; }
+  ul, ol { padding-left: 1.4rem; }
+  li { margin-bottom: 0.2rem; }
+
+  /* Action boxes */
+  .action-box {
+    margin-top: 0.85rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+  }
+  .action-box.fix { border-color: rgba(239,68,68,0.25); }
+  .action-box.ok  { border-color: rgba(34,197,94,0.2); }
+
+  /* Summary table */
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+  th { background: var(--surface); color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 0.55rem 0.75rem; border-bottom: 1px solid rgba(58,53,48,0.5); font-size: 0.85rem; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .severity-crit  { color: var(--red); font-weight: 600; }
+  .severity-medio { color: var(--yellow); }
+  .severity-futuro { color: var(--blue); }
+</style>
+</head>
+<body>
+
+<h1>CRM MdFlow — Investigação Técnica</h1>
+<p class="meta">Investigador: Claude Code (Sonnet 4.6) · Data: 2026-03-24 · Base: /Users/jarbas/beta-mdflow · 9 itens analisados</p>
+<p class="meta" style="margin-top:-1rem;">Nota: Relatório solicitado pelo agente BETO via handoff. Nenhuma correção foi executada — apenas leitura e análise de código.</p>
+
+<hr class="divider">
+
+<!-- ──────────────────────────────────── CRÍTICOS ──────────────────────────── -->
+<div class="section-title">🔴 Críticos</div>
+
+<!-- CRM-01 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-01</span>
+        <h2>Falha silenciosa no n8n após distribuição</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-confirmado">✓ Confirmado</span>
+        <span class="action-badge action-corrigir">Corrigir</span>
+        <span class="complexity-badge">M — meio dia</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    Em <span class="code">ModalDistribuirLead.tsx:89–110</span>, após a RPC atômica <span class="code">distribuir_lead_completo</span> ser chamada com sucesso (e retornar <span class="code">processo_ids[]</span>), o código dispara chamadas POST ao n8n em lotes de 5 para gerar petições. O bloco <span class="code">catch</span> (linha 106–109) simplesmente executa um <span class="code">console.warn</span> e continua:
+    <pre>try {
+  await fetch(N8N_DIST_PETICAO_URL, { ... })
+} catch {
+  // n8n failure não bloqueia — lead já foi arquivado com sucesso
+  console.warn('[distribuir] n8n batch falhou, seguindo...')
+}</pre>
+    O toast de sucesso (<span class="code">✅ X restrição(ões) distribuída(s)! Lead arquivado.</span>) é exibido incondicionalmente logo após, independente do resultado do n8n. <strong>O atendente nunca sabe se as petições foram ou não geradas.</strong> Não há retry, não há flag de "petição pendente" no banco, e não há verificação posterior.
+    <br><br>
+    Impacto real: processos existem no banco com status ativo mas sem petição inicial. A advogada/equipe jurídica precisaria gerar manualmente ou perceber pela ausência do documento no EPROC.
+  </div>
+
+  <div class="action-box fix">
+    <div class="diag-label" style="margin-top:0;">Solução ideal</div>
+    <ul>
+      <li>Contar quantos batches falharam e incluir na mensagem de toast: <em>"3 processos criados, mas 1 petição falhou — gerar manualmente."</em></li>
+      <li>Salvar flag <span class="code">peticao_pendente=true</span> em <span class="code">processos</span> quando n8n falha, visível no Controller.</li>
+      <li>Alternativamente: não exibir o toast antes do loop n8n terminar — aguardar todos os batches e contar falhas.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ──────────────────────────────────── MÉDIOS ──────────────────────────── -->
+<div class="section-title">🟡 Médios</div>
+
+<!-- CRM-02 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-02</span>
+        <h2>Checklist de distribuição não bloqueia prosseguimento</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-parcial">◑ Parcial</span>
+        <span class="action-badge action-monitorar">Monitorar</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    O BETO estava quase certo, mas o diagnóstico é mais sutil. Em <span class="code">ModalDistribuicao.tsx:178–193</span>, o botão "Prosseguir para Triagem" tem:
+    <pre>disabled={isLoading || loading}</pre>
+    Ele <strong>NÃO</strong> é desabilitado por itens falhando — a intenção é deliberada. O modal até tem um texto explícito (linha 163–165):
+    <pre>"Você pode prosseguir mesmo com pendências, mas recomendamos resolver antes."</pre>
+    Também existe um botão secundário "Resolver Pendências" que aparece apenas quando <span class="code">failedCount &gt; 0 &amp;&amp; onEditarLead</span>, redirecionando ao modal de edição.
+    <br><br>
+    Portanto: <strong>o comportamento é by design</strong> — gate soft, não hard. A decisão foi explicitamente deixada para o atendente. O risco real existe (distribuir sem advogado ou CPF inválido falhará na RPC), mas a UX avisa e o banco vai rejeitar de qualquer forma se a RPC tiver validação.
+    <br><br>
+    Situação de risco identificada: se a RPC <span class="code">distribuir_lead_completo</span> não valida <span class="code">advogado_id NOT NULL</span> no PostgreSQL, um lead sem advogado pode ser distribuído e criar processos sem advogado vinculado.
+  </div>
+
+  <div class="action-box">
+    <div class="diag-label" style="margin-top:0;">Recomendação</div>
+    Verificar se a RPC <span class="code">distribuir_lead_completo</span> valida <span class="code">advogado_id</span>. Se sim, o gate soft é aceitável. Se não, adicionar validação na RPC — não no frontend. A UX atual está correta (avisa sem bloquear).
+  </div>
+</div>
+
+<!-- CRM-03 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-03</span>
+        <h2>Drag para "triagem" sem verificar advogado</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-confirmado">✓ Confirmado</span>
+        <span class="action-badge action-corrigir">Corrigir</span>
+        <span class="complexity-badge">P — 1-2h</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    Em <span class="code">useCrmKanban.ts:82–90</span>, a única validação de drag é a verificação de WhatsApp:
+    <pre>const COLUNAS_REQUER_WHATSAPP = ['em_atendimento', 'aguardando_documentos', 'aguardando_assinatura', 'triagem', 'convertido'];
+if (COLUNAS_REQUER_WHATSAPP.includes(novaColuna)) {
+  const whatsapp = (lead as any).whatsapp ?? '';
+  if (!whatsapp.replace(/\D/g, '')) {
+    toast.error('Adicione o WhatsApp antes de avançar o lead', { duration: 4000 });
+    // rollback + return
+  }
+}</pre>
+    Não há verificação de <span class="code">advogado_id</span>. Um lead sem advogado pode ser arrastado para "triagem" sem nenhum aviso. Quando o atendente tentar distribuir via checklist, o ModalDistribuicao marcará "Advogado vinculado" como ❌, mas o lead já está na coluna errada.
+    <br><br>
+    A view <span class="code">view_crm_leads_kanban</span> já inclui <span class="code">advogado_id</span> — o dado está disponível no lead em memória, tornando a verificação trivial.
+  </div>
+
+  <div class="action-box fix">
+    <div class="diag-label" style="margin-top:0;">Solução</div>
+    Adicionar em <span class="code">useCrmKanban.ts</span>, após o check de WhatsApp, uma verificação específica para a coluna "triagem":
+    <pre>if (novaColuna === 'triagem' && !(lead as any).advogado_id) {
+  toast.error('Vincule um advogado antes de mover para Triagem', { duration: 4000 });
+  // rollback + return
+}</pre>
+    1–2h de trabalho incluindo teste.
+  </div>
+</div>
+
+<!-- CRM-04 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-04</span>
+        <h2>JSONB duplicado de restrições (legado vs tabela normalizada)</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-parcial">◑ Parcial</span>
+        <span class="action-badge action-monitorar">Monitorar</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    As duas fontes existem e são usadas em paralelo — o BETO estava certo. Mapeamento real:
+    <ul style="margin-top:0.5rem;">
+      <li><strong>JSONB (<span class="code">leads.restricoes</span>)</strong>: usado em <span class="code">ModalDistribuicao.tsx</span> via <span class="code">normalizeJsonbArray()</span> para o checklist de processabilidade.</li>
+      <li><strong>Tabela <span class="code">restricoes</span></strong>: usada em <span class="code">ClienteDrawerTabRestricoes</span> (via <span class="code">useRestricoes</span> hook) e em <span class="code">ModalDistribuirLead</span> (query direta).</li>
+    </ul>
+    A situação é menos grave do que parece: o <span class="code">ModalDistribuicao</span> já faz um check <strong>híbrido</strong> — linha 69 do checklist:
+    <pre>passed: restricoesTable.some(r => r.processavel) || hasProcessavel</pre>
+    Ou seja, ele aceita qualquer das duas fontes como válida. A divergência real é que o JSONB pode estar desatualizado (preenchido pela auditoria ApiFull) enquanto a tabela <span class="code">restricoes</span> é a fonte normalizada e editável. Se o usuário editar uma restrição na tabela mas o JSONB não for atualizado, o checklist pode mostrar "Processável" baseado no JSONB stale.
+    <br><br>
+    Risco prático: baixo a curto prazo — a tabela <span class="code">restricoes</span> é a fonte canonical para distribuição real. O JSONB é apenas fallback legado no checklist.
+  </div>
+
+  <div class="action-box">
+    <div class="diag-label" style="margin-top:0;">Recomendação</div>
+    Não corrigir agora. Monitorar se surgem discrepâncias em produção. Longo prazo: remover a branch <span class="code">|| hasProcessavel</span> do checklist e confiar 100% na tabela <span class="code">restricoes</span>, tornando o JSONB irrelevante para esta lógica.
+  </div>
+</div>
+
+<!-- CRM-05 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-05</span>
+        <h2>Timeline de atividades sem paginação (limite 50)</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-confirmado">✓ Confirmado</span>
+        <span class="action-badge action-sprint">Sprint Futuro</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    Em <span class="code">CrmLeadTabAtividades.tsx:105</span> e <span class="code">:125</span>:
+    <pre>.limit(50)  // leads_atividades
+.limit(50)  // leads_interacoes</pre>
+    A timeline combina as duas (<span class="code">timeline = [...atividades, ...interacoes].sort()</span>), totalizando até 100 eventos. <strong>Não há "Carregar mais", infinite scroll ou paginação.</strong> Não há aviso ao usuário quando o limite é atingido.
+    <br><br>
+    Impacto prático hoje: leads de escritório de advocacia de direito do consumidor com WhatsApp ativo via MDZap podem facilmente ter 50+ mensagens, especialmente em processos de 6+ meses. O atendente perderia histórico de negociação anterior. Para leads novos, é adequado.
+    <br><br>
+    Natureza do problema: informacional, não bloqueante. Não afeta operações — apenas auditorias de histórico.
+  </div>
+
+  <div class="action-box">
+    <div class="diag-label" style="margin-top:0;">Recomendação</div>
+    Sprint futuro. Adicionar botão "Carregar mais 50" com offset, ou aumentar o limite para 100 como solução rápida de custo zero. A ausência de aviso é o único ponto a resolver antes: adicionar texto sutil <em>"Mostrando os últimos 50 eventos"</em> quando <span class="code">timeline.length === 100</span>.
+  </div>
+</div>
+
+<!-- CRM-06 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-06</span>
+        <h2>Score/AI Report sem geração automática ao cadastrar</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-confirmado">✓ Confirmado</span>
+        <span class="action-badge action-monitorar">Monitorar</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    Confirmado: o score <strong>só existe se a auditoria for rodada manualmente</strong>. O card usa (<span class="code">CrmLeadCard.tsx:50</span>):
+    <pre>const hasAIReport = lead.score != null && (lead.score as number) > 0;</pre>
+    Quando <span class="code">hasAIReport = false</span>: o badge de score não aparece; o dropdown mostra "Sem relatório IA" (disabled). A opção "Auditar CPF" aparece no dropdown apenas quando <span class="code">lead.cpf &amp;&amp; onAuditoriaLead</span> — o caminho para gerar o score está disponível, mas não é proativo.
+    <br><br>
+    Não há trigger PostgreSQL, webhook automático ou job n8n criando o score ao inserir um lead. O fluxo é: atendente → card → "Auditar CPF" → ModalNovaAuditoria → n8n roda ApiFull → score persiste no banco.
+    <br><br>
+    O impacto operacional depende do processo do escritório. Se auditoria é obrigatória antes de triagem (o checklist não verifica score), o atendente pode esquecer. Se é opcional, o design atual é adequado.
+  </div>
+
+  <div class="action-box">
+    <div class="diag-label" style="margin-top:0;">Recomendação</div>
+    Monitorar. A geração automática de auditoria ao cadastrar tem custo (consumo de créditos ApiFull) e pode ser indesejada para leads descartados. Decisão de negócio do CTO, não técnica. Se quiser sinalizar ausência: adicionar badge sutil "Sem auditoria" no card quando <span class="code">cpf &amp;&amp; !hasAIReport</span>.
+  </div>
+</div>
+
+<!-- ──────────────────────────────────── FUTUROS ──────────────────────────── -->
+<div class="section-title">🔵 Futuro / Baixa prioridade</div>
+
+<!-- CRM-07 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-07</span>
+        <h2>Follow-up automático depende de job n8n externo</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-parcial">◑ Parcial</span>
+        <span class="action-badge action-sprint">Sprint Futuro</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    O BETO estava correto que o disparo automático depende de n8n externo. Em <span class="code">useLeadFollowup.ts</span>, o hook apenas:
+    <ul style="margin-top:0.4rem;">
+      <li>Busca <span class="code">crm_followup_config</span> (regras por coluna: intervalo, max_tentativas, canal)</li>
+      <li>Lê histórico de atividades tipo <span class="code">followup</span> — <span class="code">.limit(20)</span></li>
+      <li>Permite registro manual de follow-up</li>
+    </ul>
+    O front mostra a config (ex: "Regra: a cada 24h via whatsapp — máx 5 tentativas") mas quem executa o disparo é o n8n. <strong>Nenhuma indicação visual de se o job está ativo ou offline.</strong>
+    <br><br>
+    O campo <span class="code">wa_status</span> (enviado/entregue/lido/respondido/falhou) vem do banco — provavelmente atualizado pelo n8n via webhook MDZap. O front não faz polling em tempo real além do <span class="code">staleTime: 30_000</span> do React Query.
+    <br><br>
+    Impacto: se o n8n estiver offline, os follow-ups automáticos simplesmente não ocorrem. O atendente não tem aviso visual de automação inativa.
+  </div>
+
+  <div class="action-box">
+    <div class="diag-label" style="margin-top:0;">Recomendação</div>
+    Sprint futuro. Adicionar indicador de "automação ativa/inativa" baseado em <span class="code">crm_followup_config.ativo</span>. Se o campo já existe na tabela, é mudança mínima de UI. O status do n8n em si não é acessível diretamente do frontend.
+  </div>
+</div>
+
+<!-- CRM-08 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-08</span>
+        <h2>Kanban com limite de 200 leads — aviso enganoso</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-parcial">◑ Parcial — diagnóstico diferente</span>
+        <span class="action-badge action-corrigir">Corrigir (texto)</span>
+        <span class="complexity-badge">P — 30min</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    A investigação revelou um problema <em>diferente</em> do descrito pelo BETO. <span class="code">LEADS_PER_COLUMN_LIMIT = 200</span> existe em <span class="code">CrmKanban.tsx:64</span>, mas <strong>não é usado para filtrar</strong> — é apenas um gatilho de texto:
+    <pre>// query fetches up to 1000 total:
+.limit(1000)
+
+// no render:
+{col.leads.length >= LEADS_PER_COLUMN_LIMIT && (
+  &lt;p&gt;Mostrando os {LEADS_PER_COLUMN_LIMIT} mais recentes&lt;/p&gt;
+)}</pre>
+    O problema: a mensagem diz "Mostrando os 200 mais recentes" quando uma coluna atinge 200 leads, mas <strong>TODOS os leads ainda são exibidos</strong> — a mensagem é tecnicamente falsa, pois nada foi truncado. A query usa <span class="code">.limit(1000)</span> global, então na prática uma coluna pode ter até 1000 leads (improvável, mas possível).
+    <br><br>
+    O texto correto seria "Esta coluna tem muitos leads — considere arquivar os inativos" ou similar.
+  </div>
+
+  <div class="action-box fix">
+    <div class="diag-label" style="margin-top:0;">Solução</div>
+    Corrigir o texto em <span class="code">CrmKanban.tsx:274–276</span> para algo como: <em>"⚠️ {col.leads.length} leads nesta coluna — desempenho pode ser afetado"</em>. P (30min). Ou remover o texto enganoso completamente.
+  </div>
+</div>
+
+<!-- CRM-09 -->
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:wrap;margin-bottom:0.35rem;">
+        <span class="card-id">CRM-09</span>
+        <h2>Dedup por email ausente — e dedup INTEIRO está desativado</h2>
+      </div>
+      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+        <span class="badge badge-confirmado">✓ Confirmado (e agravado)</span>
+        <span class="action-badge action-sprint">Sprint Futuro</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="diag-label">Diagnóstico</div>
+  <div class="diag-body">
+    O BETO identificou ausência de dedup por email, mas há algo mais grave: <strong>o sistema de dedup está completamente desativado</strong>. Em <span class="code">ModalNovoLead.tsx:257</span>:
+    <pre>// TODO: Reativar dedup quando CRM estiver 100% — bloquear CPF duplicado vs base de clientes
+const matches: DedupMatch[] = []; // await checkDedupBeforeInsert(data);</pre>
+    A lógica de dedup (CPF + whatsapp) está implementada em <span class="code">checkDedupBeforeInsert()</span> e o <span class="code">ModalDedup</span> existe pronto, mas foram comentados. Duplicatas podem ser cadastradas livremente.
+    <br><br>
+    Quanto ao email: mesmo se o dedup for reativado, a função <span class="code">checkDedupBeforeInsert</span> verifica apenas CPF (11 dígitos) e WhatsApp. Email não está na lógica. O email é campo opcional no schema Zod.
+    <br><br>
+    Contexto do negócio (negativação indevida): email é canal secundário neste mercado. O dedup por email seria de valor marginal. O dedup por CPF e WhatsApp é o que importa — e está temporariamente desativado.
+  </div>
+
+  <div class="action-box">
+    <div class="diag-label" style="margin-top:0;">Recomendação</div>
+    Sprint futuro: reativar o dedup existente (remover o comentário e restaurar <span class="code">await checkDedupBeforeInsert(data)</span>). Email não precisa ser adicionado — baixo valor para o contexto. Ação: P (30min) quando o CTO decidir ativar.
+  </div>
+</div>
+
+<!-- ──────────────────────────────────── RESUMO EXECUTIVO ──────────────────────────── -->
+<hr class="divider">
+<h2 style="margin-bottom:1rem;">Resumo Executivo</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Item</th>
+      <th>Título</th>
+      <th>Status</th>
+      <th>Ação</th>
+      <th>Complexidade</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="card-id severity-crit">CRM-01</td>
+      <td>Falha silenciosa n8n pós-distribuição</td>
+      <td><span class="badge badge-confirmado">Confirmado</span></td>
+      <td><span class="action-badge action-corrigir">Corrigir</span></td>
+      <td><span class="complexity-badge">M — meio dia</span></td>
+    </tr>
+    <tr>
+      <td class="card-id severity-medio">CRM-02</td>
+      <td>Checklist não bloqueia prosseguimento</td>
+      <td><span class="badge badge-parcial">Parcial</span></td>
+      <td><span class="action-badge action-monitorar">Monitorar</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td class="card-id severity-medio">CRM-03</td>
+      <td>Drag para triagem sem verificar advogado</td>
+      <td><span class="badge badge-confirmado">Confirmado</span></td>
+      <td><span class="action-badge action-corrigir">Corrigir</span></td>
+      <td><span class="complexity-badge">P — 1-2h</span></td>
+    </tr>
+    <tr>
+      <td class="card-id severity-medio">CRM-04</td>
+      <td>JSONB vs tabela restricoes — duas fontes</td>
+      <td><span class="badge badge-parcial">Parcial</span></td>
+      <td><span class="action-badge action-monitorar">Monitorar</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td class="card-id severity-medio">CRM-05</td>
+      <td>Timeline sem paginação (limite 50)</td>
+      <td><span class="badge badge-confirmado">Confirmado</span></td>
+      <td><span class="action-badge action-sprint">Sprint Futuro</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td class="card-id severity-medio">CRM-06</td>
+      <td>Score sem geração automática</td>
+      <td><span class="badge badge-confirmado">Confirmado</span></td>
+      <td><span class="action-badge action-monitorar">Monitorar</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td class="card-id severity-futuro">CRM-07</td>
+      <td>Follow-up automático depende de n8n</td>
+      <td><span class="badge badge-parcial">Parcial</span></td>
+      <td><span class="action-badge action-sprint">Sprint Futuro</span></td>
+      <td>—</td>
+    </tr>
+    <tr>
+      <td class="card-id severity-futuro">CRM-08</td>
+      <td>Aviso "200 mais recentes" é enganoso</td>
+      <td><span class="badge badge-parcial">Parcial</span></td>
+      <td><span class="action-badge action-corrigir">Corrigir (texto)</span></td>
+      <td><span class="complexity-badge">P — 30min</span></td>
+    </tr>
+    <tr>
+      <td class="card-id severity-futuro">CRM-09</td>
+      <td>Dedup por email ausente + dedup desativado</td>
+      <td><span class="badge badge-confirmado">Confirmado</span></td>
+      <td><span class="action-badge action-sprint">Sprint Futuro</span></td>
+      <td>—</td>
+    </tr>
+  </tbody>
+</table>
+
+<div style="margin-top:1.5rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+  <div class="card" style="border-color:rgba(239,68,68,0.25);">
+    <div class="diag-label" style="margin-top:0;color:var(--red);">✅ Corrigir agora (sprint atual)</div>
+    <ul style="margin-top:0.4rem;">
+      <li><strong>CRM-01</strong> — Feedback de falha n8n pós-distribuição <span class="complexity-badge" style="margin-left:4px;">M</span></li>
+      <li><strong>CRM-03</strong> — Bloquear drag para triagem sem advogado <span class="complexity-badge" style="margin-left:4px;">P</span></li>
+      <li><strong>CRM-08</strong> — Corrigir texto enganoso de limite <span class="complexity-badge" style="margin-left:4px;">P</span></li>
+    </ul>
+  </div>
+  <div class="card" style="border-color:rgba(245,158,11,0.25);">
+    <div class="diag-label" style="margin-top:0;color:var(--yellow);">👁️ Monitorar / Decisão de negócio</div>
+    <ul style="margin-top:0.4rem;">
+      <li><strong>CRM-02</strong> — Gate soft é by design (verificar RPC)</li>
+      <li><strong>CRM-04</strong> — Duas fontes: baixo risco atual</li>
+      <li><strong>CRM-06</strong> — Score manual: decisão de custo (ApiFull)</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card" style="border-color:rgba(167,139,250,0.2);margin-top:1rem;">
+  <div class="diag-label" style="margin-top:0;color:var(--violet);">📅 Sprint futuro (não urgente)</div>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;margin-top:0.4rem;">
+    <span><strong>CRM-05</strong> — Load more na timeline</span>
+    <span>·</span>
+    <span><strong>CRM-07</strong> — Indicador de automação ativa/inativa</span>
+    <span>·</span>
+    <span><strong>CRM-09</strong> — Reativar dedup (30min quando decidir)</span>
+  </div>
+</div>
+
+<p style="margin-top:2rem;color:var(--muted);font-size:0.75rem;text-align:center;">
+  Relatório gerado em 2026-03-24 · Claude Code (claude-sonnet-4-6) · Apenas leitura — nenhuma correção foi executada
+</p>
+
+</body>
+</html>

@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CRM — Diagnóstico CPFs Duplicados</title>
+  <style>
+    :root {
+      --bg:      #12100e;
+      --card:    #1a1714;
+      --surface: #211e1a;
+      --border:  #3a3530;
+      --fg:      #f2efe8;
+      --muted:   #9e978a;
+      --primary: #20c997;
+      --ok:      #22c55e;
+      --warn:    #f59e0b;
+      --err:     #ef4444;
+      --violet:  #a78bfa;
+      --sky:     #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--bg); color: var(--fg); font-family: 'Inter', system-ui, sans-serif; font-size: 13px; line-height: 1.6; padding: 32px 24px; max-width: 1400px; margin: 0 auto; }
+    h1 { font-family: 'Manrope', system-ui, sans-serif; font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    h2 { font-family: 'Manrope', system-ui, sans-serif; font-size: 15px; font-weight: 600; }
+    .subtitle { color: var(--muted); font-size: 12px; margin-bottom: 28px; }
+    .section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 24px; overflow: hidden; }
+    .section-header { background: var(--surface); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; gap: 10px; border-bottom: 1px solid var(--border); }
+    .section-body { padding: 18px 20px; }
+    .cpf-label { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: var(--sky); }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+    th { background: var(--surface); color: var(--muted); font-weight: 600; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    td { padding: 8px 10px; border-bottom: 1px solid #2a2722; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr.manter { background: #14532d18; }
+    tr.arquivar { background: #7f1d1d12; }
+    tr.deletado { background: #3a353018; opacity: 0.6; }
+    tr.revisar { background: #78350f18; }
+    .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 5px; padding: 2px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .badge-manter  { background: #14532d40; color: var(--ok);    border: 1px solid #166534; }
+    .badge-arquivar{ background: #7f1d1d40; color: var(--err);   border: 1px solid #991b1b; }
+    .badge-revisar { background: #78350f40; color: var(--warn);  border: 1px solid #92400e; }
+    .badge-ok      { background: #14532d40; color: var(--ok);    border: 1px solid #166534; }
+    .badge-warn    { background: #78350f40; color: var(--warn);  border: 1px solid #92400e; }
+    .badge-deletado{ background: #3a353040; color: var(--muted); border: 1px solid var(--border); }
+    .badge-test    { background: #4c1d9540; color: var(--violet);border: 1px solid #5b21b6; }
+    .badge-alerta  { background: #7f1d1d40; color: var(--err);   border: 1px solid #991b1b; }
+    .mono { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+    .alert-box { background: #7f1d1d20; border: 1px solid #991b1b60; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: var(--err); margin-top: 12px; }
+    .info-box  { background: #78350f20; border: 1px solid #92400e60; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: var(--warn); margin-top: 12px; }
+    .ok-box    { background: #14532d20; border: 1px solid #16653460; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: var(--ok); margin-top: 12px; }
+    .summ { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 28px; }
+    .summ-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+    .summ-card .cpf { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--sky); margin-bottom: 6px; }
+    .summ-card .count { font-size: 24px; font-weight: 700; color: var(--fg); }
+    .summ-card .label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .summ-card .action { margin-top: 8px; }
+    .restricao-list { margin-top: 4px; }
+    .restricao-list li { font-size: 11px; color: var(--muted); list-style: none; padding: 1px 0; }
+    .restricao-list li::before { content: "↳ "; color: var(--border); }
+    .footer { text-align: center; color: var(--muted); font-size: 11px; margin-top: 32px; padding-top: 16px; border-top: 1px solid var(--border); }
+  </style>
+</head>
+<body>
+
+<h1>CRM — Diagnóstico CPFs Duplicados</h1>
+<p class="subtitle">Projeto: qdivfairxhdihaqqypgb &nbsp;|&nbsp; Data: 2026-03-24 &nbsp;|&nbsp; Nenhuma restrição tem processo_id vinculado ✅</p>
+
+<!-- Summary -->
+<div class="summ">
+  <div class="summ-card">
+    <div class="cpf">05857811090</div>
+    <div class="count">2</div>
+    <div class="label">leads ativos</div>
+    <div class="action"><span class="badge badge-alerta">⚠️ Nomes diferentes</span></div>
+  </div>
+  <div class="summ-card">
+    <div class="cpf">10300123930</div>
+    <div class="count">6</div>
+    <div class="label">leads ativos</div>
+    <div class="action"><span class="badge badge-arquivar">3 seguros + 2 revisar</span></div>
+  </div>
+  <div class="summ-card">
+    <div class="cpf">12345678909</div>
+    <div class="count">2</div>
+    <div class="label">leads ativos</div>
+    <div class="action"><span class="badge badge-test">TEST DATA</span></div>
+  </div>
+  <div class="summ-card">
+    <div class="cpf">31814847847</div>
+    <div class="count">4 ativos + 1 deletado</div>
+    <div class="label">leads</div>
+    <div class="action"><span class="badge badge-arquivar">3 arquivar + 1 manter</span></div>
+  </div>
+</div>
+
+<!-- ─── CPF 05857811090 ─── -->
+<div class="section">
+  <div class="section-header">
+    <h2><span class="cpf-label">05857811090</span> — 2 leads, nomes DIFERENTES</h2>
+    <span class="badge badge-alerta">⚠️ REQUER INVESTIGAÇÃO MANUAL</span>
+  </div>
+  <div class="section-body">
+    <table>
+      <thead>
+        <tr>
+          <th>Decisão</th><th>ID</th><th>Nome</th><th>Coluna</th><th>WhatsApp</th><th>Criado em</th><th>Restrições</th><th>Observação</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="revisar">
+          <td><span class="badge badge-revisar">🔍 Revisar</span></td>
+          <td class="mono">b1000000-0000-...-0003</td>
+          <td><strong>PATRÍCIA NUNES</strong></td>
+          <td>triagem</td>
+          <td class="mono">5551966663333</td>
+          <td class="mono">2026-03-06</td>
+          <td>0</td>
+          <td>ID seed/sequencial — provavelmente dado de teste</td>
+        </tr>
+        <tr class="revisar">
+          <td><span class="badge badge-revisar">🔍 Revisar</span></td>
+          <td class="mono">85dae284-52b8-...</td>
+          <td><strong>GUSTAVO PAZ</strong></td>
+          <td>novos</td>
+          <td class="mono">51995667370</td>
+          <td class="mono">2026-03-07</td>
+          <td>0</td>
+          <td>Nome de membro da equipe — CPF pode estar errado</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="alert-box">
+      🚨 <strong>ATENÇÃO:</strong> Os dois leads têm <strong>nomes completamente diferentes</strong> — não é duplicata típica de mesmo cliente. Hipóteses: (1) <strong>PATRÍCIA NUNES</strong> é seed data (ID b1000000... é sequencial artificial); (2) <strong>GUSTAVO PAZ</strong> cadastrou com CPF errado. <strong>Ação recomendada: confirmar com a equipe antes de qualquer mudança.</strong> Se PATRÍCIA for seed → arquivar. Se GUSTAVO usou CPF errado → corrigir o CPF de GUSTAVO e deixar ambos existirem.
+    </div>
+  </div>
+</div>
+
+<!-- ─── CPF 10300123930 ─── -->
+<div class="section">
+  <div class="section-header">
+    <h2><span class="cpf-label">10300123930</span> — CHAIANE LOPES DA ROSA — 6 leads ativos</h2>
+    <span class="badge badge-warn">⚠️ 3 seguros + 2 requerem revisão</span>
+  </div>
+  <div class="section-body">
+    <table>
+      <thead>
+        <tr>
+          <th>Decisão</th><th>ID</th><th>Coluna</th><th>WhatsApp</th><th>Criado em</th><th>Atualizado</th><th>Restricoes</th><th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="manter">
+          <td><span class="badge badge-manter">✅ MANTER</span></td>
+          <td class="mono">e2d589e0-5dd1-...</td>
+          <td><strong>em_atendimento</strong></td>
+          <td class="mono">(32) 18381-3812</td>
+          <td class="mono">2026-03-18 07:46</td>
+          <td class="mono">2026-03-24 17:53</td>
+          <td>
+            3 (Agibank, CEF, BoaVista)
+            <ul class="restricao-list">
+              <li>Banco Agibank S.A. — R$ 297,18</li>
+              <li>Caixa Econômica Federal — R$ 238,84</li>
+              <li>Boa Vista Serviços S.A. — R$ 536,02</li>
+            </ul>
+          </td>
+          <td>Stage mais avançado + atualizado hoje. Lead de trabalho ativo.</td>
+        </tr>
+        <tr class="revisar">
+          <td><span class="badge badge-revisar">🔍 Revisar</span></td>
+          <td class="mono">340b4126-fc62-...</td>
+          <td>triagem</td>
+          <td class="mono">(32) 13123-1232</td>
+          <td class="mono">2026-03-18 07:08</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>3 (mesmas empresas e valores — duplicata da auditoria)</td>
+          <td>Primeiro lead criado. Restricoes são cópias idênticas do e2d589e0 — sem processo_id.</td>
+        </tr>
+        <tr class="revisar">
+          <td><span class="badge badge-revisar">🔍 Revisar</span></td>
+          <td class="mono">de36fbf6-1c5b-...</td>
+          <td>novos</td>
+          <td>—</td>
+          <td class="mono">2026-03-18 08:03</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>3 (mesmas empresas — cópia da auditoria)</td>
+          <td>Sem WhatsApp. Restricoes são cópias idênticas — sem processo_id.</td>
+        </tr>
+        <tr class="arquivar">
+          <td><span class="badge badge-arquivar">🗑 ARQUIVAR</span></td>
+          <td class="mono">a60d83f7-5e0d-...</td>
+          <td>novos</td>
+          <td>—</td>
+          <td class="mono">2026-03-19 04:36:54</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>0</td>
+          <td>Sem dados. Criado por click acidental (mesmo minuto que os 2 abaixo).</td>
+        </tr>
+        <tr class="arquivar">
+          <td><span class="badge badge-arquivar">🗑 ARQUIVAR</span></td>
+          <td class="mono">a409695e-1957-...</td>
+          <td>novos</td>
+          <td>—</td>
+          <td class="mono">2026-03-19 04:36:58</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>0</td>
+          <td>Sem dados. Criado 4 segundos após o anterior — click duplo.</td>
+        </tr>
+        <tr class="arquivar">
+          <td><span class="badge badge-arquivar">🗑 ARQUIVAR</span></td>
+          <td class="mono">ef596223-568e-...</td>
+          <td>novos</td>
+          <td>—</td>
+          <td class="mono">2026-03-19 04:37:06</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>0</td>
+          <td>Sem dados. Criado 12 segundos após o a60d83f7 — click triplo acidental.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="info-box">
+      📋 <strong>Análise:</strong> 3 leads (a60d83f7, a409695e, ef596223) foram criados dentro de 12 segundos, sem WhatsApp e sem restrições — são cliques acidentais, <strong>seguros para arquivar imediatamente</strong>.<br/><br/>
+      Os leads 340b4126 e de36fbf6 têm restrições que são cópias idênticas (mesmas empresas, mesmos valores) das restrições de e2d589e0 — ocorreu importação duplicada da auditoria. Nenhuma tem <code>processo_id</code>. <strong>Recomendação: arquivar os dois após confirmar que e2d589e0 é o lead ativo correto.</strong>
+    </div>
+  </div>
+</div>
+
+<!-- ─── CPF 12345678909 ─── -->
+<div class="section">
+  <div class="section-header">
+    <h2><span class="cpf-label">12345678909</span> — Leads de TESTE — 2 ativos</h2>
+    <span class="badge badge-test">TEST DATA — Arquivar ambos</span>
+  </div>
+  <div class="section-body">
+    <table>
+      <thead>
+        <tr>
+          <th>Decisão</th><th>ID</th><th>Nome</th><th>Coluna</th><th>WhatsApp</th><th>Criado em</th><th>Restrições</th><th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="arquivar">
+          <td><span class="badge badge-test">🧪 TEST</span></td>
+          <td class="mono">70497330-2297-...</td>
+          <td>JARBAS TESTE E2E CRM</td>
+          <td>novos</td>
+          <td class="mono">51991234567</td>
+          <td class="mono">2026-03-20 11:09</td>
+          <td>1 (BANCO TESTE SA — R$ 5.000)</td>
+          <td>Nome e banco são claramente test data.</td>
+        </tr>
+        <tr class="arquivar">
+          <td><span class="badge badge-test">🧪 TEST</span></td>
+          <td class="mono">fd8832e9-f7df-...</td>
+          <td>TESTE E2E JARBAS 20/03</td>
+          <td>triagem</td>
+          <td class="mono">51998887766</td>
+          <td class="mono">2026-03-20 11:27</td>
+          <td>1 (Banco Bradesco SA — R$ 1.500)</td>
+          <td>Nome explicita teste E2E. Restricao com Bradesco real mas lead é fictício.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="ok-box">
+      ✅ <strong>Ação:</strong> Arquivar ambos (nenhum tem processos vinculados). Confirmar com Christian/Gustavo se algum deve ser mantido para testes futuros — CPF 12345678909 é um CPF de teste padrão (sequência óbvia). Se necessário, manter 1 lead de teste com CPF diferente.
+    </div>
+  </div>
+</div>
+
+<!-- ─── CPF 31814847847 ─── -->
+<div class="section">
+  <div class="section-header">
+    <h2><span class="cpf-label">31814847847</span> — ROBERTO CESAR GOMES FERREIRA — 4 ativos + 1 já deletado</h2>
+    <span class="badge badge-warn">⚠️ Restrições triplicadas em 1 lead</span>
+  </div>
+  <div class="section-body">
+    <table>
+      <thead>
+        <tr>
+          <th>Decisão</th><th>ID</th><th>Nome</th><th>Coluna</th><th>WhatsApp</th><th>Criado em</th><th>Atualizado</th><th>Restricoes</th><th>Notas</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="manter">
+          <td><span class="badge badge-manter">✅ MANTER</span></td>
+          <td class="mono">bbb33eca-f5c4-...</td>
+          <td>ROBERTO CESAR GOMES FERREIRA</td>
+          <td><strong>triagem</strong></td>
+          <td class="mono">(56) 54654-6546</td>
+          <td class="mono">2026-03-16</td>
+          <td class="mono">2026-03-24 17:53</td>
+          <td>
+            7 (Vero, Sem Parar, Investcred, Itaú)
+            <ul class="restricao-list">
+              <li>Vero S.A. — R$ 45,57 / R$ 351,39 / R$ 22,67 / R$ 338,45</li>
+              <li>Sem Parar — R$ 111,38 (não processável)</li>
+              <li>Banco Investcred Unibanco — R$ 26,60</li>
+              <li>Itaú Unibanco S.A. — R$ 26,60</li>
+            </ul>
+          </td>
+          <td>Em triagem + atualizado hoje. Empresas diversas (auditoria mais recente e completa). Tem WhatsApp.</td>
+        </tr>
+        <tr class="arquivar">
+          <td><span class="badge badge-arquivar">🗑 ARQUIVAR</span></td>
+          <td class="mono">821b24f9-1abe-...</td>
+          <td>ROBERTO CESAR GOMES FERREIRA</td>
+          <td>novos</td>
+          <td>—</td>
+          <td class="mono">2026-03-10</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>6 (Itaú, NU — com duplicatas internas; 2 não processáveis)</td>
+          <td>Mais antigo, preso em "novos". Restrições com duplicatas internas (Itaú 26.60 × 2) e 2 não processáveis. Empresas diferentes das de bbb33eca — auditoria anterior.</td>
+        </tr>
+        <tr class="arquivar">
+          <td><span class="badge badge-arquivar">🗑 ARQUIVAR</span></td>
+          <td class="mono">069c6da3-e745-...</td>
+          <td>ROBERTO CESAR GOMES FERREIRA</td>
+          <td>novos</td>
+          <td>—</td>
+          <td class="mono">2026-03-16 17:16</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>
+            12 (triplicatas — bug de importação)
+            <ul class="restricao-list">
+              <li>Itaú 26.60 × 3, NU 22.67 × 3, NU 338.45 × 3, BoaVista 387.72 × 3</li>
+            </ul>
+          </td>
+          <td>⚠️ As 12 restrições são TRIPLICATAS de 4 empresas — bug na importação. Preso em "novos". Sem WhatsApp. Sem processo_id.</td>
+        </tr>
+        <tr class="arquivar">
+          <td><span class="badge badge-test">🧪 TEST</span></td>
+          <td class="mono">f3a069f2-3943-...</td>
+          <td><strong>TESTE E2E CRM JANA</strong></td>
+          <td>triagem</td>
+          <td class="mono">(12) 31231-233</td>
+          <td class="mono">2026-03-16 20:53</td>
+          <td class="mono">2026-03-24 02:00</td>
+          <td>0</td>
+          <td>Nome explicita test data de E2E da JANA. Sem restrições.</td>
+        </tr>
+        <tr class="deletado">
+          <td><span class="badge badge-deletado">🗑 Já deletado</span></td>
+          <td class="mono">91491d4d-d064-...</td>
+          <td>LEAD TEST DISTRIBUICAO</td>
+          <td>triagem</td>
+          <td>—</td>
+          <td class="mono">2026-03-17</td>
+          <td class="mono">2026-03-18</td>
+          <td>0</td>
+          <td>deleted_at = 2026-03-18. Já não conta para o índice UNIQUE. Nenhuma ação necessária.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="info-box">
+      📋 <strong>Análise:</strong> <code>069c6da3</code> possui 12 restrições que são triplicatas exatas de 4 empresas — indício claro de bug na importação de auditoria. Todas sem <code>processo_id</code>, portanto seguras para arquivar. O lead <code>bbb33eca</code> é o mais completo e ativo (triagem, atualizado hoje, WhatsApp válido, 7 restrições de empresas distintas).
+    </div>
+  </div>
+</div>
+
+<!-- Resumo de ações -->
+<div class="section">
+  <div class="section-header">
+    <h2>Resumo de Ações Recomendadas</h2>
+    <span class="badge badge-warn">⚠️ Aguardar aprovação antes de executar</span>
+  </div>
+  <div class="section-body">
+    <table>
+      <thead>
+        <tr><th>CPF</th><th>Manter</th><th>Arquivar (seguros)</th><th>Arquivar (revisar antes)</th><th>Ação especial</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">05857811090</td>
+          <td>— (definir após investigação)</td>
+          <td>—</td>
+          <td>—</td>
+          <td>Verificar qual tem CPF errado</td>
+        </tr>
+        <tr>
+          <td class="mono">10300123930</td>
+          <td>e2d589e0 (em_atendimento)</td>
+          <td>a60d83f7, a409695e, ef596223</td>
+          <td>340b4126, de36fbf6</td>
+          <td>Confirmar que e2d589e0 é o ativo correto</td>
+        </tr>
+        <tr>
+          <td class="mono">12345678909</td>
+          <td>—</td>
+          <td>70497330, fd8832e9</td>
+          <td>—</td>
+          <td>Confirmar que test data pode ser descartada</td>
+        </tr>
+        <tr>
+          <td class="mono">31814847847</td>
+          <td>bbb33eca (triagem)</td>
+          <td>f3a069f2 (test)</td>
+          <td>821b24f9, 069c6da3</td>
+          <td>91491d4d já deletado — OK</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="ok-box">
+      ✅ <strong>Nenhuma restrição possui <code>processo_id</code> vinculado</strong> — nenhum processo ativo está em risco. O arquivo SQL preparatório está em <code>supabase/migrations/20260324000003_resolve_cpf_duplicatas.sql</code>, todo comentado. Executar apenas após aprovação de Christian/Gustavo.
+    </div>
+  </div>
+</div>
+
+<div class="footer">CRM MdFlow — Diagnóstico CPFs Duplicados &nbsp;|&nbsp; Claude Code (Sonnet 4.6) &nbsp;|&nbsp; 2026-03-24</div>
+</body>
+</html>

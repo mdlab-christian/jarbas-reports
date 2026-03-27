@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jarbas 2.0 — Diagnóstico da Rede | 27/03/2026</title>
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --surface2: #222;
+    --border: #2a2a2a;
+    --accent: #7c3aed;
+    --accent2: #a855f7;
+    --green: #22c55e;
+    --yellow: #eab308;
+    --red: #ef4444;
+    --blue: #3b82f6;
+    --orange: #f97316;
+    --text: #e5e5e5;
+    --muted: #888;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 20px; }
+
+  /* Header */
+  .header { text-align: center; padding: 60px 0 40px; }
+  .header .badge { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 50px; padding: 6px 16px; font-size: 13px; color: var(--muted); margin-bottom: 20px; }
+  .header h1 { font-size: 42px; font-weight: 800; background: linear-gradient(135deg, #a855f7, #7c3aed, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+  .header p { color: var(--muted); font-size: 16px; }
+
+  /* Nota geral */
+  .nota-card { background: linear-gradient(135deg, #1a0a2e, #0d1b3e); border: 1px solid #3b2a6e; border-radius: var(--radius); padding: 32px; margin: 32px 0; display: flex; align-items: center; gap: 32px; }
+  .nota-circle { width: 110px; height: 110px; border-radius: 50%; background: conic-gradient(#7c3aed 0% 78%, #2a2a2a 78% 100%); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+  .nota-inner { width: 86px; height: 86px; border-radius: 50%; background: #1a0a2e; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .nota-number { font-size: 28px; font-weight: 900; color: #a855f7; line-height: 1; }
+  .nota-max { font-size: 12px; color: var(--muted); }
+  .nota-text h2 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+  .nota-text p { color: var(--muted); font-size: 15px; }
+
+  /* Grid */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin: 24px 0; }
+  @media (max-width: 700px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .card h3 { font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .card .value { font-size: 32px; font-weight: 800; }
+
+  /* Section */
+  .section { margin: 40px 0; }
+  .section-title { font-size: 22px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+  .section-title span { font-size: 24px; }
+
+  /* Skill tags */
+  .skills-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .skill-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 12px; font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; }
+  .skill-tag.eproc { border-color: #854d0e; background: #1c1000; color: #fbbf24; }
+  .skill-tag.dev { border-color: #1e3a5f; background: #0a1929; color: #60a5fa; }
+  .skill-tag.mac { border-color: #1a3a1a; background: #0a1a0a; color: #4ade80; }
+  .skill-tag.ia { border-color: #3a1a3a; background: #1a0a2e; color: #c084fc; }
+  .skill-tag.ops { border-color: #3a2a1a; background: #1a1200; color: #fb923c; }
+
+  /* Agentes */
+  .agent-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .agent-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .agent-emoji { font-size: 28px; }
+  .agent-info h4 { font-size: 17px; font-weight: 700; }
+  .agent-info p { font-size: 13px; color: var(--muted); }
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .status-dot.green { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.yellow { background: var(--yellow); box-shadow: 0 0 6px var(--yellow); }
+  .status-dot.red { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .agent-status { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-bottom: 10px; }
+  .level-badge { display: inline-block; padding: 2px 10px; border-radius: 50px; font-size: 12px; font-weight: 700; }
+  .l4 { background: #3b0764; color: #c084fc; }
+  .l3 { background: #1e3a5f; color: #60a5fa; }
+  .l2 { background: #1c2e1c; color: #4ade80; }
+  .l1 { background: #2e1c1c; color: #f87171; }
+  .legacy { background: #2e2a1c; color: #fbbf24; }
+  .agent-meta { font-size: 12px; color: var(--muted); margin-top: 8px; }
+  .agent-meta span { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; margin: 2px; }
+  .alert-box { background: #1c0a0a; border: 1px solid #7f1d1d; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 13px; color: #fca5a5; }
+  .ok-box { background: #0a1c0a; border: 1px solid #14532d; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 13px; color: #86efac; }
+
+  /* Tabela */
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; padding: 10px 14px; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 14px; border-bottom: 1px solid #1a1a1a; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 50px; font-size: 12px; font-weight: 600; }
+  .pill.green { background: #14532d; color: #86efac; }
+  .pill.red { background: #7f1d1d; color: #fca5a5; }
+  .pill.yellow { background: #713f12; color: #fde68a; }
+  .pill.blue { background: #1e3a5f; color: #93c5fd; }
+  .pill.purple { background: #3b0764; color: #d8b4fe; }
+
+  /* Melhorias */
+  .melhoria { background: var(--surface); border-left: 3px solid; border-radius: 0 var(--radius) var(--radius) 0; padding: 14px 18px; margin-bottom: 10px; }
+  .melhoria.p0 { border-color: var(--red); }
+  .melhoria.p1 { border-color: var(--orange); }
+  .melhoria.p2 { border-color: var(--yellow); }
+  .melhoria.done { border-color: var(--green); opacity: 0.6; }
+  .melhoria-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .melhoria h4 { font-size: 15px; font-weight: 600; }
+  .melhoria p { font-size: 13px; color: var(--muted); }
+
+  /* Mission Control */
+  .mc-intro { background: linear-gradient(135deg, #0a1929, #0d1b3e); border: 1px solid #1e3a5f; border-radius: var(--radius); padding: 24px; margin: 20px 0; }
+  .mc-intro h3 { font-size: 18px; font-weight: 700; color: #60a5fa; margin-bottom: 10px; }
+  .mc-intro p { color: #94a3b8; font-size: 14px; margin-bottom: 8px; }
+  .mc-option { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-top: 10px; }
+  .mc-option h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .mc-option p { font-size: 13px; color: var(--muted); }
+  .mc-rec { border-color: #22c55e; background: #0a1c0a; }
+  .mc-rec h4 { color: #4ade80; }
+
+  /* Estrutura correta */
+  .arch-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin: 16px 0; }
+  .arch-box h3 { font-size: 16px; font-weight: 700; margin-bottom: 16px; color: var(--accent2); }
+  .arch-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .arch-row:last-child { border-bottom: none; }
+  .arch-emoji { font-size: 22px; flex-shrink: 0; width: 36px; text-align: center; }
+  .arch-content { flex: 1; }
+  .arch-content strong { font-size: 14px; }
+  .arch-content p { font-size: 13px; color: var(--muted); margin-top: 3px; }
+  .check { color: var(--green); font-size: 14px; }
+  .cross { color: var(--red); font-size: 14px; }
+  .warn { color: var(--yellow); font-size: 14px; }
+
+  /* Crons */
+  .cron-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .cron-item:last-child { border-bottom: none; }
+  .cron-name { font-size: 14px; font-weight: 600; }
+  .cron-detail { font-size: 12px; color: var(--muted); }
+
+  /* Footer */
+  footer { text-align: center; padding: 40px 0 20px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--border); margin-top: 60px; }
+
+  code { background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 7px; font-size: 12px; font-family: monospace; color: #c084fc; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="badge">🐙 Jarbas 2.0 · MdLab LegalTech · 27/03/2026 01:13</div>
+    <h1>Diagnóstico da Rede</h1>
+    <p>Avaliação completa do Jarbas 2.0, skills, agentes e arquitetura da JARBAS Network</p>
+  </div>
+
+  <!-- Nota Geral -->
+  <div class="nota-card">
+    <div class="nota-circle">
+      <div class="nota-inner">
+        <span class="nota-number">7.8</span>
+        <span class="nota-max">/10</span>
+      </div>
+    </div>
+    <div class="nota-text">
+      <h2>Jarbas 2.0 está bom. Mas tem margem pra chegar em 10.</h2>
+      <p>Fundação sólida: memória estruturada, 43 skills especializadas, 6 crons corretos, exec automático, cache otimizado, personalidade lapidada. Falta: Mission Control, vault acessível, bot Telegram dedicado e migração de OlivIA/Cecília para OpenClaw.</p>
+    </div>
+  </div>
+
+  <!-- Métricas rápidas -->
+  <div class="grid-3">
+    <div class="card">
+      <h3>Skills Ativas</h3>
+      <div class="value" style="color:#a855f7">43</div>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">+ 45 do sistema</p>
+    </div>
+    <div class="card">
+      <h3>Crons Configurados</h3>
+      <div class="value" style="color:#22c55e">6</div>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">100% isolated + agentTurn ✅</p>
+    </div>
+    <div class="card">
+      <h3>Custo Baseline</h3>
+      <div class="value" style="color:#3b82f6">~$8</div>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">vs $326/dia pico da JANA</p>
+    </div>
+  </div>
+
+  <!-- Skills -->
+  <div class="section">
+    <div class="section-title"><span>🛠️</span> Skills do Jarbas 2.0 — 43 especializadas</div>
+
+    <div style="margin-bottom:16px">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px">⚖️ <strong>EPROC / Jurídico</strong> — distribuição de processos em RS, SC, SP</p>
+      <div class="skills-grid">
+        <span class="skill-tag eproc">📋 distribuicao-master</span>
+        <span class="skill-tag eproc">⚖️ oab-rs116571</span>
+        <span class="skill-tag eproc">⚖️ oab-rs116571-sc</span>
+        <span class="skill-tag eproc">⚖️ oab-sc074025</span>
+        <span class="skill-tag eproc">⚖️ oab-sp535101</span>
+        <span class="skill-tag eproc">⚖️ oab-helo-rs</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px">💻 <strong>Dev & Frontend</strong></p>
+      <div class="skills-grid">
+        <span class="skill-tag dev">⚛️ frontend</span>
+        <span class="skill-tag dev">🔷 mdflow</span>
+        <span class="skill-tag dev">✨ 21st-dev</span>
+        <span class="skill-tag dev">📐 spec</span>
+        <span class="skill-tag dev">🔧 supabase-ops</span>
+        <span class="skill-tag dev">🎭 playwright</span>
+        <span class="skill-tag dev">🔁 git-essentials</span>
+        <span class="skill-tag dev">📄 pdf-extract</span>
+        <span class="skill-tag dev">🔍 pdf-ocr</span>
+        <span class="skill-tag dev">💡 page-ideas</span>
+        <span class="skill-tag dev">🏗️ reconstrucao-pagina</span>
+        <span class="skill-tag dev">⚡ cc-prompt-gen</span>
+        <span class="skill-tag dev">⚡ cc-paralelo</span>
+        <span class="skill-tag dev">📦 gerenciador-projetos</span>
+        <span class="skill-tag dev">🚀 projeto-executar</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px">🍎 <strong>Mac / Produtividade</strong></p>
+      <div class="skills-grid">
+        <span class="skill-tag mac">📝 apple-notes</span>
+        <span class="skill-tag mac">⏰ apple-reminders</span>
+        <span class="skill-tag mac">📅 macos-calendar</span>
+        <span class="skill-tag mac">💰 verificar-pagamentos</span>
+        <span class="skill-tag mac">🎵 sonoscli</span>
+        <span class="skill-tag mac">📧 email-summary</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px">🤖 <strong>IA & Automação</strong></p>
+      <div class="skills-grid">
+        <span class="skill-tag ia">🎤 openai-whisper-api</span>
+        <span class="skill-tag ia">📚 kb-collector</span>
+        <span class="skill-tag ia">📹 video-summary</span>
+        <span class="skill-tag ia">📄 summarize</span>
+        <span class="skill-tag ia">💡 ideias</span>
+        <span class="skill-tag ia">🔄 self-improving</span>
+        <span class="skill-tag ia">💎 obsidian</span>
+        <span class="skill-tag ia">📊 model-usage</span>
+        <span class="skill-tag ia">💸 cost-report</span>
+        <span class="skill-tag ia">🛡️ openclaw-cost-governor</span>
+        <span class="skill-tag ia">📝 session-logs</span>
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <p style="color:var(--muted);font-size:13px;margin-bottom:12px">⚙️ <strong>Infra & DevOps</strong></p>
+      <div class="skills-grid">
+        <span class="skill-tag ops">🔒 security-audit</span>
+        <span class="skill-tag ops">📊 system-resource-monitor</span>
+        <span class="skill-tag ops">🔧 n8n-monitor</span>
+        <span class="skill-tag ops">🤖 novo-agente</span>
+        <span class="skill-tag ops">📋 jarbas-tasks</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Crons -->
+  <div class="section">
+    <div class="section-title"><span>⏰</span> Crons Configurados (6)</div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Nome</th>
+            <th>Horário</th>
+            <th>Modelo</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>daily-briefing</strong><br><span style="color:var(--muted);font-size:12px">Projetos + pendências do dia</span></td>
+            <td>08:00 diário</td>
+            <td><span class="pill blue">Sonnet</span></td>
+            <td><span class="pill green">✅ ativo</span></td>
+          </tr>
+          <tr>
+            <td><strong>agent-health-check</strong><br><span style="color:var(--muted);font-size:12px">Ping Mac Mini + agentes</span></td>
+            <td>08:30 diário</td>
+            <td><span class="pill purple">Haiku</span></td>
+            <td><span class="pill green">✅ ativo</span></td>
+          </tr>
+          <tr>
+            <td><strong>vault-checkpoint</strong><br><span style="color:var(--muted);font-size:12px">Verifica jarbas-vault</span></td>
+            <td>12:00 diário</td>
+            <td><span class="pill purple">Haiku</span></td>
+            <td><span class="pill green">✅ ativo</span></td>
+          </tr>
+          <tr>
+            <td><strong>custo-alert</strong><br><span style="color:var(--muted);font-size:12px">Alerta se custo > $30/dia</span></td>
+            <td>18:00 diário</td>
+            <td><span class="pill purple">Haiku</span></td>
+            <td><span class="pill green">✅ ativo</span></td>
+          </tr>
+          <tr>
+            <td><strong>memory-consolidation</strong><br><span style="color:var(--muted);font-size:12px">Extrai lições → topic files → vault</span></td>
+            <td>22:45 diário</td>
+            <td><span class="pill blue">Sonnet</span></td>
+            <td><span class="pill green">✅ ativo</span></td>
+          </tr>
+          <tr>
+            <td><strong>relatorio-diario</strong><br><span style="color:var(--muted);font-size:12px">HTML completo → GitHub Pages</span></td>
+            <td>23:00 diário</td>
+            <td><span class="pill blue">Sonnet</span></td>
+            <td><span class="pill green">✅ ativo</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Rede de Agentes -->
+  <div class="section">
+    <div class="section-title"><span>🌐</span> Rede de Agentes — Estado Atual</div>
+
+    <div class="grid-2">
+
+      <!-- Jarbas 2.0 -->
+      <div class="agent-card">
+        <div class="agent-header">
+          <span class="agent-emoji">🐙</span>
+          <div class="agent-info">
+            <h4>Jarbas 2.0</h4>
+            <p>MacBook Air M4 · usuario: christian</p>
+          </div>
+        </div>
+        <div class="agent-status"><div class="status-dot green"></div><strong>ONLINE</strong> · <span class="level-badge l4">L4 Trusted</span></div>
+        <div class="agent-meta">
+          <span>🚪 Porta 18790</span>
+          <span>🤖 OpenClaw ✅</span>
+          <span>🧠 Sonnet</span>
+          <span>💬 Bot Telegram próprio ⚠️</span>
+        </div>
+        <div class="ok-box">✅ Agente principal. exec automático, 43 skills, 6 crons corretos, memória estruturada, personalidade lapidada.</div>
+      </div>
+
+      <!-- Beto -->
+      <div class="agent-card">
+        <div class="agent-header">
+          <span class="agent-emoji">🤖</span>
+          <div class="agent-info">
+            <h4>Beto</h4>
+            <p>Mac Mini M4 · usuario: beto</p>
+          </div>
+        </div>
+        <div class="agent-status"><div class="status-dot yellow"></div><strong>PARCIAL</strong> · <span class="level-badge l2">L2 Contributor</span></div>
+        <div class="agent-meta">
+          <span>🚪 Porta 18792</span>
+          <span>🤖 OpenClaw ✅</span>
+          <span>🧠 Sonnet</span>
+          <span>💬 Bot Telegram próprio ✅</span>
+        </div>
+        <div class="alert-box">⚠️ .openclaw dir não confirmado no Mac Mini. Verificar se LaunchAgent está ativo e Beto está realmente respondendo ao Gustavo.</div>
+      </div>
+
+      <!-- OlivIA -->
+      <div class="agent-card">
+        <div class="agent-header">
+          <span class="agent-emoji">⚖️</span>
+          <div class="agent-info">
+            <h4>OlivIA</h4>
+            <p>Mac Mini M4 · usuario: olivia</p>
+          </div>
+        </div>
+        <div class="agent-status"><div class="status-dot green"></div><strong>ONLINE</strong> · <span class="level-badge l3">L3 Operator</span></div>
+        <div class="agent-meta">
+          <span>🚪 Porta 19100</span>
+          <span>⚠️ Node.js custom (não OpenClaw)</span>
+          <span>🧠 API Claude direto</span>
+        </div>
+        <div class="alert-box">⚠️ OlivIA é um servidor Node.js customizado (<code>olivia-server/server.mjs</code>) — NÃO usa OpenClaw. Funciona, mas perde: memória estruturada, skills do ecossistema, crons padronizados, rastreamento de custo. Candidata à migração.</div>
+      </div>
+
+      <!-- Cecília -->
+      <div class="agent-card">
+        <div class="agent-header">
+          <span class="agent-emoji">🎛️</span>
+          <div class="agent-info">
+            <h4>Cecília</h4>
+            <p>Mac Mini M4 · usuario: cecilia</p>
+          </div>
+        </div>
+        <div class="agent-status"><div class="status-dot green"></div><strong>ONLINE</strong> · <span class="level-badge l3">L3 Operator</span></div>
+        <div class="agent-meta">
+          <span>🚪 Porta 47292</span>
+          <span>⚠️ Node.js custom (não OpenClaw)</span>
+          <span>🧠 API Claude direto</span>
+        </div>
+        <div class="alert-box">⚠️ Cecília também é servidor Node customizado (<code>cecilia/start.mjs</code>) — NÃO usa OpenClaw. LaunchAgent em loop (porta ocupada = instância já rodando via outro processo). Candidata à migração.</div>
+      </div>
+
+      <!-- Jarbinhas -->
+      <div class="agent-card">
+        <div class="agent-header">
+          <span class="agent-emoji">🦞</span>
+          <div class="agent-info">
+            <h4>Jarbinhas (legado)</h4>
+            <p>Mac Mini M4 · usuario: jarbas</p>
+          </div>
+        </div>
+        <div class="agent-status"><div class="status-dot green"></div><strong>ONLINE</strong> · <span class="level-badge legacy">Legado</span></div>
+        <div class="agent-meta">
+          <span>🚪 Porta 18789</span>
+          <span>🤖 OpenClaw ✅</span>
+          <span>🧠 Sonnet</span>
+        </div>
+        <div class="ok-box">✅ Crons corrigidos hoje (3 systemEvent → agentTurn). Mantido para n8n e workflows legados. Não adicionar features novas aqui.</div>
+      </div>
+
+      <!-- JANA -->
+      <div class="agent-card" style="opacity:0.5">
+        <div class="agent-header">
+          <span class="agent-emoji">🦊</span>
+          <div class="agent-info">
+            <h4>JANA (legado)</h4>
+            <p>MacBook Air M4 · usuario: jarbas</p>
+          </div>
+        </div>
+        <div class="agent-status"><div class="status-dot red"></div><strong>INATIVO</strong> · <span class="level-badge l1">L1</span></div>
+        <div class="agent-meta">
+          <span>🤖 OpenClaw (desativado)</span>
+        </div>
+        <div class="alert-box">Legado obsoleto. Substituída pelo Jarbas 2.0. Não usar.</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Arquitetura Correta -->
+  <div class="section">
+    <div class="section-title"><span>🏗️</span> Arquitetura Correta — Cada Agente = Uma Instância OpenClaw</div>
+
+    <div class="arch-box">
+      <h3>✅ Como deve ser (e como está no Jarbas 2.0 + Jarbinhas)</h3>
+      <div class="arch-row">
+        <div class="arch-emoji">👤</div>
+        <div class="arch-content">
+          <strong>Usuário macOS separado</strong>
+          <p>Cada agente tem seu próprio usuário: christian, beto, olivia, cecilia. Isolamento total de processos, arquivos e credenciais.</p>
+        </div>
+        <span class="check">✅</span>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">🤖</div>
+        <div class="arch-content">
+          <strong>Instância OpenClaw própria</strong>
+          <p>Cada usuário roda <code>openclaw gateway</code> na sua porta. Jarbas: 18790, Beto: 18792, Jarbinhas: 18789. NÃO compartilhar gateway.</p>
+        </div>
+        <span class="check">✅</span>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">💬</div>
+        <div class="arch-content">
+          <strong>Bot Telegram dedicado</strong>
+          <p>Cada agente tem seu próprio bot via @BotFather. Jarbas 2.0 ainda usa o mesmo do setup — criar bot dedicado é P1.</p>
+        </div>
+        <span class="warn">⚠️ parcial</span>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">🚀</div>
+        <div class="arch-content">
+          <strong>LaunchAgent para reinício automático</strong>
+          <p>Cada agente tem seu plist em <code>~/Library/LaunchAgents/ai.openclaw.gateway.plist</code>. O processo sobe automaticamente no boot.</p>
+        </div>
+        <span class="check">✅</span>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">🧠</div>
+        <div class="arch-content">
+          <strong>Vault Obsidian conectado</strong>
+          <p>mdlab-vault compartilhado (conhecimento técnico) + vault privado por agente (memória pessoal). Symlink = sem duplicar dados.</p>
+        </div>
+        <span class="check">✅</span>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">🔒</div>
+        <div class="arch-content">
+          <strong>dmPolicy: allowlist</strong>
+          <p>NUNCA open. Cada agente só aceita mensagens dos IDs autorizados. Jarbas 2.0: só Christian. Beto: Gustavo + Christian.</p>
+        </div>
+        <span class="check">✅</span>
+      </div>
+    </div>
+
+    <div class="arch-box" style="border-color:#7f1d1d">
+      <h3 style="color:#f87171">⚠️ OlivIA e Cecília — O Problema do Servidor Node Customizado</h3>
+      <div class="arch-row">
+        <div class="arch-emoji">❌</div>
+        <div class="arch-content">
+          <strong>Sem memória estruturada</strong>
+          <p>Um servidor Node puro não tem MEMORY.md, topic files, nem ciclo de consolidação. Cada reinício = Alzheimer total.</p>
+        </div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">❌</div>
+        <div class="arch-content">
+          <strong>Sem skills do ecossistema</strong>
+          <p>Não usam as 43+ skills do OpenClaw. Cada integração precisa ser codada manualmente.</p>
+        </div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">❌</div>
+        <div class="arch-content">
+          <strong>Custo não rastreado</strong>
+          <p>Chamadas diretas à API Claude sem o cache semântico do OpenClaw. Sem <code>cacheRetention: long</code> = rebuild constante = custo alto.</p>
+        </div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-emoji">💡</div>
+        <div class="arch-content">
+          <strong>Solução: migrar para OpenClaw</strong>
+          <p>Criar instância OpenClaw para olivia e cecilia (já têm usuário macOS). O servidor Node customizado pode continuar como skill/webhook interno se necessário.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mission Control -->
+  <div class="section">
+    <div class="section-title"><span>🎛️</span> Mission Control — Como Monitorar Todos os Agentes</div>
+
+    <div class="mc-intro">
+      <h3>O problema: hoje você não sabe o que está acontecendo na rede</h3>
+      <p>Sem painel: você não sabe se OlivIA travou, se Cecília está processando, quantas tasks estão na fila do Jarbinhas, ou qual agente está consumindo mais custo.</p>
+      <p>Com Mission Control: visão em tempo real de tudo. Kanban de tarefas, health de cada agente, custo por agente, crons ativos.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="mc-option mc-rec">
+        <h4>🏆 Opção Recomendada: Supabase + HTML dashboard (você já tem)</h4>
+        <p>Você já tem Supabase configurado. Criar tabelas <code>agent_tasks</code>, <code>agent_health</code>, <code>agent_events</code>. Cada agente escreve via API. Dashboard HTML que puxa via fetch e exibe Kanban. Deploy no GitHub Pages = gratuito e sempre disponível.</p>
+        <p style="color:#4ade80;margin-top:8px;font-size:13px">✅ Sem infra nova · ✅ Dados no seu banco · ✅ Você controla tudo</p>
+      </div>
+      <div class="mc-option">
+        <h4>🔧 Alternativa: NocoDB (self-hosted)</h4>
+        <p>Docker Compose no Mac Mini. Interface visual tipo Notion. API REST que os agentes escrevem. Mais fácil de usar no dia-a-dia mas requer manter um container rodando.</p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <h3>Tabelas que você precisa no Supabase</h3>
+      <table style="margin-top:12px">
+        <thead>
+          <tr><th>Tabela</th><th>O que registra</th><th>Quem escreve</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>agent_tasks</code></td><td>Tarefas na fila, em andamento, concluídas (Kanban)</td><td>Todos os agentes</td></tr>
+          <tr><td><code>agent_health</code></td><td>Status de cada agente a cada heartbeat</td><td>Heartbeat / health-check cron</td></tr>
+          <tr><td><code>agent_events</code></td><td>Eventos importantes (erro, conclusão, alerta)</td><td>Todos os agentes</td></tr>
+          <tr><td><code>agent_costs</code></td><td>Custo diário por agente (tokens, $)</td><td>custo-alert cron</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-top:16px">
+      <h3 style="font-size:15px;margin-bottom:12px">📋 Kanban proposto</h3>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:13px">
+        <div style="background:#1a1a2e;border:1px solid #2a2a4e;border-radius:8px;padding:12px">
+          <p style="color:#a855f7;font-weight:700;margin-bottom:8px">📥 Na Fila</p>
+          <div style="background:#22223b;border-radius:4px;padding:8px;margin-bottom:6px;font-size:12px">OlivIA: peticao processo #4521</div>
+          <div style="background:#22223b;border-radius:4px;padding:8px;font-size:12px">Jarbas: distribuicao 12 processos</div>
+        </div>
+        <div style="background:#0a1929;border:1px solid #1e3a5f;border-radius:8px;padding:12px">
+          <p style="color:#3b82f6;font-weight:700;margin-bottom:8px">⚡ Em Andamento</p>
+          <div style="background:#0f2040;border-radius:4px;padding:8px;margin-bottom:6px;font-size:12px">Jarbinhas: n8n sync CDO</div>
+        </div>
+        <div style="background:#0a1c0a;border:1px solid #14532d;border-radius:8px;padding:12px">
+          <p style="color:#22c55e;font-weight:700;margin-bottom:8px">✅ Concluído</p>
+          <div style="background:#0f2e0f;border-radius:4px;padding:8px;margin-bottom:6px;font-size:12px">Jarbas: briefing diário</div>
+          <div style="background:#0f2e0f;border-radius:4px;padding:8px;font-size:12px">Beto: resposta Gustavo</div>
+        </div>
+        <div style="background:#1c0a0a;border:1px solid #7f1d1d;border-radius:8px;padding:12px">
+          <p style="color:#ef4444;font-weight:700;margin-bottom:8px">🚨 Bloqueado</p>
+          <div style="background:#2e0f0f;border-radius:4px;padding:8px;font-size:12px">Cecília: sem resposta API 47min</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Melhorias -->
+  <div class="section">
+    <div class="section-title"><span>🚀</span> Melhorias para chegar em 10/10</div>
+
+    <div class="melhoria done">
+      <div class="melhoria-header">
+        <h4>✅ exec automático sem aprovação</h4>
+        <span class="pill green">FEITO</span>
+      </div>
+      <p>security:full + ask:off aplicados. Exec roda sem pedir /approve.</p>
+    </div>
+
+    <div class="melhoria done">
+      <div class="melhoria-header">
+        <h4>✅ Cache otimizado (cacheRetention: long, ttl: 1h)</h4>
+        <span class="pill green">FEITO</span>
+      </div>
+      <p>Estava causando rebuild de 120-174k tokens ($0.65/mensagem). Resolvido.</p>
+    </div>
+
+    <div class="melhoria done">
+      <div class="melhoria-header">
+        <h4>✅ 6 crons corretos (isolated + agentTurn)</h4>
+        <span class="pill green">FEITO</span>
+      </div>
+      <p>Jarbas 2.0 + Jarbinhas com todos os crons corretos.</p>
+    </div>
+
+    <div class="melhoria done">
+      <div class="melhoria-header">
+        <h4>✅ Personalidade lapidada (palavrão, parceiro)</h4>
+        <span class="pill green">FEITO</span>
+      </div>
+      <p>SOUL.md v1.2 com tom real, anti-patterns corporativos removidos.</p>
+    </div>
+
+    <div class="melhoria p1">
+      <div class="melhoria-header">
+        <h4>🔧 Bot Telegram dedicado para Jarbas 2.0</h4>
+        <span class="pill yellow">P1</span>
+      </div>
+      <p>Criar bot via @BotFather com nome "Jarbas 2.0". Hoje ainda usa o bot do setup inicial.</p>
+    </div>
+
+    <div class="melhoria p1">
+      <div class="melhoria-header">
+        <h4>🔧 mdlab-vault acessível no usuário christian</h4>
+        <span class="pill yellow">P1</span>
+      </div>
+      <p>EACCES no usuário christian. Criar symlink ou ajustar permissões. Hoje edições no vault passam por SSH Mac Mini.</p>
+    </div>
+
+    <div class="melhoria p1">
+      <div class="melhoria-header">
+        <h4>🔧 Mission Control — Supabase + HTML Dashboard</h4>
+        <span class="pill yellow">P1</span>
+      </div>
+      <p>Criar tabelas agent_tasks, agent_health, agent_events, agent_costs. Dashboard HTML com Kanban. Cada agente escreve via API.</p>
+    </div>
+
+    <div class="melhoria p1">
+      <div class="melhoria-header">
+        <h4>🔧 Confirmar Beto funcionando no Mac Mini</h4>
+        <span class="pill yellow">P1</span>
+      </div>
+      <p>.openclaw dir não confirmado. Verificar se LaunchAgent está ativo e Beto responde ao Gustavo via Telegram.</p>
+    </div>
+
+    <div class="melhoria p2">
+      <div class="melhoria-header">
+        <h4>💡 Migrar OlivIA para OpenClaw</h4>
+        <span class="pill blue">P2</span>
+      </div>
+      <p>Servidor Node customizado → instância OpenClaw. Ganha: memória, skills, crons padronizados, rastreamento de custo.</p>
+    </div>
+
+    <div class="melhoria p2">
+      <div class="melhoria-header">
+        <h4>💡 Migrar Cecília para OpenClaw</h4>
+        <span class="pill blue">P2</span>
+      </div>
+      <p>Mesma situação que OlivIA. LaunchAgent em loop (porta ocupada). Migrar para OpenClaw + resolver conflito de instância.</p>
+    </div>
+
+    <div class="melhoria p2">
+      <div class="melhoria-header">
+        <h4>💡 contextTokens: 160k + reserveTokensFloor: 30k</h4>
+        <span class="pill blue">P2</span>
+      </div>
+      <p>Recomendação do curso OpenClaw. Evita corte de raciocínio em outputs longos.</p>
+    </div>
+
+    <div class="melhoria p2">
+      <div class="melhoria-header">
+        <h4>💡 self-improving: mdflow.md + supabase.md</h4>
+        <span class="pill blue">P2</span>
+      </div>
+      <p>Criar domains específicos para os dois domínios mais usados. Reduz busca semântica em cada tarefa.</p>
+    </div>
+  </div>
+
+  <!-- Arquitetura visual -->
+  <div class="section">
+    <div class="section-title"><span>🗺️</span> Visão da Rede</div>
+    <div class="card">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;font-size:13px;padding:16px 0">
+        <div style="background:#3b0764;border:1px solid #7c3aed;border-radius:8px;padding:10px 24px;font-weight:700;color:#c084fc">💬 Christian (Telegram)</div>
+        <div style="color:var(--muted)">↕</div>
+        <div style="background:#1a0a2e;border:2px solid #7c3aed;border-radius:8px;padding:12px 32px;font-weight:700;color:#a855f7">🐙 Jarbas 2.0 — HUB CENTRAL</div>
+        <div style="color:var(--muted);font-size:11px">spawna sub-agents · coordena · reporta</div>
+        <div style="display:flex;gap:16px;margin-top:8px;flex-wrap:wrap;justify-content:center">
+          <div style="background:#0a1929;border:1px solid #1e3a5f;border-radius:8px;padding:8px 16px;text-align:center">
+            <div>🤖 Beto</div>
+            <div style="color:var(--muted);font-size:11px">Mac Mini · L2</div>
+          </div>
+          <div style="background:#0a1929;border:1px solid #1e3a5f;border-radius:8px;padding:8px 16px;text-align:center">
+            <div>⚖️ OlivIA</div>
+            <div style="color:#fbbf24;font-size:11px">Node custom ⚠️</div>
+          </div>
+          <div style="background:#0a1929;border:1px solid #1e3a5f;border-radius:8px;padding:8px 16px;text-align:center">
+            <div>🎛️ Cecília</div>
+            <div style="color:#fbbf24;font-size:11px">Node custom ⚠️</div>
+          </div>
+          <div style="background:#1c2e1c;border:1px solid #2a4a2a;border-radius:8px;padding:8px 16px;text-align:center;opacity:0.7">
+            <div>🦞 Jarbinhas</div>
+            <div style="color:var(--muted);font-size:11px">n8n legado</div>
+          </div>
+        </div>
+        <div style="color:var(--muted);margin-top:8px;font-size:11px">⚠️ OlivIA e Cecília não passam pelo Jarbas 2.0 — operam de forma independente hoje</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    🐙 Jarbas 2.0 · JARBAS Network · MdLab LegalTech · Gerado em 27/03/2026 01:15 AM
+  </footer>
+
+</div>
+</body>
+</html>

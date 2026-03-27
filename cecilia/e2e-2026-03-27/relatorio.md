@@ -1,5 +1,5 @@
 # Relatório E2E Cecília — 27/03/2026
-> Gerado em: 27/03/2026, 04:42:55 | Duração: 63s
+> Gerado em: 27/03/2026, 04:46:42 | Duração: 66s
 
 ## Resumo
 
@@ -20,17 +20,17 @@
 
 ### SC074025 (TJSC)
 - **Login:** ✅ OK
-- **Tempo de login:** 13083ms
+- **Tempo de login:** 13335ms
 - ⚠️ Nenhum processo coletado
 
 ### SP535101 (TJSP)
 - **Login:** ✅ OK
-- **Tempo de login:** 11819ms
+- **Tempo de login:** 11275ms
 - ⚠️ Nenhum processo coletado
 
 ### RS116571 (TJRS)
 - **Login:** ✅ OK
-- **Tempo de login:** 12852ms
+- **Tempo de login:** 12622ms
 - ⚠️ Nenhum processo coletado
 
 ---

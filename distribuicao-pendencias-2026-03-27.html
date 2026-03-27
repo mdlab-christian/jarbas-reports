@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Distribuição — Pendências & Core | 27/03/2026</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --card: #1a1d2e;
+    --border: #2a2d3e;
+    --teal: #20c997;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --blue: #3b82f6;
+    --purple: #8b5cf6;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --text-muted: #64748b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; line-height: 1.6; }
+  .header { background: linear-gradient(135deg, #12100e 0%, #1a1d2e 100%); border-bottom: 1px solid var(--border); padding: 32px 40px; }
+  .header h1 { font-size: 1.8rem; font-weight: 700; color: #fff; }
+  .header p { color: var(--text-dim); margin-top: 4px; font-size: 0.95rem; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.75rem; font-weight: 600; margin-left: 10px; vertical-align: middle; }
+  .badge-yellow { background: rgba(245,158,11,0.15); color: var(--yellow); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+  .section { margin-bottom: 48px; }
+  .section-title { font-size: 1.1rem; font-weight: 700; color: #fff; border-left: 3px solid var(--teal); padding-left: 12px; margin-bottom: 20px; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+  .card-title { font-weight: 600; font-size: 1rem; color: #fff; margin-bottom: 10px; }
+  .card-body { color: var(--text-dim); font-size: 0.9rem; }
+  .card-body ul { list-style: none; padding: 0; }
+  .card-body ul li { padding: 5px 0; padding-left: 18px; position: relative; }
+  .card-body ul li::before { content: '→'; position: absolute; left: 0; color: var(--teal); }
+  .flow-steps { padding-left: 12px; }
+  .flow-step { display: flex; align-items: flex-start; gap: 16px; padding: 16px 0; border-left: 2px solid var(--border); margin-left: 20px; padding-left: 24px; position: relative; }
+  .flow-step::before { content: ''; width: 12px; height: 12px; border-radius: 50%; background: var(--teal); position: absolute; left: -7px; top: 22px; }
+  .flow-step:last-child { border-color: transparent; }
+  .step-icon { font-size: 1.4rem; }
+  .step-title { font-weight: 600; color: #fff; font-size: 0.95rem; }
+  .step-desc { color: var(--text-dim); font-size: 0.875rem; margin-top: 2px; }
+  .pending-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+  .pending-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
+  .pending-card.priority-alta { border-left: 3px solid var(--red); }
+  .pending-card.priority-media { border-left: 3px solid var(--yellow); }
+  .pending-card.priority-baixa { border-left: 3px solid var(--blue); }
+  .pending-title { font-weight: 600; color: #fff; font-size: 0.9rem; margin-bottom: 8px; }
+  .pending-desc { color: var(--text-dim); font-size: 0.84rem; line-height: 1.6; }
+  .chart-preview { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 24px; }
+  .chart-tabs { display: flex; gap: 8px; margin-bottom: 16px; }
+  .tab { padding: 6px 14px; border-radius: 8px; font-size: 0.82rem; font-weight: 600; border: 1px solid var(--border); color: var(--text-muted); background: transparent; }
+  .tab.active { background: var(--teal); color: #000; border-color: var(--teal); }
+  .chart-area { background: rgba(0,0,0,0.3); border-radius: 8px; height: 180px; display: flex; align-items: flex-end; justify-content: space-around; padding: 16px 12px 8px; gap: 8px; }
+  .bar-group { display: flex; flex-direction: column; align-items: center; flex: 1; gap: 4px; }
+  .bars { display: flex; align-items: flex-end; gap: 3px; width: 100%; justify-content: center; }
+  .bar { flex: 1; border-radius: 4px 4px 0 0; min-height: 4px; max-width: 20px; }
+  .bar-label { font-size: 0.7rem; color: var(--text-muted); }
+  .chart-legend { display: flex; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-dim); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .divider { height: 1px; background: var(--border); margin: 32px 0; }
+  .note-box { background: rgba(32,201,151,0.05); border: 1px solid rgba(32,201,151,0.2); border-radius: 10px; padding: 14px 18px; color: var(--teal); font-size: 0.875rem; display: flex; gap: 10px; }
+  .drawer-spec { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .drawer-tab-header { display: flex; border-bottom: 1px solid var(--border); }
+  .drawer-tab { padding: 12px 20px; font-size: 0.85rem; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid transparent; }
+  .drawer-tab.active { color: var(--teal); border-bottom-color: var(--teal); }
+  .drawer-content { padding: 20px 24px; }
+  .spec-row { display: flex; justify-content: space-between; align-items: flex-start; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 0.875rem; gap: 12px; }
+  .spec-row:last-child { border-bottom: none; }
+  .spec-label { color: var(--text-muted); flex-shrink: 0; min-width: 180px; }
+  .spec-value { color: #fff; font-weight: 500; text-align: right; }
+  .spec-value.remove { color: var(--red); text-decoration: line-through; opacity: 0.7; }
+  .spec-value.add { color: var(--teal); }
+  .spec-value.warn { color: var(--yellow); }
+  h2.page-title { font-size: 1rem; color: var(--text-muted); font-weight: 500; margin-bottom: 6px; }
+  footer { border-top: 1px solid var(--border); padding: 24px 40px; color: var(--text-muted); font-size: 0.8rem; display: flex; justify-content: space-between; }
+  code { background: rgba(255,255,255,0.07); padding: 1px 6px; border-radius: 4px; font-size: 0.85em; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h2 class="page-title">MdFlow — Página de Distribuição</h2>
+  <h1>Pendências & Core <span class="badge badge-yellow">27/03/2026</span></h1>
+  <p>Consolidado do áudio do Christian — pendências, especificações e fluxo completo para o próximo ciclo de dev.</p>
+</div>
+
+<div class="container">
+
+  <div class="section">
+    <div class="section-title">📦 Core da Distribuição — Fluxo</div>
+    <div class="card" style="margin-bottom:24px;">
+      <div class="card-body" style="color:var(--text);font-size:0.9rem;line-height:1.7;">
+        A Distribuição é a <strong>segunda etapa da esteira operacional</strong>. Leads do CRM com empresas processáveis marcadas são transformados em restrições/processos individuais. <strong>1 restrição = 1 processo.</strong> Após distribuição, some da UI e vai para /processos.
+      </div>
+    </div>
+    <div class="flow-steps">
+      <div class="flow-step"><div class="step-icon">👤</div><div><div class="step-title">CRM — Lead com restrições</div><div class="step-desc">Lead com N empresas processáveis marcadas gera N processos individuais na distribuição.</div></div></div>
+      <div class="flow-step"><div class="step-icon">📤</div><div><div class="step-title">Envio para Distribuição</div><div class="step-desc">Restrições processáveis saem do CRM e entram na fila de distribuição.</div></div></div>
+      <div class="flow-step"><div class="step-icon">🔧</div><div><div class="step-title">Aguardando Preparação</div><div class="step-desc">Processos que chegaram mas faltam dados (empresa ré, documentos). Drawer com botão "Enviar para Distribuição".</div></div></div>
+      <div class="flow-step"><div class="step-icon">⏳</div><div><div class="step-title">Aguardando Distribuição</div><div class="step-desc">Prontos para distribuir. Drawer completo com contrato, restrição principal, documentos e botão "Efetuar Distribuição".</div></div></div>
+      <div class="flow-step"><div class="step-icon">📅</div><div><div class="step-title">Agendados</div><div class="step-desc">Distribuição futura agendada. Mesmo drawer do Aguardando Distribuição.</div></div></div>
+      <div class="flow-step"><div class="step-icon">✅</div><div><div class="step-title">Distribuído → some da UI</div><div class="step-desc">Quando <code>distribuido = true</code>, sai da distribuição e passa a viver em /processos.</div></div></div>
+      <div class="flow-step"><div class="step-icon">🤖</div><div><div class="step-title">Aba Jarbas (futuro)</div><div class="step-desc">Distribuição automática, inclusive fins de semana. Manter aba como referência — sem implementação urgente.</div></div></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-title">📊 Dashboard — Gráfico de Distribuições (redesign)</div>
+    <div class="chart-preview">
+      <p style="font-size:0.85rem;color:var(--text-dim);margin-bottom:16px;">Substituir o gráfico de linha reta por <strong style="color:#fff">gráfico de linha com variação real</strong> de distribuições por dia.</p>
+      <div class="chart-tabs">
+        <div class="tab active">Por OAB</div>
+        <div class="tab">Por Usuário</div>
+      </div>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:0.8rem;color:var(--text-muted)">Período:</span>
+        <span style="font-size:0.8rem;background:rgba(32,201,151,0.15);color:var(--teal);padding:3px 12px;border-radius:6px;cursor:pointer;">Semanal ▾</span>
+        <span style="font-size:0.8rem;color:var(--text-muted)">OAB:</span>
+        <span style="font-size:0.8rem;background:rgba(255,255,255,0.07);color:#fff;padding:3px 12px;border-radius:6px;cursor:pointer;">Todos ▾</span>
+      </div>
+      <div class="chart-area">
+        <div class="bar-group"><div class="bars"><div class="bar" style="height:60px;background:#3b82f6;"></div><div class="bar" style="height:40px;background:#8b5cf6;"></div></div><div class="bar-label">Seg</div></div>
+        <div class="bar-group"><div class="bars"><div class="bar" style="height:95px;background:#3b82f6;"></div><div class="bar" style="height:65px;background:#8b5cf6;"></div></div><div class="bar-label">Ter</div></div>
+        <div class="bar-group"><div class="bars"><div class="bar" style="height:80px;background:#3b82f6;"></div><div class="bar" style="height:50px;background:#8b5cf6;"></div></div><div class="bar-label">Qua</div></div>
+        <div class="bar-group"><div class="bars"><div class="bar" style="height:120px;background:#3b82f6;"></div><div class="bar" style="height:85px;background:#8b5cf6;"></div></div><div class="bar-label">Qui</div></div>
+        <div class="bar-group"><div class="bars"><div class="bar" style="height:70px;background:#3b82f6;"></div><div class="bar" style="height:45px;background:#8b5cf6;"></div></div><div class="bar-label">Sex</div></div>
+        <div class="bar-group"><div class="bars"><div class="bar" style="height:15px;background:rgba(59,130,246,0.3);"></div><div class="bar" style="height:8px;background:rgba(139,92,246,0.3);"></div></div><div class="bar-label">Sáb</div></div>
+        <div class="bar-group"><div class="bars"><div class="bar" style="height:10px;background:rgba(59,130,246,0.3);"></div><div class="bar" style="height:5px;background:rgba(139,92,246,0.3);"></div></div><div class="bar-label">Dom</div></div>
+      </div>
+      <div class="chart-legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> RS116571 — Christian</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#8b5cf6"></div> SC074025 — Heloísa</div>
+        <div class="legend-item" style="opacity:0.4;font-style:italic"><div class="legend-dot" style="background:#6b7280"></div> Fins de semana (futuro: Jarbas)</div>
+      </div>
+    </div>
+    <div style="margin-top:16px;" class="card">
+      <div class="card-title">Especificação</div>
+      <div class="card-body"><ul>
+        <li>2 abas: <strong>Por OAB</strong> e <strong>Por Usuário</strong></li>
+        <li>Filtro de período: Semanal (padrão) | Mensal | Todos</li>
+        <li>Aba OAB: drop-down extra para filtrar por OAB específica</li>
+        <li>Aba Usuário: mostra cada usuário + "Todos" com cores distintas por linha</li>
+        <li>7 dias (Seg–Dom), fins de semana com visual diferenciado (opacidade reduzida)</li>
+        <li>Filtrar por <code>data_distribuicao</code> (não data de criação)</li>
+        <li>Cores distintas por OAB/usuário, alinhadas ao Design System</li>
+        <li><strong>Aguarda HTML de wireframe para validação antes de implementar no frontend</strong></li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-title">🗂️ Drawer Unificado — Especificação</div>
+    <div class="note-box" style="margin-bottom:20px;">
+      <div>💡</div>
+      <div>Mesmo drawer em <strong>Aguardando Distribuição</strong>, <strong>Agendados</strong> e <strong>Aguardando Preparação</strong>. Diferença: apenas o botão de ação principal.</div>
+    </div>
+    <div class="drawer-spec">
+      <div class="drawer-tab-header">
+        <div class="drawer-tab active">Restrição Principal</div>
+        <div class="drawer-tab">Movimentações</div>
+        <div class="drawer-tab">Documentos</div>
+      </div>
+      <div class="drawer-content">
+        <div class="spec-row"><div class="spec-label">Contrato</div><div class="spec-value add">✅ Exibir contrato vinculado</div></div>
+        <div class="spec-row"><div class="spec-label">Advogado</div><div class="spec-value">Apenas sigla + UF (ex: RS116571/RS)</div></div>
+        <div class="spec-row"><div class="spec-label">Campo "Comarca/Vara"</div><div class="spec-value remove">Remover do modal de efetuar distribuição</div></div>
+        <div class="spec-row"><div class="spec-label">Cidade + Vara + Foro Regional</div><div class="spec-value add">✅ Manter (já separados)</div></div>
+        <div class="spec-row"><div class="spec-label">Botão — Aguardando Distrib. / Agendados</div><div class="spec-value add">Efetuar Distribuição</div></div>
+        <div class="spec-row"><div class="spec-label">Botão — Aguardando Preparação</div><div class="spec-value add">Enviar para Distribuição</div></div>
+        <div class="spec-row"><div class="spec-label">Bloquear sem documentos?</div><div class="spec-value warn">⚠️ NÃO — clientes antigos já têm tudo gerado fora do sistema</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-title">🚨 Pendências Mapeadas</div>
+    <div class="pending-grid">
+
+      <div class="pending-card priority-alta">
+        <div class="pending-title">🔴 P1 — Comprovante de Restrição não gera</div>
+        <div class="pending-desc">
+          Botão fica em "gerando" indefinidamente. Não conclui nem baixa.<br><br>
+          Deve usar a OAB correta do processo (ex: RS116571 → Boa Vista, não Serasa).<br><br>
+          <strong style="color:#fff">Cenário n8n já está pronto.</strong> Verificar integração frontend.
+        </div>
+      </div>
+
+      <div class="pending-card priority-alta">
+        <div class="pending-title">🔴 P1 — Upload de documentos dá erro</div>
+        <div class="pending-desc">
+          Qualquer arquivo (PDF, imagem, .md) retorna erro ao enviar.<br><br>
+          "Erro a enviar contrato", "Erro a registrar comprovante".<br><br>
+          <strong style="color:#fff">Bloqueia toda a aba Documentos.</strong>
+        </div>
+      </div>
+
+      <div class="pending-card priority-alta">
+        <div class="pending-title">🔴 P1 — Contrato ausente na Restrição Principal</div>
+        <div class="pending-desc">
+          Drawer aba Restrição Principal não exibe o contrato vinculado ao processo.<br><br>
+          <strong style="color:#fff">Corrigir exibição do campo contrato.</strong>
+        </div>
+      </div>
+
+      <div class="pending-card priority-media">
+        <div class="pending-title">🟡 P2 — Aguardando Preparação: drawer + investigação</div>
+        <div class="pending-desc">
+          2.780 processos em preparação, aparentemente sem empresa ré.<br><br>
+          Implementar mesmo drawer, botão "Enviar para Distribuição".<br><br>
+          <strong style="color:#fff">Investigar causa após P1s resolvidos.</strong>
+        </div>
+      </div>
+
+      <div class="pending-card priority-media">
+        <div class="pending-title">🟡 P2 — Dashboard: gráfico novo</div>
+        <div class="pending-desc">
+          Substituir gráfico de linha reta pelo novo design com filtros OAB/Usuário e período.<br><br>
+          <strong style="color:#fff">Aguardar validação do HTML wireframe.</strong>
+        </div>
+      </div>
+
+      <div class="pending-card priority-media">
+        <div class="pending-title">🟡 P2 — Remover nome do advogado no drawer</div>
+        <div class="pending-desc">
+          Manter apenas sigla + UF. Nome já visível nos filtros de advogado.
+        </div>
+      </div>
+
+      <div class="pending-card priority-baixa">
+        <div class="pending-title">🔵 P3 — Remover campo Comarca/Vara</div>
+        <div class="pending-desc">
+          Modal de efetuar distribuição: remover "Comarca/Vara" — redundante com Cidade + Vara + Foro Regional.
+        </div>
+      </div>
+
+      <div class="pending-card priority-baixa">
+        <div class="pending-title">🔵 P3 — Validar rota CRM → Distribuição → Processos</div>
+        <div class="pending-desc">
+          Confirmar: número do processo, vara, <code>distribuido=true</code> remove da UI corretamente.
+        </div>
+      </div>
+
+      <div class="pending-card priority-baixa">
+        <div class="pending-title">🔵 P3 — Aba Jarbas: manter como referência</div>
+        <div class="pending-desc">
+          Não remover. Placeholder da distribuição automática futura. Sem implementação urgente.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <div class="section-title">📋 Regras de Negócio</div>
+    <div class="card">
+      <div class="card-body"><ul>
+        <li><strong>Não bloquear</strong> distribuição sem documentos — clientes antigos migrados já têm tudo</li>
+        <li><code>distribuido = true</code> → processo some da UI de distribuição e vai para /processos</li>
+        <li>1 lead CRM com N restrições = N processos individuais na distribuição</li>
+        <li>Gráfico filtra por <code>data_distribuicao</code>, não data de criação</li>
+        <li>Comprovante: gerado com OAB do processo (empresa ré correta por processo)</li>
+        <li>Fins de semana exibidos no gráfico mas diferenciados (futuro: Jarbas distribui também)</li>
+      </ul></div>
+    </div>
+  </div>
+
+  <div class="note-box">
+    <div>🤖</div>
+    <div><strong>Próximos passos:</strong> Resolver P1s (comprovante, upload, contrato). Depois gerar HTML do gráfico para validação visual. Aguardar ok do Christian antes de implementar no frontend.</div>
+  </div>
+
+</div>
+
+<footer>
+  <div>Distribuição — MdFlow v2 | MP Advocacia</div>
+  <div>Gerado por JARBAS · 27/03/2026 · Baseado no áudio do Christian</div>
+</footer>
+</body>
+</html>

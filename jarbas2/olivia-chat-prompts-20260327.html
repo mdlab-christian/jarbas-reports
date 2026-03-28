@@ -218,12 +218,16 @@
       <li><strong>Backend QUEBRADO:</strong> handler atual do <code>/olivia/chat</code> é stub síncrono — espera <code>{ mensagem }</code> na raiz, não persiste no DB, não usa Realtime. Arquivo: <code>/Users/jarbas/jarbas/src/webhook-main.mjs</code> linhas ~1084-1121</li>
       <li><strong>Cloudflare 502:</strong> tunnel apontando para porta errada — deve apontar para 3012. Auth do tunnel: <code>Authorization: Bearer olivia-gateway-token-2026</code> (não header <code>mdflow</code>)</li>
       <li><strong>Schema OK:</strong> usar <code>olivia_threads.meta</code> JSONB existente para chat_state — sem migration</li>
-      <li><strong>Fase 0 é bloqueador:</strong> backend precisa ser reescrito primeiro</li>
+      <li><strong>Fase 0 é bloqueador:</strong> backend precisa ser reescrito primeiro (2 mudanças no webhook-main.mjs: handler + auth Bearer)</li>
       <li><strong>Timeout: 30s</strong> (não 120s) + toast.error('OlivIA não respondeu. Tente novamente.')</li>
       <li><strong>Mobile sidebar:</strong> converter para Sheet/Drawer em &lt;640px com hamburger button</li>
       <li><strong>Quick suggestions:</strong> contextuais — 4 sugestões diferentes para processo vs chat livre</li>
       <li><strong>Composer:</strong> botão 📎 como placeholder UI na Fase 1, funcional na Fase 2</li>
       <li><strong>Processo context:</strong> buscar dados via query Supabase — mesmo padrão do SearchBoxCNJ</li>
+      <li><strong>react-markdown + remark-gfm já instalados</strong> — sem npm install necessário</li>
+      <li><strong>callWebhook já trata 202</strong> — webhook.ts não precisa de mudança</li>
+      <li><strong>Reutilizáveis sem mudança:</strong> SearchBoxCNJ, useAudioRecorder, olivia-url.ts, callWebhook</li>
+      <li><strong>Fases 2-4 adiadas:</strong> upload docs, intent router, download cards, áudio — próximas sessões</li>
     </ul>
   </div>
 </div>
@@ -283,7 +287,10 @@
       </div>
       <div class="acc-body">
         <div class="acc-context critical">
-          <strong>Contexto:</strong> O handler atual em <code>/Users/jarbas/jarbas/src/webhook-main.mjs</code> linhas ~1084-1121 é um stub síncrono que: (a) espera <code>{ mensagem }</code> na raiz em vez do envelope correto <code>{ data: { thread_id, message, processo_id } }</code>, (b) não persiste a resposta no Supabase, (c) não usa Realtime, (d) bloqueia até concluir. O Cloudflare tunnel também está retornando 502. Este é o bloqueador principal.
+          <strong>Contexto:</strong> Duas correções no webhook-main.mjs + Cloudflare:<br><br>
+          <strong>1. Auth:</strong> O arquivo atual só aceita o header <code>mdflow: MdL1501@</code>. Paths <code>/olivia/*</code> chegam com <code>Authorization: Bearer olivia-gateway-token-2026</code>. Precisa aceitar ambos.<br>
+          <strong>2. Handler:</strong> Linhas ~1084-1121 são um stub síncrono que espera <code>{ mensagem }</code> na raiz, não persiste no Supabase, bloqueia até concluir.<br>
+          <strong>3. Cloudflare:</strong> Tunnel retorna 502 — deve apontar para localhost:3012.
         </div>
         <div class="prompt-box">
           <div class="prompt-toolbar">
@@ -299,6 +306,35 @@ PASSO 1 — Investigar o arquivo atual:
 ssh mac-mini-tail "sed -n '1070,1130p' /Users/jarbas/jarbas/src/webhook-main.mjs"
 ssh mac-mini-tail "grep -n 'olivia/chat\|olivia.chat' /Users/jarbas/jarbas/src/webhook-main.mjs"
 ssh mac-mini-tail "grep -n 'registerWebhookRoute\|app.post\|router.post' /Users/jarbas/jarbas/src/webhook-main.mjs | head -20"
+ssh mac-mini-tail "grep -n 'Authorization\|Bearer\|mdflow.*auth\|authHeader\|AUTH_KEY' /Users/jarbas/jarbas/src/webhook-main.mjs | head -20"
+```
+
+PASSO 1-B — Corrigir autenticação para aceitar Bearer token em paths /olivia/*:
+O arquivo atual provavelmente só aceita o header `mdflow: MdL1501@`.
+Paths /olivia/* chegam do frontend MdFlow com: `Authorization: Bearer olivia-gateway-token-2026`
+
+Localizar o bloco de validação de auth e atualizar para aceitar ambos:
+```javascript
+// Localizar onde a auth é verificada (provavelmente algo como):
+// const authHeader = req.headers['mdflow'];
+// if (AUTH_KEY && authHeader !== AUTH_KEY) { return 401; }
+
+// SUBSTITUIR por:
+const authMdflow = req.headers['mdflow'];
+const authBearer = req.headers['authorization']?.replace('Bearer ', '');
+const OLIVIA_TOKEN = process.env.OLIVIA_GATEWAY_TOKEN || 'olivia-gateway-token-2026';
+
+// Aceitar: header mdflow (interno) OU Bearer token (frontend MdFlow para paths /olivia/*)
+const isOliviaPath = req.url?.startsWith('/olivia/');
+const isAuthorized = isOliviaPath
+  ? (authBearer === OLIVIA_TOKEN || authMdflow === AUTH_KEY)
+  : (authMdflow === AUTH_KEY);
+
+if (!isAuthorized) {
+  res.writeHead(401, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ success: false, message: 'Unauthorized' }));
+  return;
+}
 ```
 
 PASSO 2 — Ver como o Supabase está importado nesse arquivo:
@@ -454,9 +490,13 @@ Relate o que encontrou e o que foi alterado.</div>
       <div class="phase-time">~2-3h · beta-mdflow</div>
     </div>
 
+    <div class="alert success">
+      <span>✅</span>
+      <div><strong>Escopo confirmado pelo CC:</strong> Fase 1 mexe em apenas 2 arquivos: <code>OliviaChatPage.tsx</code> + <code>useOliviaChat.ts</code>. O resto (SearchBoxCNJ, webhook.ts, olivia-url.ts, react-markdown) já está pronto e não precisa de mudança.</div>
+    </div>
     <div class="alert info">
       <span>ℹ️</span>
-      <div>Execute a Fase 0 e confirme que o backend está funcionando antes de começar aqui. O frontend novo vai depender do handler correto.</div>
+      <div>Execute a Fase 0 e confirme que o backend está funcionando antes de começar aqui. Fases 2-4 (upload, intent router, download, áudio) são para próximas sessões.</div>
     </div>
 
     <!-- P1-A -->
@@ -488,7 +528,7 @@ PASSO 1 — Ler os arquivos de contexto:
 - Ler src/hooks/olivia/useOliviaChat.ts (hook que DEVE ser mantido — não alterar a assinatura)
 - Ler src/components/shared/search_box_cnj.tsx (componente SearchBoxCNJ a reutilizar)
 - Ler src/pages/olivia/index.tsx (ver como a aba Chat é montada)
-- Verificar se react-markdown está em package.json; se não estiver: npm install react-markdown remark-gfm
+- react-markdown e remark-gfm JÁ ESTÃO INSTALADOS — não precisa de npm install
 
 PASSO 2 — Verificar tipos do Supabase:
 - Ler src/integrations/supabase/types.ts — buscar: olivia_messages, olivia_threads, action_cards

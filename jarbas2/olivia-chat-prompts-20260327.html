@@ -213,13 +213,17 @@
   <p>Execute os prompts abaixo em sequência no Claude Code dentro do projeto <code>~/beta-mdflow</code>. Cada prompt é autossuficiente e pode ser rodado independentemente após o anterior concluir.</p>
 
   <div class="findings">
-    <h3>⚡ Achados do CC — O que mudou no plano</h3>
+    <h3>⚡ Achados do CC — O que mudou no plano (2 rodadas de investigação)</h3>
     <ul>
-      <li><strong>Backend QUEBRADO:</strong> handler atual do <code>/olivia/chat</code> é stub síncrono — espera <code>{ mensagem }</code> na raiz, não persiste nada no DB, não usa Realtime</li>
-      <li><strong>Cloudflare 502:</strong> tunnel está apontando para porta errada — precisa apontar para porta 3012</li>
-      <li><strong>Schema OK:</strong> usar <code>olivia_threads.meta</code> JSONB existente para chat_state — sem migration nova</li>
-      <li><strong>Fase 0 virou prioridade:</strong> backend precisa ser reescrito PRIMEIRO, senão frontend não funciona de jeito nenhum</li>
-      <li><strong>File alvo:</strong> <code>/Users/jarbas/jarbas/src/webhook-main.mjs</code> linhas 1084-1121</li>
+      <li><strong>Backend QUEBRADO:</strong> handler atual do <code>/olivia/chat</code> é stub síncrono — espera <code>{ mensagem }</code> na raiz, não persiste no DB, não usa Realtime. Arquivo: <code>/Users/jarbas/jarbas/src/webhook-main.mjs</code> linhas ~1084-1121</li>
+      <li><strong>Cloudflare 502:</strong> tunnel apontando para porta errada — deve apontar para 3012. Auth do tunnel: <code>Authorization: Bearer olivia-gateway-token-2026</code> (não header <code>mdflow</code>)</li>
+      <li><strong>Schema OK:</strong> usar <code>olivia_threads.meta</code> JSONB existente para chat_state — sem migration</li>
+      <li><strong>Fase 0 é bloqueador:</strong> backend precisa ser reescrito primeiro</li>
+      <li><strong>Timeout: 30s</strong> (não 120s) + toast.error('OlivIA não respondeu. Tente novamente.')</li>
+      <li><strong>Mobile sidebar:</strong> converter para Sheet/Drawer em &lt;640px com hamburger button</li>
+      <li><strong>Quick suggestions:</strong> contextuais — 4 sugestões diferentes para processo vs chat livre</li>
+      <li><strong>Composer:</strong> botão 📎 como placeholder UI na Fase 1, funcional na Fase 2</li>
+      <li><strong>Processo context:</strong> buscar dados via query Supabase — mesmo padrão do SearchBoxCNJ</li>
     </ul>
   </div>
 </div>
@@ -468,7 +472,7 @@ Relate o que encontrou e o que foi alterado.</div>
       </div>
       <div class="acc-body">
         <div class="acc-context">
-          <strong>Contexto:</strong> Substituir completamente o arquivo <code>src/pages/olivia/components/chat/OliviaChatPage.tsx</code> (351 linhas). O novo componente deve: (1) ter processo obrigatório como default no modal de novo chat, (2) mostrar header com contexto do processo ativo, (3) renderizar Markdown nas respostas, (4) ter quick suggestions dinâmicas baseadas no contexto.
+          <strong>Contexto:</strong> Substituir completamente o arquivo <code>src/pages/olivia/components/chat/OliviaChatPage.tsx</code> (351 linhas). O novo componente deve: (1) ter "Com Processo" como destaque no modal de novo chat; (2) header com contexto do processo ativo; (3) Markdown nas respostas; (4) progress pills para role='system'; (5) action cards como botões; (6) quick suggestions contextuais; (7) sidebar vira Sheet no mobile (&lt;640px); (8) botão 📎 placeholder no composer.
         </div>
         <div class="prompt-box">
           <div class="prompt-toolbar">
@@ -480,89 +484,115 @@ Relate o que encontrou e o que foi alterado.</div>
 TAREFA: Reconstruir o componente OliviaChatPage.tsx do zero.
 
 PASSO 1 — Ler os arquivos de contexto:
-- Ler src/pages/olivia/components/chat/OliviaChatPage.tsx (arquivo atual a ser substituído)
-- Ler src/hooks/olivia/useOliviaChat.ts (hook que DEVE ser mantido — não alterar)
+- Ler src/pages/olivia/components/chat/OliviaChatPage.tsx (arquivo atual — 351 linhas)
+- Ler src/hooks/olivia/useOliviaChat.ts (hook que DEVE ser mantido — não alterar a assinatura)
 - Ler src/components/shared/search_box_cnj.tsx (componente SearchBoxCNJ a reutilizar)
-- Ler src/pages/olivia/index.tsx (ver como a aba Chat está sendo usada)
-- Verificar se react-markdown está em package.json; se não estiver, rodar: npm install react-markdown remark-gfm
+- Ler src/pages/olivia/index.tsx (ver como a aba Chat é montada)
+- Verificar se react-markdown está em package.json; se não estiver: npm install react-markdown remark-gfm
 
-PASSO 2 — Verificar tipos do Supabase para olivia_messages:
-- Ler src/integrations/supabase/types.ts e buscar: olivia_messages, olivia_threads, action_cards
-- Anotar o tipo exato do campo action_cards (se existir)
+PASSO 2 — Verificar tipos do Supabase:
+- Ler src/integrations/supabase/types.ts — buscar: olivia_messages, olivia_threads, action_cards
+- Anotar o tipo exato do campo action_cards (se existir na tabela)
+- Se action_cards não existir no tipo ChatMessage, adicionar ao tipo local em useOliviaChat.ts:
+  action_cards?: Array<{ type: 'choice' | 'download' | 'progress'; id?: string; label: string; value?: string; url?: string }> | null;
 
 PASSO 3 — Reconstruir OliviaChatPage.tsx com as seguintes especificações:
 
-ESTRUTURA GERAL:
-- Layout: sidebar (260px) + área de chat (flex-1), mesmo layout do atual
-- Height: h-[calc(100vh-240px)] min-h-[500px], mesmo do atual
+═══ ESTRUTURA GERAL ═══
+- Desktop: sidebar fixo 260px + área de chat flex-1
+- Mobile (< 640px): sidebar vira Sheet/Drawer aberto por hamburger button
+  const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches;
+  (ou usar um useState + useEffect para window.matchMedia)
+- Height container: h-[calc(100vh-240px)] min-h-[500px], mesmo do atual
 
-MODAL "NOVA CONVERSA" (substituir o dialog atual):
-- Duas opções: "Com Processo" (DESTAQUE — botão maior, borda colorida, badge "Recomendado") e "Chat Livre" (opção menor, estilo secundário)
-- "Com Processo": abre step com SearchBoxCNJ para buscar pelo número CNJ
-  - Ao selecionar processo: mostrar pill com número CNJ + nome da empresa/órgão ré
-  - Botão "Iniciar Chat" ativado só após processo selecionado
-  - Ao criar: chamar chat.createThread(processoId) — mesmo método existente
-- "Chat Livre": criar thread sem processo (chat.createThread(null)) — igual ao atual
+═══ MODAL "NOVA CONVERSA" ═══
+Substituir o dialog atual por:
+- Opção 1: "Com Processo" (destaque principal)
+  - Card maior, badge "Recomendado", borda colorida (primary)
+  - Step: SearchBoxCNJ para buscar pelo número CNJ (mesmo componente existente)
+  - Ao selecionar processo: pill com número CNJ + nome da empresa/órgão ré
+  - Botão "Iniciar Chat" disabled até processo selecionado
+  - Cria thread: chat.createThread(processoId) — mesmo método existente
+- Opção 2: "Chat Livre" (secundário, menor, sem badge)
+  - Cria thread sem processo: chat.createThread(null)
 
-HEADER DO CHAT ATIVO (novo — mostrar processo vinculado):
-- Se thread tem processo_id: mostrar strip no topo da área de chat com:
-  - Ícone de processo (FileText ou Scale)
-  - Número CNJ truncado (ex: "0012345-67.2024.8.21...")
-  - Badge com tipo de processo se disponível
-  - Botão sutil "ver processo" que abre drawer (usar navigate ou emit evento)
-- Se thread não tem processo: não mostrar o strip (chat livre)
+═══ PROCESSO CONTEXT HEADER ═══
+Se thread ativa tem processo_id, mostrar strip no topo da área de chat:
+- Buscar dados do processo: query no Supabase — from('processos').select('numero_cnj, tipo_acao, restricao_orgao_nome').eq('id', processo_id).single()
+  Usar mesmo padrão do SearchBoxCNJ (joins já existentes no projeto)
+- Exibir: ícone Scale/FileText + número CNJ + badge com tipo (empresa/órgão) + botão "↗ Ver processo"
+- Se chat livre: não exibir o strip
 
-MENSAGEM BUBBLE (MessageBubble — substituir renderização):
-- Usar ReactMarkdown com remark-gfm para renderizar markdown nas mensagens de role='assistant'
-- Mensagens do usuário (role='user'): texto puro com whitespace-pre-wrap (igual ao atual)
-- Mensagens de sistema (role='system'): renderizar como progress pill — não como bubble
-  - Style: fundo sutil, texto em itálico, ícone de loading ou check, centralizado
-  - Ex: "▸ Gerando seção Dos Fatos..." aparece como pill cinza centralizado no chat
+═══ MESSAGEBUBBLE ═══
+Três variantes:
+1. role='user': whitespace-pre-wrap (sem markdown) — igual ao atual
+2. role='assistant': ReactMarkdown com remark-gfm
+   - Aplicar classes Tailwind para markdown: prose-sm, headings, listas, bold, code
+   - Máximo 75% de largura, alinhado à esquerda
+3. role='system': PROGRESS PILL — NÃO é um bubble normal
+   - Centralizado no chat, sem largura máxima restrita
+   - Background: surface2, borda esquerda accent, texto muted em itálico
+   - Ícone: Loader2 animate-spin se content começa com '▸', Check se começa com '✅'
 
-ACTION CARDS (novo — renderizar campo action_cards[]):
-- Após o bubble de uma mensagem assistant, se action_cards existir e tiver items:
-  - Renderizar buttons row abaixo do bubble
-  - Cada card: botão outline com ícone (se tiver) + label
-  - Ao clicar: chamar sendMessage com o value do card (simular texto do usuário)
-  - Tipos: 'choice' (botão normal), 'download' (botão com ícone Download, abre URL), 'progress' (não renderizar como botão)
+═══ ACTION CARDS ═══
+Após o bubble de uma mensagem assistant, se action_cards existir e tiver items:
+- Row de botões abaixo do bubble (flex-wrap, gap-2)
+- type='choice': botão outline pequeno, ao clicar → chat.sendMessage(card.value)
+- type='download': botão outline com ícone Download, ao clicar → window.open(card.url, '_blank')
+- type='progress': ignorar (não renderizar botão)
 
-QUICK SUGGESTIONS (atualizar):
-- Se thread tem processo vinculado: ["Analisar provas", "Gerar petição", "Buscar jurisprudência", "Resumir processo"]
-- Se chat livre: ["Pergunta jurídica", "Análise de jurisprudência", "Orientação processual"]
-- Manter comportamento atual: click → preenche input
+═══ QUICK SUGGESTIONS ═══
+const SUGGESTIONS_WITH_PROCESSO = [
+  'Resumir esse processo',
+  'Quais são os pontos de recurso?',
+  'Jurisprudência similar favorável',
+  'Estratégia recursal recomendada',
+];
+const SUGGESTIONS_FREE = [
+  'O que é negativação indevida?',
+  'Como calcular dano moral?',
+  'Prazo para recurso de apelação',
+  'Diferença entre RMC e RCC',
+];
+Mostrar quando messages.length === 0. Click → setInput(s) + textarea.focus()
 
-COMPOSER (melhorar):
-- Manter Textarea + botão Send
-- Adicionar: auto-resize (max-h-[120px]), Shift+Enter = nova linha, Enter = enviar
-- Placeholder dinâmico: se tem processo → "Pergunte sobre o processo ou solicite uma petição..." / se livre → "Pergunte algo à OlivIA..."
-- Indicador de "OlivIA está pensando..." deve continuar funcionando igual
+═══ COMPOSER ═══
+- Manter Textarea + botão Send (mesma lógica)
+- Textarea: auto-resize (min-h-[40px] max-h-[120px] resize-none) — já existe, manter
+- Placeholder: se processo → "Pergunte sobre o processo ou solicite uma petição... (Shift+Enter para nova linha)" / se livre → "Pergunte algo à OlivIA..."
+- Botão 📎 (Paperclip icon) PLACEHOLDER — UI apenas, sem funcionalidade (Fase 2 vai implementar)
+  - Posicionar à esquerda do textarea, disabled com tooltip "Upload de documentos (em breve)"
+- Enter = enviar, Shift+Enter = nova linha (manter comportamento atual)
 
-SIDEBAR (sem mudança):
-- Manter comportamento atual de threads (lista, arquivar, excluir)
-- Apenas ajustar: mostrar badge "📁" na thread se tiver processo vinculado vs "💬" se livre
+═══ SIDEBAR ═══
+- Desktop: igual ao atual (lista de threads, arquivar, excluir, load more)
+- Thread items: mostrar ícone 📁 se tem processo_id, 💬 se livre
+- Mobile: envolver em Sheet (shadcn/ui) que abre via hamburger button no header
 
-IMPORTS NECESSÁRIOS:
-- ReactMarkdown: import ReactMarkdown from 'react-markdown'
-- remarkGfm: import remarkGfm from 'remark-gfm'
-- Demais imports: reutilizar os do arquivo atual
+PASSO 4 — Substituir o arquivo completo.
+Escrever OliviaChatPage.tsx completo. TypeScript sem erros.
 
-PASSO 4 — Substituir o arquivo:
-Escrever o novo OliviaChatPage.tsx completo substituindo o arquivo existente.
-Garantir que todos os imports estão corretos e o TypeScript não tem erros.
+PASSO 5 — Verificação:
+cd ~/beta-mdflow && npx tsc --noEmit 2>&1 | grep "OliviaChat\|oliviaChat\|error" | head -20
 
-PASSO 5 — Verificar tipos:
-Se action_cards não existir no tipo ChatMessage do useOliviaChat.ts, adicionar:
-action_cards?: Array<{ type: 'choice' | 'download' | 'progress'; id?: string; label: string; value?: string; url?: string }> | null;
+PASSO 6 — Teste manual (instruções para Christian):
+1. npm run dev → abrir http://localhost:5173/olivia?tab=chat
+2. Nova Conversa → verificar que "Com Processo" está em destaque
+3. Criar thread livre → enviar "explique o que é dano moral **in re ipsa**" → verificar markdown
+4. Criar thread com processo → verificar header com CNJ
+5. Reduzir janela para 375px → verificar sidebar vira Sheet
 
 CRITÉRIOS DE SUCESSO:
-✓ Modal "Nova Conversa" mostra "Com Processo" como opção destacada e "Chat Livre" como secundária
-✓ Ao selecionar processo, header do chat mostra o CNJ
-✓ Respostas da OlivIA renderizam markdown (bold, listas, código)
-✓ Mensagens role='system' aparecem como progress pills, não como bubbles
-✓ Action cards aparecem como botões clicáveis abaixo dos bubbles
-✓ tsc --noEmit não retorna erros neste arquivo
+✓ tsc --noEmit: zero erros neste arquivo
+✓ "Com Processo" é o destaque no modal, "Chat Livre" é secundário
+✓ Header mostra CNJ quando thread tem processo
+✓ Markdown renderiza (bold, listas, headings, code inline)
+✓ Progress pills (role=system) são visualmente distintos dos bubbles
+✓ Action cards aparecem como botões (choice e download)
+✓ Botão 📎 aparece no composer (UI placeholder)
+✓ Mobile: sidebar vira Sheet
 
-Relate o que foi alterado e qualquer problema encontrado.</div>
+Relate o que foi alterado, incluindo qualquer divergência encontrada nos tipos.</div>
         </div>
       </div>
     </div>
@@ -580,7 +610,7 @@ Relate o que foi alterado e qualquer problema encontrado.</div>
       </div>
       <div class="acc-body">
         <div class="acc-context">
-          <strong>Contexto:</strong> Com o backend respondendo 202 imediatamente (async), o frontend precisa saber quando a resposta chegou para resetar isSending. Atualmente o isSending é resetado quando a resposta do webhook chega — mas agora o webhook retorna 202 na hora. O reset de isSending deve acontecer quando uma mensagem de role='assistant' chega via Realtime subscription.
+          <strong>Contexto:</strong> Com o backend respondendo 202 imediatamente, o isSending não pode ser resetado no retorno do webhook — precisa ser resetado quando role='assistant' chega via Realtime. O CC também especificou: timeout de <strong>30 segundos</strong> (não 120s) com toast.error, e garantir que role='system' está no tipo ChatMessage para os progress updates chegarem ao state.
         </div>
         <div class="prompt-box">
           <div class="prompt-toolbar">
@@ -589,41 +619,54 @@ Relate o que foi alterado e qualquer problema encontrado.</div>
           </div>
           <div class="prompt-content" id="p1b">Você está no projeto ~/beta-mdflow.
 
-TAREFA: Ajustar o hook useOliviaChat.ts para funcionar corretamente com o novo backend async.
+TAREFA: Ajustar useOliviaChat.ts para funcionar corretamente com o novo backend 202 async.
 
 PASSO 1 — Ler o arquivo completo:
-- Ler src/hooks/olivia/useOliviaChat.ts
+- Ler src/hooks/olivia/useOliviaChat.ts (315 linhas)
 
-PASSO 2 — Identificar como isSending é resetado atualmente:
-- Procurar onde setIsSending(false) é chamado
-- Verificar se existe subscription Realtime para olivia_messages
-- Se existe, ver o handler da subscription
+PASSO 2 — Mapear o estado atual:
+Identificar CADA ocorrência de:
+- setIsSending(false) — onde é chamado e por qual condição
+- supabase.channel / Realtime subscription — existe? para qual tabela/filtro?
+- callWebhook — o que faz com a resposta?
 
-PASSO 3 — Ajustar o fluxo de isSending:
+PASSO 3 — O comportamento atual (errado com 202):
+O webhook agora retorna imediatamente: { success: true, action: 'webhook_triggered' }
+O hook provavelmente reseta isSending ao receber essa resposta.
+Problema: a resposta real (assistant message) só chega via Realtime depois.
 
-COMPORTAMENTO ATUAL (errado com backend 202):
-- sendMessage() → chama webhook → webhook retorna dados → setIsSending(false)
-- Problema: webhook agora retorna 202 imediatamente sem a resposta
+PASSO 4 — Ajuste 1: isSending NÃO reseta no retorno do webhook.
+No sendMessage(), após callWebhook:
+- Se response.success E response.action === 'webhook_triggered': NÃO chamar setIsSending(false)
+- Manter isSending=true até o Realtime confirmar chegada da resposta
 
-COMPORTAMENTO CORRETO:
-- sendMessage() → insere msg user → chama webhook → webhook retorna 202 → NÃO resetar isSending aqui
-- Realtime handler → quando chega INSERT de role='assistant' na thread ativa → setIsSending(false)
+PASSO 5 — Ajuste 2: timeout de segurança de 30 segundos.
+Adicionar ao sendMessage(), após chamar callWebhook:
+```typescript
+const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-AJUSTE NO sendMessage():
-- Após receber resposta do webhook (success: true, action: 'processing'): NÃO chamar setIsSending(false)
-- Manter isSending = true até o Realtime trazer a resposta
+// dentro do sendMessage, após callWebhook retornar:
+if (timeoutRef.current) clearTimeout(timeoutRef.current);
+timeoutRef.current = setTimeout(() => {
+  if (isSendingRef.current) {
+    setIsSending(false);
+    isSendingRef.current = false;
+    toast.error('OlivIA não respondeu. Tente novamente.');
+  }
+}, 30_000); // 30 segundos (não 120)
+```
+No Realtime handler, quando chega role='assistant': clearTimeout(timeoutRef.current)
+Limpar timeout também no cleanup do useEffect e ao trocar de thread.
 
-AJUSTE NO Realtime handler:
-- Quando chega nova mensagem via Realtime:
-  - Se message.role === 'assistant': chamar setIsSending(false) e isSendingRef.current = false
-  - Adicionar a mensagem ao state de messages normalmente
-
-VERIFICAR se o Realtime já está subscrito para olivia_messages:
-- Se sim: apenas ajustar o handler para resetar isSending em role='assistant'
-- Se não: adicionar subscription:
-  ```
+PASSO 6 — Ajuste 3: Realtime subscription deve resetar isSending em role='assistant'.
+Verificar se já existe subscription para olivia_messages.
+Se existe: adicionar no handler — quando payload.new.role === 'assistant': setIsSending(false) + clearTimeout
+Se não existe: criar subscription:
+```typescript
+useEffect(() => {
+  if (!activeThreadId) return;
   const channel = supabase
-    .channel(`olivia-messages-${activeThreadId}`)
+    .channel(`olivia-chat-${activeThreadId}`)
     .on('postgres_changes', {
       event: 'INSERT',
       schema: 'public',
@@ -631,38 +674,40 @@ VERIFICAR se o Realtime já está subscrito para olivia_messages:
       filter: `thread_id=eq.${activeThreadId}`,
     }, (payload) => {
       const msg = payload.new as ChatMessage;
-      setMessages(prev => [...prev, msg]);
-      if (msg.role === 'assistant' || msg.role === 'system') {
+      // Adicionar ao estado apenas se não estiver já (evitar duplicata do insert inicial)
+      setMessages(prev => {
+        if (prev.find(m => m.id === msg.id)) return prev;
+        return [...prev, msg];
+      });
+      // Reset isSending quando assistant responde
+      if (msg.role === 'assistant') {
         setIsSending(false);
         isSendingRef.current = false;
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
       }
     })
     .subscribe();
-  ```
-
-PASSO 4 — Adicionar timeout de segurança:
-Se o backend falhar silenciosamente e nenhuma mensagem chegar em 120s, resetar isSending:
-```
-const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-// No sendMessage, após chamar webhook:
-timeoutRef.current = setTimeout(() => {
-  setIsSending(false);
-  isSendingRef.current = false;
-}, 120_000);
-// No Realtime handler (role=assistant): clearTimeout(timeoutRef.current)
+  return () => { supabase.removeChannel(channel); };
+}, [activeThreadId]);
 ```
 
-PASSO 5 — Garantir que mensagens de role='system' aparecem no state:
-- O state de messages deve incluir mensagens de role='system' (progress updates)
-- Verificar se o tipo ChatMessage aceita role: 'system' — se não, adicionar ao tipo
+PASSO 7 — Ajuste 4: mensagens de role='system' incluídas no state.
+Verificar se o tipo ChatMessage tem: role: 'user' | 'assistant' | 'system'
+Se não tem 'system', adicionar ao tipo.
+Garantir que mensagens role='system' chegam via Realtime e são adicionadas ao state (não filtrar).
+
+PASSO 8 — Verificação TypeScript:
+cd ~/beta-mdflow && npx tsc --noEmit 2>&1 | grep "useOliviaChat\|error" | head -10
 
 CRITÉRIOS DE SUCESSO:
-✓ Enviar mensagem → botão Send fica disabled (isSending=true) → resposta chega via Realtime → botão Send volta a funcionar
-✓ Mensagens de role='system' aparecem no estado e são passadas para o componente
-✓ Se backend demorar >120s, isSending reseta automaticamente
-✓ Trocar de thread limpa a subscription anterior e cria nova para o thread ativo
+✓ Enviar mensagem → isSending=true → resposta chega via Realtime → isSending=false (botão volta)
+✓ Sem resposta em 30s → toast.error + isSending=false
+✓ Mensagens role='system' chegam no state (progress updates da geração)
+✓ Trocar de thread: subscription anterior é removida, nova criada para thread ativa
+✓ Sem duplicatas de mensagem (insert do frontend + Realtime)
+✓ Zero erros TypeScript
 
-Relate o que foi alterado.</div>
+Relate o que foi alterado e se havia subscription Realtime previamente.</div>
         </div>
       </div>
     </div>

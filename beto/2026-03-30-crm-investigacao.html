@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM — Investigação Técnica de Bugs | 2026-03-30</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --surface: #1a1714;
+    --card: #201d1a;
+    --border: #2e2b27;
+    --primary: #20c997;
+    --primary-dim: #20c99720;
+    --primary-border: #20c99740;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --info: #60a5fa;
+    --text: #f5f0eb;
+    --muted: #9e9890;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; }
+  .layout { display: flex; min-height: 100vh; }
+  .sidebar { width: 240px; min-height: 100vh; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 0; overflow-y: auto; flex-shrink: 0; max-height: 100vh; }
+  .sidebar-logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .sidebar-logo h2 { font-size: 14px; font-weight: 700; color: var(--primary); }
+  .sidebar-logo p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .nav-section { padding: 8px 20px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: .8px; color: var(--muted); font-weight: 600; }
+  .nav-item { display: block; padding: 6px 20px; font-size: 12px; color: var(--muted); text-decoration: none; border-left: 3px solid transparent; transition: all .15s; }
+  .nav-item:hover { color: var(--text); background: var(--card); }
+  .nav-item.danger { color: #ef444490; }
+  .nav-item.warn { color: #f59e0b90; }
+  .nav-item.info { color: #60a5fa90; }
+  .nav-item.success { color: #22c55e90; }
+  .main { flex: 1; padding: 32px 40px; max-width: 980px; }
+  header { margin-bottom: 36px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 26px; font-weight: 800; color: var(--text); }
+  header .subtitle { color: var(--muted); font-size: 13px; margin-top: 6px; }
+  .meta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .meta-chip { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 12px; }
+  .section { margin-bottom: 48px; scroll-margin-top: 24px; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .section-icon { font-size: 20px; }
+  .section-title { font-size: 18px; font-weight: 700; color: var(--text); }
+  .bug-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+  .bug-card-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .bug-card-header h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+  .bug-card-header .bug-id { font-size: 11px; font-family: var(--mono); color: var(--primary); background: var(--primary-dim); border: 1px solid var(--primary-border); border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
+  .bug-body { padding: 20px; }
+  .bug-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .bug-item label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); font-weight: 600; margin-bottom: 4px; }
+  .bug-item p { font-size: 13px; color: var(--text); }
+  .bug-item.full { grid-column: 1 / -1; }
+  .file-path { font-family: var(--mono); font-size: 12px; background: #0a0908; border: 1px solid var(--border); border-radius: 5px; padding: 2px 7px; color: var(--warn); display: inline-block; }
+  pre { background: #0d0b09; border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 12px; line-height: 1.7; color: #c9c3bb; margin: 8px 0; }
+  pre .c-comment { color: #5a5550; }
+  pre .c-keyword { color: #c678dd; }
+  pre .c-string { color: #98c379; }
+  pre .c-danger { color: #ef4444; }
+  pre .c-ok { color: #22c55e; }
+  pre .c-add { background: #22c55e15; color: #22c55e; display: block; }
+  pre .c-remove { background: #ef444415; color: #ef4444; display: block; text-decoration: line-through; }
+  .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 600; border: 1px solid transparent; }
+  .badge-crit { background: #ef444420; color: var(--danger); border-color: #ef444440; }
+  .badge-high { background: #f59e0b20; color: var(--warn); border-color: #f59e0b40; }
+  .badge-med { background: #60a5fa20; color: var(--info); border-color: #60a5fa40; }
+  .badge-low { background: #22c55e20; color: var(--success); border-color: #22c55e40; }
+  .badge-time { background: var(--card); color: var(--muted); border-color: var(--border); }
+  .fix-block { background: #0d1810; border: 1px solid #22c55e30; border-radius: 8px; padding: 12px 16px; margin-top: 10px; }
+  .fix-block label { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--success); font-weight: 600; display: block; margin-bottom: 6px; }
+  .cause-block { background: #100d0d; border: 1px solid #ef444430; border-radius: 8px; padding: 12px 16px; margin-top: 10px; }
+  .cause-block label { font-size: 10px; text-transform: uppercase; letter-spacing: .6px; color: var(--danger); font-weight: 600; display: block; margin-bottom: 6px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+  .summary-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .summary-table th { text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); }
+  .summary-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .summary-table tr:last-child td { border-bottom: none; }
+  .summary-table tr:hover td { background: #ffffff05; }
+  ul.findings { margin: 0; padding: 0 0 0 18px; color: var(--text); font-size: 13px; line-height: 1.8; }
+  ul.findings li { margin-bottom: 2px; }
+  .tag { display: inline-block; font-size: 10px; font-family: var(--mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h2>🔍 CRM Bugs</h2>
+    <p>Investigação 2026-03-30</p>
+  </div>
+
+  <div class="nav-section">Críticos 🔴</div>
+  <a class="nav-item danger" href="#b1">B1 — Kanban DnD</a>
+  <a class="nav-item danger" href="#b2">B2 — Lead errado modal</a>
+  <a class="nav-item danger" href="#b3a">B3a — Serasa habilitada</a>
+  <a class="nav-item danger" href="#b3b">B3b — ApiFull sem resp.</a>
+
+  <div class="nav-section">Altos 🟠</div>
+  <a class="nav-item warn" href="#p1">P1 — Botão Triagem</a>
+  <a class="nav-item warn" href="#p2">P2 — Toggle Aguardando</a>
+  <a class="nav-item warn" href="#p3">P3 — WhatsApp máscara</a>
+  <a class="nav-item warn" href="#p4">P4 — Dropdowns filtro</a>
+  <a class="nav-item warn" href="#p5">P5 — Novo advogado</a>
+
+  <div class="nav-section">Médios 🟡</div>
+  <a class="nav-item info" href="#m1">M1 — Data restrições</a>
+  <a class="nav-item info" href="#m2">M2 — Modal fechar</a>
+
+  <div class="nav-section">Baixos 🟢</div>
+  <a class="nav-item success" href="#l1">L1 — DialogTitle</a>
+  <a class="nav-item success" href="#l2">L2 — Campo Email</a>
+
+  <div class="nav-section">Resumo</div>
+  <a class="nav-item" href="#resumo">📊 Tabela geral</a>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <header>
+    <h1>CRM — Investigação Técnica de Bugs</h1>
+    <p class="subtitle">Análise completa do código-fonte. Causa raiz + correção para cada issue.</p>
+    <div class="meta-row">
+      <span class="meta-chip">📅 2026-03-30</span>
+      <span class="meta-chip">🔴 4 críticos</span>
+      <span class="meta-chip">🟠 5 altos</span>
+      <span class="meta-chip">🟡 2 médios</span>
+      <span class="meta-chip">🟢 2 baixos</span>
+      <span class="meta-chip">🗂️ ~/beta-mdflow/</span>
+    </div>
+  </header>
+
+  <!-- ═══ CRÍTICOS ═══ -->
+  <section class="section" id="b1">
+    <div class="section-header">
+      <span class="section-icon">🔴</span>
+      <span class="section-title">Críticos</span>
+    </div>
+
+    <!-- B1 -->
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div>
+          <h3>B1 — Drag-and-drop do Kanban não funciona</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-crit">Crítico</span>
+            <span class="badge badge-time">⏱ 30 min fix</span>
+            <span class="file-path">src/components/crm/CrmKanban.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">B1</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item">
+            <label>Biblioteca DnD</label>
+            <p><code>@dnd-kit/core</code> — DndContext, useDraggable, useDroppable</p>
+          </div>
+          <div class="bug-item">
+            <label>Componente</label>
+            <p><code>DraggableLeadCard</code> em CrmKanban.tsx</p>
+          </div>
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>Após um drag-and-drop bem-sucedido, o card abre o painel lateral do lead, sobrepondo a ação de mover. Visualmente parece que o DnD "não fez nada" pois o drawer abre imediatamente após soltar o card.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Causa raiz</label>
+          <p style="font-size:13px;color:#e0dbd5;margin-bottom:8px;">O <code>dragStartedRef</code> é declarado mas <strong>nunca setado para <code>true</code></strong>. Portanto, o guard no <code>handleClick</code> nunca bloqueia o clique pós-drag.</p>
+<pre><span class="c-comment">// CrmKanban.tsx — DraggableLeadCard</span>
+const dragStartedRef = <span class="c-keyword">useRef</span>(<span class="c-danger">false</span>);
+
+<span class="c-comment">// handleClick checa o ref, mas ele NUNCA é setado para true</span>
+const handleClick = <span class="c-keyword">useCallback</span>(() => {
+  if (dragStartedRef.current) {
+    dragStartedRef.current = <span class="c-keyword">false</span>;
+    <span class="c-keyword">return</span>; <span class="c-comment">// este return NUNCA executa</span>
+  }
+  onOpenPanel?.(lead.id!); <span class="c-comment">// sempre abre o painel</span>
+}, [...]);
+
+<span class="c-comment">// Não há useEffect ou callback que seta dragStartedRef.current = true</span></pre>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção — adicionar useEffect em DraggableLeadCard</label>
+<pre><span class="c-add">+ useEffect(() => {</span>
+<span class="c-add">+   if (isDragging) {</span>
+<span class="c-add">+     dragStartedRef.current = true;</span>
+<span class="c-add">+   }</span>
+<span class="c-add">+ }, [isDragging]);</span></pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">Quando <code>isDragging</code> vira <code>true</code>, o ref é marcado. Ao soltar o card, o <code>handleClick</code> lê o ref como <code>true</code>, bloqueia a abertura do painel e reseta para <code>false</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- B2 -->
+    <div class="bug-card" id="b2">
+      <div class="bug-card-header">
+        <div>
+          <h3>B2 — Modal Distribuição exibe dados do lead ERRADO</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-crit">Crítico</span>
+            <span class="badge badge-time">⏱ 15 min fix</span>
+            <span class="file-path">src/components/crm/modals/ModalDistribuicao.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">B2</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>Ao abrir o modal de checklist de distribuição para um lead, às vezes os dados exibidos são de outro lead. Aparece o CPF do lead anterior em vez do atual.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Causa raiz — staleTime muito alto</label>
+          <p style="font-size:13px;color:#e0dbd5;margin-bottom:8px;">A query de dados do lead tem <code>staleTime: 60 * 1000</code> (60 segundos). Nesse intervalo, o React Query retorna dados em cache sem refetch, mesmo que o <code>leadId</code> seja diferente.</p>
+<pre><span class="c-comment">// ModalDistribuicao.tsx</span>
+const { data: lead } = useQuery({
+  queryKey: ['crm-lead-checklist', leadId],
+  queryFn: async () => {
+    <span class="c-keyword">return</span> supabase.from('leads').select('...').eq('id', leadId)...
+  },
+  enabled: !!leadId && open,
+  staleTime: <span class="c-danger">60 * 1000</span>,  <span class="c-comment">// ← BUG: dados ficam stale 60s</span>
+});</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">A query usa <code>.eq('id', leadId)</code> corretamente (não usa CPF), mas o cache de 60s faz com que ao fechar e reabrir o modal para outro lead, os dados antigos apareçam por uma fração de segundo ou até serem refrescados.</p>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção</label>
+<pre><span class="c-remove">  staleTime: 60 * 1000,</span>
+<span class="c-add">+ staleTime: 0,  // sempre refetch quando modal abre</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- B3a -->
+    <div class="bug-card" id="b3a">
+      <div class="bug-card-header">
+        <div>
+          <h3>B3a — Serasa Premium aparece habilitada mas não funciona</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-crit">Crítico</span>
+            <span class="badge badge-time">⏱ 5 min fix</span>
+            <span class="file-path">src/pages/auditorias/types.ts</span>
+          </div>
+        </div>
+        <span class="bug-id">B3a</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>Na tela de Nova Auditoria, o bureau "Serasa Premium" aparece como selecionável (não tem o badge "Em breve"), mas ao tentar consultar não retorna resultado. Decisão do Gustavo: desativar na UI.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Causa raiz — flag <code>disponivel: true</code> incorreta</label>
+<pre><span class="c-comment">// src/pages/auditorias/types.ts</span>
+export const BUREAUS: Bureau[] = [
+  { id: 'serasa', nome: 'Serasa Premium', custo_centavos: 600, disponivel: <span class="c-danger">true</span> },  <span class="c-comment">← BUG</span>
+  { id: 'apifull_115', nome: 'CPF Completo (ApiFull)', custo_centavos: 299, disponivel: true },
+  { id: 'boavista', ...disponivel: <span class="c-ok">false</span> },
+  { id: 'spc', ...disponivel: <span class="c-ok">false</span> },
+  { id: 'quod', ...disponivel: <span class="c-ok">false</span> },
+];</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">Em <code>FontesConsultaSelector.tsx</code>, quando <code>disponivel: false</code>, o botão é desabilitado e exibe "Em breve". Com <code>true</code>, o botão fica clicável mas a API Serasa não está integrada.</p>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção — 1 caractere</label>
+<pre><span class="c-remove">  { id: 'serasa', nome: 'Serasa Premium', custo_centavos: 600, disponivel: true },</span>
+<span class="c-add">+ { id: 'serasa', nome: 'Serasa Premium', custo_centavos: 600, disponivel: false },</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- B3b -->
+    <div class="bug-card" id="b3b">
+      <div class="bug-card-header">
+        <div>
+          <h3>B3b — CPF Completo (ApiFull) sem resposta</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-crit">Crítico</span>
+            <span class="badge badge-time">⏱ 2–4h investigação</span>
+            <span class="file-path">supabase/functions/ + rpc_disparar_auditoria</span>
+          </div>
+        </div>
+        <span class="bug-id">B3b</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>Ao clicar "Consultar CPF Completo" no painel de auditoria do CRM, a consulta fica em estado "processando" indefinidamente ou falha sem mensagem clara. O bureau <code>apifull_115</code> não retorna dados.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Causa raiz — worker de processamento ausente ou não configurado</label>
+          <p style="font-size:13px;color:#e0dbd5;margin-bottom:8px;">O fluxo passa por:</p>
+          <ol style="padding-left:18px;font-size:13px;line-height:2;color:#c9c3bb;">
+            <li><code>rpc_disparar_auditoria</code> cria registro em tabela <code>auditorias</code> com status <code>pendente</code></li>
+            <li>Algum worker deve pegar esse registro e chamar a API ApiFull</li>
+            <li>Worker atualiza o registro com resultado e muda status para <code>concluida</code></li>
+          </ol>
+          <p style="font-size:13px;color:#e0dbd5;margin-top:10px;margin-bottom:8px;"><strong>Problema:</strong> Não há Edge Function de processamento de auditorias em <code>supabase/functions/</code>. As funções existentes são: <code>audio-transcribe</code>, <code>encrypt-credentials</code>, <code>invite-user</code>, <code>olivia-chat</code>, <code>olivia-smart-blocks</code>.</p>
+          <ul class="findings">
+            <li>A Edge Function de auditoria pode não estar no repositório (deploy manual?) ou não estar deployada</li>
+            <li>O token da API ApiFull pode não estar configurado nas secrets do Supabase</li>
+            <li>A URL/endpoint da API ApiFull pode estar incorreta</li>
+            <li>Pode haver um pg_cron ou trigger que chama a função — não visível no repo</li>
+          </ul>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Passos para investigar</label>
+          <ol style="padding-left:18px;font-size:13px;line-height:2;color:#b8f5d8;">
+            <li>Verificar em Supabase Dashboard → Edge Functions se existe função de auditoria deployada</li>
+            <li>Verificar Supabase → Secrets se existe <code>APIFULL_TOKEN</code> ou similar</li>
+            <li>Verificar logs da Edge Function para ver o erro exato</li>
+            <li>Verificar se há pg_cron ou trigger no banco que processa auditorias</li>
+            <li>Verificar n8n se existe workflow <code>mdflow/auditoria</code></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ ALTOS ═══ -->
+  <section class="section" id="p1">
+    <div class="section-header">
+      <span class="section-icon">🟠</span>
+      <span class="section-title">Prioridade Alta</span>
+    </div>
+
+    <!-- P1 -->
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div>
+          <h3>P1 — Botão "Triagem" no drawer não move o lead</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-high">Alto</span>
+            <span class="badge badge-time">⏱ 15 min fix</span>
+            <span class="file-path">src/pages/crm/CrmPage.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">P1</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>Ao clicar no botão "Triagem" na barra de ações do drawer de lead, o modal abre e fecha imediatamente com erro <em>"Lead não está em triagem"</em>. O lead não é movido para a coluna Triagem.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Causa raiz — case 'triagem' abre ModalTriagem ao invés de ModalDistribuicao</label>
+          <p style="font-size:13px;color:#e0dbd5;margin-bottom:8px;">O botão "Triagem" no header do drawer chama <code>onCrmAction('triagem', id)</code>. Em CrmPage, isso abre <strong>ModalTriagem</strong> (aprovação jurídica), que valida se o lead <em>já está</em> na coluna triagem. Como o lead ainda não está em triagem, o modal fecha com erro imediatamente.</p>
+<pre><span class="c-comment">// ClienteDrawerHeader.tsx</span>
+onClick={() => onCrmAction?.('triagem', id)}  <span class="c-comment">// botão "Triagem"</span>
+
+<span class="c-comment">// CrmPage.tsx</span>
+case 'triagem': <span class="c-danger">setTriagemLeadId(leadId)</span>; break;  <span class="c-comment">← ERRADO</span>
+
+<span class="c-comment">// ModalTriagem.tsx — valida e fecha se não está em triagem:</span>
+if (d.coluna_crm !== 'triagem') {
+  toast.error('Lead não está em triagem.');
+  onOpenChange(false);
+  return null;
+}</pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">O correto seria abrir o <strong>ModalDistribuicao</strong> (checklist de preparação), que ao clicar "Prosseguir" move o lead para a coluna triagem via <code>coluna_crm: 'triagem'</code>.</p>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção em CrmPage.tsx</label>
+<pre><span class="c-remove">  case 'triagem': setTriagemLeadId(leadId); break;</span>
+<span class="c-add">+ case 'triagem': setChecklistLeadId(leadId); break;</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2 -->
+    <div class="bug-card" id="p2">
+      <div class="bug-card-header">
+        <div>
+          <h3>P2 — Toggle "Aguardando resposta" ativo por padrão</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-high">Alto</span>
+            <span class="badge badge-time">⏱ 5 min fix</span>
+            <span class="file-path">src/hooks/crm/useLeadFilters.ts</span>
+          </div>
+        </div>
+        <span class="bug-id">P2</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>O toggle "Aguardando" no pipeline está ativo para novos usuários ou quando os filtros foram salvos com ele ativo. O Kanban fica filtrado mostrando apenas leads <code>awaiting_human=true</code> por padrão.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Causa raiz — filtros persistidos no localStorage</label>
+<pre><span class="c-comment">// useLeadFilters.ts</span>
+function loadFilters(userId: string | undefined): LeadFilters {
+  try {
+    const raw = localStorage.getItem(getStorageKey(userId));
+    if (!raw) return { ...DEFAULT_FILTERS };
+    <span class="c-comment">// BUG: spread do localStorage sobrescreve DEFAULT_FILTERS</span>
+    return { ...DEFAULT_FILTERS, <span class="c-danger">...JSON.parse(raw)</span> };
+    <span class="c-comment">// Se localStorage tem awaiting_human: true, mantém true</span>
+  } catch {
+    return { ...DEFAULT_FILTERS };
+  }
+}</pre>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção — forçar reset do awaiting_human ao carregar</label>
+<pre><span class="c-remove">  return { ...DEFAULT_FILTERS, ...JSON.parse(raw) };</span>
+<span class="c-add">+ return { ...DEFAULT_FILTERS, ...JSON.parse(raw), awaiting_human: null };</span></pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;">O toggle "Aguardando" não deve ser persistido entre sessões — é um filtro situacional.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- P3 -->
+    <div class="bug-card" id="p3">
+      <div class="bug-card-header">
+        <div>
+          <h3>P3 — WhatsApp salvo sem máscara de formatação</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-high">Alto</span>
+            <span class="badge badge-time">⏱ 30 min fix</span>
+            <span class="file-path">ModalEditarLead.tsx + ModalNovoLead.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">P3</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>O WhatsApp é salvo no banco sem formatação (<code>51999990000</code>). Ao editar o lead, o campo mostra o número sem máscara. Ao criar novo lead, o campo aceita input sem máscara se o usuário não formatar.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Causa raiz</label>
+          <p style="font-size:13px;color:#e0dbd5;margin-bottom:8px;">No save, o valor é normalizado para apenas dígitos antes de persistir. Ao carregar o form de edição, o valor vem como dígitos crus e a máscara só é aplicada no <code>onChange</code>, não no valor inicial.</p>
+<pre><span class="c-comment">// ModalNovoLead.tsx — ao salvar</span>
+whatsapp: normalizeDigits(data.whatsapp), <span class="c-comment">// salva "51999990000"</span>
+
+<span class="c-comment">// FormContato.tsx — ao editar</span>
+value={watch('whatsapp') ?? ''}  <span class="c-comment">// mostra "51999990000" sem máscara</span>
+onChange={(e) => setValue('whatsapp', applyPhoneMask(e.target.value), ...)}</pre>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção — aplicar máscara ao inicializar o form de edição</label>
+<pre><span class="c-comment">// Onde form.reset() é chamado com dados do lead (ModalEditarLead.tsx):</span>
+<span class="c-add">+ form.reset({</span>
+<span class="c-add">+   ...leadData,</span>
+<span class="c-add">+   whatsapp: leadData.whatsapp ? applyPhoneMask(leadData.whatsapp) : '',</span>
+<span class="c-add">+ });</span></pre>
+          <p style="font-size:12px;color:var(--muted);margin-top:8px;"><code>applyPhoneMask</code> já está importado em <code>helpers.ts</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- P4 -->
+    <div class="bug-card" id="p4">
+      <div class="bug-card-header">
+        <div>
+          <h3>P4 — Dropdowns de filtro (atendente, origem, estado)</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-high">Alto</span>
+            <span class="badge badge-time">⏱ Sem bug nos handlers</span>
+            <span class="file-path">src/components/crm/CrmFilterBar.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">P4</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>Resultado da investigação</label>
+            <p>Os handlers dos dropdowns estão corretos. <code>onValueChange</code> e <code>onSelect</code> chamam <code>setFilter</code> adequadamente para atendente, origem e estado. <strong>O problema real é o P2</strong>: o toggle "Aguardando" pode aparecer ativo por causa do localStorage, não por bug nos dropdowns.</p>
+          </div>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Ação necessária</label>
+          <ul class="findings">
+            <li>Dropdowns funcionam corretamente — sem alteração necessária</li>
+            <li>Corrigir P2 (localStorage) resolve o toggle "Aguardando" ativo por padrão</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- P5 -->
+    <div class="bug-card" id="p5">
+      <div class="bug-card-header">
+        <div>
+          <h3>P5 — Distribuição: sem botão "Cadastrar novo advogado"</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-high">Alto</span>
+            <span class="badge badge-time">⏱ 1h fix</span>
+            <span class="file-path">src/components/crm/modals/ModalTriagem.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">P5</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>No modal de Aprovação Jurídica (ModalTriagem), o select de advogados não tem opção para cadastrar um novo. Se não há advogados cadastrados, o usuário fica bloqueado.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Código atual</label>
+<pre><span class="c-comment">// ModalTriagem.tsx</span>
+&lt;Select value={advogadoId} onValueChange={setAdvogadoId}&gt;
+  &lt;SelectContent&gt;
+    {advogados?.map((a) =&gt; (
+      &lt;SelectItem key={a.id} value={a.id}&gt;
+        {a.nome}{a.oab ? ` — OAB ${a.oab}` : ''}
+      &lt;/SelectItem&gt;
+    ))}
+    <span class="c-comment">// ← sem opção de cadastrar novo</span>
+  &lt;/SelectContent&gt;
+&lt;/Select&gt;</pre>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção — adicionar link para cadastro</label>
+<pre><span class="c-add">+ import { useNavigate } from 'react-router-dom';</span>
+<span class="c-add">+ const navigate = useNavigate();</span>
+
+<span class="c-comment">// Após o Select:</span>
+<span class="c-add">+ &lt;Button</span>
+<span class="c-add">+   variant="link"</span>
+<span class="c-add">+   size="sm"</span>
+<span class="c-add">+   className="h-auto p-0 text-xs text-primary mt-1"</span>
+<span class="c-add">+   onClick={() => { onOpenChange(false); navigate('/configuracoes?tab=advogados'); }}</span>
+<span class="c-add">+ &gt;</span>
+<span class="c-add">+   + Cadastrar novo advogado</span>
+<span class="c-add">+ &lt;/Button&gt;</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ MÉDIOS ═══ -->
+  <section class="section" id="m1">
+    <div class="section-header">
+      <span class="section-icon">🟡</span>
+      <span class="section-title">Prioridade Média</span>
+    </div>
+
+    <!-- M1 -->
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div>
+          <h3>M1 — Formato data nas Restrições inconsistente</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-med">Médio</span>
+            <span class="badge badge-time">⏱ 30 min fix</span>
+            <span class="file-path">src/components/shared/cliente_drawer/forms/FormRestricao.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">M1</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>O campo de data nas restrições usa <code>type="date"</code> nativo que exibe em formato do browser (pode ser <code>2024-01-15</code> ao invés de <code>15/01/2024</code>). A exibição das datas salvas pode aparecer no formato ISO em vez de PT-BR.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Código atual</label>
+<pre><span class="c-comment">// FormRestricao.tsx e ModalAdicionarRestricoes.tsx</span>
+&lt;Input
+  type="<span class="c-danger">date</span>"   <span class="c-comment">← exibe em formato do browser</span>
+  onChange={(e) =&gt; setData(e.target.value)}  <span class="c-comment">← salva YYYY-MM-DD</span>
+/&gt;</pre>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Correção para exibição</label>
+<pre><span class="c-comment">// Para exibição em listas/tabelas:</span>
+<span class="c-add">+ {new Date(data_restricao + 'T00:00:00').toLocaleDateString('pt-BR')}</span>
+<span class="c-comment">// Formato: 15/01/2024</span>
+
+<span class="c-comment">// O input type="date" pode permanecer para edição — o banco armazena YYYY-MM-DD corretamente</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- M2 -->
+    <div class="bug-card" id="m2">
+      <div class="bug-card-header">
+        <div>
+          <h3>M2 — Modal "Descartar alterações?" ao clicar fora</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-med">Médio</span>
+            <span class="badge badge-time">⏱ 15 min ajuste</span>
+            <span class="file-path">ModalNovoLead.tsx + ModalEditarLead.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">M2</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>O que é o bug</label>
+            <p>Ao clicar fora do modal de novo lead ou edição com formulário modificado, aparece o AlertDialog "Descartar alterações?". Pode ser considerado comportamento indesejado (clique acidental fora do modal).</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Comportamento atual — correto por design</label>
+<pre><span class="c-comment">// ModalNovoLead.tsx e ModalEditarLead.tsx</span>
+const handleClose = (nextOpen: boolean) => {
+  if (!nextOpen && isDirty) {
+    setConfirmCloseOpen(true);  <span class="c-comment">// abre confirmação</span>
+    return;
+  }
+  ...
+};
+&lt;Dialog onOpenChange={handleClose}&gt;  <span class="c-comment">← captura click-fora E ESC</span>
+  &lt;DialogContent ...&gt;</pre>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Opção: bloquear fechar ao clicar fora (manter ESC)</label>
+<pre><span class="c-comment">// Se a decisão for bloquear click-fora:</span>
+<span class="c-add">+ &lt;DialogContent</span>
+<span class="c-add">+   onInteractOutside={(e) =&gt; e.preventDefault()}</span>
+<span class="c-add">+ &gt;</span>
+
+<span class="c-comment">// Assim o modal só fecha via botão X ou ESC</span></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ BAIXOS ═══ -->
+  <section class="section" id="l1">
+    <div class="section-header">
+      <span class="section-icon">🟢</span>
+      <span class="section-title">Prioridade Baixa</span>
+    </div>
+
+    <!-- L1 -->
+    <div class="bug-card">
+      <div class="bug-card-header">
+        <div>
+          <h3>L1 — DialogContent sem DialogTitle (acessibilidade)</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-low">Baixo</span>
+            <span class="badge badge-time">⏱ 15 min fix</span>
+          </div>
+        </div>
+        <span class="bug-id">L1</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>Arquivos sem DialogTitle</label>
+          </div>
+        </div>
+
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>Arquivo</th>
+              <th>Modal</th>
+              <th>Fix</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="file-path">src/components/mdzap/MdzapMsgBubble.tsx</span></td>
+              <td>Preview de imagem/mídia</td>
+              <td><code>&lt;DialogTitle className="sr-only"&gt;Preview de mídia&lt;/DialogTitle&gt;</code></td>
+            </tr>
+            <tr>
+              <td><span class="file-path">src/pages/relatorios/components/modais/ModalRelatorioDetalhado.tsx</span></td>
+              <td>Relatório detalhado</td>
+              <td><code>&lt;DialogTitle className="sr-only"&gt;Relatório Detalhado&lt;/DialogTitle&gt;</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="fix-block" style="margin-top:16px;">
+          <label>✅ Padrão de correção</label>
+<pre><span class="c-add">+ import { DialogHeader, DialogTitle } from '@/components/ui/dialog';</span>
+
+<span class="c-comment">// Dentro de DialogContent:</span>
+<span class="c-add">+ &lt;DialogHeader&gt;</span>
+<span class="c-add">+   &lt;DialogTitle className="sr-only"&gt;Título do modal&lt;/DialogTitle&gt;</span>
+<span class="c-add">+ &lt;/DialogHeader&gt;</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- L2 -->
+    <div class="bug-card" id="l2">
+      <div class="bug-card-header">
+        <div>
+          <h3>L2 — Campo Email na aba Dados do drawer</h3>
+          <div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-low">Baixo</span>
+            <span class="badge badge-time">⏱ 10 min fix</span>
+            <span class="file-path">src/components/crm/modals/editar-lead/FormContato.tsx</span>
+          </div>
+        </div>
+        <span class="bug-id">L2</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-grid">
+          <div class="bug-item full">
+            <label>Decisão</label>
+            <p>Gustavo decidiu: o campo de email <strong>NÃO deve existir</strong> no formulário de edição da aba Dados do drawer CRM.</p>
+          </div>
+        </div>
+
+        <div class="cause-block">
+          <label>⚠️ Campo existente em FormContato.tsx (linhas 34-36)</label>
+<pre><span class="c-remove">  &lt;div className="space-y-1.5"&gt;</span>
+<span class="c-remove">    &lt;Label htmlFor="edit-email"&gt;E-mail&lt;/Label&gt;</span>
+<span class="c-remove">    &lt;Input id="edit-email" type="email" {...register('email')} /&gt;</span>
+<span class="c-remove">    {errors.email &amp;&amp; &lt;p&gt;{errors.email.message}&lt;/p&gt;}</span>
+<span class="c-remove">  &lt;/div&gt;</span></pre>
+        </div>
+
+        <div class="fix-block">
+          <label>✅ Remover o bloco acima de FormContato.tsx</label>
+          <p style="font-size:12px;color:var(--muted);">O email ainda é exibido (read-only) na aba de dados para leads que o têm, via <code>InfoRow</code> no ClienteDrawerTabDados — isso permanece correto.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ RESUMO ═══ -->
+  <section class="section" id="resumo">
+    <div class="section-header">
+      <span class="section-icon">📊</span>
+      <span class="section-title">Tabela Resumo</span>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-body">
+        <table class="summary-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Bug</th>
+              <th>Severidade</th>
+              <th>Arquivo</th>
+              <th>Fix</th>
+              <th>Esforço</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>B1</strong></td>
+              <td>DnD Kanban — dragStartedRef nunca setado</td>
+              <td><span class="badge badge-crit">Crítico</span></td>
+              <td><span class="tag">CrmKanban.tsx</span></td>
+              <td>useEffect seta ref quando isDragging=true</td>
+              <td>30min</td>
+            </tr>
+            <tr>
+              <td><strong>B2</strong></td>
+              <td>Modal Distribuição — staleTime 60s causa dados stale</td>
+              <td><span class="badge badge-crit">Crítico</span></td>
+              <td><span class="tag">ModalDistribuicao.tsx</span></td>
+              <td>staleTime: 60*1000 → staleTime: 0</td>
+              <td>15min</td>
+            </tr>
+            <tr>
+              <td><strong>B3a</strong></td>
+              <td>Serasa Premium — disponivel: true incorreto</td>
+              <td><span class="badge badge-crit">Crítico</span></td>
+              <td><span class="tag">auditorias/types.ts</span></td>
+              <td>disponivel: true → false</td>
+              <td>5min</td>
+            </tr>
+            <tr>
+              <td><strong>B3b</strong></td>
+              <td>ApiFull sem resposta — worker ausente/não configurado</td>
+              <td><span class="badge badge-crit">Crítico</span></td>
+              <td><span class="tag">supabase/functions</span></td>
+              <td>Investigar secrets + Edge Function</td>
+              <td>2–4h</td>
+            </tr>
+            <tr>
+              <td><strong>P1</strong></td>
+              <td>Botão Triagem — abre modal errado</td>
+              <td><span class="badge badge-high">Alto</span></td>
+              <td><span class="tag">CrmPage.tsx</span></td>
+              <td>setTriagemLeadId → setChecklistLeadId</td>
+              <td>15min</td>
+            </tr>
+            <tr>
+              <td><strong>P2</strong></td>
+              <td>Toggle Aguardando — localStorage persiste estado</td>
+              <td><span class="badge badge-high">Alto</span></td>
+              <td><span class="tag">useLeadFilters.ts</span></td>
+              <td>Forçar awaiting_human: null ao carregar</td>
+              <td>5min</td>
+            </tr>
+            <tr>
+              <td><strong>P3</strong></td>
+              <td>WhatsApp — valor cru sem máscara no form edição</td>
+              <td><span class="badge badge-high">Alto</span></td>
+              <td><span class="tag">ModalEditarLead.tsx</span></td>
+              <td>applyPhoneMask() no form.reset()</td>
+              <td>30min</td>
+            </tr>
+            <tr>
+              <td><strong>P4</strong></td>
+              <td>Dropdowns — sem bug nos handlers</td>
+              <td><span class="badge badge-high">Alto</span></td>
+              <td><span class="tag">CrmFilterBar.tsx</span></td>
+              <td>Sem alteração — P2 resolve toggle</td>
+              <td>—</td>
+            </tr>
+            <tr>
+              <td><strong>P5</strong></td>
+              <td>Sem botão cadastrar novo advogado</td>
+              <td><span class="badge badge-high">Alto</span></td>
+              <td><span class="tag">ModalTriagem.tsx</span></td>
+              <td>Adicionar link para /configuracoes?tab=advogados</td>
+              <td>1h</td>
+            </tr>
+            <tr>
+              <td><strong>M1</strong></td>
+              <td>Data restrições — type="date" exibe ISO</td>
+              <td><span class="badge badge-med">Médio</span></td>
+              <td><span class="tag">FormRestricao.tsx</span></td>
+              <td>toLocaleDateString('pt-BR') na exibição</td>
+              <td>30min</td>
+            </tr>
+            <tr>
+              <td><strong>M2</strong></td>
+              <td>Modal fecha com confirmação ao clicar fora</td>
+              <td><span class="badge badge-med">Médio</span></td>
+              <td><span class="tag">ModalNovoLead.tsx</span></td>
+              <td>onInteractOutside → e.preventDefault()</td>
+              <td>15min</td>
+            </tr>
+            <tr>
+              <td><strong>L1</strong></td>
+              <td>DialogContent sem DialogTitle (2 arquivos)</td>
+              <td><span class="badge badge-low">Baixo</span></td>
+              <td><span class="tag">MdzapMsgBubble + ModalRelatorio</span></td>
+              <td>Adicionar DialogTitle sr-only</td>
+              <td>15min</td>
+            </tr>
+            <tr>
+              <td><strong>L2</strong></td>
+              <td>Campo Email no form edição CRM</td>
+              <td><span class="badge badge-low">Baixo</span></td>
+              <td><span class="tag">FormContato.tsx</span></td>
+              <td>Remover bloco do campo email</td>
+              <td>10min</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="margin-top:20px;padding:16px;background:var(--surface);border-radius:8px;border:1px solid var(--border);">
+          <p style="font-size:13px;color:var(--muted);font-weight:600;margin-bottom:8px;">Estimativa total</p>
+          <ul class="findings">
+            <li><strong>Fixes rápidos (≤30min cada):</strong> B2, B3a, P1, P2, M2, L1, L2 — total ~1h30</li>
+            <li><strong>Fixes médios (1h):</strong> B1, P3, P5, M1 — total ~3h</li>
+            <li><strong>Investigação B3b (ApiFull):</strong> 2–4h (depende do ambiente Supabase)</li>
+            <li><strong>Total estimado:</strong> ~6–8h de desenvolvimento</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="margin-top:40px;padding-top:20px;border-top:1px solid var(--border);text-align:center;">
+    <p style="color:var(--muted);font-size:12px;">Gerado por Beto 🤖 | Investigação técnica MdFlow CRM | 2026-03-30</p>
+  </footer>
+
+</main>
+</div>
+</body>
+</html>

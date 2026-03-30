@@ -123,14 +123,14 @@
 
     <div class="score-box">
       <div>
-        <div class="score-number score-warn">6.8</div>
+        <div class="score-number score-warn">7.1</div>
         <div class="score-label">Score Geral /10</div>
       </div>
       <div class="score-detail">
-        <div>🔴 Críticos (P0/P1): <span>3 bugs</span></div>
-        <div>🟡 Moderados (P2/P3): <span>6 bugs</span></div>
+        <div>🔴 Críticos (P0/P1): <span>2 bugs</span> <small style="color:#3fb950">(BUG-001 encerrado — falso positivo)</small></div>
+        <div>🟡 Moderados (P2/P3): <span>6 bugs</span> <small style="color:#d29922">(BUG-005 refinado — só processáveis)</small></div>
         <div>🟢 Melhorias (P4): <span>4 sugestões</span></div>
-        <div style="margin-top:8px;">Core confirmados: <span>3/3</span> &nbsp;|&nbsp; Novos bugs: <span>10</span></div>
+        <div style="margin-top:8px;">Core confirmados: <span>3/3</span> &nbsp;|&nbsp; Novos bugs ativos: <span>8</span></div>
         <div style="margin-top:4px;">Total empresas no banco: <span>847</span> &nbsp;|&nbsp; Processáveis: <span>372</span></div>
       </div>
     </div>
@@ -142,7 +142,7 @@
 
     <div class="alert alert-warn">
       <div class="alert-icon">⚠️</div>
-      <div class="alert-text">A página de Empresas está <strong>funcionalmente estável</strong> para uso cotidiano, mas apresenta 3 bugs críticos que afetam integridade de dados e o matching da OlivIA. O principal risco é a ausência de filtro por órgão restritivo (impede rastreabilidade) e bugs de tipo no TypeScript que podem causar crashes silenciosos em produção.</div>
+      <div class="alert-text">A página de Empresas está <strong>funcionalmente estável</strong> para uso cotidiano, mas apresenta 2 bugs críticos que afetam integridade de dados e o matching da OlivIA. O principal risco é a ausência de filtro por órgão restritivo (impede rastreabilidade) e bugs de tipo no TypeScript que podem causar crashes silenciosos em produção. <em>BUG-001 encerrado (CNPJ Santander confirmado correto). BUG-005 refinado: categoria obrigatória apenas para empresas processáveis.</em></div>
     </div>
 
     <div class="kpi-grid">
@@ -307,20 +307,14 @@
   <div class="section">
     <div class="section-title"><span class="icon">🔴</span> Bugs Críticos (P0/P1)</div>
 
-    <!-- BUG 1 -->
-    <div class="bug-card p1">
+    <!-- BUG 1 — FALSO POSITIVO, ENCERRADO -->
+    <div class="bug-card" style="border-left: 4px solid #3fb950; opacity: 0.7;">
       <div class="bug-header">
         <span class="bug-id">BUG-001</span>
-        <span class="badge badge-p1">🔴 P1</span>
-        <span class="badge badge-core">✦ Core E3 Confirmado</span>
-        <span class="bug-title">CNPJ começando em 90 — Banco Santander com CNPJ inválido/estrangeiro</span>
+        <span class="badge badge-ok">✅ Encerrado — Falso Positivo</span>
+        <span class="bug-title">CNPJ começando em 90 — Banco Santander ✓ DADO CORRETO</span>
       </div>
-      <div class="bug-desc">Banco Santander S.A. está cadastrado com CNPJ <strong>90.400.888/0001-42</strong>. CNPJs iniciando com 90–99 são reservados para empresas estrangeiras com CNPJ especial ou estão incorretos. O CNPJ real do Santander é 90.400.888/0001-42 (banco estrangeiro no Brasil), mas isso pode confundir o matching de comprovantes e a OlivIA.</div>
-      <div class="bug-detail">
-        <strong>Dado real no dashboard:</strong> Santander aparece como #4 com 422 processos e CNPJ <code>90.400.888/0001-42</code>.<br>
-        <strong>Problema:</strong> CNPJs com radical 90 são válidos para empresas estrangeiras, mas o código <code>validateCNPJ</code> os aceita (correto), porém a lógica de negócio precisa documentar explicitamente que este é um CNPJ estrangeiro para não causar falsos positivos de "CNPJ inválido" ao usuário.<br>
-        <strong>Impacto:</strong> OlivIA usa categoria para matching — se a categoria "banco estrangeiro" não existir, o processo pode ser categorizado errado.
-      </div>
+      <div class="bug-desc"><strong>Confirmado pelo Gustavo:</strong> O CNPJ <code>90.400.888/0001-42</code> do Banco Santander está correto. CNPJs iniciando em 90 são válidos para bancos com capital estrangeiro operando no Brasil. Pesquisa confirmou que <strong>90.400.888/0001-42</strong> é o CNPJ oficial do Banco Santander (Brasil) S.A. na Receita Federal. Dado legítimo, sem problema.</div>
     </div>
 
     <!-- BUG 2 -->
@@ -386,11 +380,12 @@
         <span class="badge badge-core">✦ Core R2 Confirmado</span>
         <span class="bug-title">Empresas sem categoria criam silenciosamente — sem alerta de completude</span>
       </div>
-      <div class="bug-desc">No modo CREATE e EDIT, <code>categoria_id</code> não é campo obrigatório para operacional/juridico. Empresas podem ser salvas sem categoria, quebrando o matching da OlivIA que depende do campo <code>categoria</code>.</div>
+      <div class="bug-desc">No modo CREATE e EDIT, <code>categoria_id</code> não é campo obrigatório — mas deveria ser <strong>obrigatório apenas para empresas processáveis</strong>. Empresas não processáveis podem ser salvas sem categoria (comportamento correto). O problema é que atualmente empresas <strong>processáveis</strong> também podem ser criadas sem categoria, quebrando o matching da OlivIA.</div>
       <div class="bug-detail">
-        <strong>Validação atual:</strong> Categoria obrigatória APENAS em mode='approve'. Em create/edit não há validação.<br>
-        <strong>Dados:</strong> Com 847 empresas, é provável que dezenas não tenham categoria — isso afeta direto o funcionamento da OlivIA.<br>
-        <strong>Fix sugerido:</strong> Adicionar warning (não bloqueante) ao salvar sem categoria_id no create/edit. Ou tornar obrigatório para perfil admin.
+        <strong>Validação atual:</strong> Categoria obrigatória APENAS em mode='approve'. Em create/edit não há validação condicional por processável.<br>
+        <strong>Regra correta (confirmada pelo Gustavo):</strong> <code>categoria_id</code> obrigatório SE <code>processavel = true</code>. Empresas não processáveis podem ficar sem categoria.<br>
+        <strong>Dados:</strong> Com 372 empresas processáveis, é provável que algumas não tenham categoria — isso afeta direto o funcionamento da OlivIA.<br>
+        <strong>Fix sugerido:</strong> Validar no submit: <code>if (form.processavel && !form.categoria_id) → erro "Categoria obrigatória para empresas processáveis"</code>.
       </div>
     </div>
 

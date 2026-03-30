@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Core MdFlow v1 — Mapa do Sistema</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --surface: #1a1714;
+    --surface2: #211e1a;
+    --border: #2a2622;
+    --primary: #20c997;
+    --primary-dim: #16a37c;
+    --text: #e8e0d8;
+    --text-muted: #9a8f85;
+    --red: #e05260;
+    --yellow: #f0a030;
+    --green: #20c997;
+    --blue: #4ea8de;
+    --purple: #b880f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; display: flex; height: 100vh; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  #sidebar {
+    width: 240px; min-width: 240px; background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow-y: auto; padding: 0 0 24px 0;
+  }
+  #sidebar .brand {
+    padding: 18px 16px 12px; border-bottom: 1px solid var(--border); margin-bottom: 8px;
+  }
+  #sidebar .brand h1 { font-size: 13px; font-weight: 700; color: var(--primary); letter-spacing: .08em; text-transform: uppercase; }
+  #sidebar .brand p { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+  #sidebar .section-label {
+    font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .08em;
+    padding: 10px 16px 4px;
+  }
+  #sidebar .nav-item {
+    display: flex; align-items: center; gap: 8px; padding: 7px 16px;
+    cursor: pointer; border-radius: 6px; margin: 0 6px; transition: background .15s;
+    font-size: 13px; color: var(--text-muted);
+  }
+  #sidebar .nav-item:hover { background: var(--surface2); color: var(--text); }
+  #sidebar .nav-item.active { background: var(--primary); color: #000; font-weight: 600; }
+  #sidebar .nav-item .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  #sidebar .nav-item .dot.red { background: var(--red); }
+  #sidebar .nav-item .dot.yellow { background: var(--yellow); }
+  #sidebar .nav-item .dot.green { background: var(--green); }
+
+  /* ── MAIN ── */
+  #main { flex: 1; overflow-y: auto; padding: 28px 32px; }
+
+  /* ── PAGE SECTION ── */
+  .page-section { display: none; }
+  .page-section.active { display: block; }
+
+  .page-header { margin-bottom: 24px; }
+  .page-header h2 { font-size: 22px; font-weight: 700; color: var(--text); }
+  .page-header .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+  .badge-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 20px;
+    font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  }
+  .badge.critico { background: rgba(224,82,96,.15); color: var(--red); border: 1px solid rgba(224,82,96,.3); }
+  .badge.importante { background: rgba(240,160,48,.15); color: var(--yellow); border: 1px solid rgba(240,160,48,.3); }
+  .badge.suporte { background: rgba(32,201,151,.15); color: var(--green); border: 1px solid rgba(32,201,151,.3); }
+  .badge.ok { background: rgba(32,201,151,.12); color: var(--green); border: 1px solid rgba(32,201,151,.25); }
+  .badge.warn { background: rgba(240,160,48,.12); color: var(--yellow); border: 1px solid rgba(240,160,48,.25); }
+  .badge.info { background: rgba(78,168,222,.12); color: var(--blue); border: 1px solid rgba(78,168,222,.25); }
+  .badge.purple { background: rgba(184,128,240,.12); color: var(--purple); border: 1px solid rgba(184,128,240,.25); }
+  .badge.route { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); font-family: monospace; }
+
+  /* ── CARDS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 900px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px;
+  }
+  .card h3 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: 10px; }
+  .card p { font-size: 13px; color: var(--text); line-height: 1.6; }
+
+  /* ── LISTS ── */
+  ul.item-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  ul.item-list li { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; line-height: 1.5; }
+  ul.item-list li::before { content: '▸'; color: var(--primary); flex-shrink: 0; margin-top: 1px; }
+  ul.item-list li .tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; flex-shrink: 0; }
+  ul.item-list li .tag.reusable { background: rgba(78,168,222,.15); color: var(--blue); border: 1px solid rgba(78,168,222,.3); }
+  ul.item-list li .tag.table { background: rgba(184,128,240,.12); color: var(--purple); border: 1px solid rgba(184,128,240,.25); font-family: monospace; font-size: 10px; }
+
+  /* ── COMPONENT TREE ── */
+  .tree { font-family: monospace; font-size: 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; overflow-x: auto; }
+  .tree .file { color: var(--blue); }
+  .tree .desc { color: var(--text-muted); }
+  .tree .arrow { color: var(--primary); }
+
+  /* ── CONNECTIONS GRID ── */
+  .connections { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+  .conn-badge {
+    padding: 5px 12px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border);
+    font-size: 12px; font-weight: 600; color: var(--text-muted); cursor: pointer; transition: all .15s;
+  }
+  .conn-badge:hover { border-color: var(--primary); color: var(--primary); }
+  .conn-badge.in { border-color: rgba(78,168,222,.4); color: var(--blue); background: rgba(78,168,222,.06); }
+  .conn-badge.out { border-color: rgba(32,201,151,.4); color: var(--green); background: rgba(32,201,151,.06); }
+
+  /* ── SECTION DIVIDER ── */
+  .section-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+  /* ── FLOW DIAGRAM ── */
+  .flow-diagram { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 20px; font-family: monospace; font-size: 13px; line-height: 2.2; overflow-x: auto; }
+  .flow-diagram .step { display: flex; align-items: center; gap: 10px; }
+  .flow-diagram .node { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 4px 12px; color: var(--text); }
+  .flow-diagram .node.active { border-color: var(--primary); color: var(--primary); }
+  .flow-diagram .node.system { border-color: var(--yellow); color: var(--yellow); }
+  .flow-diagram .arrow-line { color: var(--text-muted); font-size: 16px; }
+  .flow-diagram .label { font-size: 11px; color: var(--text-muted); font-family: sans-serif; }
+
+  /* ── TABLE ── */
+  table.data-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.data-table th { background: var(--surface2); color: var(--text-muted); font-weight: 600; text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  table.data-table td { padding: 7px 12px; border-bottom: 1px solid rgba(42,38,34,.5); vertical-align: top; }
+  table.data-table tr:hover td { background: var(--surface2); }
+  table.data-table td code { background: var(--surface2); padding: 1px 5px; border-radius: 3px; font-family: monospace; font-size: 11px; color: var(--purple); }
+
+  /* ── RPC tag ── */
+  .rpc { font-family: monospace; font-size: 11px; background: rgba(184,128,240,.1); color: var(--purple); border: 1px solid rgba(184,128,240,.2); padding: 1px 6px; border-radius: 4px; }
+
+  /* ── Search ── */
+  #searchbar { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  #searchbar input {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); padding: 6px 10px; font-size: 12px; outline: none;
+  }
+  #searchbar input:focus { border-color: var(--primary); }
+
+  /* ── Scroll ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+  /* ── Top bar ── */
+  #topbar {
+    position: sticky; top: 0; background: rgba(18,16,14,.95); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border); padding: 12px 32px; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  #topbar .breadcrumb { font-size: 12px; color: var(--text-muted); }
+  #topbar .breadcrumb span { color: var(--primary); }
+  #topbar .version { font-size: 10px; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════ SIDEBAR -->
+<nav id="sidebar">
+  <div class="brand">
+    <h1>⚡ MdFlow Core</h1>
+    <p>Mapa do Sistema v1 — 2026-03-30</p>
+  </div>
+  <div id="searchbar">
+    <input type="text" id="sidebarSearch" placeholder="Buscar página…" oninput="filterNav(this.value)" />
+  </div>
+
+  <div class="section-label">🔴 Core Crítico</div>
+  <div class="nav-item" onclick="show('crm')"><span class="dot red"></span>CRM</div>
+  <div class="nav-item" onclick="show('distribuicao')"><span class="dot red"></span>Distribuição</div>
+  <div class="nav-item" onclick="show('processos')"><span class="dot red"></span>Processos</div>
+  <div class="nav-item" onclick="show('controller')"><span class="dot red"></span>Controller</div>
+  <div class="nav-item" onclick="show('clientes')"><span class="dot red"></span>Clientes</div>
+
+  <div class="section-label">🟡 Importante</div>
+  <div class="nav-item" onclick="show('atividades')"><span class="dot yellow"></span>Atividades</div>
+  <div class="nav-item" onclick="show('doc-pendentes')"><span class="dot yellow"></span>Doc. Pendentes</div>
+  <div class="nav-item" onclick="show('olivia')"><span class="dot yellow"></span>OlivIA</div>
+  <div class="nav-item" onclick="show('decisoes')"><span class="dot yellow"></span>Decisões</div>
+  <div class="nav-item" onclick="show('execucoes')"><span class="dot yellow"></span>Execuções</div>
+  <div class="nav-item" onclick="show('acordos')"><span class="dot yellow"></span>Acordos</div>
+  <div class="nav-item" onclick="show('audiencias')"><span class="dot yellow"></span>Audiências</div>
+  <div class="nav-item" onclick="show('auditorias')"><span class="dot yellow"></span>Auditorias</div>
+  <div class="nav-item" onclick="show('mdzap')"><span class="dot yellow"></span>MDZap</div>
+
+  <div class="section-label">🟢 Suporte</div>
+  <div class="nav-item" onclick="show('jurimetria')"><span class="dot green"></span>Jurimetria</div>
+  <div class="nav-item" onclick="show('financeiro')"><span class="dot green"></span>Financeiro</div>
+  <div class="nav-item" onclick="show('empresas')"><span class="dot green"></span>Empresas</div>
+  <div class="nav-item" onclick="show('indicacoes')"><span class="dot green"></span>Indicações</div>
+  <div class="nav-item" onclick="show('relatorios')"><span class="dot green"></span>Relatórios</div>
+  <div class="nav-item" onclick="show('equipe')"><span class="dot green"></span>Equipe</div>
+
+  <div class="section-label">📐 Referência</div>
+  <div class="nav-item" onclick="show('componentes')"><span class="dot green"></span>Componentes Reutilizáveis</div>
+  <div class="nav-item" onclick="show('fluxo')"><span class="dot green"></span>Mapa de Fluxo</div>
+  <div class="nav-item" onclick="show('tabelas')"><span class="dot green"></span>Tabelas Supabase</div>
+</nav>
+
+<!-- ════════════════════════════════════════════════════════════ MAIN -->
+<div style="flex:1; display:flex; flex-direction:column; overflow:hidden;">
+
+<div id="topbar">
+  <div class="breadcrumb">MdFlow / <span id="breadcrumb-page">Core</span></div>
+  <div class="version">v1.0 · 2026-03-30</div>
+</div>
+
+<div id="main">
+
+<!-- ══════════════════════════════════════════════════════ CRM -->
+<div class="page-section active" id="section-crm">
+  <div class="page-header">
+    <h2>CRM</h2>
+    <div class="subtitle">Central de gestão de leads e pipeline comercial</div>
+    <div class="badge-row">
+      <span class="badge critico">🔴 Core Crítico</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/crm</span>
+      <span class="badge info">📄 CrmPage.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Pipeline Kanban de leads organizados por etapas do funil (coluna). Suporta visualização Kanban e Lista. Permite triagem, auditorias, distribuição de restrição, gerenciamento de documentos e integração com MDZap para histórico de contato.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Novos leads via ModalNovoLead (formulário manual)</li>
+        <li>Leads via indicações (página Indicações)</li>
+        <li>Integração n8n / webhooks externos</li>
+        <li>Auditorias disparadas pela ApiFull API</li>
+        <li>Histórico MDZap (whatsapp_conversas)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Lead aprovado → <strong>Distribuição</strong> (ModalDistribuirLead)</li>
+        <li>Dados do lead → <strong>ClienteDrawer</strong> (shared)</li>
+        <li>Lead arquivado → tabela <code>leads</code> com status arquivado</li>
+        <li>Vinculação advogado → tabela advogados</li>
+        <li>Auditoria → tabela <code>auditorias</code></li>
+        <li>MDZap → navega para /mdzap?lead=ID</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge out" onclick="show('distribuicao')">→ Distribuição</span>
+        <span class="conn-badge out" onclick="show('auditorias')">→ Auditorias</span>
+        <span class="conn-badge out" onclick="show('mdzap')">→ MDZap</span>
+        <span class="conn-badge out" onclick="show('clientes')">→ Clientes (drawer)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3>🌳 Componentes Principais</h3>
+    <div class="tree">
+<span class="file">CrmPage.tsx</span><br>
+├── <span class="file">CrmKanban.tsx</span> <span class="desc">— Board kanban de leads por etapa</span><br>
+├── <span class="file">CrmListView.tsx</span> <span class="desc">— Visualização em tabela/lista</span><br>
+├── <span class="file">CrmDashboard.tsx</span> <span class="desc">— KPIs e gráficos do funil</span><br>
+├── <span class="file">CrmRadar.tsx</span> <span class="desc">— Radar de leads (visão estratégica)</span><br>
+├── <span class="file">CrmArquivados.tsx</span> <span class="desc">— Leads arquivados</span><br>
+├── <span class="file">CrmFilterBar.tsx</span> <span class="desc">— Filtros globais</span><br>
+├── <span class="file">MdzapConnectionIndicator</span> <span class="desc">— Status conexão MDZap</span><br>
+├── <span class="file">modals/ModalNovoLead.tsx</span> <span class="desc">— Cadastro de lead</span><br>
+├── <span class="file">modals/ModalTriagem.tsx</span> <span class="desc">— Checklist de triagem (restrições)</span><br>
+├── <span class="file">modals/ModalDistribuirLead.tsx</span> <span class="desc">— Efetua distribuição</span><br>
+├── <span class="file">modals/ModalDistribuicao.tsx</span> <span class="desc">— Configuração distribuição</span><br>
+├── <span class="file">modals/ModalNovaAuditoria.tsx</span> <span class="desc">— Dispara auditoria CPF</span><br>
+├── <span class="file">modals/ModalArquivar.tsx</span> <span class="desc">— Arquiva lead com motivo</span><br>
+├── <span class="file">modals/ModalAIReport.tsx</span> <span class="desc">— Relatório IA do lead</span><br>
+└── <span class="file">ClienteDrawer (shared)</span> <span class="desc">— Painel lateral do lead/cliente</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📝 Inputs Principais</h3>
+      <ul class="item-list">
+        <li>Nome, CPF, telefone, email do lead</li>
+        <li>Etapa do funil (crm_estagios_funil)</li>
+        <li>Atendente responsável</li>
+        <li>OAB (advogados_oabs) <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Restrições do lead <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Documentos do lead <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Notas internas (CrmLeadTabFollowup)</li>
+        <li>Origem do lead (leads_origens)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">leads</span> — tabela principal</li>
+        <li><span class="tag table">view_crm_leads_kanban</span> — view kanban</li>
+        <li><span class="tag table">view_crm_radar</span> — view radar</li>
+        <li><span class="tag table">crm_estagios_funil</span> — colunas do pipeline</li>
+        <li><span class="tag table">leads_interacoes</span> — histórico</li>
+        <li><span class="tag table">leads_arquivamento_motivo</span></li>
+        <li><span class="tag table">restricoes</span> — restrições do lead</li>
+        <li><span class="tag table">auditorias</span> — consultas ApiFull</li>
+        <li><span class="tag table">whatsapp_conversas</span> — histórico MDZap</li>
+        <li><span class="rpc">rpc_crm_bulk_action</span> <span class="rpc">rpc_crm_aprovar_triagem</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>⚠️ Hooks de Dados</h3>
+    <ul class="item-list">
+      <li><code>useLeadFilters</code> — filtros do pipeline</li>
+      <li><code>useCrmRealtime</code> — WebSocket realtime para mudanças no kanban</li>
+      <li><code>useQuery</code> — busca leads com view_crm_leads_kanban</li>
+      <li>Deep links: <code>?modal=novo</code>, <code>?lead=ID</code>, <code>?etapa=COLUNA</code>, <code>?drawer_tab=TAB</code></li>
+      <li>Keyboard shortcut: <kbd>N</kbd> → abrir ModalNovoLead</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ DISTRIBUIÇÃO -->
+<div class="page-section" id="section-distribuicao">
+  <div class="page-header">
+    <h2>Distribuição</h2>
+    <div class="subtitle">Central de distribuição de processos para advogados</div>
+    <div class="badge-row">
+      <span class="badge critico">🔴 Core Crítico</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/distribuicao</span>
+      <span class="badge info">📄 DistribuicaoPage.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Central que gerencia o pipeline de distribuição de processos para advogados. Recebe leads aprovados do CRM, passa por preparação (documentos + petição inicial), agendamento e efetua a distribuição no sistema externo (E-PROC). Possui painel JARBAS para distribuição automática.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Lead aprovado no CRM → cria processo em <code>processos</code></li>
+        <li>Processo manual via ModalCriarProcesso</li>
+        <li>Agendamentos via WizardAgendarDistribuicao</li>
+        <li>JARBAS auto-distribui via <span class="rpc">rpc_efetuar_distribuicao</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Distribuição efetuada → <strong>Processo</strong> (status: distribuído)</li>
+        <li>Lead arquivado no CRM</li>
+        <li>Cliente criado em <code>clientes</code> (<span class="rpc">ensure_cliente_stub</span>)</li>
+        <li>Petição gerada via OlivIA</li>
+        <li>Devolução possível → CRM (<span class="rpc">rpc_devolver_crm</span>)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('crm')">← CRM</span>
+        <span class="conn-badge out" onclick="show('processos')">→ Processos</span>
+        <span class="conn-badge out" onclick="show('clientes')">→ Clientes</span>
+        <span class="conn-badge out" onclick="show('olivia')">→ OlivIA (petição)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3>🌳 Componentes Principais</h3>
+    <div class="tree">
+<span class="file">DistribuicaoPage.tsx</span><br>
+├── <span class="file">TabDashboard.tsx</span> <span class="desc">— KPIs e gráficos</span><br>
+├── <span class="file">TabPreparacao.tsx</span> <span class="desc">— Processos em preparação de documentos</span><br>
+├── <span class="file">TabAguardando.tsx</span> <span class="desc">— Aguardando distribuição</span><br>
+├── <span class="file">TabAgendados.tsx</span> <span class="desc">— Distribuições agendadas</span><br>
+├── <span class="file">TabJarbas.tsx</span> <span class="desc">— Painel JARBAS auto-distribuição</span><br>
+├── <span class="file">DistribuicaoFilterBar.tsx</span> <span class="desc">— Filtros</span><br>
+├── <span class="file">modals/ModalCriarProcesso.tsx</span> <span class="desc">— Criar processo manual</span><br>
+├── <span class="file">modals/ModalEfetuarDistribuicao.tsx</span> <span class="desc">— Distribuição 1-a-1</span><br>
+├── <span class="file">modals/ModalDistribuicaoLote.tsx</span> <span class="desc">— Distribuição em lote</span><br>
+├── <span class="file">modals/WizardAgendarDistribuicao.tsx</span> <span class="desc">— Agendamento</span><br>
+├── <span class="file">modals/ModalPreparacaoDocumentos.tsx</span> <span class="desc">— Upload documentos</span><br>
+├── <span class="file">modals/ModalPreparoProcesso.tsx</span> <span class="desc">— Preparo processo</span><br>
+├── <span class="file">modals/ModalGerarPeticao.tsx</span> <span class="desc">— Gera petição via OlivIA</span><br>
+├── <span class="file">modals/ModalDevolverCRM.tsx</span> <span class="desc">— Devolve lead ao CRM</span><br>
+├── <span class="file">drawers/DistribuicaoDrawerPreparacao.tsx</span> <span class="desc">— Drawer preparação</span><br>
+└── <span class="file">drawers/DistribuicaoDrawerRestricao.tsx</span> <span class="desc">— Drawer restrições</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📝 Inputs Principais</h3>
+      <ul class="item-list">
+        <li>Número CNJ do processo <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Restrições vinculadas <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Documentos para distribuição <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Advogado destinatário</li>
+        <li>UF / estado de distribuição</li>
+        <li>Data de agendamento</li>
+        <li>Template de petição (OlivIA)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">processos</span> — processos em pipeline</li>
+        <li><span class="tag table">view_processos_distribuicao</span></li>
+        <li><span class="tag table">view_distribuicao_kpis</span></li>
+        <li><span class="tag table">processos_agendamentos</span></li>
+        <li><span class="tag table">distribuicao_lotes</span></li>
+        <li><span class="tag table">distribuicao_config_uf</span></li>
+        <li><span class="tag table">estados_distribuicao</span></li>
+        <li><span class="rpc">rpc_efetuar_distribuicao</span></li>
+        <li><span class="rpc">fn_criar_processo_distribuicao</span></li>
+        <li><span class="rpc">rpc_distribuicao_distribuir</span></li>
+        <li><span class="rpc">rpc_devolver_crm</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ PROCESSOS -->
+<div class="page-section" id="section-processos">
+  <div class="page-header">
+    <h2>Processos</h2>
+    <div class="subtitle">Gerenciamento de processos jurídicos ativos</div>
+    <div class="badge-row">
+      <span class="badge critico">🔴 Core Crítico</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/processos</span>
+      <span class="badge info">📄 ProcessosPage.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Listagem e gerenciamento de processos jurídicos. Exibe KPIs, filtros avançados, tabela paginada. Cada processo tem drawer completo com dados, restrições, documentos, financeiro, histórico. Integração com E-PROC via monitoramento.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Processo criado pela Distribuição</li>
+        <li>Importação manual (CSV)</li>
+        <li>Processo criado no modal de Distribuição</li>
+        <li>Movimentações do E-PROC via JARBAS</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Despachos/movimentações → <strong>Controller</strong> (intimacoes)</li>
+        <li>Decisões detectadas → <strong>Decisões</strong></li>
+        <li>Audiências → <strong>Audiências</strong></li>
+        <li>Documentos pendentes → <strong>Doc. Pendentes</strong></li>
+        <li>Acordo fechado → <strong>Acordos</strong></li>
+        <li>Dados processo → OlivIA (petições)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('distribuicao')">← Distribuição</span>
+        <span class="conn-badge out" onclick="show('controller')">→ Controller</span>
+        <span class="conn-badge out" onclick="show('decisoes')">→ Decisões</span>
+        <span class="conn-badge out" onclick="show('audiencias')">→ Audiências</span>
+        <span class="conn-badge out" onclick="show('doc-pendentes')">→ Doc. Pendentes</span>
+        <span class="conn-badge out" onclick="show('acordos')">→ Acordos</span>
+        <span class="conn-badge out" onclick="show('execucoes')">→ Execuções</span>
+        <span class="conn-badge out" onclick="show('olivia')">→ OlivIA</span>
+        <span class="conn-badge out" onclick="show('clientes')">→ Clientes</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3>🌳 Componentes Principais</h3>
+    <div class="tree">
+<span class="file">ProcessosPage.tsx</span><br>
+├── <span class="file">ProcessosKPIs.tsx</span> <span class="desc">— Cards de métricas</span><br>
+├── <span class="file">ProcessosFilterBar.tsx</span> <span class="desc">— Filtros avançados (UF, status, advogado)</span><br>
+├── <span class="file">ProcessosTable.tsx</span> <span class="desc">— Tabela paginada com seleção bulk</span><br>
+├── <span class="file">ProcessosBulkBar.tsx</span> <span class="desc">— Ações em lote</span><br>
+├── <span class="file">ProcessoModalShell.tsx</span> <span class="desc">— Modal principal do processo</span><br>
+│   ├── <span class="file">ProcessoView.tsx</span> <span class="desc">— Conteúdo do modal</span><br>
+│   ├── <span class="file">tabs/ProcessoTabDados.tsx</span> <span class="desc">— Dados do processo</span><br>
+│   ├── <span class="file">tabs/ProcessoTabRestricoes.tsx</span> <span class="desc">— Restrições vinculadas</span><br>
+│   ├── <span class="file">tabs/ProcessoTabDocumentos.tsx</span> <span class="desc">— Documentos</span><br>
+│   ├── <span class="file">tabs/ProcessoTabFinanceiro.tsx</span> <span class="desc">— Financeiro</span><br>
+│   └── <span class="file">tabs/ProcessoTabHistorico.tsx</span> <span class="desc">— Timeline</span><br>
+├── <span class="file">ModalImportarProcessos.tsx</span> <span class="desc">— Importação CSV</span><br>
+└── <span class="file">ModalExportConfig.tsx</span> <span class="desc">— Export configurável</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📝 Inputs Principais</h3>
+      <ul class="item-list">
+        <li>Número CNJ <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Restrições do processo <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Documentos do processo <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Status do processo (processos_situacoes)</li>
+        <li>Advogado responsável</li>
+        <li>Empresa devedora</li>
+        <li>Tipo processo (processos_tipos)</li>
+        <li>Fases processuais (processos_fases)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">processos</span> — tabela principal</li>
+        <li><span class="tag table">processos_situacoes</span></li>
+        <li><span class="tag table">processos_fases</span></li>
+        <li><span class="tag table">processos_restricoes</span></li>
+        <li><span class="tag table">processos_documentos</span></li>
+        <li><span class="tag table">processos_movimentacoes</span></li>
+        <li><span class="tag table">processos_partes</span></li>
+        <li><span class="tag table">processos_marcos</span></li>
+        <li><span class="tag table">intimacoes</span> — despachos E-PROC</li>
+        <li><span class="rpc">rpc_processo_get_completo</span></li>
+        <li><span class="rpc">fn_processos_listar</span></li>
+        <li><span class="rpc">get_processos_paginados</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ CONTROLLER -->
+<div class="page-section" id="section-controller">
+  <div class="page-header">
+    <h2>Controller</h2>
+    <div class="subtitle">Central de intimações, atividades e monitoramento processual</div>
+    <div class="badge-row">
+      <span class="badge critico">🔴 Core Crítico</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/controller</span>
+      <span class="badge info">📄 controller/index.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Hub central de operações jurídicas. Recebe intimações/despachos do E-PROC via JARBAS, exibe em painel de análise com IA. Permite criar Atividades (para usuário específico) ou Documentos Pendentes (para todos). Inclui monitoramento, equipe, dashboard KPIs, e modo treinamento (Playbooks).</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Intimações do E-PROC via JARBAS (tabela <code>intimacoes</code>)</li>
+        <li>Análise IA (ControllerResumoAnaliseIA)</li>
+        <li>Monitoramento de processos (jusbrasil)</li>
+        <li>Despachos ingeridos manualmente (ControllerIngestaoManualDialog)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Cria <strong>Atividade</strong> → página Atividades</li>
+        <li>Cria <strong>Documento Pendente</strong> → Doc. Pendentes</li>
+        <li>Classifica processo (status)</li>
+        <li>Transfere atividades em lote</li>
+        <li>Exporta dados</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('processos')">← E-PROC/Processos</span>
+        <span class="conn-badge out" onclick="show('atividades')">→ Atividades</span>
+        <span class="conn-badge out" onclick="show('doc-pendentes')">→ Doc. Pendentes</span>
+        <span class="conn-badge out" onclick="show('decisoes')">→ Decisões</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3>🌳 Componentes Principais (V3)</h3>
+    <div class="tree">
+<span class="file">controller/index.tsx</span><br>
+├── <span class="file">ControllerV3KPIsEnhanced.tsx</span> <span class="desc">— Métricas enhanced</span><br>
+├── <span class="file">ControllerV3FilterBar.tsx</span> <span class="desc">— Filtros avançados</span><br>
+├── <span class="file">ControllerV3Intimacoes.tsx</span> <span class="desc">— Lista de intimações</span><br>
+├── <span class="file">ControllerV3IntimacaoRow.tsx</span> <span class="desc">— Row com ações rápidas</span><br>
+├── <span class="file">ControllerV3Drawer.tsx</span> <span class="desc">— Drawer detalhe intimação</span><br>
+│   ├── <span class="file">ControllerV3DrawerTabResumo.tsx</span> <span class="desc">— Análise IA</span><br>
+│   ├── <span class="file">ControllerV3DrawerTabProcesso.tsx</span> <span class="desc">— Dados processo</span><br>
+│   ├── <span class="file">ControllerV3DrawerTabDocumentos.tsx</span> <span class="desc">— Documentos</span><br>
+│   └── <span class="file">ControllerV3DrawerTabFinanceiro.tsx</span> <span class="desc">— Financeiro</span><br>
+├── <span class="file">ControllerSheetAtividade.tsx</span> <span class="desc">— Criar atividade</span><br>
+├── <span class="file">ControllerSheetDocPendente.tsx</span> <span class="desc">— Criar doc pendente</span><br>
+├── <span class="file">ControllerDashboard.tsx</span> <span class="desc">— Dashboard</span><br>
+├── <span class="file">ControllerAtividades.tsx</span> <span class="desc">— Atividades</span><br>
+├── <span class="file">ControllerDocumentos.tsx</span> <span class="desc">— Documentos pendentes</span><br>
+├── <span class="file">ControllerMonitoramento.tsx</span> <span class="desc">— Monitoramento jusbrasil</span><br>
+├── <span class="file">ControllerEquipe.tsx</span> <span class="desc">— Visão equipe</span><br>
+├── <span class="file">ControllerTreinamentoHub.tsx</span> <span class="desc">— Playbooks + Painel João</span><br>
+└── <span class="file">ControllerV3BulkBar.tsx</span> <span class="desc">— Bulk actions</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">intimacoes</span> — despachos do E-PROC</li>
+        <li><span class="tag table">v_controller_intimacoes_completa</span></li>
+        <li><span class="tag table">atividades</span></li>
+        <li><span class="tag table">documentos_pendentes</span></li>
+        <li><span class="tag table">processos_monitoramento</span></li>
+        <li><span class="tag table">controller_analise_ia_feedback</span></li>
+        <li><span class="rpc">rpc_controller_kpis</span></li>
+        <li><span class="rpc">rpc_controller_criar_atividade</span></li>
+        <li><span class="rpc">rpc_controller_criar_doc_pendente</span></li>
+        <li><span class="rpc">rpc_controller_batch_update_status</span></li>
+        <li><span class="rpc">rpc_controller_ingestao_manual</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>⚙️ Notas Técnicas</h3>
+      <ul class="item-list">
+        <li>Banner de prazos vencendo hoje (PrazosHojeBanner)</li>
+        <li>Hotkeys: configurados via react-hotkeys-hook</li>
+        <li>useControllerRealtime — WebSocket intimacoes</li>
+        <li>V3 Command Palette (ControllerV3CommandPalette)</li>
+        <li>Tabs: intimacoes, atividades, documentos, equipe, dashboard, arquivados, monitoramento, playbooks</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ CLIENTES -->
+<div class="page-section" id="section-clientes">
+  <div class="page-header">
+    <h2>Clientes</h2>
+    <div class="subtitle">Gestão de clientes ativos do escritório</div>
+    <div class="badge-row">
+      <span class="badge critico">🔴 Core Crítico</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/clientes</span>
+      <span class="badge info">📄 clientes/index.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Listagem paginada de clientes com KPI dashboard, filtros (estado, engajamento, carteira, advogado), e drawer completo com todas as informações do cliente: dados, restrições, processos, documentos pendentes, histórico, MDZap. Cliente é criado automaticamente na distribuição.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Criado automaticamente na distribuição (<span class="rpc">ensure_cliente_stub</span>)</li>
+        <li>Cadastro manual (NovoClienteModal)</li>
+        <li>Importação CSV (ImportacaoModal)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Abre drawer → todos dados do cliente</li>
+        <li>Navegação para processos do cliente</li>
+        <li>Exportação CSV</li>
+        <li>Webhooks em ações (callWebhook)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('distribuicao')">← Distribuição</span>
+        <span class="conn-badge in" onclick="show('crm')">← CRM (drawer)</span>
+        <span class="conn-badge out" onclick="show('processos')">→ Processos</span>
+        <span class="conn-badge out" onclick="show('doc-pendentes')">→ Doc. Pendentes</span>
+        <span class="conn-badge out" onclick="show('mdzap')">→ MDZap</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:16px">
+    <h3>🌳 Componentes Principais</h3>
+    <div class="tree">
+<span class="file">clientes/index.tsx</span><br>
+├── <span class="file">ClienteKPIDashboard.tsx</span> <span class="desc">— KPIs</span><br>
+├── <span class="file">ClienteFilters.tsx</span> <span class="desc">— Filtros com URL sync</span><br>
+├── <span class="file">ClienteList.tsx</span> <span class="desc">— Lista paginada</span><br>
+├── <span class="file">ClienteDrawer (shared)</span> <span class="desc">— Drawer com todas as abas</span><br>
+│   ├── <span class="file">ClienteDrawerTabDados.tsx</span> <span class="desc">— Dados pessoais</span><br>
+│   ├── <span class="file">ClienteDrawerTabRestricoes.tsx</span> <span class="desc">— Restrições</span><br>
+│   ├── <span class="file">ClienteDrawerTabJuridico.tsx</span> <span class="desc">— Info jurídica</span><br>
+│   ├── <span class="file">ClienteDrawerTabDocumentos.tsx</span> <span class="desc">— Documentos</span><br>
+│   ├── <span class="file">ClienteDrawerTabDocumentosPendentes.tsx</span> <span class="desc">— Pendências</span><br>
+│   ├── <span class="file">ClienteDrawerTabHistorico.tsx</span> <span class="desc">— Histórico</span><br>
+│   ├── <span class="file">ClienteDrawerTabNotas.tsx</span> <span class="desc">— Notas</span><br>
+│   ├── <span class="file">ClienteDrawerTabMdzap.tsx</span> <span class="desc">— WhatsApp</span><br>
+│   ├── <span class="file">CrmLeadTabFollowup.tsx</span> <span class="desc">— Followup</span><br>
+│   └── <span class="file">CrmLeadTabAtividades.tsx</span> <span class="desc">— Atividades</span><br>
+├── <span class="file">modals/NovoClienteModal.tsx</span> <span class="desc">— Cadastro manual</span><br>
+└── <span class="file">modals/ImportacaoModal.tsx</span> <span class="desc">— Import CSV</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📝 Inputs / Filtros</h3>
+      <ul class="item-list">
+        <li>Search (q=) — busca por nome/CPF</li>
+        <li>Estados (estados=) — multi-select UF</li>
+        <li>Advogado (advogados=) — multi-select</li>
+        <li>Engajamento (engajamento=)</li>
+        <li>Período (de=, ate=)</li>
+        <li>Carteira (carteira=)</li>
+        <li>Restrições <span class="tag reusable">🔄 Reutilizável</span></li>
+        <li>Documentos <span class="tag reusable">🔄 Reutilizável</span></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">clientes</span></li>
+        <li><span class="tag table">clientes_historico</span></li>
+        <li><span class="tag table">clientes_resumos</span></li>
+        <li><span class="tag table">clientes_vinculos</span></li>
+        <li><span class="tag table">restricoes</span></li>
+        <li><span class="tag table">processos_restricoes</span></li>
+        <li><span class="rpc">get_clientes_paginados</span></li>
+        <li><span class="rpc">get_cliente_by_cpf</span></li>
+        <li><span class="rpc">update_cliente_dados</span></li>
+        <li><span class="rpc">ensure_cliente_stub</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ ATIVIDADES -->
+<div class="page-section" id="section-atividades">
+  <div class="page-header">
+    <h2>Atividades</h2>
+    <div class="subtitle">Gestão de tarefas e atividades da equipe</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/atividades</span>
+      <span class="badge info">📄 AtividadesPage.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Gestão de atividades/tarefas com 4 visualizações: Lista, Kanban, Feed, Calendário. Atividades são criadas pelo Controller a partir de intimações. Suporte a prazo, participantes, checklist, comentários, e watchers.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Criadas pelo Controller (<span class="rpc">rpc_controller_criar_atividade</span>)</li>
+        <li>Criadas manualmente (NovaAtividadeModal)</li>
+        <li>Deep link: ?atividade=UUID</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Status alterado → <span class="rpc">fn_alterar_status_atividade</span></li>
+        <li>Notificações para participantes</li>
+        <li>Transferência em lote para outro advogado</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('controller')">← Controller</span>
+        <span class="conn-badge out" onclick="show('processos')">↔ Processos</span>
+        <span class="conn-badge out" onclick="show('clientes')">↔ Clientes</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>🌳 Visualizações</h3>
+      <ul class="item-list">
+        <li>Lista — tabela com filtros</li>
+        <li>Kanban — colunas por status (desktop)</li>
+        <li>Feed — linha do tempo</li>
+        <li>Calendário — por data de vencimento</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">atividades</span></li>
+        <li><span class="tag table">atividades_tipos</span></li>
+        <li><span class="tag table">atividades_checklist</span></li>
+        <li><span class="tag table">atividades_comentarios</span></li>
+        <li><span class="tag table">atividades_participantes</span></li>
+        <li><span class="tag table">atividades_kanban_ordem</span></li>
+        <li><span class="tag table">vw_atividades_lista</span></li>
+        <li><span class="rpc">fn_atividades_lista_com_leitura</span></li>
+        <li><span class="rpc">fn_atividades_kpis</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ DOC PENDENTES -->
+<div class="page-section" id="section-doc-pendentes">
+  <div class="page-header">
+    <h2>Documentos Pendentes</h2>
+    <div class="subtitle">Controle de documentos pendentes por cliente/processo</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/documentos-pendentes</span>
+      <span class="badge info">📄 DocumentosPendentesPage.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Central de documentos pendentes agrupados por cliente. Permite visualizar, resolver, reabrir e notificar via MDZap. Suporta modo sequencial (ClienteCockpitSheet), bulk actions, envio de mensagem WhatsApp para cliente sobre pendência.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Criados pelo Controller (<span class="rpc">rpc_controller_criar_doc_pendente</span>)</li>
+        <li>Criados manualmente (NovoDocumentoModal)</li>
+        <li>Associados a cliente e/ou processo</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Resolvido → <span class="rpc">rpc_documentos_pendentes_resolver</span></li>
+        <li>Notificação WhatsApp via MDZap bulk</li>
+        <li>Exportação</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('controller')">← Controller</span>
+        <span class="conn-badge out" onclick="show('mdzap')">→ MDZap (notificação)</span>
+        <span class="conn-badge out" onclick="show('clientes')">↔ Clientes</span>
+        <span class="conn-badge out" onclick="show('processos')">↔ Processos</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📝 Inputs Principais</h3>
+      <ul class="item-list">
+        <li>Tipo de documento (documentos_tipos)</li>
+        <li>Cliente vinculado</li>
+        <li>Processo vinculado (opcional)</li>
+        <li>Prazo limite</li>
+        <li>Urgente (flag)</li>
+        <li>Título livre</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">documentos_pendentes</span></li>
+        <li><span class="tag table">documentos_tipos</span></li>
+        <li><span class="tag table">docs_pendentes_colaboradores</span></li>
+        <li><span class="tag table">vw_documentos_pendentes_completo</span></li>
+        <li><span class="tag table">vw_documentos_pendentes_por_cliente</span></li>
+        <li><span class="rpc">rpc_documentos_pendentes_kpis</span></li>
+        <li><span class="rpc">rpc_documentos_pendentes_resolver</span></li>
+        <li><span class="rpc">rpc_documentos_pendentes_reabrir</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ OLIVIA -->
+<div class="page-section" id="section-olivia">
+  <div class="page-header">
+    <h2>OlivIA</h2>
+    <div class="subtitle">Geração de petições, análise de processos e IA jurídica</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/olivia</span>
+      <span class="badge info">📄 olivia/index.tsx</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>IA jurídica especializada. Tabs: Express (geração rápida de petições), Smart Blocks (geração estruturada), Análise (análise de processo/documentos), Chat (conversa jurídica). Gera documentos no Google Docs. Notificação realtime quando geração completa.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>Processo vinculado (ProcessoSearchField)</li>
+        <li>Dados do cliente</li>
+        <li>Tipo de petição (olivia_tipos_peticao)</li>
+        <li>Contexto da página (oliviaContext prop)</li>
+        <li>Chamada via drawer global (OliviaDrawerGlobal)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Petição gerada → Google Docs (URL)</li>
+        <li>Salvo em <code>olivia_historico</code></li>
+        <li>Notificação via Sonner toast</li>
+        <li>Petição pode ser usada na Distribuição</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('distribuicao')">← Distribuição</span>
+        <span class="conn-badge in" onclick="show('controller')">← Controller</span>
+        <span class="conn-badge in" onclick="show('processos')">← Processos</span>
+        <span class="conn-badge in" onclick="show('auditorias')">← Auditorias</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>🌳 Componentes</h3>
+      <ul class="item-list">
+        <li>OliviaGeradorExpress — geração rápida</li>
+        <li>OliviaGeradorSmartBlocks — estruturado</li>
+        <li>OliviaAnaliseUnificada — análise</li>
+        <li>OliviaChatPage — chat jurídico</li>
+        <li>OliviaGeradorLanding — landing</li>
+        <li>EditorPeticaoPage — editor rich text</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">olivia_historico</span></li>
+        <li><span class="tag table">olivia_modelos_peticao</span></li>
+        <li><span class="tag table">olivia_tipos_peticao</span></li>
+        <li><span class="tag table">olivia_blocos_texto</span></li>
+        <li><span class="tag table">olivia_structural_templates</span></li>
+        <li><span class="tag table">olivia_threads</span></li>
+        <li><span class="tag table">olivia_placeholders_registry</span></li>
+        <li><span class="rpc">olivia_create_historico</span></li>
+        <li><span class="rpc">fn_olivia_get_triagem</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ DECISÕES -->
+<div class="page-section" id="section-decisoes">
+  <div class="page-header">
+    <h2>Decisões</h2>
+    <div class="subtitle">Gestão de decisões judiciais e sentencas</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/decisoes</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Pipeline de decisões judiciais: Aguardando, Tutelas, Favorável, Desfavorável, Arquivadas. Decisões chegam via JARBAS (automatizado) ou são cadastradas manualmente. Ao aprovar uma decisão favorável, pode criar uma Execução.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>JARBAS detecta decisão no E-PROC</li>
+        <li>Importação manual (ModalImportarDecisoes)</li>
+        <li>Cadastro manual (ModalNovaDecisaoManual)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Decisão aprovada → cria <strong>Execução</strong></li>
+        <li>Notificação cliente (ModalNotificarCliente)</li>
+        <li>Arquivamento</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('processos')">← Processos</span>
+        <span class="conn-badge in" onclick="show('controller')">← Controller (análise)</span>
+        <span class="conn-badge out" onclick="show('execucoes')">→ Execuções</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">decisoes</span> — tabela principal</li>
+      <li><span class="tag table">decisoes_analises</span></li>
+      <li><span class="tag table">decisoes_recursos</span></li>
+      <li><span class="tag table">vw_decisoes_listagem</span></li>
+      <li><span class="tag table">vw_decisoes_dashboard_stats</span></li>
+      <li><span class="rpc">rpc_decisoes_aprovar</span></li>
+      <li><span class="rpc">rpc_decisoes_arquivar</span></li>
+      <li><span class="rpc">rpc_decisoes_criar_execucao</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ EXECUÇÕES -->
+<div class="page-section" id="section-execucoes">
+  <div class="page-header">
+    <h2>Execuções</h2>
+    <div class="subtitle">Execuções de sentenças — cálculo e alvará</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/execucoes</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Pipeline de execuções judiciais: Favoráveis, Desfavoráveis, Aguardando Alvará, Pagos. Criadas a partir de Decisões favoráveis. Suporta pré-preenchimento via URL params (?nova=true&decisao_id=X).</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('decisoes')">← Decisões</span>
+        <span class="conn-badge out" onclick="show('processos')">↔ Processos</span>
+        <span class="conn-badge out" onclick="show('acordos')">↔ Acordos</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">execucoes</span></li>
+      <li><span class="tag table">execucoes_eventos</span></li>
+      <li><span class="tag table">execucoes_movimentacoes</span></li>
+      <li><span class="tag table">execucoes_situacoes</span></li>
+      <li><span class="tag table">execucoes_ai_insights</span></li>
+      <li><span class="tag table">view_execucoes_list</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ ACORDOS -->
+<div class="page-section" id="section-acordos">
+  <div class="page-header">
+    <h2>Acordos</h2>
+    <div class="subtitle">Gestão de acordos extrajudiciais e propostas</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/acordos</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Pipeline de acordos: Dashboard KPIs, Aguardando Pagamento, Propostas. Registra acordos com empresa devedora via plataformas (Serasa, CNPJ.biz, etc). Sincronia com financeiro ao fechar acordo.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('processos')">← Processos</span>
+        <span class="conn-badge in" onclick="show('clientes')">← Clientes</span>
+        <span class="conn-badge out" onclick="show('financeiro')">→ Financeiro</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">acordos</span></li>
+      <li><span class="tag table">acordos_plataformas</span></li>
+      <li><span class="tag table">acordos_propostas</span></li>
+      <li><span class="tag table">acordos_propostas_envios</span></li>
+      <li><span class="tag table">vw_acordos_aguardando</span></li>
+      <li><span class="tag table">vw_propostas_pipeline</span></li>
+      <li><span class="rpc">fn_acordos_listar</span></li>
+      <li><span class="rpc">fn_sync_acordo_para_financeiro</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ AUDIÊNCIAS -->
+<div class="page-section" id="section-audiencias">
+  <div class="page-header">
+    <h2>Audiências</h2>
+    <div class="subtitle">Agendamento e gestão de audiências judiciais</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/audiencias</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Gestão de audiências com KPIs e calendar view. Permite cadastro, edição, registro de pagamento. Integração com IA (análise de resultado). Acesso restrito: jurídico e admin. Google Calendar sync em manutenção.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('processos')">← Processos</span>
+        <span class="conn-badge out" onclick="show('financeiro')">→ Financeiro (pagamento)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">audiencias</span></li>
+      <li><span class="tag table">audiencias_arquivos</span></li>
+      <li><span class="tag table">audiencias_ia_resultados</span></li>
+      <li><span class="tag table">audiencias_participantes</span></li>
+      <li><span class="rpc">get_audiencias_semana</span></li>
+      <li><span class="rpc">check_conflito_audiencia</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ AUDITORIAS -->
+<div class="page-section" id="section-auditorias">
+  <div class="page-header">
+    <h2>Auditorias</h2>
+    <div class="subtitle">Auditorias de crédito via ApiFull API</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/auditorias</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Consulta de CPF/CNPJ na ApiFull API para obter restrições de crédito. Disparada a partir do CRM (botão auditoria) ou manualmente. Resultado exibido na página e também vinculado ao lead no CRM. Suporta exportação PDF.</p>
+    </div>
+    <div class="card">
+      <h3>📥 Fluxo de Entrada</h3>
+      <ul class="item-list">
+        <li>CPF disparado pelo CRM (ModalNovaAuditoria)</li>
+        <li>Busca manual no formulário</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>📤 Fluxo de Saída</h3>
+      <ul class="item-list">
+        <li>Resultado salvo em <code>auditorias</code></li>
+        <li>Restrições identificadas vinculadas ao lead</li>
+        <li>PDF gerado (AuditoriaPDF)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('crm')">← CRM</span>
+        <span class="conn-badge out">→ ApiFull API (externo)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">auditorias</span></li>
+      <li><span class="tag table">auditorias_consultas</span></li>
+      <li><span class="rpc">rpc_disparar_auditoria</span></li>
+      <li><span class="rpc">rpc_cancelar_auditoria</span></li>
+      <li><span class="rpc">rpc_get_dashboard_auditorias</span></li>
+      <li><span class="rpc">rpc_get_auditoria_pdf_url</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ MDZAP -->
+<div class="page-section" id="section-mdzap">
+  <div class="page-header">
+    <h2>MDZap</h2>
+    <div class="subtitle">WhatsApp integrado — comunicação com leads e clientes</div>
+    <div class="badge-row">
+      <span class="badge importante">🟡 Importante</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/mdzap</span>
+      <span class="badge route">/mdzap/app</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Interface WhatsApp Business integrada. Desktop: MdzapChatPanel completo. Mobile (&lt;1024px): redireciona para /mdzap/app. Histórico vinculado ao lead no CRM. Notificações bulk para Documentos Pendentes. Suporte a templates de mensagem.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('crm')">← CRM (?lead=ID)</span>
+        <span class="conn-badge in" onclick="show('clientes')">← Clientes (drawer)</span>
+        <span class="conn-badge in" onclick="show('doc-pendentes')">← Doc. Pendentes (bulk)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📝 Inputs</h3>
+      <ul class="item-list">
+        <li>Número WhatsApp do contato</li>
+        <li>Mensagem livre</li>
+        <li>Templates (whatsapp_templates)</li>
+        <li>Notas internas por conversa</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>🗄️ Tabelas Supabase</h3>
+      <ul class="item-list">
+        <li><span class="tag table">whatsapp_conversas</span></li>
+        <li><span class="tag table">whatsapp_mensagens</span></li>
+        <li><span class="tag table">whatsapp_templates</span></li>
+        <li><span class="tag table">whatsapp_numeros</span></li>
+        <li><span class="tag table">whatsapp_notas_internas</span></li>
+        <li><span class="tag table">mdzap_ai_modules</span></li>
+        <li><span class="rpc">fn_mdzap_conversas</span></li>
+        <li><span class="rpc">fn_mdzap_smart_replies</span></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ JURIMETRIA -->
+<div class="page-section" id="section-jurimetria">
+  <div class="page-header">
+    <h2>Jurimetria</h2>
+    <div class="subtitle">Métricas e análises estatísticas de processos e julgadores</div>
+    <div class="badge-row">
+      <span class="badge suporte">🟢 Suporte</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/jurimetria</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Analytics jurídico: dashboard de métricas, resultados por empresa/tipo, tempo processual, ranking de julgadores, pesquisa jurisprudencial. Filtros por período, UF, empresa, tipo. Exportação de dados.</p>
+    </div>
+    <div class="card">
+      <h3>🌳 Tabs</h3>
+      <ul class="item-list">
+        <li>Dashboard — visão geral</li>
+        <li>Resultados — por empresa/tipo</li>
+        <li>Tempo — análise temporal</li>
+        <li>Julgadores — ranking juízes</li>
+        <li>Pesquisa — jurisprudência</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">jurimetria_acordos</span></li>
+      <li><span class="tag table">jurimetria_empresas</span></li>
+      <li><span class="tag table">jurimetria_juizes</span></li>
+      <li><span class="tag table">jurimetria_snapshots</span></li>
+      <li><span class="tag table">jurimetria_predicoes</span></li>
+      <li><span class="tag table">julgadores</span></li>
+      <li><span class="rpc">get_jurimetria_dashboard</span></li>
+      <li><span class="rpc">get_jurimetria_ranking_empresas</span></li>
+      <li><span class="rpc">get_jurimetria_ranking_julgadores</span></li>
+      <li><span class="rpc">get_jurimetria_tempo</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ FINANCEIRO -->
+<div class="page-section" id="section-financeiro">
+  <div class="page-header">
+    <h2>Financeiro</h2>
+    <div class="subtitle">Gestão financeira do escritório</div>
+    <div class="badge-row">
+      <span class="badge suporte">🟢 Suporte</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/financeiro</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Controle financeiro com Visão Geral, Lançamentos, Contas a Pagar/Receber, Cartões, Folha, Honorários, Relatórios. Tabs exibidas conforme perfil (gestor, financeiro, lite). Sincronização com acordos e execuções.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('acordos')">← Acordos</span>
+        <span class="conn-badge in" onclick="show('execucoes')">← Execuções</span>
+        <span class="conn-badge in" onclick="show('audiencias')">← Audiências</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">financeiro</span></li>
+      <li><span class="tag table">financeiro_categorias</span></li>
+      <li><span class="tag table">financeiro_recorrencias</span></li>
+      <li><span class="tag table">honorarios</span></li>
+      <li><span class="tag table">funcionarios</span></li>
+      <li><span class="tag table">vw_financeiro_completo</span></li>
+      <li><span class="tag table">vw_financeiro_resumo_mensal</span></li>
+      <li><span class="rpc">fn_financeiro_kpis</span></li>
+      <li><span class="rpc">fn_financeiro_listar</span></li>
+      <li><span class="rpc">fn_financeiro_fluxo_caixa</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ EMPRESAS -->
+<div class="page-section" id="section-empresas">
+  <div class="page-header">
+    <h2>Empresas</h2>
+    <div class="subtitle">Cadastro e gestão de empresas devedoras</div>
+    <div class="badge-row">
+      <span class="badge suporte">🟢 Suporte</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/empresas</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Cadastro de empresas devedoras com aprovação, categorias, órgãos restritivos (orgaos_restritivos) e escritórios. Dashboard com KPIs. Ranking de empresas mais ativas. Aprovação de novas empresas pelo admin.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('crm')">← CRM (restrição)</span>
+        <span class="conn-badge in" onclick="show('processos')">← Processos</span>
+        <span class="conn-badge out" onclick="show('jurimetria')">→ Jurimetria</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">empresas</span></li>
+      <li><span class="tag table">empresas_aprovacao</span></li>
+      <li><span class="tag table">empresas_categorias</span></li>
+      <li><span class="tag table">orgaos_restritivos</span></li>
+      <li><span class="tag table">escritorios</span></li>
+      <li><span class="rpc">rpc_empresas_ranking</span></li>
+      <li><span class="rpc">aprovar_empresa</span></li>
+      <li><span class="rpc">buscar_empresa_similar</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ INDICAÇÕES -->
+<div class="page-section" id="section-indicacoes">
+  <div class="page-header">
+    <h2>Indicações</h2>
+    <div class="subtitle">Programa de indicações e captadores</div>
+    <div class="badge-row">
+      <span class="badge suporte">🟢 Suporte</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/indicacoes</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Gestão do programa de indicações: captadores, leads indicados, pagamentos. Tabs: Dashboard, Captadores, Indicações, Pagamentos. Ao converter indicação, cria lead no CRM.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge out" onclick="show('crm')">→ CRM (lead convertido)</span>
+        <span class="conn-badge out" onclick="show('financeiro')">→ Financeiro (pagamentos)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">indicacoes</span></li>
+      <li><span class="tag table">captadores</span></li>
+      <li><span class="tag table">indicacoes_pagamentos</span></li>
+      <li><span class="rpc">fn_indicacoes_listar</span></li>
+      <li><span class="rpc">rpc_indicacoes_converter_lead</span></li>
+      <li><span class="rpc">fn_indicacoes_confirmar_pagamento</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ RELATÓRIOS -->
+<div class="page-section" id="section-relatorios">
+  <div class="page-header">
+    <h2>Relatórios</h2>
+    <div class="subtitle">Relatórios para clientes sobre processos</div>
+    <div class="badge-row">
+      <span class="badge suporte">🟢 Suporte</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/relatorios</span>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>📋 Descrição Core</h3>
+      <p>Pedidos de relatórios periódicos para clientes. Tabs: Pendentes, Concluídos. Realtime para mudanças de status via n8n. Pedidos manuais e automáticos.</p>
+    </div>
+    <div class="card">
+      <h3>🔗 Ligações</h3>
+      <div class="connections">
+        <span class="conn-badge in" onclick="show('clientes')">← Clientes</span>
+        <span class="conn-badge in" onclick="show('processos')">← Processos</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">relatorios</span></li>
+      <li><span class="tag table">relatorios_envios</span></li>
+      <li><span class="tag table">vw_relatorios_concluidos_latest</span></li>
+      <li><span class="rpc">criar_pedido_relatorio</span></li>
+      <li><span class="rpc">marcar_relatorio_concluido</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ EQUIPE -->
+<div class="page-section" id="section-equipe">
+  <div class="page-header">
+    <h2>Equipe</h2>
+    <div class="subtitle">Gerenciamento de advogados e perfis de usuário</div>
+    <div class="badge-row">
+      <span class="badge suporte">🟢 Suporte</span>
+      <span class="badge ok">✅ Estável</span>
+      <span class="badge route">/equipe</span>
+    </div>
+  </div>
+  <div class="card">
+    <h3>📋 Descrição Core</h3>
+    <p>Gerenciamento de membros da equipe jurídica e comercial. Perfis: admin, juridico, operacional, comercial. Metas e métricas por advogado. OABs, contas bancárias, direcionamento de distribuição.</p>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h3>🗄️ Tabelas Supabase</h3>
+    <ul class="item-list">
+      <li><span class="tag table">advogados</span></li>
+      <li><span class="tag table">advogados_oabs</span></li>
+      <li><span class="tag table">equipe_juridico</span></li>
+      <li><span class="tag table">equipe_comercial</span></li>
+      <li><span class="tag table">equipe_metas</span></li>
+      <li><span class="tag table">advogados_distribuicao_uf</span></li>
+      <li><span class="tag table">users</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ COMPONENTES REUTILIZÁVEIS -->
+<div class="page-section" id="section-componentes">
+  <div class="page-header">
+    <h2>📐 Componentes Reutilizáveis</h2>
+    <div class="subtitle">Componentes compartilhados que aparecem em múltiplas páginas</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <h3>🔄 Restrições</h3>
+      <p style="margin-bottom:10px">Aparece em: CRM, Clientes, Processos, Distribuição</p>
+      <ul class="item-list">
+        <li><strong>empresa_nome</strong> — empresa devedora</li>
+        <li><strong>data_restricao</strong> — data da restrição</li>
+        <li><strong>contrato</strong> — número do contrato</li>
+        <li><strong>valor</strong> — valor em R$</li>
+        <li><strong>tipo</strong> — tipo de restrição</li>
+        <li><strong>orgao_restritivo</strong> — FK orgaos_restritivos</li>
+        <li><strong>contexto</strong> — campo contexto (e40)</li>
+      </ul>
+      <p style="margin-top:10px; font-size:12px; color:var(--text-muted)">Tabelas: <code>restricoes</code>, <code>processos_restricoes</code></p>
+      <p style="margin-top:4px; font-size:12px; color:var(--text-muted)">RPCs: <code>fn_restricao_salvar</code>, <code>fn_restricoes_listar</code>, <code>update_cliente_restricao</code></p>
+    </div>
+
+    <div class="card">
+      <h3>🔄 Documentos</h3>
+      <p style="margin-bottom:10px">Aparece em: CRM (leads), Clientes, Processos</p>
+      <ul class="item-list">
+        <li><strong>tipo</strong> — FK documentos_tipos</li>
+        <li><strong>situacao</strong> — status do documento</li>
+        <li><strong>arquivo</strong> — URL/bucket path</li>
+        <li><strong>validade</strong> — data de expiração</li>
+        <li><strong>observacoes</strong> — texto livre</li>
+        <li><strong>contexto</strong> — campo contexto (e40)</li>
+      </ul>
+      <p style="margin-top:10px; font-size:12px; color:var(--text-muted)">Tabelas: <code>processo_documentos</code>, <code>documentos_arquivos</code></p>
+      <p style="margin-top:4px; font-size:12px; color:var(--text-muted)">Componentes: DocumentosPanel, DocumentosClientePanel, DocumentoCard</p>
+    </div>
+
+    <div class="card">
+      <h3>🔄 ProcessoSearchField (CNJ Combobox)</h3>
+      <p style="margin-bottom:10px">Campo de busca de processo por número CNJ. Aparece em: OlivIA, Distribuição, Execuções, Acordos, Audiências, Controller (manual)</p>
+      <ul class="item-list">
+        <li>Input com debounce (≥3 chars)</li>
+        <li>useProcessoSearch hook → search_processos RPC</li>
+        <li>Seleção preenche todos os dados do processo</li>
+        <li>Retorna ProcessoSearchResult completo</li>
+        <li>Suporte a disabled, erro, label customizável</li>
+      </ul>
+      <p style="margin-top:10px; font-size:12px; color:var(--text-muted)">Arquivo: <code>components/shared/processo_search_field.tsx</code></p>
+    </div>
+
+    <div class="card">
+      <h3>🔄 ClienteDrawer</h3>
+      <p style="margin-bottom:10px">Drawer lateral completo do cliente/lead. Aparece em: CRM, Clientes</p>
+      <ul class="item-list">
+        <li>Sheet com tabs: Dados, Restrições, Jurídico, Documentos, Doc. Pendentes, Histórico, Notas, MDZap, Followup, Atividades</li>
+        <li>Suporta tanto lead_id quanto cliente_id</li>
+        <li>Lazy load por tab</li>
+        <li>Ações: vincular advogado, auditar, distribuir</li>
+      </ul>
+      <p style="margin-top:10px; font-size:12px; color:var(--text-muted)">Arquivo: <code>components/shared/cliente_drawer/ClienteDrawer.tsx</code></p>
+    </div>
+
+    <div class="card">
+      <h3>🔄 ProcessoModalShell</h3>
+      <p style="margin-bottom:10px">Modal completo do processo. Aparece em: Processos, Controller, Distribuição</p>
+      <ul class="item-list">
+        <li>Tabs: Dados, Restrições, Documentos, Financeiro, Histórico</li>
+        <li>ProcessoHeader com ações</li>
+        <li>ProcessoEditFooter</li>
+        <li>ProcessoRestricaoPrincipal</li>
+      </ul>
+      <p style="margin-top:10px; font-size:12px; color:var(--text-muted)">Arquivo: <code>components/processo/ProcessoModalShell.tsx</code></p>
+    </div>
+
+    <div class="card">
+      <h3>🔄 PageHeader</h3>
+      <p style="margin-bottom:10px">Cabeçalho padrão de página. Aparece em: todas as páginas</p>
+      <ul class="item-list">
+        <li>Props: title, actions, showOlivIA, oliviaContext</li>
+        <li>Botão OlivIA integrado (abre drawer global)</li>
+        <li>Breadcrumb automático</li>
+      </ul>
+      <p style="margin-top:10px; font-size:12px; color:var(--text-muted)">Arquivo: <code>components/shared/page_header.tsx</code></p>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <div class="card">
+    <h3>📁 Estrutura de Shared Components</h3>
+    <div class="tree">
+<span class="file">src/components/shared/</span><br>
+├── <span class="file">page_header.tsx</span> <span class="desc">— Header padrão com OlivIA</span><br>
+├── <span class="file">processo_search_field.tsx</span> <span class="desc">— CNJ combobox reutilizável</span><br>
+├── <span class="file">confirm_dialog.tsx</span> <span class="desc">— Dialog de confirmação</span><br>
+├── <span class="file">TabErrorFallback.tsx</span> <span class="desc">— Error boundary para tabs</span><br>
+├── <span class="file">documentos/</span><br>
+│   ├── <span class="file">DocumentosPanel.tsx</span> <span class="desc">— Painel geral de documentos</span><br>
+│   ├── <span class="file">DocumentosClientePanel.tsx</span> <span class="desc">— Painel cliente</span><br>
+│   ├── <span class="file">DocumentoCard.tsx</span> <span class="desc">— Card individual</span><br>
+│   └── <span class="file">DocumentoStatusBadge.tsx</span> <span class="desc">— Badge de status</span><br>
+├── <span class="file">processo_drawer/</span><br>
+│   ├── <span class="file">ProcessoDrawer.tsx</span> <span class="desc">— Drawer rápido de processo</span><br>
+│   └── <span class="file">tabs/</span> <span class="desc">— Tabs do drawer</span><br>
+└── <span class="file">cliente_drawer/</span><br>
+    ├── <span class="file">ClienteDrawer.tsx</span> <span class="desc">— Drawer cliente/lead</span><br>
+    └── <span class="file">tabs/</span> <span class="desc">— Tabs: dados, restrições, docs, etc.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ MAPA DE FLUXO -->
+<div class="page-section" id="section-fluxo">
+  <div class="page-header">
+    <h2>🗺️ Mapa de Fluxo</h2>
+    <div class="subtitle">Fluxo completo Lead → Cliente → Processo → Resolução</div>
+  </div>
+
+  <div class="flow-diagram">
+    <div class="step"><span class="node">📱 WhatsApp / Formulário / Indicação</span><span class="arrow-line">→</span><span class="label">entrada de lead</span></div>
+    <div class="step"><span style="width:20px"></span><span style="color:var(--text-muted); font-size:12px">↓</span></div>
+    <div class="step"><span class="node active">🎯 CRM</span><span class="arrow-line">→</span><span class="label">triagem, restrições, documentos, auditoria CPF, MDZap</span></div>
+    <div class="step"><span style="width:20px"></span><span style="color:var(--text-muted); font-size:12px">↓ aprovado</span></div>
+    <div class="step"><span class="node active">📦 Distribuição</span><span class="arrow-line">→</span><span class="label">prepara documentos, gera petição (OlivIA), agenda ou distribui</span></div>
+    <div class="step"><span style="width:20px"></span><span style="color:var(--text-muted); font-size:12px">↓ distribuído</span></div>
+    <div class="step"><span class="node system">🏛️ E-PROC (externo)</span><span class="arrow-line">↔</span><span class="label">protocolo, despachos, intimações via JARBAS</span></div>
+    <div class="step"><span style="width:20px"></span><span style="color:var(--text-muted); font-size:12px">↓ intimações chegam</span></div>
+    <div class="step"><span class="node active">🎛️ Controller</span><span class="arrow-line">→</span><span class="label">análise IA, classifica intimação, cria atividade ou doc pendente</span></div>
+    <div class="step"><span style="width:20px; display:inline-block"></span><span class="arrow-line">→</span><span class="node">✅ Atividades</span><span style="margin-left:8px;font-size:11px;color:var(--text-muted)">tarefa para advogado específico</span></div>
+    <div class="step"><span style="width:20px; display:inline-block"></span><span class="arrow-line">→</span><span class="node">📄 Doc. Pendentes</span><span style="margin-left:8px;font-size:11px;color:var(--text-muted)">para todos com acesso</span></div>
+    <div class="step"><span style="width:20px"></span><span style="color:var(--text-muted); font-size:12px">↓ sentença</span></div>
+    <div class="step"><span class="node active">⚖️ Decisões</span><span class="arrow-line">→</span><span class="label">favorável → Execução | desfavorável → recurso</span></div>
+    <div class="step"><span style="width:20px"></span><span style="color:var(--text-muted); font-size:12px">↓ acordo ou execução</span></div>
+    <div class="step"><span class="node active">🤝 Acordos / Execuções</span><span class="arrow-line">→</span><span class="node">💰 Financeiro</span></div>
+  </div>
+
+  <hr class="section-divider">
+
+  <div class="card" style="margin-top:16px">
+    <h3>🔄 Fluxo paralelo: Entidades criadas na distribuição</h3>
+    <div class="flow-diagram" style="margin-top:12px">
+      <div class="step"><span class="node active">📦 Distribuição</span><span class="arrow-line">cria</span><span class="node">👤 Cliente</span><span class="arrow-line">(ensure_cliente_stub)</span></div>
+      <div class="step"><span class="node active">📦 Distribuição</span><span class="arrow-line">cria</span><span class="node">📁 Processo</span><span class="arrow-line">(fn_criar_processo_distribuicao)</span></div>
+      <div class="step"><span class="node">🎯 CRM Lead</span><span class="arrow-line">arquivado</span><span class="arrow-line">→</span><span class="label">movido para leads arquivados</span></div>
+    </div>
+  </div>
+
+  <hr class="section-divider">
+
+  <div class="card" style="margin-top:16px">
+    <h3>🤖 JARBAS — Agente Automação</h3>
+    <ul class="item-list">
+      <li>Monitora E-PROC via <code>jusbrasil_monitoramentos</code> / <code>processos_monitoramento</code></li>
+      <li>Importa movimentações → <code>intimacoes</code></li>
+      <li>Distribui automaticamente via <span class="rpc">fn_jarbas_iniciar_distribuicao</span></li>
+      <li>Analisa intimações com IA → <span class="rpc">fn_jarbas_salvar_analise_ia</span></li>
+      <li>Enriquece processos → <span class="rpc">fn_jarbas_enriquecer_processo</span></li>
+      <li>Painel no Controller (ControllerMonitoramento) e Distribuição (TabJarbas)</li>
+      <li>Estado em: <code>jarbas_instances</code>, <code>jarbas_execucoes</code>, <code>jarbas_tarefas</code></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════ TABELAS -->
+<div class="page-section" id="section-tabelas">
+  <div class="page-header">
+    <h2>🗄️ Tabelas Supabase</h2>
+    <div class="subtitle">Principais tabelas por domínio e quais páginas as consomem</div>
+  </div>
+
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Tabela / View</th>
+        <th>Domínio</th>
+        <th>Páginas que consomem</th>
+        <th>Notas</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td><code>leads</code></td><td>CRM</td><td>CRM, Indicações</td><td>tabela principal de leads</td></tr>
+      <tr><td><code>view_crm_leads_kanban</code></td><td>CRM</td><td>CRM</td><td>view com dados completos do lead</td></tr>
+      <tr><td><code>crm_estagios_funil</code></td><td>CRM</td><td>CRM</td><td>colunas do pipeline</td></tr>
+      <tr><td><code>leads_interacoes</code></td><td>CRM</td><td>CRM, ClienteDrawer</td><td>histórico de interações</td></tr>
+      <tr><td><code>clientes</code></td><td>Clientes</td><td>Clientes, ClienteDrawer, Distribuição</td><td>criado na distribuição</td></tr>
+      <tr><td><code>clientes_historico</code></td><td>Clientes</td><td>Clientes, ClienteDrawer</td><td>timeline do cliente</td></tr>
+      <tr><td><code>processos</code></td><td>Processos</td><td>Processos, Controller, Distribuição, OlivIA, Acordos</td><td>core processual</td></tr>
+      <tr><td><code>view_processos_distribuicao</code></td><td>Distribuição</td><td>Distribuição</td><td>processos no pipeline</td></tr>
+      <tr><td><code>processos_restricoes</code></td><td>Processos</td><td>Processos, Distribuição, Clientes</td><td>restrições do processo</td></tr>
+      <tr><td><code>processos_documentos</code></td><td>Processos</td><td>Processos, Distribuição, Clientes</td><td>documentos do processo</td></tr>
+      <tr><td><code>processos_movimentacoes</code></td><td>Processos</td><td>Processos, Controller, JARBAS</td><td>movimentações E-PROC</td></tr>
+      <tr><td><code>intimacoes</code></td><td>Controller</td><td>Controller, JARBAS</td><td>despachos/intimações</td></tr>
+      <tr><td><code>v_controller_intimacoes_completa</code></td><td>Controller</td><td>Controller</td><td>view completa</td></tr>
+      <tr><td><code>atividades</code></td><td>Atividades</td><td>Atividades, Controller, ClienteDrawer</td><td>tarefas da equipe</td></tr>
+      <tr><td><code>documentos_pendentes</code></td><td>Doc. Pendentes</td><td>Doc. Pendentes, Controller, ClienteDrawer</td><td>pendências por cliente</td></tr>
+      <tr><td><code>restricoes</code></td><td>Restrições</td><td>CRM, Clientes, Distribuição, Processos</td><td>restrições de crédito</td></tr>
+      <tr><td><code>restricoes (orgaos)</code></td><td>Restrições</td><td>CRM, Empresas</td><td>campos: empresa_nome, valor, tipo, orgao_restritivo</td></tr>
+      <tr><td><code>auditorias</code></td><td>Auditorias</td><td>Auditorias, CRM</td><td>resultado ApiFull</td></tr>
+      <tr><td><code>decisoes</code></td><td>Decisões</td><td>Decisões, Processos</td><td>sentenças judiciais</td></tr>
+      <tr><td><code>execucoes</code></td><td>Execuções</td><td>Execuções, Decisões</td><td>execuções de sentença</td></tr>
+      <tr><td><code>acordos</code></td><td>Acordos</td><td>Acordos, Processos, Financeiro</td><td>acordos extrajudiciais</td></tr>
+      <tr><td><code>audiencias</code></td><td>Audiências</td><td>Audiências, Processos</td><td>audiências</td></tr>
+      <tr><td><code>olivia_historico</code></td><td>OlivIA</td><td>OlivIA, Distribuição</td><td>histórico de geração</td></tr>
+      <tr><td><code>whatsapp_conversas</code></td><td>MDZap</td><td>MDZap, CRM, ClienteDrawer</td><td>conversas WhatsApp</td></tr>
+      <tr><td><code>empresas</code></td><td>Empresas</td><td>Empresas, CRM, Processos, Jurimetria</td><td>empresas devedoras</td></tr>
+      <tr><td><code>advogados</code></td><td>Equipe</td><td>Equipe, CRM, Distribuição, Processos</td><td>advogados do escritório</td></tr>
+      <tr><td><code>financeiro</code></td><td>Financeiro</td><td>Financeiro, Acordos, Execuções, Audiências</td><td>lançamentos financeiros</td></tr>
+      <tr><td><code>jarbas_instances</code></td><td>JARBAS</td><td>Controller, Distribuição, Jarbas</td><td>instâncias do agente</td></tr>
+      <tr><td><code>jarbas_tarefas</code></td><td>JARBAS</td><td>Distribuição (TabJarbas)</td><td>fila de tarefas</td></tr>
+    </tbody>
+  </table>
+
+  <hr class="section-divider">
+
+  <div class="card" style="margin-top:16px">
+    <h3>📊 RPCs / Functions mais usadas</h3>
+    <table class="data-table">
+      <thead><tr><th>RPC</th><th>Usado por</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>ensure_cliente_stub</code></td><td>Distribuição</td><td>Cria cliente se não existe</td></tr>
+        <tr><td><code>fn_criar_processo_distribuicao</code></td><td>Distribuição</td><td>Cria processo a partir do lead</td></tr>
+        <tr><td><code>rpc_efetuar_distribuicao</code></td><td>Distribuição</td><td>Efetua distribuição no E-PROC</td></tr>
+        <tr><td><code>rpc_devolver_crm</code></td><td>Distribuição</td><td>Devolve processo para o CRM</td></tr>
+        <tr><td><code>rpc_controller_criar_atividade</code></td><td>Controller</td><td>Cria atividade a partir de intimação</td></tr>
+        <tr><td><code>rpc_controller_criar_doc_pendente</code></td><td>Controller</td><td>Cria documento pendente</td></tr>
+        <tr><td><code>rpc_crm_aprovar_triagem</code></td><td>CRM</td><td>Aprova triagem de lead</td></tr>
+        <tr><td><code>get_processos_paginados</code></td><td>Processos</td><td>Listagem paginada</td></tr>
+        <tr><td><code>fn_atividades_lista_com_leitura</code></td><td>Atividades</td><td>Lista com flag de leitura</td></tr>
+        <tr><td><code>rpc_documentos_pendentes_resolver</code></td><td>Doc. Pendentes</td><td>Resolve pendência</td></tr>
+        <tr><td><code>fn_mdzap_smart_replies</code></td><td>MDZap</td><td>Sugestões de resposta IA</td></tr>
+        <tr><td><code>rpc_disparar_auditoria</code></td><td>Auditorias, CRM</td><td>Dispara consulta ApiFull</td></tr>
+        <tr><td><code>search_processos</code></td><td>ProcessoSearchField</td><td>Busca CNJ para combobox</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /main -->
+</div><!-- /main wrapper -->
+
+<script>
+// ── Navigation ──
+function show(id) {
+  document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  var sec = document.getElementById('section-' + id);
+  if (sec) sec.classList.add('active');
+  // Find nav item that matches
+  document.querySelectorAll('.nav-item').forEach(function(n) {
+    if (n.getAttribute('onclick') === "show('" + id + "')") {
+      n.classList.add('active');
+    }
+  });
+  // Update breadcrumb
+  var labels = {
+    crm: 'CRM', distribuicao: 'Distribuição', processos: 'Processos',
+    controller: 'Controller', clientes: 'Clientes', atividades: 'Atividades',
+    'doc-pendentes': 'Documentos Pendentes', olivia: 'OlivIA', decisoes: 'Decisões',
+    execucoes: 'Execuções', acordos: 'Acordos', audiencias: 'Audiências',
+    auditorias: 'Auditorias', mdzap: 'MDZap', jurimetria: 'Jurimetria',
+    financeiro: 'Financeiro', empresas: 'Empresas', indicacoes: 'Indicações',
+    relatorios: 'Relatórios', equipe: 'Equipe',
+    componentes: 'Componentes Reutilizáveis', fluxo: 'Mapa de Fluxo', tabelas: 'Tabelas Supabase'
+  };
+  var bc = document.getElementById('breadcrumb-page');
+  if (bc) bc.textContent = labels[id] || id;
+  // Scroll to top
+  document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ── Sidebar filter ──
+function filterNav(q) {
+  q = q.toLowerCase().trim();
+  document.querySelectorAll('.nav-item').forEach(function(item) {
+    if (!q) {
+      item.style.display = '';
+    } else {
+      item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+    }
+  });
+}
+
+// ── Connection badge navigation ──
+document.querySelectorAll('.conn-badge[onclick]').forEach(function(b) {
+  // already wired via inline onclick
+});
+
+// Init first page
+show('crm');
+</script>
+</body>
+</html>

@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Plan — Clientes v1 — 2026-03-30</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --surface: #1a1815;
+    --surface2: #221f1c;
+    --border: #2d2925;
+    --primary: #20c997;
+    --primary-dim: rgba(32,201,151,0.15);
+    --text: #e8e0d8;
+    --text-muted: #8a7f78;
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.15);
+    --yellow: #f59e0b;
+    --yellow-dim: rgba(245,158,11,0.15);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59,130,246,0.15);
+    --violet: #a78bfa;
+    --violet-dim: rgba(167,139,250,0.15);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.15);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+  h1 { font-family: Manrope, sans-serif; font-size: 1.75rem; color: var(--primary); margin-bottom: 0.25rem; }
+  h2 { font-family: Manrope, sans-serif; font-size: 1.1rem; color: var(--text); margin: 2rem 0 0.75rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; }
+  h3 { font-family: Manrope, sans-serif; font-size: 0.95rem; color: var(--primary); margin: 1rem 0 0.4rem; }
+  .meta { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 2rem; }
+  .meta span { margin-right: 1.5rem; }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin: 1.25rem 0 2rem;
+  }
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.875rem;
+    text-align: center;
+  }
+  .kpi-card .num { font-family: Manrope, sans-serif; font-size: 1.75rem; font-weight: 700; display: block; }
+  .kpi-card .label { color: var(--text-muted); font-size: 0.75rem; }
+  .kpi-card.primary .num { color: var(--primary); }
+  .kpi-card.red .num { color: var(--red); }
+  .kpi-card.yellow .num { color: var(--yellow); }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .badge-red    { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-green  { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+  .badge-violet { background: var(--violet-dim); color: var(--violet); border: 1px solid rgba(167,139,250,0.3); }
+  .badge-blue   { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-muted  { background: rgba(138,127,120,0.15); color: var(--text-muted); border: 1px solid rgba(138,127,120,0.3); }
+
+  code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1px 5px;
+    color: var(--primary);
+  }
+
+  .exec-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 1.75rem;
+    overflow: hidden;
+  }
+  .exec-block.p0 { border-left: 3px solid var(--red); }
+  .exec-block.p1 { border-left: 3px solid var(--yellow); }
+  .exec-block.p2 { border-left: 3px solid var(--text-muted); }
+  .exec-block.mega { border-left: 3px solid var(--primary); }
+
+  .exec-header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.875rem 1rem;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .exec-id {
+    font-family: Manrope, sans-serif;
+    font-weight: 800;
+    font-size: 0.9rem;
+    color: var(--primary);
+    min-width: 80px;
+  }
+  .exec-title { font-size: 0.95rem; font-weight: 600; flex: 1; }
+
+  .exec-body { padding: 1rem; }
+  .exec-body section { margin-bottom: 1rem; }
+  .exec-body section:last-child { margin-bottom: 0; }
+  .section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    margin-bottom: 0.35rem;
+  }
+  .exec-body p { color: #c8c0b8; font-size: 0.88rem; }
+  .exec-body ul { padding-left: 1.25rem; color: #c8c0b8; font-size: 0.88rem; }
+  .exec-body ul li { margin-bottom: 0.2rem; }
+
+  .dep-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin: 0.15rem;
+  }
+
+  .prompt-box {
+    position: relative;
+    background: #0e0c0a;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+  }
+  .prompt-box pre {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.76rem;
+    line-height: 1.55;
+    color: #d4cec8;
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    border-radius: 5px;
+    padding: 3px 10px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .copy-btn:hover { background: var(--primary-dim); color: var(--primary); border-color: var(--primary); }
+
+  .index-list {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 2rem;
+  }
+  .index-list ol { padding-left: 1.5rem; }
+  .index-list li { margin-bottom: 0.35rem; font-size: 0.88rem; }
+  .index-list a { color: var(--primary); text-decoration: none; }
+  .index-list a:hover { text-decoration: underline; }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  footer { margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.78rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Execution Plan — /clientes v1</h1>
+<div class="meta">
+  <span>📅 2026-03-30</span>
+  <span>🔍 Baseado em: QA R1 · 2026-03-30</span>
+  <span>🌿 Branch: main</span>
+  <span>📁 Projeto: ~/beta-mdflow/</span>
+</div>
+
+<div class="summary-grid">
+  <div class="kpi-card primary"><span class="num">10</span><span class="label">Prompts gerados</span></div>
+  <div class="kpi-card red"><span class="num">4</span><span class="label">🔴 P0 — Urgentes</span></div>
+  <div class="kpi-card yellow"><span class="num">5</span><span class="label">🟡 P1 — Importantes</span></div>
+  <div class="kpi-card"><span class="num">1</span><span class="label">🔁 Mega Revisão Final</span></div>
+</div>
+
+<!-- ÍNDICE -->
+<h2>Índice de Execução</h2>
+<div class="index-list">
+  <ol>
+    <li><a href="#exec-01">EXEC-01 (P0)</a> — Aplicar migration M-3 em produção (restrições via lead_id)</li>
+    <li><a href="#exec-02">EXEC-02 (P0)</a> — Corrigir RPC get_clientes_kpis: "Novos este Mês" = total (BUG-10)</li>
+    <li><a href="#exec-03">EXEC-03 (P0)</a> — Mover filtro CNPJ para server-side: p_excluir_cnpj na RPC (BUG-5/M-2)</li>
+    <li><a href="#exec-04">EXEC-04 (P0)</a> — Corrigir .select() ilegal em useCliente.ts: advogado nunca populado (BUG-1)</li>
+    <li><a href="#exec-05">EXEC-05 (P1)</a> — Corrigir staleTime para 30s em useClientes e useClienteKPIs (BUG-4)</li>
+    <li><a href="#exec-06">EXEC-06 (P1)</a> — Investigar e corrigir busca local que não filtra (BUG-11)</li>
+    <li><a href="#exec-07">EXEC-07 (P1)</a> — Invalidar query da lista após salvar dados do cliente (BUG-7)</li>
+    <li><a href="#exec-08">EXEC-08 (P1)</a> — Adicionar aba Notas ao contexto clientes + SheetTitle a11y (M-1 + BUG-12)</li>
+    <li><a href="#exec-09">EXEC-09 (P1)</a> — Aplicar máscara de telefone no view mode (BUG-6)</li>
+    <li><a href="#exec-10">EXEC-10 (P2)</a> — DISTINCT no filtro de advogados (BUG-13)</li>
+    <li><a href="#exec-revisao">EXEC-REVISÃO</a> — Mega prompt de revisão final + geração do HTML de resultado</li>
+  </ol>
+</div>
+
+<hr>
+
+<!-- ─── P0 ─────────────────────────────────────────────── -->
+
+<div class="exec-block p0" id="exec-01">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-01</span>
+    <span class="badge badge-red">P0 · URGENTE</span>
+    <span class="badge badge-violet">SUPABASE SQL</span>
+    <span class="exec-title">Aplicar migration M-3: restrições via lead_id invisíveis em produção</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>A migration <code>20260330000001_fix_fn_restricoes_listar_cliente_via_lead.sql</code> existe localmente mas NÃO foi aplicada no Supabase de produção (<code>qdivfairxhdihaqqypgb</code>). Isso faz com que a aba Restrições apareça vazia para praticamente todos os clientes importados do AdvBox.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivo</div>
+      <code>~/beta-mdflow/supabase/migrations/20260330000001_fix_fn_restricoes_listar_cliente_via_lead.sql</code>
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente — rodar PRIMEIRO</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+Supabase projeto: qdivfairxhdihaqqypgb
+
+Tarefa: aplicar a migration pendente em produção usando a CLI do Supabase.
+
+Arquivo da migration (já existe localmente):
+~/beta-mdflow/supabase/migrations/20260330000001_fix_fn_restricoes_listar_cliente_via_lead.sql
+
+Passos:
+1. Verificar se a função fn_restricoes_listar em produção já tem a cláusula
+   "OR (p_cliente_id IS NOT NULL AND r.lead_id IN (SELECT id FROM leads WHERE cliente_id = p_cliente_id AND deleted_at IS NULL))"
+   usando: supabase db diff --schema public --linked
+   ou consultando diretamente o banco.
+
+2. Se não tiver, aplicar a migration via:
+   cd ~/beta-mdflow && supabase db push --linked
+
+3. Após aplicar, confirmar que a função foi atualizada verificando a definição no banco:
+   supabase db dump --schema public --linked | grep -A 60 "fn_restricoes_listar"
+
+4. Registrar no relatório:
+   - Status: ✅ Aplicada / ❌ Falhou
+   - Evidência: saída do comando
+   - Se falhou: mensagem de erro completa</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="exec-block p0" id="exec-02">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-02</span>
+    <span class="badge badge-red">P0 · URGENTE</span>
+    <span class="badge badge-violet">SUPABASE SQL</span>
+    <span class="exec-title">BUG-10: KPI "Novos este Mês" retorna total geral — bug na RPC get_clientes_kpis</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>O card "Novos este Mês" exibe 4.347 (idêntico ao total geral) com delta "+4347 vs mês anterior". A RPC <code>get_clientes_kpis</code> não está filtrando por <code>created_at &gt;= date_trunc('month', now())</code> para este KPI. O delta também está incorreto.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivo</div>
+      <code>Supabase → função pública get_clientes_kpis (produção: qdivfairxhdihaqqypgb)</code><br>
+      <code>~/beta-mdflow/supabase/migrations/</code> (criar nova migration com o fix)
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+Supabase projeto: qdivfairxhdihaqqypgb
+
+Tarefa: corrigir a RPC get_clientes_kpis para calcular corretamente o KPI "novos_mes".
+
+Problema: o campo novos_mes está retornando o total geral de clientes em vez de contar
+apenas os criados no mês atual. O delta também está incorreto.
+
+Passos:
+1. Recuperar a definição atual da função em produção:
+   supabase db dump --schema public --linked | grep -A 100 "get_clientes_kpis"
+
+2. Analisar a definição e identificar onde está o bug de data.
+
+3. Criar nova migration com o fix:
+   arquivo: ~/beta-mdflow/supabase/migrations/20260330000002_fix_get_clientes_kpis_novos_mes.sql
+
+   A função corrigida deve:
+   - novos_mes: COUNT de clientes com created_at >= date_trunc('month', now())
+                                                 AND created_at < date_trunc('month', now()) + INTERVAL '1 month'
+                e deleted_at IS NULL
+   - novos_mes_anterior: COUNT de clientes criados no mês anterior (para o delta)
+   - Manter os outros KPIs intactos
+
+4. Aplicar via: cd ~/beta-mdflow && supabase db push --linked
+
+5. Verificar o resultado: o campo novos_mes deve ser um número realista (não 4347).
+
+Contexto extra: a tabela de clientes é "clientes", campo de data é "created_at",
+filtro de org: WHERE organizacao_id = p_organizacao_id AND deleted_at IS NULL.
+
+Registrar no relatório: valor antes / valor depois do KPI novos_mes.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="exec-block p0" id="exec-03">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-03</span>
+    <span class="badge badge-red">P0 · URGENTE</span>
+    <span class="badge badge-violet">SUPABASE SQL + HOOK</span>
+    <span class="exec-title">BUG-5/M-2: Filtro CNPJ client-side quebra paginação — mover para server-side</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>O hook <code>useClientes.ts</code> faz filtro CNPJ client-side após receber os dados paginados. Isso desynca o total (ex: exibe "2000 clientes" mas a página tem menos registros). A solução é adicionar parâmetro <code>p_excluir_cnpj BOOLEAN DEFAULT true</code> na RPC <code>get_clientes_paginados</code>.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivos</div>
+      <code>~/beta-mdflow/src/hooks/useClientes.ts</code> — linhas 27–33 (filtro a remover)<br>
+      <code>Supabase → RPC get_clientes_paginados</code> (adicionar parâmetro)<br>
+      <code>~/beta-mdflow/supabase/migrations/</code> (nova migration)
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+Supabase projeto: qdivfairxhdihaqqypgb
+
+Tarefa: mover o filtro de exclusão de CNPJ (PJ) do client-side para server-side na RPC get_clientes_paginados.
+
+PROBLEMA ATUAL:
+Em ~/beta-mdflow/src/hooks/useClientes.ts linhas 27-33, existe um filtro client-side:
+  result.data = result.data.filter((c: any) => {
+    const digits = (c.cpf_cnpj ?? '').replace(/\D/g, '');
+    return digits.length !== 14;
+  });
+Isso faz o total e total_pages ficarem descompassados.
+
+SOLUÇÃO:
+1. Recuperar a definição atual da RPC get_clientes_paginados:
+   supabase db dump --schema public --linked | grep -A 150 "get_clientes_paginados"
+
+2. Criar migration ~/beta-mdflow/supabase/migrations/20260330000003_fix_get_clientes_paginados_excluir_cnpj.sql
+   Adicionar parâmetro: p_excluir_cnpj BOOLEAN DEFAULT true
+   Na query SQL da função, adicionar no WHERE:
+   AND (NOT p_excluir_cnpj OR length(regexp_replace(COALESCE(c.cpf_cnpj, ''), '\D', '', 'g')) != 14)
+   Aplicar tanto no COUNT quanto no SELECT paginado.
+
+3. Aplicar: cd ~/beta-mdflow && supabase db push --linked
+
+4. Atualizar ~/beta-mdflow/src/hooks/useClientes.ts:
+   a) No rpc call, adicionar parâmetro: p_excluir_cnpj: true
+   b) REMOVER o bloco de filtro client-side (linhas 27-33)
+   
+   O arquivo final do hook deve ficar:
+   const { data, error } = await supabase.rpc('get_clientes_paginados' as any, {
+     p_search: filters.search || null,
+     p_estados: filters.estados.length ? filters.estados : null,
+     p_advogado_ids: filters.advogado_ids.length ? filters.advogado_ids : null,
+     p_periodo_inicio: filters.periodo_inicio || null,
+     p_periodo_fim: filters.periodo_fim || null,
+     p_carteira: filters.carteira || null,
+     p_engajamento_niveis: filters.engajamento_niveis.length ? filters.engajamento_niveis : null,
+     p_page: page,
+     p_page_size: 50,
+     p_excluir_cnpj: true,
+   });
+   if (error) throw error;
+   return data as unknown as ClientesPaginados;
+
+Registrar: total de clientes antes/depois da aplicação (deve ser menor, pois CNPJs eram contados antes).</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="exec-block p0" id="exec-04">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-04</span>
+    <span class="badge badge-red">P0 · URGENTE</span>
+    <span class="badge badge-blue">FRONTEND</span>
+    <span class="exec-title">BUG-1: .select() chained ilegal em RPC — advogado_responsavel nunca populado</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>O Supabase JS SDK não suporta <code>.select()</code> com join PostgREST em chamadas RPC. A linha <code>.select('*, advogado_responsavel:advogados!advogado_responsavel_id(id, nome, oab, oab_uf)')</code> é silenciosamente ignorada. O advogado responsável NUNCA aparece no drawer. A solução está no SQL da RPC — o join deve ser feito dentro da query SQL.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivo</div>
+      <code>~/beta-mdflow/src/hooks/useCliente.ts</code> — linhas 13–16
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+Supabase projeto: qdivfairxhdihaqqypgb
+
+Tarefa: corrigir o chain .select() ilegal em useCliente.ts e garantir que advogado_responsavel
+seja retornado pela RPC.
+
+PROBLEMA:
+Em ~/beta-mdflow/src/hooks/useCliente.ts, o código atual:
+  const { data, error } = await supabase
+    .rpc('get_cliente_by_cpf', { p_cpf: cpfSlug! })
+    .select('*, advogado_responsavel:advogados!advogado_responsavel_id(id, nome, oab, oab_uf)')
+    .maybeSingle();
+
+O .select() após .rpc() é silenciosamente ignorado pelo SDK Supabase. 
+O join deve existir dentro do SQL da função get_cliente_by_cpf.
+
+SOLUÇÃO:
+1. Verificar a definição atual de get_cliente_by_cpf:
+   supabase db dump --schema public --linked | grep -A 80 "get_cliente_by_cpf"
+
+2. Se a função já faz o join com advogados internamente → apenas remover o .select() do hook.
+   Se não faz → criar migration que adiciona o join.
+
+3. A migration (se necessária) deve adicionar ao SELECT da função:
+   jsonb_build_object(
+     'id', adv.id,
+     'nome', adv.nome,
+     'oab', adv.oab,
+     'oab_uf', adv.oab_uf
+   ) AS advogado_responsavel
+   com LEFT JOIN advogados adv ON adv.id = c.advogado_responsavel_id AND adv.deleted_at IS NULL
+
+4. Atualizar ~/beta-mdflow/src/hooks/useCliente.ts para remover o .select() ilegal:
+   const { data, error } = await supabase
+     .rpc('get_cliente_by_cpf', { p_cpf: cpfSlug! })
+     .maybeSingle();
+
+5. Verificar se o tipo Cliente em ~/beta-mdflow/src/types/cliente.types.ts inclui:
+   advogado_responsavel?: { id: string; nome: string; oab?: string; oab_uf?: string } | null
+   Se não incluir, adicionar.
+
+6. Aplicar migration se criada: cd ~/beta-mdflow && supabase db push --linked
+
+Critério de aceite: abrir o drawer de um cliente que tem advogado vinculado e ver o nome do advogado na aba Dados.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<hr>
+
+<!-- ─── P1 ─────────────────────────────────────────────── -->
+
+<div class="exec-block p1" id="exec-05">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-05</span>
+    <span class="badge badge-yellow">P1 · IMPORTANTE</span>
+    <span class="badge badge-blue">FRONTEND</span>
+    <span class="exec-title">BUG-4: staleTime 5 min viola regra de 30s — useClientes e useClienteKPIs</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>Os hooks <code>useClientes</code> e <code>useClienteKPIs</code> usam <code>staleTime: 5 * 60 * 1000</code>. A regra do projeto (CLAUDE.md §10) exige <code>staleTime: 30_000</code> em todos os hooks React Query. Isso pode causar dados desatualizados por até 5 minutos quando o realtime não dispara.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivos</div>
+      <code>~/beta-mdflow/src/hooks/useClientes.ts</code> — linha 35<br>
+      <code>~/beta-mdflow/src/hooks/useClienteKPIs.ts</code> — linha 16
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">Rodar APÓS EXEC-03 (o useClientes será editado lá também)</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+
+Tarefa: corrigir staleTime para 30_000 em dois hooks (regra CLAUDE.md §10).
+
+ARQUIVOS A EDITAR:
+
+1. ~/beta-mdflow/src/hooks/useClientes.ts
+   Alterar: staleTime: 5 * 60 * 1000,
+   Para:    staleTime: 30_000,
+
+2. ~/beta-mdflow/src/hooks/useClienteKPIs.ts
+   Alterar: staleTime: 5 * 60 * 1000,
+   Para:    staleTime: 30_000,
+
+Atenção: se o EXEC-03 já editou useClientes.ts nesta sessão, aplicar a mudança
+no arquivo já modificado (não reverter as outras alterações).
+
+Verificar também ~/beta-mdflow/src/hooks/useCliente.ts:
+  - Linha 8: staleTime: 2 * 60 * 1000 → alterar para staleTime: 30_000,
+
+Nenhuma alteração de banco necessária. Apenas edição de hooks React Query.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="exec-block p1" id="exec-06">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-06</span>
+    <span class="badge badge-yellow">P1 · IMPORTANTE</span>
+    <span class="badge badge-blue">FRONTEND</span>
+    <span class="exec-title">BUG-11: Campo de busca da tabela /clientes não filtra os resultados</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>No teste de browser, digitar "Silva" no input de busca manteve 50 linhas na tabela sem reduzir. O debounce em <code>ClienteFilters.tsx</code> parece correto (300ms), mas o filtro não está chegando à RPC. Pode ser que o parâmetro <code>p_search</code> não esteja sendo passado ou a RPC não o aplica corretamente.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivos</div>
+      <code>~/beta-mdflow/src/pages/clientes/components/ClienteFilters.tsx</code> — linhas 46–60<br>
+      <code>~/beta-mdflow/src/pages/clientes/index.tsx</code> — linhas 75–89 (filters + URL params)<br>
+      <code>~/beta-mdflow/src/hooks/useClientes.ts</code> — <code>p_search</code>
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">Independente (mas rodar após EXEC-03 se useClientes foi editado)</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+
+Tarefa: investigar e corrigir o bug onde a busca na tabela /clientes não filtra os resultados.
+
+CONTEXTO DO BUG:
+No browser, digitar "Silva" no input de busca manteve 50 linhas inalteradas.
+A busca global da topbar funciona (dropdown aparece), mas o filtro local da tabela não.
+
+INVESTIGAÇÃO:
+
+1. Ler ~/beta-mdflow/src/pages/clientes/components/ClienteFilters.tsx completo.
+   Verificar:
+   - O debounce está funcionando corretamente?
+   - A chamada onFiltersChange está sendo feita com o valor correto?
+
+2. Ler ~/beta-mdflow/src/pages/clientes/index.tsx linhas 70–90.
+   Verificar:
+   - Como filters é construído do URL (parseFiltersFromURL)?
+   - O campo 'search' do filters está chegando para useClientes?
+   - Quando onFiltersChange é chamado, o page reseta para 1?
+
+3. Ler ~/beta-mdflow/src/hooks/useClientes.ts.
+   Verificar:
+   - p_search: filters.search || null — está correto?
+   - O queryKey inclui filters (para invalidação correta)?
+
+4. Verificar na RPC get_clientes_paginados se p_search é aplicado com ilike no nome E cpf_cnpj.
+
+CORREÇÃO:
+Identificar e corrigir o ponto de quebra. Prováveis causas:
+a) parseFiltersFromURL não lê o campo 'q' corretamente
+b) onFiltersChange não reseta page para 1 (React Query não refetch com mesmo queryKey)
+c) p_search não está chegando para a RPC (null quando deveria ter valor)
+d) A RPC não aplica o filtro de busca corretamente
+
+Critério de aceite: digitar "Silva" filtra a tabela para clientes com esse nome.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="exec-block p1" id="exec-07">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-07</span>
+    <span class="badge badge-yellow">P1 · IMPORTANTE</span>
+    <span class="badge badge-blue">FRONTEND</span>
+    <span class="exec-title">BUG-7: Salvar dados do cliente não invalida a lista — tabela mostra dados antigos</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>Após editar e salvar dados de um cliente no drawer, a tabela da lista continua mostrando os dados antigos. A invalidação após o save esquece de incluir o queryKey da lista <code>['clientes', organizacaoId]</code>.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivo</div>
+      <code>~/beta-mdflow/src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDados.tsx</code> — linhas 269–270
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+
+Tarefa: adicionar invalidação da query da lista de clientes após salvar dados no drawer.
+
+ARQUIVO: ~/beta-mdflow/src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDados.tsx
+
+PROBLEMA:
+Na função handleSaveCliente (por volta da linha 269), após o save bem-sucedido, existem:
+  qc.invalidateQueries({ queryKey: ['cliente-by-id', cliente.id] })
+  qc.invalidateQueries({ queryKey: ['cliente', cliente.cpf_cnpj?.replace(/\D/g, '')] })
+
+FALTA adicionar:
+  qc.invalidateQueries({ queryKey: ['clientes'] })     ← prefix match invalida todas as queries de lista
+  qc.invalidateQueries({ queryKey: ['clientes-kpis'] }) ← atualiza KPIs também
+
+INSTRUÇÕES:
+1. Ler o arquivo completo para entender o contexto da função handleSaveCliente.
+2. Localizar o bloco de invalidações após o save bem-sucedido do cliente (context=clientes).
+3. Adicionar as duas invalidações acima após as existentes.
+4. Verificar se useQueryClient está importado e disponível no componente.
+
+Atenção: NÃO modificar o bloco handleSave do contexto CRM/lead — apenas o bloco
+do cliente (handleSaveCliente). Os dois são funções distintas no mesmo arquivo.
+
+Critério de aceite: editar o nome de um cliente → salvar → a tabela da lista atualiza imediatamente.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="exec-block p1" id="exec-08">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-08</span>
+    <span class="badge badge-yellow">P1 · IMPORTANTE</span>
+    <span class="badge badge-blue">FRONTEND</span>
+    <span class="exec-title">M-1 + BUG-12: Adicionar aba Notas ao contexto clientes + SheetTitle para a11y</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p><strong>M-1:</strong> O componente <code>ClienteDrawerTabNotas</code> existe e está importado, mas não aparece na lista de tabs para <code>context=clientes</code> (linhas 322–340). <strong>BUG-12:</strong> O drawer usa <code>Sheet</code> do Radix UI mas não tem <code>SheetTitle</code>, gerando erro de acessibilidade no console.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivo</div>
+      <code>~/beta-mdflow/src/components/shared/cliente_drawer/ClienteDrawer.tsx</code>
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+
+Tarefa: duas correções no ClienteDrawer — adicionar aba Notas e corrigir acessibilidade.
+
+ARQUIVO: ~/beta-mdflow/src/components/shared/cliente_drawer/ClienteDrawer.tsx
+
+CORREÇÃO 1 — Aba Notas ausente em context=clientes:
+1. Ler o arquivo e encontrar o bloco de tabs para context=clientes (por volta da linha 322–340).
+   Deve estar algo como:
+     <TabsTrigger value="dados">Dados</TabsTrigger>
+     <TabsTrigger value="restricoes">Restrição</TabsTrigger>
+     <TabsTrigger value="juridico">Jurídico</TabsTrigger>
+     <TabsTrigger value="documentos">Documentos</TabsTrigger>
+     <TabsTrigger value="docs-pendentes">Pendentes</TabsTrigger>
+     <TabsTrigger value="historico">Histórico</TabsTrigger>
+
+2. Adicionar após "historico":
+   <TabsTrigger value="notas">Notas</TabsTrigger>
+
+3. No bloco de TabsContent para context=clientes, adicionar:
+   <TabsContent value="notas">
+     <TabErrorBoundary>
+       <ClienteDrawerTabNotas cliente={cliente} />
+     </TabErrorBoundary>
+   </TabsContent>
+   (verificar a props exata que ClienteDrawerTabNotas espera lendo o arquivo da tab)
+
+CORREÇÃO 2 — SheetTitle ausente (BUG-12):
+1. O Sheet (Radix/shadcn) requer SheetTitle para acessibilidade.
+2. Verificar os imports no topo — adicionar SheetTitle, SheetDescription de '@/components/ui/sheet' se não existirem.
+3. Dentro do SheetContent, adicionar visualmente oculto (para não quebrar layout):
+   import { VisuallyHidden } from '@radix-ui/react-visually-hidden'
+   (ou usar a classe sr-only do Tailwind)
+
+   Adicionar logo após <SheetContent ...>:
+   <SheetHeader className="sr-only">
+     <SheetTitle>Detalhes do Cliente</SheetTitle>
+     <SheetDescription>Informações completas do cliente selecionado</SheetDescription>
+   </SheetHeader>
+
+   Ou se SheetHeader não for adequado ao layout, usar:
+   <SheetTitle className="sr-only">Detalhes do Cliente</SheetTitle>
+
+Critério de aceite:
+- Aba "Notas" aparece no drawer para context=clientes
+- Console não mostra mais o erro de DialogTitle/SheetTitle</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="exec-block p1" id="exec-09">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-09</span>
+    <span class="badge badge-yellow">P1 · IMPORTANTE</span>
+    <span class="badge badge-blue">FRONTEND</span>
+    <span class="exec-title">BUG-6: WhatsApp e telefone sem máscara no modo visualização do drawer</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>No modo de visualização da aba Dados, WhatsApp e telefone exibem o valor bruto (ex: <code>51999999999</code>) sem formatação. A função <code>applyPhoneMask</code> já existe e é usada no modo de edição — basta aplicá-la no modo view também.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivo</div>
+      <code>~/beta-mdflow/src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDados.tsx</code> — linhas 876–879 (view mode cliente)
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+
+Tarefa: aplicar máscara de telefone no modo visualização da aba Dados do drawer.
+
+ARQUIVO: ~/beta-mdflow/src/components/shared/cliente_drawer/tabs/ClienteDrawerTabDados.tsx
+
+CONTEXTO:
+A função applyPhoneMask já está importada no topo do arquivo:
+  import { applyCepMask, applyPhoneMask, applyCpfMask } from '@/components/crm/modals/editar-lead/helpers'
+
+PROBLEMA:
+No modo view do cliente, as linhas por volta de 876-879 exibem:
+  <InfoRow label="WhatsApp" value={cliente.whatsapp && <span className="font-mono">{cliente.whatsapp}</span>} />
+  <InfoRow label="Telefone" value={<span className="font-mono">{cliente.telefone}</span>} />
+
+O valor bruto (ex: "51999999999") é exibido sem formatação.
+
+CORREÇÃO:
+Alterar para aplicar applyPhoneMask no valor exibido:
+  <InfoRow label="WhatsApp" value={cliente.whatsapp && <span className="font-mono">{applyPhoneMask(cliente.whatsapp)}</span>} />
+  <InfoRow label="Telefone" value={cliente.telefone && <span className="font-mono">{applyPhoneMask(cliente.telefone)}</span>} />
+
+Aplicar a mesma correção também para o contexto de lead (view mode, por volta da linha 578):
+  <InfoRow label="WhatsApp" value={lead.whatsapp && <span className="font-mono">{applyPhoneMask(lead.whatsapp)}</span>} />
+  <InfoRow label="Telefone" value={lead.telefone && lead.telefone !== lead.whatsapp && <span className="font-mono">{applyPhoneMask(lead.telefone)}</span>} />
+
+E na linha ~967 (outro bloco de view do lead):
+  Aplicar applyPhoneMask da mesma forma.
+
+Atenção: NÃO alterar os campos de edição (já têm máscara). Apenas os InfoRow em view mode.
+
+Critério de aceite: abrir drawer de um cliente cujo WhatsApp foi importado como "51999999999"
+e ver "(51) 99999-9999" formatado.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<hr>
+
+<!-- ─── P2 ─────────────────────────────────────────────── -->
+
+<div class="exec-block p2" id="exec-10">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-10</span>
+    <span class="badge badge-muted">P2 · MELHORIA</span>
+    <span class="badge badge-blue">FRONTEND</span>
+    <span class="exec-title">BUG-13: Advogados duplicados no filtro — falta DISTINCT na query</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Contexto</div>
+      <p>O filtro "Advogado Responsável" exibe "Cristiane Paz" três vezes. A query que popula as opções não está fazendo DISTINCT.</p>
+    </section>
+    <section>
+      <div class="section-label">Arquivo</div>
+      <code>~/beta-mdflow/src/pages/clientes/components/ClienteFilters.tsx</code> — query de advogados
+    </section>
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">⚡ Independente</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+
+Tarefa: corrigir duplicatas no filtro de advogados em /clientes.
+
+ARQUIVO: ~/beta-mdflow/src/pages/clientes/components/ClienteFilters.tsx
+
+PROBLEMA:
+O filtro "Advogado Responsável" exibe "Cristiane Paz" três vezes.
+
+INVESTIGAÇÃO + CORREÇÃO:
+1. Ler o arquivo completo.
+2. Localizar a query que busca os advogados para popular o filtro (provavelmente um useQuery
+   ou useEffect que faz supabase.from('advogados').select(...)).
+3. Adicionar .order('nome') e garantir DISTINCT no retorno:
+   - Se a query usa tabela diretamente: adicionar distinct no select
+     Ex: supabase.from('advogados').select('id, nome').order('nome')
+   - Se usa RPC: criar migration com DISTINCT ON (adv.id) ou GROUP BY adv.id, adv.nome
+4. Alternativamente, deduplicar no client-side antes de popular as opções:
+   const uniqueAdvogados = advogados.filter((a, i, arr) => arr.findIndex(x => x.id === a.id) === i)
+
+Usar a solução mais simples que funcione.
+
+Critério de aceite: cada advogado aparece uma única vez no filtro.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<hr>
+
+<!-- ─── MEGA REVISÃO ──────────────────────────────────── -->
+
+<div class="exec-block mega" id="exec-revisao">
+  <div class="exec-header">
+    <span class="exec-id">EXEC-REVISÃO</span>
+    <span class="badge" style="background:var(--primary-dim);color:var(--primary);border:1px solid rgba(32,201,151,0.4);">MEGA PROMPT FINAL</span>
+    <span class="exec-title">Verificação completa + geração do HTML de resultado</span>
+  </div>
+  <div class="exec-body">
+    <section>
+      <div class="section-label">Dependência</div>
+      <span class="dep-tag">Rodar APÓS todos os outros prompts</span>
+    </section>
+    <section>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <pre>Projeto: ~/beta-mdflow/
+Supabase projeto: qdivfairxhdihaqqypgb
+Reports: ~/jarbas-reports/beto/clientes/
+
+Tarefa: verificar todas as correções aplicadas nesta sessão e gerar um HTML de resultado.
+
+ITENS A VERIFICAR (um por um):
+
+EXEC-01 (M-3 — Migration restrições via lead_id):
+- Verificar se fn_restricoes_listar em produção tem a cláusula "OR (p_cliente_id IS NOT NULL AND r.lead_id IN (...))"
+- Status: ✅ Aplicada / ❌ Não aplicada / ⚠️ Parcial
+
+EXEC-02 (BUG-10 — KPI Novos este Mês):
+- Verificar definição de get_clientes_kpis em produção
+- O campo novos_mes filtra por mês corrente?
+- Status + valor atual do KPI (se possível testar)
+
+EXEC-03 (BUG-5/M-2 — CNPJ filtro server-side):
+- Verificar se get_clientes_paginados aceita p_excluir_cnpj
+- Verificar se useClientes.ts não tem mais o filtro client-side
+- Status
+
+EXEC-04 (BUG-1 — .select() ilegal em useCliente.ts):
+- Ler useCliente.ts — o .select() foi removido?
+- A RPC get_cliente_by_cpf retorna advogado_responsavel no JSON?
+- Status
+
+EXEC-05 (BUG-4 — staleTime):
+- Ler useClientes.ts, useClienteKPIs.ts, useCliente.ts
+- staleTime = 30_000 nos três?
+- Status
+
+EXEC-06 (BUG-11 — Busca não filtra):
+- Qual foi a causa raiz encontrada?
+- A correção foi aplicada?
+- Status
+
+EXEC-07 (BUG-7 — Invalidar lista após save):
+- Ler ClienteDrawerTabDados.tsx — o invalidateQueries(['clientes']) foi adicionado?
+- Status
+
+EXEC-08 (M-1 + BUG-12 — Aba Notas + SheetTitle):
+- Ler ClienteDrawer.tsx — a aba Notas aparece no context=clientes?
+- SheetTitle foi adicionado?
+- Status
+
+EXEC-09 (BUG-6 — Máscara telefone view mode):
+- Ler ClienteDrawerTabDados.tsx — applyPhoneMask aplicado nos InfoRow de view mode?
+- Status
+
+EXEC-10 (BUG-13 — Duplicatas advogados):
+- Verificar a query de advogados em ClienteFilters.tsx
+- DISTINCT ou deduplicação foi aplicada?
+- Status
+
+---
+
+GERAR HTML DE RESULTADO:
+Salvar em: ~/jarbas-reports/beto/clientes/execution-result-v1-2026-03-30.html
+
+O HTML deve usar o Design System MdFlow:
+  background: #12100e, primary: #20c997, surface: #1a1815, border: #2d2925
+
+Estrutura do HTML:
+1. Header: "Execution Result — /clientes v1 — 2026-03-30"
+2. KPI cards: ✅ Resolvidos / ❌ Falharam / ⚠️ Parciais
+3. Tabela resumo:
+   | EXEC-ID | Descrição | Status | Evidência | Observação |
+4. Detalhes por item com o que foi feito
+5. Seção "O que ficou pendente" (bugs não resolvidos)
+6. Seção "Próximos passos sugeridos"
+
+Após salvar o HTML, executar:
+  cd ~/jarbas-reports && git add -A && git commit -m "feat: execution-result clientes v1 2026-03-30" && git push
+
+E reportar o caminho do arquivo gerado.</pre>
+      </div>
+    </section>
+  </div>
+</div>
+
+<hr>
+
+<footer>
+  MdFlow Execution Plan — /clientes v1 · 2026-03-30 · Gerado por Beto (OpenClaw) · MdLab LegalTech<br>
+  Após rodar todos os prompts e o EXEC-REVISÃO gerar o HTML, mande o HTML de resultado de volta aqui.
+</footer>
+
+<script>
+function copyPrompt(btn) {
+  const pre = btn.parentElement.querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = '✓ Copiado';
+    btn.style.color = '#20c997';
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.style.color = ''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>

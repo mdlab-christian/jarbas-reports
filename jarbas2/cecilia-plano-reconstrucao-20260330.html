@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cecília — Plano de Reconstrução do Playwright</title>
+<style>
+  :root {
+    --bg: #0f0f12;
+    --surface: #1a1a20;
+    --surface2: #22222a;
+    --border: #2e2e38;
+    --text: #e8e8f0;
+    --muted: #8888a0;
+    --accent: #7c6af7;
+    --green: #4ade80;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --orange: #fb923c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+  /* Header */
+  .header { text-align: center; margin-bottom: 48px; padding: 40px; background: var(--surface); border-radius: 16px; border: 1px solid var(--border); }
+  .header h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+  .header .subtitle { color: var(--muted); font-size: 0.95rem; }
+  .header .meta { display: flex; justify-content: center; gap: 24px; margin-top: 16px; flex-wrap: wrap; }
+  .header .meta span { background: var(--surface2); border: 1px solid var(--border); padding: 4px 12px; border-radius: 20px; font-size: 0.8rem; color: var(--muted); }
+
+  /* Section */
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 1.3rem; font-weight: 700; color: var(--text); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+  .section-title .icon { font-size: 1.5rem; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card p { color: var(--muted); font-size: 0.9rem; line-height: 1.7; }
+
+  /* Status badges */
+  .badge { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+  .badge-green { background: rgba(74,222,128,0.15); color: var(--green); }
+  .badge-red { background: rgba(248,113,113,0.15); color: var(--red); }
+  .badge-yellow { background: rgba(251,191,36,0.15); color: var(--yellow); }
+  .badge-blue { background: rgba(96,165,250,0.15); color: var(--blue); }
+  .badge-orange { background: rgba(251,146,60,0.15); color: var(--orange); }
+  .badge-purple { background: rgba(124,106,247,0.15); color: var(--accent); }
+
+  /* Transcrição */
+  .transcript { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 32px; }
+  .transcript h3 { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .transcript p { color: var(--text); font-size: 0.9rem; line-height: 1.8; font-style: italic; }
+
+  /* Steps */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step { display: flex; gap: 20px; position: relative; }
+  .step:not(:last-child)::after { content: ''; position: absolute; left: 23px; top: 52px; bottom: -16px; width: 2px; background: var(--border); }
+  .step-num { width: 46px; height: 46px; min-width: 46px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1rem; flex-shrink: 0; margin-top: 4px; }
+  .step-num.ok { background: rgba(74,222,128,0.15); color: var(--green); border: 2px solid var(--green); }
+  .step-num.broken { background: rgba(248,113,113,0.15); color: var(--red); border: 2px solid var(--red); }
+  .step-num.rebuild { background: rgba(124,106,247,0.15); color: var(--accent); border: 2px solid var(--accent); }
+  .step-body { flex: 1; padding-bottom: 32px; }
+  .step-body h3 { font-size: 1rem; font-weight: 600; margin-bottom: 6px; }
+  .step-body p { color: var(--muted); font-size: 0.88rem; }
+  .step-body ul { color: var(--muted); font-size: 0.88rem; padding-left: 18px; margin-top: 8px; }
+  .step-body ul li { margin-bottom: 4px; }
+
+  /* Skills table */
+  .skills-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 700px) { .skills-grid { grid-template-columns: 1fr; } }
+  .skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+  .skill-card .name { font-family: monospace; font-size: 0.82rem; color: var(--blue); margin-bottom: 6px; word-break: break-all; }
+  .skill-card .desc { font-size: 0.82rem; color: var(--muted); margin-bottom: 8px; }
+  .skill-card .action { font-size: 0.78rem; font-weight: 600; }
+  .action-keep { color: var(--green); }
+  .action-rebuild { color: var(--accent); }
+  .action-delete { color: var(--red); }
+  .action-merge { color: var(--yellow); }
+  .action-keep-partial { color: var(--orange); }
+
+  /* Fluxo visual */
+  .flow { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 20px 0; }
+  .flow-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.82rem; text-align: center; }
+  .flow-node.ok { border-color: var(--green); color: var(--green); }
+  .flow-node.broken { border-color: var(--red); color: var(--red); }
+  .flow-node.new { border-color: var(--accent); color: var(--accent); }
+  .flow-arrow { color: var(--muted); font-size: 1.2rem; }
+
+  /* Decision */
+  .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 700px) { .decision-grid { grid-template-columns: 1fr; } }
+  .decision-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+  .decision-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 10px; }
+  .decision-card ul { color: var(--muted); font-size: 0.85rem; padding-left: 16px; }
+  .decision-card ul li { margin-bottom: 4px; }
+  .decision-card.recommended { border-color: var(--green); }
+  .decision-card.recommended h3::after { content: ' ✅ RECOMENDADO'; color: var(--green); font-size: 0.75rem; }
+
+  /* Insight box */
+  .insight { background: rgba(124,106,247,0.08); border: 1px solid rgba(124,106,247,0.3); border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+  .insight strong { color: var(--accent); }
+  .insight p { color: var(--text); font-size: 0.9rem; }
+
+  /* Warning box */
+  .warning { background: rgba(251,191,36,0.08); border: 1px solid rgba(251,191,36,0.3); border-radius: 12px; padding: 16px 20px; margin: 16px 0; }
+  .warning p { color: var(--yellow); font-size: 0.9rem; }
+
+  /* Code block */
+  .code { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: monospace; font-size: 0.82rem; color: var(--blue); overflow-x: auto; margin: 12px 0; }
+
+  /* Table */
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th { background: var(--surface2); color: var(--muted); text-align: left; padding: 10px 14px; font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  td { padding: 10px 14px; border-top: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: var(--surface2); }
+
+  /* Footer */
+  .footer { text-align: center; padding: 32px; color: var(--muted); font-size: 0.82rem; border-top: 1px solid var(--border); margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>🐙 Cecília — Plano de Reconstrução do Playwright</h1>
+    <p class="subtitle">Análise do vídeo "Etapa 2.mov" + mapeamento completo das skills para reconstrução</p>
+    <div class="meta">
+      <span>📅 30/03/2026</span>
+      <span>🎥 Vídeo: 3min 11s</span>
+      <span>📋 Modo: /plan — zero execução</span>
+      <span>🎯 OAB: RS116571 / TJRS</span>
+    </div>
+  </div>
+
+  <!-- Transcrição -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎙️</span> Transcrição do Vídeo (Whisper)</div>
+    <div class="transcript">
+      <h3>Etapa 2 — Narração do Christian</h3>
+      <p>
+        "Vamos começar agora, eu te mostrando a etapa 2, depois que você faz o login no painel do advogado, você vai clicar aqui em <strong>Últimas Movimentações</strong>. Clicou aqui.
+        <br><br>
+        Bom, aqui tem a listagem de todos os processos que tiveram movimentação e você vai usar como base essa coluna de <strong>Data, Hora, Último Evento</strong>. Então, você vai puxar, por exemplo, se você estivesse fazendo a verificação de movimentações processuais das 18 horas, você ia puxar os processos que tiveram movimentação das 18 horas, que seria a partir desse aqui, até a última hora de movimentação, que vamos supor que seja meio-dia. Então você tem que navegar entre as páginas, porque como a gente tem muita movimentação processual, normalmente ele não vai terminar na primeira página.
+        <br><br>
+        E como você vai fazer isso? Você vai acessar, você vai <strong>clicar em cada um deles, não vai clicar na checkbox, você clica no número do processo</strong> para abrir ele. Então, eu vou abrir um aqui que eu sei que teve movimentação.
+        <br><br>
+        Quando abriu o processo, você vai analisar aqui as <strong>movimentações processuais que teve</strong>. No caso, esse é um processo que teve movimentação para nós, porque nós representamos a parte-autora. E aqui ele tem que essa movimentação, essa intimação que teve para a parte-autora, ela é referente ao evento 5. Então no evento 5 a gente tem esse documento, e nisso aqui você deve <strong>clicar no documento, abrir ele, acessar e analisar</strong> esse documento que está aqui.
+        <br><br>
+        Então você teria que fazer isso em todos os processos que tiveram movimentação desde esse horário. Tem processos que, eventualmente — esse processo não teve movimentação para nós, isso aqui <strong>não deveria ser listado</strong>. Tem vários processos que não tem movimentação para a parte-autora, você deve filtrar. Esse aqui também não. <strong>Esse aqui tem.</strong> Aqui você deveria clicar em despacho, analisar o conteúdo do despacho.
+        <br><br>
+        Então agora você vai analisar como que a gente vai fazer essa navegação entre os processos aqui. Como que é a melhor forma de você fazer. Você acessando os documentos por aqui ou onde, eventualmente, um recurso que você pode usar também é a <strong>árvore do processo</strong>. Porque aqui tem todas as movimentações que tiveram no processo, só que a gente tem que saber quando usar cada recurso."
+      </p>
+    </div>
+  </div>
+
+  <!-- O que o Christian mostrou -->
+  <div class="section">
+    <div class="section-title"><span class="icon">👁️</span> O Que o Christian Mostrou no Vídeo</div>
+
+    <div class="insight">
+      <strong>Insight crítico:</strong>
+      <p>A fonte correta de movimentações é <strong>"Últimas Movimentações"</strong> — não "Prazo em Aberto" nem "Relatório de Processos". Isso muda tudo no fluxo atual da Cecília.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num ok">1</div>
+        <div class="step-body">
+          <h3>Painel do Advogado <span class="badge badge-green">OK</span></h3>
+          <p>Após login, está no painel. Contadores visíveis: <strong>169 processos com prazo em aberto</strong>, 124 pendentes de citação. Próxima audiência 31/03.</p>
+          <p style="margin-top:6px">➜ Clicar em <strong>"Últimas Movimentações"</strong> (botão no topo direito do painel)</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num rebuild">2</div>
+        <div class="step-body">
+          <h3>Lista de Últimas Movimentações <span class="badge badge-purple">RECONSTRUIR</span></h3>
+          <p>Tela com todos os processos que tiveram movimentação. Colunas incluem: <strong>Número do Processo, Classe, Autor, Réu, Localidade, Assunto, Último Evento, Data/Hora, Data Autuação, Valor Causa</strong>.</p>
+          <ul>
+            <li>Filtrar por data/hora: processos com movimentação desde o último ciclo (ex: últimas 6h)</li>
+            <li>Navegar pelas páginas — processos são muitos, não cabe em 1 página</li>
+            <li><strong>REGRA: clicar no número do processo, NÃO na checkbox</strong></li>
+            <li>Coluna chave: "Data, Hora, Último Evento"</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num rebuild">3</div>
+        <div class="step-body">
+          <h3>Processo Aberto — Verificar se é para Nós <span class="badge badge-purple">RECONSTRUIR</span></h3>
+          <p>Ao abrir o processo, verificar se a movimentação é para a <strong>parte autora</strong> (que representamos). Muitos processos na lista são movimentações de outras partes — devem ser <strong>filtrados</strong>.</p>
+          <ul>
+            <li>Identificar a parte que representa: parte-autora</li>
+            <li>Verificar qual evento/movimentação foi para nós</li>
+            <li>Se não for para nós → pular, voltar para lista</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num rebuild">4</div>
+        <div class="step-body">
+          <h3>Acessar Documento do Evento <span class="badge badge-red">QUEBRADO HOJE</span></h3>
+          <p>Dentro do processo, identificar o evento relevante (ex: "Evento 5") e <strong>clicar no link do documento</strong> (despacho, intimação, etc) para abrir e ler o conteúdo.</p>
+          <ul>
+            <li>Clica no link do documento — abre em nova aba ou iframe</li>
+            <li>Extrai o texto completo do documento</li>
+            <li><strong>Recurso alternativo:</strong> Árvore do Processo — ver todas as movimentações históricas. Usar quando necessário</li>
+          </ul>
+          <div class="warning"><p>⚠️ Este é o passo quebrado hoje: <code>conteudo=null</code> em 100% dos casos. A URL da árvore não tem hash → sessão expira.</p></div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num rebuild">5</div>
+        <div class="step-body">
+          <h3>Análise IA + Registro <span class="badge badge-yellow">DEPENDENTE</span></h3>
+          <p>Com o texto do documento em mãos, Claude analisa o conteúdo aplicando os playbooks do João. Resultado salvo no Supabase.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decisão chave: fonte de dados -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🎯</span> Decisão Chave: Qual Fonte de Movimentações?</div>
+
+    <div class="decision-grid">
+      <div class="decision-card">
+        <h3 style="color:var(--red)">❌ Fonte Atual: Prazo em Aberto</h3>
+        <ul>
+          <li>Fila de intimações com prazo vencendo</li>
+          <li>Lista pré-filtrada pelo EPROC</li>
+          <li>Já expirado = urgente demais</li>
+          <li>Não cobre todos os processos ativos</li>
+          <li>Cecília está usando isso hoje — errado</li>
+        </ul>
+      </div>
+
+      <div class="decision-card recommended">
+        <h3 style="color:var(--green)">Fonte Correta: Últimas Movimentações</h3>
+        <ul>
+          <li>Todos os processos com movimentação recente</li>
+          <li>Filtrar por janela de tempo (ex: últimas 6h)</li>
+          <li>Precisa filtrar quais são para a parte autora</li>
+          <li>Cobre 100% das movimentações</li>
+          <li>É o que o João mostrou no vídeo</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="insight" style="margin-top:16px">
+      <strong>Impacto:</strong>
+      <p>Mudar de "Prazo em Aberto" para "Últimas Movimentações" é a mudança mais importante. Significa reconstruir a <code>skill_captura_intimacoes.mjs</code> inteira com nova lógica de fonte + filtro de parte autora.</p>
+    </div>
+  </div>
+
+  <!-- Decisão: Playwright vs Vision -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🤖</span> Decisão: Playwright vs Vision — Quando Usar Cada Um</div>
+
+    <div class="decision-grid">
+      <div class="decision-card recommended">
+        <h3>Playwright (95% dos casos)</h3>
+        <ul>
+          <li>Login + 2FA → <strong>sempre Playwright</strong></li>
+          <li>Navegar lista de movimentações → Playwright</li>
+          <li>Clicar no número do processo → Playwright</li>
+          <li>Extrair tabela de eventos → Playwright</li>
+          <li>Clicar no link do documento → Playwright</li>
+          <li>Ler texto do documento → Playwright (iframe/frames)</li>
+          <li>Paginação da lista → Playwright</li>
+        </ul>
+      </div>
+
+      <div class="decision-card">
+        <h3>Vision / Computer Use (5% — fallback)</h3>
+        <ul>
+          <li>Interface mudou e selector quebrou</li>
+          <li>CAPTCHA ou popup inesperado</li>
+          <li>Documento em formato visual (imagem, não texto)</li>
+          <li>Inspecionar selectors com CU pontual (~$0.05)</li>
+          <li>PDF sem texto extraível</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="warning" style="margin-top:12px">
+      <p>⚠️ <strong>Regra do Christian:</strong> NUNCA navegar por URL direta. Sempre via clique no elemento da página. Se precisar buscar processo, usar o campo "Nº de processo" no header do EPROC.</p>
+    </div>
+  </div>
+
+  <!-- Decisão: Volume -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📊</span> Decisão: Estratégia de Volume</div>
+
+    <div class="decision-grid">
+      <div class="decision-card">
+        <h3>Opção A: Processo por Processo</h3>
+        <ul>
+          <li>Carrega cada processo completo</li>
+          <li>Mais confiável, menos risco de perder contexto</li>
+          <li>Mais lento para alto volume</li>
+          <li>Sessão pode expirar no meio</li>
+          <li>Simples de implementar</li>
+        </ul>
+      </div>
+
+      <div class="decision-card recommended">
+        <h3>Opção B: Extrair Lista → Processar em Lote</h3>
+        <ul>
+          <li>1ª passagem: extrai todos os CNJs da lista com movimentação</li>
+          <li>Filtra por janela de tempo (últimas Nh)</li>
+          <li>2ª passagem: para cada CNJ, abre processo e lê documento</li>
+          <li>Retoma sessão se expirar (re-login automático)</li>
+          <li>Escala bem para 800+ processos/dia</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mapeamento das Skills -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🗂️</span> Mapeamento Completo das Skills</div>
+
+    <table>
+      <tr>
+        <th>Skill</th>
+        <th>O que faz hoje</th>
+        <th>Ação</th>
+        <th>Motivo</th>
+      </tr>
+      <tr>
+        <td><code>skill_login_eproc.mjs</code></td>
+        <td>Login + 2FA TOTP + seleção de perfil</td>
+        <td><span class="badge badge-green">✅ MANTER</span></td>
+        <td>Funcionando perfeitamente (RS116571 testado ao vivo)</td>
+      </tr>
+      <tr>
+        <td><code>skill_captura_painel_eproc.mjs</code></td>
+        <td>Captura lista "Prazo em Aberto" do painel</td>
+        <td><span class="badge badge-red">🗑️ EXCLUIR</span></td>
+        <td>Fonte errada — deve usar "Últimas Movimentações", não "Prazo em Aberto"</td>
+      </tr>
+      <tr>
+        <td><code>skill_captura_intimacoes.mjs</code> (1365 linhas)</td>
+        <td>Orquestra captura, extração de tabela, navegação por processo, salvar no Supabase</td>
+        <td><span class="badge badge-purple">🔨 RECONSTRUIR</span></td>
+        <td>Lógica principal — reescrever do zero com fonte correta + filtro parte autora + hash de sessão</td>
+      </tr>
+      <tr>
+        <td><code>skill_monitorar.mjs</code> (646 linhas)</td>
+        <td>Navega por "Relatório de Processos", extrai movimentações, detecta depósitos/alvarás</td>
+        <td><span class="badge badge-orange">⚠️ MANTER PARCIAL</span></td>
+        <td>Funções utilitárias (extractProcessEvents, isSessionExpired) são reutilizáveis. Fluxo principal substituir.</td>
+      </tr>
+      <tr>
+        <td><code>skill_navegador_eproc.mjs</code> (420 linhas)</td>
+        <td>Navega processo, extrai movimentações, detecta depósitos/alvarás, fallback Vision</td>
+        <td><span class="badge badge-purple">🔨 RECONSTRUIR</span></td>
+        <td>Reescrever para: clicar no nº do processo → extrair eventos → clicar no documento (sem URL direta)</td>
+      </tr>
+      <tr>
+        <td><code>skill_importar_processo.mjs</code> (1134 linhas)</td>
+        <td>Busca processo por CNJ, navega por URL direta, importa dados para Supabase</td>
+        <td><span class="badge badge-yellow">♻️ REFATORAR</span></td>
+        <td>Substituir navegação por URL para usar campo de pesquisa do EPROC. Manter lógica de importação.</td>
+      </tr>
+      <tr>
+        <td><code>skill_download_documentos_eproc.mjs</code> (539 linhas)</td>
+        <td>Baixa PDFs/ZIPs do EPROC, upload para Supabase storage</td>
+        <td><span class="badge badge-blue">🔍 AVALIAR</span></td>
+        <td>Pode ser útil. Verificar se os fluxos de download ainda são válidos com nova navegação.</td>
+      </tr>
+      <tr>
+        <td><code>skill_analise_intimacoes_bulk.mjs</code> (844 linhas)</td>
+        <td>Análise IA em lote das intimações capturadas</td>
+        <td><span class="badge badge-green">✅ MANTER</span></td>
+        <td>Independente da navegação. Funciona com qualquer conteúdo que chegar.</td>
+      </tr>
+      <tr>
+        <td><code>skill_analise_juridica_processo.mjs</code> (396 linhas)</td>
+        <td>Análise jurídica de processo individual</td>
+        <td><span class="badge badge-green">✅ MANTER</span></td>
+        <td>Independente da navegação.</td>
+      </tr>
+      <tr>
+        <td><code>skill_ciencia_renuncia.mjs</code> (507 linhas)</td>
+        <td>Dá ciência ou renúncia em intimação no EPROC</td>
+        <td><span class="badge badge-blue">🔍 AVALIAR</span></td>
+        <td>Ação no EPROC via clique — verificar se usa URL direta ou navega corretamente.</td>
+      </tr>
+      <tr>
+        <td><code>skill_cecilia_orquestrador.mjs</code></td>
+        <td>Orquestra o pipeline completo</td>
+        <td><span class="badge badge-yellow">♻️ REFATORAR</span></td>
+        <td>Atualizar para novo fluxo de captura.</td>
+      </tr>
+      <tr>
+        <td><code>skill_listar_processos_eproc.mjs</code></td>
+        <td>Lista processos via Relatório</td>
+        <td><span class="badge badge-red">🗑️ EXCLUIR</span></td>
+        <td>Substituído por "Últimas Movimentações"</td>
+      </tr>
+      <tr>
+        <td><code>skill_analise_visual_eproc.mjs</code> (380 linhas)</td>
+        <td>Análise visual com Computer Use</td>
+        <td><span class="badge badge-orange">⚠️ MANTER FALLBACK</span></td>
+        <td>Usar só como fallback quando Playwright falha.</td>
+      </tr>
+      <tr>
+        <td><code>skill_screenshot_eproc.mjs</code> (337 linhas)</td>
+        <td>Tira screenshots do EPROC</td>
+        <td><span class="badge badge-orange">⚠️ MANTER FALLBACK</span></td>
+        <td>Útil para debugging e fallback Vision.</td>
+      </tr>
+      <tr>
+        <td><code>skill_monitorar_cron.mjs</code> (315 linhas)</td>
+        <td>Cron de monitoramento</td>
+        <td><span class="badge badge-yellow">♻️ REFATORAR</span></td>
+        <td>Atualizar schedule para novo fluxo.</td>
+      </tr>
+      <tr>
+        <td><code>skill_triagem_lote.mjs</code></td>
+        <td>Triagem em lote</td>
+        <td><span class="badge badge-blue">🔍 AVALIAR</span></td>
+        <td>Verificar se ainda faz sentido com novo fluxo.</td>
+      </tr>
+      <tr>
+        <td><code>skill_triagem_movimentacoes.mjs</code></td>
+        <td>Triagem de movimentações</td>
+        <td><span class="badge badge-yellow">♻️ REFATORAR</span></td>
+        <td>Adaptar para nova fonte de dados.</td>
+      </tr>
+      <tr>
+        <td><code>skill_eproc_cnj.mjs</code></td>
+        <td>Utilitários de CNJ/EPROC</td>
+        <td><span class="badge badge-green">✅ MANTER</span></td>
+        <td>Utilitários genéricos, independentes.</td>
+      </tr>
+      <tr>
+        <td><code>skill_clayton_visual_fallback.mjs</code> (412 linhas)</td>
+        <td>Fallback Vision (adaptiveAction)</td>
+        <td><span class="badge badge-orange">⚠️ MANTER FALLBACK</span></td>
+        <td>Safety net para casos de falha do Playwright.</td>
+      </tr>
+      <tr>
+        <td><code>skill_cecilia_rag_controller.mjs</code></td>
+        <td>RAG com playbooks do controller</td>
+        <td><span class="badge badge-green">✅ MANTER</span></td>
+        <td>Independente da navegação.</td>
+      </tr>
+      <tr>
+        <td><code>skill_reprocessar_pendentes.mjs</code></td>
+        <td>Reprocessa tarefas pendentes</td>
+        <td><span class="badge badge-blue">🔍 AVALIAR</span></td>
+        <td>Verificar compatibilidade com novo fluxo.</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- O que reconstruir primeiro -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🏗️</span> O Que Reconstruir — Ordem de Prioridade</div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num rebuild">P0</div>
+        <div class="step-body">
+          <h3>skill_captura_movimentacoes_eproc.mjs <span class="badge badge-red">NOVA SKILL</span></h3>
+          <p><strong>Substitui:</strong> skill_captura_painel_eproc.mjs + skill_captura_intimacoes.mjs (parte de captura)</p>
+          <ul>
+            <li>Clica em "Últimas Movimentações" (link do painel, com hash)</li>
+            <li>Extrai lista completa filtrando por janela de tempo</li>
+            <li>Pagina automaticamente até encontrar o limite de tempo</li>
+            <li>Retorna array de CNJs + data/hora + último evento</li>
+          </ul>
+          <div class="code">
+            // Fluxo esperado:<br>
+            // 1. page.click('a:has-text("Últimas movimentações")') ← link com hash do painel<br>
+            // 2. extrairTabelaMovimentacoes(page, janelaHoras) → [{cnj, data, evento}]<br>
+            // 3. Paginar até data < limite<br>
+            // 4. Salvar CNJs para próxima etapa
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num rebuild">P0</div>
+        <div class="step-body">
+          <h3>skill_acessar_processo_eproc.mjs <span class="badge badge-red">NOVA SKILL</span></h3>
+          <p><strong>Substitui:</strong> lerDocumentoIframe() + parte de skill_navegador_eproc.mjs</p>
+          <ul>
+            <li>Para cada CNJ: clicar no número do processo na lista (link com hash)</li>
+            <li>Verificar se movimentação é para parte autora (nosso lado)</li>
+            <li>Identificar evento relevante + link do documento</li>
+            <li>Clicar no documento → ler texto (iframe ou nova aba)</li>
+            <li>Alternativa: Árvore do Processo (quando disponível e necessário)</li>
+            <li><strong>Nunca</strong> construir URL manualmente</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num rebuild">P1</div>
+        <div class="step-body">
+          <h3>skill_captura_intimacoes.mjs <span class="badge badge-purple">REFATORAR</span></h3>
+          <p>Atualizar orquestrador para usar as duas novas skills acima. Manter lógica de dedup (signature_hash) e gravação no Supabase.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num rebuild">P2</div>
+        <div class="step-body">
+          <h3>skill_importar_processo.mjs <span class="badge badge-yellow">REFATORAR</span></h3>
+          <p>Substituir <code>navegarParaProcessoPorCnj()</code> que usa URL direta, por versão que usa o campo de pesquisa "Nº de processo" no header do EPROC.</p>
+          <div class="code">
+            // Atual (PROIBIDO):<br>
+            // page.goto(`${baseUrl}/controlador.php?acao=processo_selecionar&num_processo=${cnj}`)<br><br>
+            // Novo (correto):<br>
+            // page.fill('input[name="num_processo"]', cnj)<br>
+            // page.press('input[name="num_processo"]', 'Enter')
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Fluxo novo -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🔄</span> Fluxo Novo (Proposto)</div>
+
+    <div class="flow">
+      <div class="flow-node ok">Login + 2FA<br><small>skill_login_eproc ✅</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node new">Clica "Últimas<br>Movimentações"<br><small>NOVA skill</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node new">Extrai lista CNJs<br>por janela de tempo<br><small>NOVA skill</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node new">Para cada CNJ:<br>clica no processo<br><small>NOVA skill</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node new">Verifica parte autora<br>→ lê documento<br><small>NOVA skill</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok">Análise IA<br>Claude + Playbooks<br><small>skill_analise ✅</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-node ok">Salva Supabase<br>ia_status, conteudo<br><small>existente ✅</small></div>
+    </div>
+  </div>
+
+  <!-- Resumo executivo -->
+  <div class="section">
+    <div class="section-title"><span class="icon">📋</span> Resumo Executivo</div>
+
+    <table>
+      <tr>
+        <th>Item</th>
+        <th>Status</th>
+        <th>Prioridade</th>
+      </tr>
+      <tr>
+        <td>Login + 2FA TOTP</td>
+        <td><span class="badge badge-green">✅ Funcionando</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Fonte de dados: mudar para "Últimas Movimentações"</td>
+        <td><span class="badge badge-purple">🔨 Reconstruir</span></td>
+        <td>P0</td>
+      </tr>
+      <tr>
+        <td>Navegação por clique (não por URL)</td>
+        <td><span class="badge badge-red">❌ Violado hoje</span></td>
+        <td>P0 — regra inviolável</td>
+      </tr>
+      <tr>
+        <td>Leitura de documento (conteúdo null = 100%)</td>
+        <td><span class="badge badge-red">❌ Quebrado</span></td>
+        <td>P0</td>
+      </tr>
+      <tr>
+        <td>Filtro: só processos da parte autora</td>
+        <td><span class="badge badge-red">❌ Não existe</span></td>
+        <td>P0</td>
+      </tr>
+      <tr>
+        <td>Paginação da lista de movimentações</td>
+        <td><span class="badge badge-red">❌ Não existe</span></td>
+        <td>P1</td>
+      </tr>
+      <tr>
+        <td>Re-login automático se sessão expirar</td>
+        <td><span class="badge badge-yellow">⚠️ Parcial</span></td>
+        <td>P1</td>
+      </tr>
+      <tr>
+        <td>Análise IA (Claude + playbooks)</td>
+        <td><span class="badge badge-green">✅ Funciona</span></td>
+        <td>—</td>
+      </tr>
+      <tr>
+        <td>Ciência automática</td>
+        <td><span class="badge badge-blue">🔍 A verificar</span></td>
+        <td>P2</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- Próximos passos -->
+  <div class="section">
+    <div class="section-title"><span class="icon">🚀</span> Próximos Passos (aguardando aprovação)</div>
+
+    <div class="card">
+      <div class="card-title">1️⃣ Christian grava mais vídeos das etapas restantes</div>
+      <p>Etapa 3 (abrir processo + verificar parte autora), Etapa 4 (clicar no documento + ler), Etapa 5 (árvore do processo quando usar). Quanto mais vídeos, mais preciso o código.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">2️⃣ Jarbas 2.0 gera prompt CC com spec completa</div>
+      <p>Após aprovação do plano, gero o prompt estruturado para o Claude Code reconstruir as 2 novas skills do zero, baseado nos vídeos + transcrições + regras definidas aqui.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">3️⃣ CC reconstrói as skills — Jarbas 2.0 supervisa</div>
+      <p>Modo CC direto (opção 2) ou prompt para você rodar (opção 1). Após construção, teste E2E no EPROC TJRS com RS116571.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">4️⃣ Validar E2E — conteúdo chegando no Supabase</div>
+      <p>Verificar que <code>conteudo</code> não é mais null. Confirmar que filtro de parte autora está correto. Validar paginação.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">5️⃣ Reativar todas as OABs + escalar</div>
+      <p>RS131163, SC075466, SC074025, SP535101 — reativar após validar RS116571.</p>
+    </div>
+  </div>
+
+  <div class="footer">
+    🐙 Jarbas 2.0 — Análise gerada em 30/03/2026 | Modo /plan — Nenhuma alteração realizada<br>
+    Vídeo analisado: "Etapa 2.mov" (3min 11s) | Transcrição via Whisper | Frame analysis em andamento
+  </div>
+
+</div>
+</body>
+</html>

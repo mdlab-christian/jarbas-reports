@@ -144,12 +144,13 @@ details .details-content{background:var(--surface);border:1px solid var(--border
 <!-- ═══════════════ HERO ═══════════════ -->
 <div class="hero">
   <div class="hero-icon">&#x1F419;</div>
-  <h1>Plano de Correcoes — Cecilia v2.3</h1>
-  <div class="hero-sub">Deep Review completo + Plano de execucao para o Jarbas e o Christian lapidarem juntos</div>
+  <h1>Plano Definitivo de Correcoes — Cecilia v2.3</h1>
+  <div class="hero-sub">Deep Review + Enrichment Plan + Correcoes — Pronto para execucao apos aprovacao</div>
   <div class="hero-badges">
-    <span class="badge badge-red">12 bugs identificados</span>
-    <span class="badge badge-red">282 Haiku fallback D</span>
+    <span class="badge badge-red">12 bugs + 158 Assunto como evento</span>
+    <span class="badge badge-red">282 Haiku fallback D (50.3%)</span>
     <span class="badge badge-yellow">139 erros Playwright</span>
+    <span class="badge badge-purple">Enrichment: juiz, vara, adv_reu</span>
     <span class="badge badge-blue">v2.3 com M4/M5/M6</span>
     <span class="badge badge-green">Crons PAUSADOS</span>
   </div>
@@ -194,14 +195,188 @@ details .details-content{background:var(--surface);border:1px solid var(--border
       <div class="card-title">TJSC — 403 intimacoes (71.8%)</div>
       <p>18 sem processo_id (4.5%)</p>
       <p>Fonte primaria. OABs SC074025, SC101023 e outra(s).</p>
-      <p><span class="hl-red">Principal origem do BUG-01:</span> XLS do TJSC tem layout de colunas diferente do TJRS. Header detection falha e fallback aponta indice 5 (Assunto) em vez de 6 (Evento).</p>
+      <p><span class="hl-red">112 registros com Assunto como tipo_evento (BUG-01).</span> Colunas sao IDENTICAS ao TJRS — bug e na deteccao de header, nao no layout.</p>
     </div>
     <div class="card">
       <div class="card-title">TJRS — 158 intimacoes (28.2%)</div>
       <p>44 sem processo_id (27.8%!)</p>
-      <p>OAB RS116571. <span class="hl-red">Taxa critica de orfaos:</span> quase 1 em 3 intimacoes sem vinculo com processo.</p>
-      <p>Principal origem do BUG-06 (JavaScript como evento) e BUG-10 (juiz como evento).</p>
+      <p>OAB RS116571. <span class="hl-red">Taxa critica de orfaos:</span> quase 1 em 3 intimacoes sem vinculo com processo. <strong>Porem:</strong> 36 dos 44 sao "falsos orfaos" — processos EXISTEM na tabela mas o lookup falhou (bug de persistencia).</p>
+      <p>Principal origem do BUG-06 (JavaScript como evento) e BUG-10 (juiz como evento). 46 registros com Assunto como tipo_evento (BUG-01).</p>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════ XLS COLUMN MAPPING (CORRIGIDO) ═══════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4CB;</span>
+    <h2>Mapeamento de Colunas XLS — Corrigido por Christian</h2>
+  </div>
+  <div class="card">
+    <div class="alert alert-green">
+      <span>&#x2705;</span>
+      <div><strong>Christian confirmou:</strong> As planilhas EPROC sao IDENTICAS em todos os tribunais (TJRS, TJSC, TJSP). As colunas ficam sempre na mesma posicao.</div>
+    </div>
+    <table>
+      <thead><tr><th>Coluna</th><th>Indice</th><th>Campo</th><th>Prioridade</th><th>Uso</th></tr></thead>
+      <tbody>
+        <tr><td><strong>A</strong></td><td>0</td><td>Numero do processo</td><td><span class="tag tag-p0">PRIMARIO</span></td><td>Primeiros 25 digitos = CNJ. Celula pode ter texto extra (vara) apos o CNJ.</td></tr>
+        <tr><td>B</td><td>1</td><td>Classe processual</td><td>Secundario</td><td>Ex: "Procedimento Comum Civel"</td></tr>
+        <tr><td><strong>C</strong></td><td>2</td><td>Parte autora</td><td><span class="tag tag-p0">PRIMARIO</span></td><td>Atualizar processos.cliente_nome</td></tr>
+        <tr><td><strong>D</strong></td><td>3</td><td>Empresa re</td><td><span class="tag tag-p0">PRIMARIO</span></td><td>Atualizar processos.empresa_nome / reu_nome</td></tr>
+        <tr><td>E</td><td>4</td><td>Localidade</td><td>Secundario</td><td>Comarca/vara</td></tr>
+        <tr><td>F</td><td>5</td><td>Assunto</td><td>Info</td><td>"Indenizacao por dano moral, DIREITO CIVIL" — NAO e evento!</td></tr>
+        <tr><td>G</td><td>6</td><td>Ultimo evento</td><td><span class="tag tag-p0">PRIMARIO</span></td><td>tipo_evento real. Ex: "Conclusos para decisao"</td></tr>
+        <tr><td><strong>H</strong></td><td>7</td><td>Data/hora ultima movimentacao</td><td><span class="tag tag-p0">PRIMARIO</span></td><td>Filtro de data + atualizar processos.ultima_movimentacao_em</td></tr>
+        <tr><td><strong>I</strong></td><td>8</td><td>Data distribuicao</td><td><span class="tag tag-p1">BACKEND</span></td><td>Atualizar processos.data_distribuicao</td></tr>
+        <tr><td><strong>J</strong></td><td>9</td><td>Valor da causa</td><td><span class="tag tag-p1">BACKEND</span></td><td>Atualizar processos.valor_causa</td></tr>
+      </tbody>
+    </table>
+    <div class="alert alert-red">
+      <span>&#x26A0;</span>
+      <div><strong>Problema encontrado:</strong> 158 registros no Supabase tem tipo_evento = dados da coluna F (Assunto) em vez da coluna G (Evento). <strong>AMBOS tribunais afetados</strong>: TJSC = 112 registros, TJRS = 46. Isso significa que o bug NAO e de layout diferente entre tribunais — e da deteccao de header ou leitura incorreta da celula.</div>
+    </div>
+    <p><strong>Fix necessario no Column A:</strong> Extrair primeiros 25 caracteres: <code>cnj = String(row[0]).slice(0, 25).trim()</code></p>
+  </div>
+</div>
+
+<!-- ═══════════════ EPROC PROCESS PAGE FIELD MAPPING ═══════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F310;</span>
+    <h2>Campos Extraiveis da Pagina EPROC — Mapeados ao Vivo</h2>
+  </div>
+  <div class="card">
+    <div class="card-title">Exploracao do processo 5108947-30.2025.8.21.0001 (TJRS)</div>
+    <p>Script de exploracao executado em 2026-03-31. Todos os campos abaixo foram extraidos com sucesso via <code>page.evaluate()</code>.</p>
+    <table>
+      <thead><tr><th>Selector EPROC</th><th>Valor Exemplo</th><th>Campo processos</th><th>Acao</th></tr></thead>
+      <tbody>
+        <tr><td><code>span#txtNumProcesso</code></td><td>5108947-30.2025.8.21.0001</td><td>numero_cnj</td><td>Validar/atualizar</td></tr>
+        <tr><td><code>span#txtClasse</code></td><td>PROCEDIMENTO COMUM CIVEL</td><td>detalhes.classe_judicial</td><td>Gravar em JSON</td></tr>
+        <tr><td><code>span#txtCompetencia</code></td><td>Civel - Geral (Poa)</td><td>detalhes.competencia</td><td>Gravar em JSON</td></tr>
+        <tr><td><code>span#txtAutuacao</code></td><td>24/04/2025 14:30:03</td><td><strong>data_distribuicao</strong></td><td class="hl-green">UPDATE processos</td></tr>
+        <tr><td><code>span#txtSituacao</code></td><td>MOVIMENTO</td><td>detalhes.situacao_eproc</td><td>Gravar em JSON</td></tr>
+        <tr><td><code>span#txtOrgaoJulgador</code></td><td>2o Juizo da 12a Vara Civel do Foro Central da Comarca de Porto Alegre</td><td><strong>vara_distribuicao</strong></td><td class="hl-green">UPDATE processos</td></tr>
+        <tr><td><code>span#txtMagistrado</code></td><td>RUY ROSADO DE AGUIAR NETO</td><td><strong>julgador_id</strong> (lookup/create)</td><td class="hl-green">Buscar/criar em jurimetria_juizes</td></tr>
+        <tr><td><code>span#txtMagistradoAtuante</code></td><td>FERNANDA PINHEIRO TRACTENBERG</td><td>detalhes.juiz_atuante</td><td>Gravar em JSON</td></tr>
+        <tr><td><code>span#infraNomeParte</code></td><td>JAKELINE DE SOUZA SILVA LOPES</td><td><strong>cliente_nome</strong></td><td class="hl-green">UPDATE processos</td></tr>
+        <tr><td><code>span#spnCpfParteAutor0</code></td><td>011.120.512-36</td><td>Link com clientes.cpf</td><td>Validar vinculo</td></tr>
+        <tr><td><code>span#spnNomeParteReu0</code></td><td>LEBES FINANCEIRA S.A. - CREDITO, FINANC...</td><td><strong>empresa_nome</strong></td><td class="hl-green">UPDATE processos</td></tr>
+        <tr><td><code>span#spnCpfParteReu0</code></td><td>11.271.860/0001-86</td><td>Link com empresas.cnpj</td><td>Validar vinculo</td></tr>
+        <tr><td>Advogado reu (tabela partes)</td><td>OLINDO BARCELLOS DA SILVA (RS018389)</td><td><strong>advogado_reu_nome / advogado_reu_oab</strong></td><td class="hl-green">UPDATE processos</td></tr>
+        <tr><td>Flag JG (comando bar)</td><td>Justica Gratuita presente</td><td><strong>ajg_concedida</strong></td><td class="hl-green">UPDATE processos = true</td></tr>
+        <tr><td><code>div#divRelacionados</code></td><td>5079975-16.2026.8.21.0001 (Cumprimento de Sentenca)</td><td>detalhes.processos_relacionados</td><td>Gravar em JSON</td></tr>
+      </tbody>
+    </table>
+    <div class="alert alert-blue">
+      <span>&#x1F4A1;</span>
+      <div><strong>Ouro puro:</strong> A pagina EPROC tem juiz titular + juiz atuante, advogado reu com OAB, CPF/CNPJ das partes, AJG, processos relacionados (cumprimento de sentenca!), e data de autuacao exata. Tudo isso atualmente NAO e extraido pela Cecilia.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════ BACKEND ENRICHMENT PLAN ═══════════════ -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4BE;</span>
+    <h2>Plano de Enrichment do Backend — Aproveitar o Monitoramento</h2>
+  </div>
+  <div class="card">
+    <div class="card-title">Estrategia: Enriquecer processos durante cada ciclo de monitoramento</div>
+    <p>Christian: "Como e um sistema novo e agora que a gente esta populando o backend, a gente aproveita essa oportunidade do monitoramento para enriquecer com a analise dos processos."</p>
+
+    <p><strong>Dois momentos de enrichment:</strong></p>
+    <table>
+      <thead><tr><th>Momento</th><th>Fonte</th><th>Campos</th><th>Arquivo</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>1. XLS Parsing</strong></td>
+          <td>skill_processar_planilha.mjs</td>
+          <td>cliente_nome (Col C), empresa_nome (Col D), data_distribuicao (Col I), valor_causa (Col J), ultima_movimentacao_em (Col H)</td>
+          <td><span class="tag tag-file">skill_processar_planilha.mjs</span></td>
+        </tr>
+        <tr>
+          <td><strong>2. Pagina Processo</strong></td>
+          <td>skill_acessar_processo.mjs</td>
+          <td>juiz (txtMagistrado), vara (txtOrgaoJulgador), advogado_reu_nome/oab, ajg_concedida, data_autuacao (txtAutuacao), processos_relacionados</td>
+          <td><span class="tag tag-file">skill_acessar_processo.mjs</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Funcao: enrichProcess() — Novo codigo a adicionar</div>
+    <div class="code-block">
+<span class="comment">// Adicionar ao skill_acessar_processo.mjs</span>
+<span class="keyword">async function</span> extractProcessMetadata(page) {
+  <span class="keyword">return</span> page.evaluate(() => {
+    <span class="keyword">const</span> getText = (id) => document.getElementById(id)?.textContent?.trim() || <span class="keyword">null</span>;
+    <span class="keyword">const</span> getSpan = (id) => document.querySelector(`span#${id}`)?.textContent?.trim() || <span class="keyword">null</span>;
+
+    <span class="comment">// Partes e advogados</span>
+    <span class="keyword">const</span> partes = document.querySelector(<span class="string">'#tblPartesERepresentantes'</span>);
+    <span class="keyword">let</span> advogadoReuNome = <span class="keyword">null</span>, advogadoReuOab = <span class="keyword">null</span>;
+    <span class="keyword">if</span> (partes) {
+      <span class="keyword">const</span> reuCell = partes.querySelectorAll(<span class="string">'td'</span>)[1];  <span class="comment">// segunda coluna = REU</span>
+      <span class="keyword">const</span> reuText = reuCell?.textContent || <span class="string">''</span>;
+      <span class="keyword">const</span> oabMatch = reuText.match(<span class="string">/([A-Z]{2}\d{5,6})\s+Tipo/</span>);
+      <span class="keyword">const</span> nameMatch = reuText.match(<span class="string">/Jurídica\s+([\w\s]+?)\s+[A-Z]{2}\d/</span>);
+      <span class="keyword">if</span> (oabMatch) advogadoReuOab = oabMatch[1];
+      <span class="keyword">if</span> (nameMatch) advogadoReuNome = nameMatch[1].trim();
+    }
+
+    <span class="keyword">return</span> {
+      vara: getText(<span class="string">'txtOrgaoJulgador'</span>),
+      juiz_titular: getSpan(<span class="string">'txtMagistrado'</span>),
+      juiz_atuante: getSpan(<span class="string">'txtMagistradoAtuante'</span>),
+      classe_judicial: getSpan(<span class="string">'txtClasse'</span>),
+      data_autuacao: getSpan(<span class="string">'txtAutuacao'</span>),
+      situacao: getSpan(<span class="string">'txtSituacao'</span>),
+      ajg: document.body.textContent?.includes(<span class="string">'Justiça Gratuita'</span>) || <span class="keyword">false</span>,
+      advogado_reu_nome: advogadoReuNome,
+      advogado_reu_oab: advogadoReuOab,
+    };
+  });
+}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">SQL: UPDATE processos com dados enriquecidos</div>
+    <div class="code-block">
+<span class="comment">// No skill_orquestrador.mjs — nova funcao enrichProcess()</span>
+<span class="keyword">async function</span> enrichProcess(cnj, xlsData, eprocData) {
+  <span class="keyword">const</span> updates = {};
+
+  <span class="comment">// Do XLS</span>
+  <span class="keyword">if</span> (xlsData.autores) updates.cliente_nome = xlsData.autores;
+  <span class="keyword">if</span> (xlsData.reu) updates.empresa_nome = xlsData.reu;
+  <span class="keyword">if</span> (xlsData.dataAutuacao) updates.data_distribuicao = xlsData.dataAutuacao;
+  <span class="keyword">if</span> (xlsData.valorCausa) updates.valor_causa = parseFloat(xlsData.valorCausa) || <span class="keyword">null</span>;
+
+  <span class="comment">// Da pagina EPROC</span>
+  <span class="keyword">if</span> (eprocData?.vara) updates.vara_distribuicao = eprocData.vara;
+  <span class="keyword">if</span> (eprocData?.advogado_reu_nome) updates.advogado_reu_nome = eprocData.advogado_reu_nome;
+  <span class="keyword">if</span> (eprocData?.advogado_reu_oab) updates.advogado_reu_oab = eprocData.advogado_reu_oab;
+  <span class="keyword">if</span> (eprocData?.ajg != <span class="keyword">null</span>) updates.ajg_concedida = eprocData.ajg;
+  <span class="keyword">if</span> (eprocData?.data_autuacao) {
+    <span class="keyword">const</span> [d, m, y] = eprocData.data_autuacao.split(<span class="string">' '</span>)[0].split(<span class="string">'/'</span>);
+    updates.data_distribuicao = `${y}-${m}-${d}`;
+  }
+
+  updates.enriquecido_em = <span class="keyword">new</span> Date().toISOString();
+  updates.enriquecido_por = <span class="string">'cecilia_v2.3'</span>;
+
+  <span class="keyword">await</span> supabase.from(<span class="string">'processos'</span>)
+    .update(updates)
+    .eq(<span class="string">'numero_cnj'</span>, cnj)
+    .eq(<span class="string">'organizacao_id'</span>, ORG_ID);
+}
+    </div>
+    <p><strong>Campos atualizados:</strong> cliente_nome, empresa_nome, vara_distribuicao, data_distribuicao, valor_causa, advogado_reu_nome, advogado_reu_oab, ajg_concedida, enriquecido_em, enriquecido_por</p>
+    <p><strong>Regra do polo:</strong> 99% representamos a parte autora. Se OAB do advogado = OAB de login e polo = REU, inverter: <code>polo_representado = 'reu'</code></p>
   </div>
 </div>
 
@@ -273,7 +448,7 @@ details .details-content{background:var(--surface);border:1px solid var(--border
           <td><span class="tag tag-p0">P0</span></td>
           <td>XLS column mapping le "Assunto" em vez de "Ultimo Evento"</td>
           <td><span class="tag tag-file">skill_processar_planilha.mjs:62</span></td>
-          <td><span class="hl-red">~72 intimacoes</span> com classe processual como tipo_evento</td>
+          <td><span class="hl-red">~158 intimacoes</span> com classe processual como tipo_evento (TJSC=112, TJRS=46)</td>
         </tr>
         <tr>
           <td><strong>BUG-02</strong></td>
@@ -358,7 +533,7 @@ details .details-content{background:var(--surface);border:1px solid var(--border
 
   <div class="alert alert-red">
     <span>&#x1F6A8;</span>
-    <div><strong>Conclusao critica:</strong> Os 12 bugs nao sao independentes. BUG-01 (XLS mapping) alimenta BUG-03 (parseJsonArray) que amplifica para BUG-08 (orfaos). Corrigir BUG-01 sozinho elimina ~72 fallbacks D. Corrigir BUG-03 elimina a contaminacao por batch. Juntos, reduzem os 282 fallbacks para estimados ~30-40.</div>
+    <div><strong>Conclusao critica:</strong> Os 12 bugs nao sao independentes. BUG-01 (XLS mapping — <span class="hl-red">158 registros</span> com Assunto como evento) alimenta BUG-03 (parseJsonArray) que amplifica para BUG-08 (orfaos). Corrigir BUG-01 sozinho elimina a maioria dos fallbacks D causados por input garbage. Corrigir BUG-03 impede a contaminacao por batch. Juntos, reduzem os 282 fallbacks para estimados ~20-30.</div>
   </div>
 </div>
 
@@ -389,7 +564,7 @@ details .details-content{background:var(--surface);border:1px solid var(--border
         <tr><td class="hl-red">mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a Vara...</td><td>2</td><td>JUIZ (BUG-10)</td></tr>
       </tbody>
     </table>
-    <p><strong>Total estimado impactado pelo BUG-01:</strong> <span class="hl-red">~72 registros</span> (55 + 8 + 7 + 2)</p>
+    <p><strong>Total impactado pelo BUG-01:</strong> <span class="hl-red">~158 registros</span> com Assunto como tipo_evento (TJSC=112, TJRS=46). Os exemplos acima sao os mais frequentes — ha dezenas de variantes com diferentes combinacoes de assuntos processuais.</p>
   </div>
 
   <div class="card">
@@ -413,25 +588,33 @@ details .details-content{background:var(--surface);border:1px solid var(--border
 };
     </div>
 
-    <p><strong>Mecanismo de falha:</strong></p>
+    <div class="alert alert-green">
+      <span>&#x2705;</span>
+      <div><strong>Christian confirmou:</strong> Colunas sao IDENTICAS em TJRS, TJSC e TJSP. DEFAULT_INDICES (assunto:5, evento:6) esta correto. O bug NAO e de layout diferente entre tribunais.</div>
+    </div>
+
+    <p><strong>Root cause real (revisado):</strong></p>
     <ol>
-      <li><code>detectColumnIndices(rows)</code> tenta matchear headers da planilha com COLUMN_ALIASES</li>
-      <li>Se a planilha TJSC usa nomes de coluna ligeiramente diferentes (ex: "Movimentacao" em vez de "Ultimo evento"), a deteccao retorna <code>null</code></li>
-      <li>Fallback <code>DEFAULT_INDICES</code> assume layout TJRS: coluna 5 = Assunto, coluna 6 = Evento</li>
-      <li><span class="hl-red">Se no TJSC coluna 5 = Evento e coluna 6 = Assunto</span> (ou outra permutacao), grava Assunto como tipo_evento</li>
+      <li><code>detectColumnIndices(rows)</code> escaneia primeiras 5 linhas buscando headers. Se a planilha NAO tem header row (ou header esta em formato inesperado), retorna mapping incorreto.</li>
+      <li>Quando detecta header, pode mapear a coluna "Assunto" como "evento" se o alias matching confundir os dois (ambos contem palavras como "principal", "ultimo").</li>
+      <li><span class="hl-red">158 registros afetados em AMBOS tribunais</span> (TJSC=112, TJRS=46) — confirma que o bug e no codigo, nao no layout.</li>
+      <li>O DEFAULT_INDICES hardcoded (evento:6) esta correto, mas o <code>detectColumnIndices()</code> OVERRIDES com indices errados quando acha um falso match.</li>
     </ol>
+
+    <p><strong>Evidencia adicional:</strong> Column A contem mais que o CNJ — tem texto da vara apos os 25 digitos. O parser precisa fazer <code>slice(0, 25)</code> para extrair so o CNJ.</p>
   </div>
 
   <div class="card">
-    <div class="card-title"><span class="tag tag-fix">FIX</span> Solucao Proposta</div>
+    <div class="card-title"><span class="tag tag-fix">FIX</span> Solucao Proposta (revisada)</div>
     <ol>
-      <li><strong>Adicionar validacao <code>eventoParece()</code></strong> — rejeita tipo_evento que contem virgulas excessivas (padrao de "Assunto"), palavras-chave juridicas como "DIREITO CIVIL", "Responsabilidade", ou length > 200</li>
-      <li><strong>Expandir COLUMN_ALIASES.evento</strong> com mais variantes: <code>['ultimo evento', 'evento', 'movimentacao', 'ultima movimentacao', 'ult. evento', 'mov.']</code></li>
-      <li><strong>Fallback inteligente:</strong> se header detection falha, tentar detectar qual coluna "parece" evento (texto curto, sem virgulas, verbos juridicos) vs assunto (categorias separadas por virgula)</li>
-      <li><strong>Log warning</strong> quando fallback e acionado: <code>console.warn('FALLBACK_INDICES usado - layout de colunas nao detectado')</code></li>
+      <li><strong>Column A — CNJ slice:</strong> <code>cnj = String(row[0]).replace(/\D/g, '').slice(0, 20)</code> para extrair so os 20 digitos do CNJ (ou 25 chars com formatacao)</li>
+      <li><strong>Desambiguar assunto vs evento:</strong> Assunto contem virgulas (multiplos temas separados por ","): <code>if (texto.includes(',') && texto.includes('DIREITO')) return 'assunto'</code></li>
+      <li><strong>Validacao pos-deteccao:</strong> apos detectColumnIndices(), verificar se o campo "evento" das primeiras linhas de dados parece assunto (virgulas, categorias juridicas). Se sim, trocar com o campo "assunto".</li>
+      <li><strong>Hardcode defensivo:</strong> Se deteccao falha, usar DEFAULT_INDICES que estao corretos (evento:6, assunto:5)</li>
+      <li><strong>Log warning</strong> quando deteccao e override de DEFAULT: <code>console.warn('COLUMN_DETECT override — evento=%d, assunto=%d', ...)</code></li>
     </ol>
     <p><strong>Arquivo:</strong> <code>skill_processar_planilha.mjs</code> linhas 7-65</p>
-    <p><strong>Impacto estimado:</strong> Elimina ~72 dos 282 fallback D (<span class="hl-green">-25.5%</span>)</p>
+    <p><strong>Impacto estimado:</strong> Elimina ~158 registros corrompidos (<span class="hl-green">todas as ocorrencias de Assunto como tipo_evento</span>)</p>
   </div>
 </div>
 
@@ -729,19 +912,36 @@ tipo_evento = <span class="string">"15       if (window.carregarTooltipSuspensao
         <tr><td><strong>Total</strong></td><td><strong>561</strong></td><td><strong>62</strong></td><td><strong>11.1%</strong></td></tr>
       </tbody>
     </table>
-    <p>O TJRS tem taxa 6x maior que o TJSC. Provavelmente o formato do CNJ no XLS TJRS esta diferente, ou os processos TJRS nao existem na tabela <code>processos</code>.</p>
-
     <p><strong>Por classe:</strong> 35 na classe D, 24 na classe A, 2 na B, 1 na E</p>
+
+    <div class="alert alert-yellow">
+      <span>&#x1F50D;</span>
+      <div><strong>Descoberta critica — 36 "falsos orfaos":</strong> Ao cruzar os CNJs das intimacoes sem processo_id com a tabela processos, <span class="hl-yellow">36 dos 62 orfaos TEM processos correspondentes</span> na tabela. O processo existe, mas o lookup falhou na hora de persistir. Isso e um bug de timing/matching no <code>batchLookupProcessoIds()</code>, nao de dados faltantes.</div>
+    </div>
+
+    <p><strong>Decomposicao real dos 62 orfaos:</strong></p>
+    <table>
+      <thead><tr><th>Tipo</th><th>Qtd</th><th>Causa</th></tr></thead>
+      <tbody>
+        <tr><td class="hl-yellow">Falsos orfaos (processo existe)</td><td><strong>36</strong></td><td>batchLookupProcessoIds() falha no matching — possivelmente formato CNJ diferente no XLS vs processos, ou race condition</td></tr>
+        <tr><td>CNJ inexistente mas valido</td><td>~21</td><td>Processo novo, nao importado para tabela processos ainda</td></tr>
+        <tr><td>CNJ invalido / corrompido</td><td>~5</td><td>Column A do XLS com texto extra (vara) nao parseado corretamente</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>Root cause dos 36 falsos orfaos:</strong> <code>batchLookupProcessoIds()</code> (orquestrador.mjs:35-52) faz query <code>WHERE numero_cnj IN (...) AND organizacao_id = ...</code>. Se o CNJ extraido do XLS tem formatacao diferente (espacos, tracos, digitos extras da Column A), o match falha mesmo que o processo exista.</p>
   </div>
 
   <div class="card">
-    <div class="card-title"><span class="tag tag-fix">FIX</span> Solucao</div>
+    <div class="card-title"><span class="tag tag-fix">FIX</span> Solucao (revisada com falsos orfaos)</div>
     <ol>
-      <li>Log quando lookup de processo_id falha com o CNJ tentado</li>
-      <li>Validar formato CNJ antes do lookup: <code>/^\d{7}-\d{2}\.\d{4}\.\d{1}\.\d{2}\.\d{4}$/</code></li>
-      <li>Retry com CNJ normalizado (so digitos) se formato completo falhar</li>
-      <li>Criar stub na tabela processos quando CNJ valido nao encontrado</li>
+      <li><strong>Normalizar CNJ antes do lookup:</strong> <code>cnj.replace(/\D/g, '').slice(0, 20)</code> — usar so digitos para matching</li>
+      <li><strong>Fix Column A parsing:</strong> extrair primeiros 25 chars, depois normalizar (relacionado ao BUG-01)</li>
+      <li><strong>Double-lookup:</strong> Se primeiro lookup por CNJ formatado falhar, retry por CNJ so-digitos</li>
+      <li><strong>Log detalhado:</strong> quando lookup falha, logar CNJ tentado + primeiros 50 chars da Column A original</li>
+      <li><strong>Para CNJs validos inexistentes:</strong> criar stub na tabela processos com dados do XLS (cnj, cliente_nome, empresa_nome)</li>
     </ol>
+    <p><strong>Impacto:</strong> Recupera <span class="hl-green">36 orfaos imediatamente</span> (de 62 para ~26). Os 21 restantes precisam de import/stub. Os 5 corrompidos sao resolvidos pelo fix do Column A.</p>
   </div>
 </div>
 
@@ -861,7 +1061,7 @@ tipo_evento = <span class="string">"mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a 
     <p>Os bugs nao sao independentes. Formam uma cadeia de amplificacao:</p>
 
     <div class="pipeline">
-      <div class="pipe-step broken">BUG-01<br>XLS le Assunto<br>~72 corrompidos</div>
+      <div class="pipe-step broken">BUG-01<br>XLS le Assunto<br>~158 corrompidos</div>
       <div class="pipe-arrow">&#x2192;</div>
       <div class="pipe-step broken">BUG-06<br>DOM le JS<br>+13 corrompidos</div>
       <div class="pipe-arrow">&#x2192;</div>
@@ -881,11 +1081,11 @@ tipo_evento = <span class="string">"mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a 
       <thead><tr><th>Cenario</th><th>Fallback D Estimado</th><th>Reducao</th></tr></thead>
       <tbody>
         <tr><td>Estado atual</td><td class="hl-red">282</td><td>-</td></tr>
-        <tr><td>+ Fix BUG-01 (XLS mapping)</td><td>~210</td><td>-72</td></tr>
-        <tr><td>+ Fix BUG-04 (regex conclusos)</td><td>~171</td><td>-39</td></tr>
-        <tr><td>+ Fix BUG-06 (JS sanitize)</td><td>~158</td><td>-13</td></tr>
-        <tr><td>+ Fix BUG-03 (parseJsonRobusto)</td><td class="hl-yellow">~30-40</td><td>-120+</td></tr>
-        <tr><td class="hl-green">Projecao pos-fix total</td><td class="hl-green">~30-40</td><td class="hl-green">-242 a -252 (85-89%)</td></tr>
+        <tr><td>+ Fix BUG-01 (XLS mapping — 158 corrompidos)</td><td>~160</td><td>-122 (diretamente afetados por Assunto garbage)</td></tr>
+        <tr><td>+ Fix BUG-04 (regex conclusos)</td><td>~121</td><td>-39</td></tr>
+        <tr><td>+ Fix BUG-06 (JS sanitize)</td><td>~108</td><td>-13</td></tr>
+        <tr><td>+ Fix BUG-03 (parseJsonRobusto)</td><td class="hl-yellow">~20-30</td><td>-78+ (batches descontaminados)</td></tr>
+        <tr><td class="hl-green">Projecao pos-fix total</td><td class="hl-green">~20-30</td><td class="hl-green">-252 a -262 (89-93%)</td></tr>
       </tbody>
     </table>
   </div>
@@ -970,7 +1170,7 @@ tipo_evento = <span class="string">"mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a 
         <tr><td>DJEN / Diario de Justica</td><td>Classe A (ruido)</td><td class="hl-yellow">Parcialmente filtrado — algumas variantes escapam</td><td>Parcialmente</td></tr>
         <tr><td>Ato ordinatorio praticado</td><td>Classe A (ruido)</td><td class="hl-red">NAO filtrado</td><td class="hl-red">SIM — 7 no /controller</td></tr>
         <tr><td>Juizo 100% Digital</td><td>Classe A (ruido)</td><td class="hl-red">NAO filtrado</td><td class="hl-red">SIM — 10 no /controller</td></tr>
-        <tr><td>Assunto processual (Indenizacao...)</td><td>INVALIDO (bug XLS)</td><td class="hl-red">NAO detectado</td><td class="hl-red">SIM — 72 no /controller como D</td></tr>
+        <tr><td>Assunto processual (Indenizacao...)</td><td>INVALIDO (bug XLS)</td><td class="hl-red">NAO detectado</td><td class="hl-red">SIM — 158 no /controller como D (TJSC=112, TJRS=46)</td></tr>
         <tr><td>JavaScript (window.carregar...)</td><td>INVALIDO (bug DOM)</td><td class="hl-red">NAO detectado</td><td class="hl-red">SIM — 13 no /controller como D</td></tr>
         <tr><td>Juiz (MAGISTRADO...)</td><td>INVALIDO (bug DOM)</td><td class="hl-red">NAO detectado</td><td class="hl-red">SIM — 9 no /controller como D</td></tr>
         <tr><td>Sentenca / Decisao</td><td>Classe D/E</td><td class="hl-green">OK — classificado corretamente quando input limpo</td><td class="hl-green">SIM (correto)</td></tr>
@@ -1036,8 +1236,8 @@ tipo_evento = <span class="string">"mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a 
   <!-- FASE 1 -->
   <div class="card" style="border-left:3px solid var(--p0)">
     <div class="card-title"><span class="tag tag-p0">FASE 1</span> Input Cleanup — Corrigir a fonte do lixo</div>
-    <p><strong>Objetivo:</strong> Eliminar input garbage que alimenta toda a cadeia de falhas.</p>
-    <p><strong>Reducao esperada:</strong> ~124 dos 282 fallback D</p>
+    <p><strong>Objetivo:</strong> Eliminar input garbage que alimenta toda a cadeia de falhas + extrair dados para enrichment.</p>
+    <p><strong>Reducao esperada:</strong> ~174 dos 282 fallback D (158 Assunto + 13 JS + 9 juiz - sobreposicoes)</p>
 
     <table>
       <thead><tr><th>Bug</th><th>Arquivo</th><th>Mudanca</th><th>Estimativa</th></tr></thead>
@@ -1045,8 +1245,8 @@ tipo_evento = <span class="string">"mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a 
         <tr>
           <td>BUG-01</td>
           <td><code>skill_processar_planilha.mjs</code></td>
-          <td>eventoParece() validacao + expandir COLUMN_ALIASES.evento + fallback inteligente</td>
-          <td>~30 min</td>
+          <td>Column A slice(0,25) + desambiguar assunto/evento + validacao pos-deteccao + extrair C, D, I, J para enrichment</td>
+          <td>~40 min</td>
         </tr>
         <tr>
           <td>BUG-04</td>
@@ -1079,8 +1279,13 @@ tipo_evento = <span class="string">"mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a 
     <ul>
       <li><code>/Users/cecilia/cecilia-skills/src/lib/eproc-utils.mjs</code> (BUG-04, BUG-12)</li>
       <li><code>/Users/cecilia/cecilia-skills/src/skills/skill_processar_planilha.mjs</code> (BUG-01)</li>
-      <li><code>/Users/cecilia/cecilia-skills/src/skills/skill_acessar_processo.mjs</code> (BUG-06, BUG-10)</li>
+      <li><code>/Users/cecilia/cecilia-skills/src/skills/skill_acessar_processo.mjs</code> (BUG-06, BUG-10 + extractProcessMetadata())</li>
     </ul>
+
+    <div class="alert alert-blue">
+      <span>&#x1F4BE;</span>
+      <div><strong>ENRICHMENT nesta fase:</strong> Ao corrigir skill_acessar_processo.mjs, adicionar <code>extractProcessMetadata(page)</code> que extrai juiz, vara, advogado_reu, AJG, data_autuacao, processos_relacionados. Ao corrigir skill_processar_planilha.mjs, extrair campos de enriquecimento: cliente_nome (Col C), empresa_nome (Col D), data_distribuicao (Col I), valor_causa (Col J).</div>
+    </div>
   </div>
 
   <!-- FASE 2 -->
@@ -1122,9 +1327,14 @@ tipo_evento = <span class="string">"mdanelhukMATEUS DA LUZ DANELHUKMAGISTRADO1a 
     <p><strong>Arquivos afetados:</strong></p>
     <ul>
       <li><code>/Users/cecilia/cecilia-skills/src/skills/skill_analisar_ia.mjs</code> (BUG-03)</li>
-      <li><code>/Users/cecilia/cecilia-skills/src/skills/skill_orquestrador.mjs</code> (BUG-02, BUG-09)</li>
+      <li><code>/Users/cecilia/cecilia-skills/src/skills/skill_orquestrador.mjs</code> (BUG-02, BUG-09 + enrichProcess())</li>
       <li><code>/Users/cecilia/cecilia-skills/src/skills/skill_gerar_planilha.mjs</code> (BUG-05)</li>
     </ul>
+
+    <div class="alert alert-blue">
+      <span>&#x1F4BE;</span>
+      <div><strong>ENRICHMENT nesta fase:</strong> No skill_orquestrador.mjs, adicionar <code>enrichProcess(cnj, xlsData, eprocData)</code> que faz UPDATE na tabela processos com: cliente_nome, empresa_nome, vara_distribuicao, data_distribuicao, valor_causa, advogado_reu_nome, advogado_reu_oab, ajg_concedida, enriquecido_em, enriquecido_por. Executar APOS acessar o processo e ANTES da analise IA. Ver secao "Plano de Enrichment" para codigo completo.</div>
+    </div>
   </div>
 
   <!-- FASE 3 -->
@@ -1214,10 +1424,27 @@ UPDATE cecilia_erros SET resolvido = true
 WHERE organizacao_id = <span class="string">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>
   AND skill = <span class="string">'acessar_processo'</span>;
 
-<span class="comment">-- 5. Verificar estado pos-cleanup</span>
+<span class="comment">-- 5. Fix falsos orfaos — vincular intimacoes com processos existentes</span>
+UPDATE intimacoes i
+SET processo_id = p.id
+FROM processos p
+WHERE i.organizacao_id = <span class="string">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>
+  AND i.processo_id IS NULL
+  AND p.organizacao_id = i.organizacao_id
+  AND regexp_replace(p.numero_cnj, <span class="string">'\D'</span>, <span class="string">''</span>, <span class="string">'g'</span>) = regexp_replace(i.cnj, <span class="string">'\D'</span>, <span class="string">'g'</span>);
+
+<span class="comment">-- 6. Verificar estado pos-cleanup</span>
 SELECT count(*), classe_cecilia FROM intimacoes
 WHERE organizacao_id = <span class="string">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>
 GROUP BY classe_cecilia;
+
+<span class="comment">-- 7. Verificar enrichment</span>
+SELECT count(*) as total,
+  count(enriquecido_em) as enriquecidos,
+  count(vara_distribuicao) as com_vara,
+  count(advogado_reu_nome) as com_adv_reu
+FROM processos
+WHERE organizacao_id = <span class="string">'55a0c7ba-1a23-4ae1-b69b-a13811324735'</span>;
     </div>
     <div class="alert alert-yellow">
       <span>&#x26A0;</span>
@@ -1261,6 +1488,8 @@ GROUP BY classe_cecilia;
           <li>Verificar &lt;5% sem processo_id</li>
           <li>Verificar conclusos filtrados como A</li>
           <li>Verificar erros Playwright &lt;10</li>
+          <li><strong>Enrichment:</strong> Verificar processos com enriquecido_em IS NOT NULL (esperar >80% dos processos acessados)</li>
+          <li><strong>Enrichment:</strong> Verificar processos com vara_distribuicao, advogado_reu_nome, ajg_concedida preenchidos</li>
         </ul>
       </li>
     </ol>
@@ -1416,18 +1645,18 @@ GROUP BY classe_cecilia;
       <li><strong>Confirmar crons pausados</strong>
         <ul><li>SSH Mac Mini, verificar start.mjs linhas 239-245 comentadas</li></ul>
       </li>
-      <li><strong>Fase 1 — Input Cleanup</strong> (5 bugs, 3 arquivos)
+      <li><strong>Fase 1 — Input Cleanup + Extracao</strong> (5 bugs, 3 arquivos + enrichment)
         <ul>
           <li>Editar <code>eproc-utils.mjs</code>: fix regex conclusos + novos RUIDO_PATTERNS</li>
-          <li>Editar <code>skill_processar_planilha.mjs</code>: eventoParece() + expand aliases</li>
-          <li>Editar <code>skill_acessar_processo.mjs</code>: sanitize DOM output</li>
+          <li>Editar <code>skill_processar_planilha.mjs</code>: fix Column A slice(0,25) + desambiguar assunto/evento + extrair campos enriquecimento (C, D, I, J)</li>
+          <li>Editar <code>skill_acessar_processo.mjs</code>: sanitize DOM + adicionar <code>extractProcessMetadata()</code> (juiz, vara, adv_reu, AJG, data_autuacao, processos_relacionados)</li>
           <li>SCP para Mac Mini + chown cecilia:staff</li>
         </ul>
       </li>
-      <li><strong>Fase 2 — Pipeline Robustez</strong> (4 bugs, 3 arquivos)
+      <li><strong>Fase 2 — Pipeline Robustez + Enrichment</strong> (4 bugs, 3 arquivos + enrichProcess)
         <ul>
           <li>Editar <code>skill_analisar_ia.mjs</code>: parseJsonArrayRobusto()</li>
-          <li>Editar <code>skill_orquestrador.mjs</code>: filtro classe A + Set CNJ</li>
+          <li>Editar <code>skill_orquestrador.mjs</code>: filtro classe A + Set CNJ + CNJ normalize + <code>enrichProcess()</code> UPDATE processos</li>
           <li>Editar <code>skill_gerar_planilha.mjs</code>: TRIBUNAL_SELECTORS</li>
           <li>SCP para Mac Mini + chown cecilia:staff</li>
         </ul>

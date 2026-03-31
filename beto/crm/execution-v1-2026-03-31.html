@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Plan — /crm v1</title>
+<style>
+:root {
+  --bg: #12100e; --surface: #1a1815; --surface2: #221f1c;
+  --border: #2d2925; --primary: #20c997; --primary-dim: rgba(32,201,151,0.15);
+  --text: #e8e0d8; --text-muted: #8a7f78;
+  --red: #ef4444; --red-dim: rgba(239,68,68,0.15);
+  --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.15);
+  --blue: #3b82f6; --blue-dim: rgba(59,130,246,0.15);
+  --green: #22c55e; --green-dim: rgba(34,197,94,0.15);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; padding: 32px 24px; max-width: 960px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+h2 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; }
+h3 { font-size: 13px; font-weight: 700; margin-bottom: 8px; }
+.sub { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; }
+
+/* Header */
+.header { border-bottom: 1px solid var(--border); padding-bottom: 20px; margin-bottom: 28px; }
+.meta-row { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 12px; }
+.meta { font-size: 12px; color: var(--text-muted); }
+.meta strong { color: var(--text); }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; }
+.badge-ok { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+.badge-warn { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+.badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+.badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+.badge-primary { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(32,201,151,0.3); }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+.stat-num { font-size: 28px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+.stat-lbl { font-size: 11px; color: var(--text-muted); }
+.num-green { color: var(--green); }
+.num-yellow { color: var(--yellow); }
+.num-red { color: var(--red); }
+.num-primary { color: var(--primary); }
+
+/* Index */
+.index { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 28px; }
+.index-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+.index-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.index-list li a { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--text); font-size: 13px; padding: 6px 8px; border-radius: 6px; transition: background 0.15s; }
+.index-list li a:hover { background: var(--surface2); }
+.index-num { font-size: 11px; font-weight: 700; color: var(--text-muted); min-width: 60px; }
+
+/* Already done section */
+.done-section { background: var(--green-dim); border: 1px solid rgba(34,197,94,0.25); border-radius: 8px; padding: 16px; margin-bottom: 28px; }
+.done-section h3 { color: var(--green); font-size: 13px; margin-bottom: 10px; }
+.done-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.done-list li { font-size: 12px; color: var(--text-muted); display: flex; align-items: flex-start; gap: 8px; }
+.done-list li::before { content: '✅'; font-size: 11px; margin-top: 1px; flex-shrink: 0; }
+
+/* Bug blocks */
+.bug-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 24px; overflow: hidden; }
+.bug-header { padding: 14px 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--border); }
+.bug-header-left { display: flex; flex-direction: column; gap: 6px; }
+.bug-id { font-size: 11px; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+.bug-title { font-size: 14px; font-weight: 600; color: var(--text); }
+.bug-file { font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-muted); }
+.bug-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 6px; }
+.context-block { background: var(--surface2); border-radius: 6px; padding: 12px; font-size: 12px; line-height: 1.7; }
+.context-block ul { padding-left: 16px; }
+.context-block li { margin-bottom: 3px; }
+code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: rgba(255,255,255,0.06); padding: 1px 5px; border-radius: 3px; }
+
+/* Prompt box */
+.prompt-box { position: relative; }
+.prompt-header { display: flex; align-items: center; justify-content: space-between; background: #0d0b09; border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; padding: 8px 12px; }
+.prompt-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+.copy-btn { font-size: 11px; font-weight: 600; color: var(--primary); background: var(--primary-dim); border: 1px solid rgba(32,201,151,0.3); border-radius: 4px; padding: 4px 10px; cursor: pointer; transition: all 0.15s; }
+.copy-btn:hover { background: rgba(32,201,151,0.25); }
+.prompt-text { background: #0d0b09; border: 1px solid var(--border); border-radius: 0 0 6px 6px; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; line-height: 1.7; color: var(--text); white-space: pre-wrap; word-break: break-word; }
+
+/* Dep note */
+.dep-note { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); padding: 8px 12px; background: var(--surface2); border-radius: 6px; }
+.dep-note::before { content: '⚡'; }
+
+/* Mega prompt */
+.mega-block { background: var(--surface); border: 2px solid rgba(32,201,151,0.3); border-radius: 10px; margin-bottom: 24px; overflow: hidden; }
+.mega-header { background: var(--primary-dim); padding: 14px 16px; border-bottom: 1px solid rgba(32,201,151,0.2); }
+.mega-header h3 { color: var(--primary); font-size: 14px; }
+
+/* Footer */
+.footer { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 32px; }
+.footer strong { color: var(--primary); }
+
+/* P color bands */
+.p2-band { border-left: 3px solid var(--yellow); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <h1>Execution Plan — /crm v1</h1>
+  <p class="sub">Gerado em 2026-03-31 | Baseado em qa-report-2026-03-31.html</p>
+  <div class="meta-row">
+    <span class="meta"><strong>Página:</strong> /crm</span>
+    <span class="meta"><strong>Ciclo:</strong> v1</span>
+    <span class="meta"><strong>P1s já corrigidos:</strong> P1-01, P1-02 (commit be37807d)</span>
+    <span class="meta"><strong>Pendentes:</strong> 3 × P2</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat"><div class="stat-num num-green">2</div><div class="stat-lbl">P1s corrigidos</div></div>
+  <div class="stat"><div class="stat-num num-yellow">3</div><div class="stat-lbl">P2s pendentes</div></div>
+  <div class="stat"><div class="stat-num num-primary">3</div><div class="stat-lbl">Prompts neste plano</div></div>
+  <div class="stat"><div class="stat-num num-green">0</div><div class="stat-lbl">P0 / P1 abertos</div></div>
+</div>
+
+<!-- ALREADY DONE -->
+<div class="done-section">
+  <h3>✅ Já corrigidos nesta sessão (commit be37807d — 2026-03-31)</h3>
+  <ul class="done-list">
+    <li><strong>D1</strong> — RPC <code>distribuir_lead_completo</code>: removida coluna inexistente <code>restricao_uid</code> do SELECT (migration 20260331230001)</li>
+    <li><strong>D2</strong> — RPC <code>distribuir_lead_completo</code>: corrigido <code>net.http_post</code> body de <code>::TEXT</code> para <code>jsonb</code> (migration 20260331230002)</li>
+    <li><strong>D3</strong> — <code>ClienteDrawer.tsx</code>: botões "Distribuição" e "Distribuir" mutuamente exclusivos por <code>coluna_crm</code></li>
+    <li><strong>D4</strong> — <code>CrmPage.tsx</code>: botão kanban "Distribuir" vai direto para <code>ModalDistribuirLead</code> (sem chain checklist→triagem)</li>
+    <li><strong>D5</strong> — <code>ModalDistribuirLead.tsx</code>: adicionado filtro <code>.eq('processavel', true)</code> na query de restrições</li>
+    <li><strong>P1-01</strong> — <code>CrmPage.tsx:129</code>: <code>case 'triagem'</code> → <code>setTriagemLeadId</code> (não <code>setDistribuirLeadId</code>)</li>
+    <li><strong>P1-02</strong> — <code>ModalDistribuirLead.tsx:43</code>: <code>.eq('processavel', true as any)</code> confirmado no arquivo</li>
+  </ul>
+</div>
+
+<!-- INDEX -->
+<div class="index">
+  <div class="index-title">Índice — 3 bugs pendentes</div>
+  <ul class="index-list">
+    <li><a href="#bug-p201">
+      <span class="index-num"><span class="badge badge-warn">P2</span></span>
+      P2-01 — Badge Pipeline inclui leads "convertido" invisíveis no kanban
+    </a></li>
+    <li><a href="#bug-p202">
+      <span class="index-num"><span class="badge badge-warn">P2</span></span>
+      P2-02 — view_crm_leads_kanban: restricoes_processaveis_count = 0 (subestima)
+    </a></li>
+    <li><a href="#bug-p203">
+      <span class="index-num"><span class="badge badge-warn">P2</span></span>
+      P2-03 — CrmListView sem coluna "documentos_pendentes" (leads invisíveis)
+    </a></li>
+    <li><a href="#mega">
+      <span class="index-num"><span class="badge badge-primary">MEGA</span></span>
+      Prompt de Revisão Final (rodar por último)
+    </a></li>
+  </ul>
+</div>
+
+<!-- ─── BUG P2-01 ─── -->
+<div id="bug-p201" class="bug-block p2-band">
+  <div class="bug-header">
+    <div class="bug-header-left">
+      <span class="bug-id">P2-01 · Independente</span>
+      <span class="bug-title">Badge Pipeline inclui leads "convertido" invisíveis no kanban</span>
+      <span class="bug-file">~/beta-mdflow/src/pages/crm/CrmPage.tsx · linha 204</span>
+    </div>
+    <span class="badge badge-warn">P2</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Contexto</div>
+      <div class="context-block">
+        <ul>
+          <li>O badge no tab "Pipeline" mostra <code>totalAtivos</code> calculado em <code>CrmPage.tsx:204</code></li>
+          <li>O filtro atual exclui apenas <code>coluna_crm !== 'arquivados'</code>, mas inclui <code>'convertido'</code></li>
+          <li>O kanban (<code>CrmKanban.tsx</code>) não tem coluna <code>'convertido'</code> — leads convertidos são invisíveis no board</li>
+          <li>Resultado: badge mostra N+3 em relação ao que o usuário vê no kanban (3 leads convertidos no banco)</li>
+          <li>Arquivo a editar: <code>~/beta-mdflow/src/pages/crm/CrmPage.tsx</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <div class="prompt-header">
+          <span class="prompt-label">Copie e cole no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt('prompt-p201')">Copiar</button>
+        </div>
+        <div class="prompt-text" id="prompt-p201">Arquivo: ~/beta-mdflow/src/pages/crm/CrmPage.tsx
+
+Problema: O badge do tab "Pipeline" exibe um número maior do que o kanban realmente mostra.
+
+Causa raiz: O cálculo de `totalAtivos` (linha ~204) filtra apenas `coluna_crm !== 'arquivados'`, mas o kanban não tem coluna 'convertido'. Leads com `coluna_crm = 'convertido'` são contados no badge mas não aparecem no board.
+
+Fix: Alterar o filtro do `totalAtivos` para excluir também 'convertido':
+
+ANTES:
+  const totalAtivos = contagens
+    ?.filter((c) => c.coluna_crm !== 'arquivados')
+    .reduce((sum, c) => sum + (c.total ?? 0), 0) ?? 0;
+
+DEPOIS:
+  const totalAtivos = contagens
+    ?.filter((c) => c.coluna_crm !== 'arquivados' && c.coluna_crm !== 'convertido')
+    .reduce((sum, c) => sum + (c.total ?? 0), 0) ?? 0;
+
+Apenas essa mudança. Não alterar mais nada.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── BUG P2-02 ─── -->
+<div id="bug-p202" class="bug-block p2-band">
+  <div class="bug-header">
+    <div class="bug-header-left">
+      <span class="bug-id">P2-02 · Independente</span>
+      <span class="bug-title">view_crm_leads_kanban: restricoes_processaveis_count = 0 (subestima)</span>
+      <span class="bug-file">view_crm_leads_kanban (Supabase) + CrmLeadCard.tsx:314</span>
+    </div>
+    <span class="badge badge-warn">P2</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Contexto</div>
+      <div class="context-block">
+        <ul>
+          <li>O botão "Distribuir" no kanban card só aparece quando <code>lead.restricoes_processaveis_count > 0</code> (<code>CrmLeadCard.tsx:314</code>)</li>
+          <li>A view <code>view_crm_leads_kanban</code> retorna <code>restricoes_processaveis_count = 0</code> para leads em triagem que têm restrições com <code>processavel=true</code> na tabela <code>restricoes</code></li>
+          <li>A view provavelmente conta restrições do campo JSONB <code>leads.restricoes</code> em vez da tabela <code>restricoes</code>, ou tem filtro adicional que exclui restrições sem <code>orgao_id</code></li>
+          <li>Impacto: leads em triagem com restrições processáveis não exibem o botão "Distribuir" no kanban card</li>
+          <li>Para diagnosticar: verificar a definição da view via <code>pg_views</code> ou via Supabase Studio</li>
+          <li>Arquivo de migration a criar: <code>~/beta-mdflow/supabase/migrations/</code> com timestamp atual</li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <div class="prompt-header">
+          <span class="prompt-label">Copie e cole no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt('prompt-p202')">Copiar</button>
+        </div>
+        <div class="prompt-text" id="prompt-p202">Investigar e corrigir: a view `view_crm_leads_kanban` retorna `restricoes_processaveis_count = 0` para leads em triagem que têm restrições com `processavel=true` na tabela `restricoes`.
+
+Impacto: o botão "Distribuir" no kanban card (CrmLeadCard.tsx:314) não aparece para esses leads porque depende de `restricoes_processaveis_count > 0`.
+
+PASSO 1 — Diagnóstico (não alterar nada):
+
+Consulte a definição da view no Supabase:
+source ~/.env && curl -s \
+  "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/rpc/get_view_definition" \
+  -H "apikey: $SUPABASE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_KEY" \
+  -H "Content-Type: application/json" \
+  -X POST -d '{"view_name": "view_crm_leads_kanban"}' 2>/dev/null | head -5
+
+Se não houver RPC, tente via Management API:
+source ~/.env && curl -s -X POST \
+  "https://api.supabase.com/v1/projects/qdivfairxhdihaqqypgb/database/query" \
+  -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT definition FROM pg_views WHERE viewname = '"'"'view_crm_leads_kanban'"'"'"}' | head -100
+
+OU tente via node com service_role:
+node -e "
+const { createClient } = require('/Users/beto/beta-mdflow/node_modules/@supabase/supabase-js');
+const s = createClient('https://qdivfairxhdihaqqypgb.supabase.co', process.env.SUPABASE_KEY);
+// Verificar colunas da view
+s.from('view_crm_leads_kanban').select('restricoes_processaveis_count').eq('coluna_crm','triagem').limit(5).then(r=>console.log(JSON.stringify(r.data)));
+" 2>&1
+
+Também verificar na tabela restricoes quantas são processáveis para os leads em triagem:
+source ~/.env && node -e "
+const { createClient } = require('/Users/beto/beta-mdflow/node_modules/@supabase/supabase-js');
+const s = createClient('https://qdivfairxhdihaqqypgb.supabase.co', process.env.SUPABASE_KEY);
+s.from('restricoes').select('lead_id, processavel, processo_id').eq('processavel', true).is('processo_id', null).is('deleted_at', null).limit(10).then(r=>console.log(JSON.stringify(r.data)));
+"
+
+PASSO 2 — Entender o problema:
+Identificar se a view usa:
+  (a) O campo JSONB `leads.restricoes` (legado) — provavelmente subestima
+  (b) A tabela `restricoes` com algum filtro extra que exclui restrições sem orgao_id
+
+PASSO 3 — Corrigir:
+Criar migration em ~/beta-mdflow/supabase/migrations/ com nome YYYYMMDDHHMMSS_fix_view_crm_leads_kanban_restricoes_count.sql
+
+O campo `restricoes_processaveis_count` deve contar:
+  SELECT count(*) FROM restricoes r
+  WHERE r.lead_id = leads.id
+    AND r.processavel = true
+    AND r.processo_id IS NULL
+    AND r.deleted_at IS NULL
+
+PASSO 4 — Aplicar:
+cd ~/beta-mdflow && npx supabase migration repair --status reverted 20260304 20260306 20260307 20260308 20260312 20260320 20260325 2>/dev/null; npx supabase db push --linked --include-all 2>&1 | tail -5
+
+PASSO 5 — Verificar:
+source ~/.env && node -e "
+const { createClient } = require('/Users/beto/beta-mdflow/node_modules/@supabase/supabase-js');
+const s = createClient('https://qdivfairxhdihaqqypgb.supabase.co', process.env.SUPABASE_KEY);
+s.from('view_crm_leads_kanban').select('id,nome,coluna_crm,restricoes_processaveis_count').eq('coluna_crm','triagem').limit(5).then(r=>console.log(JSON.stringify(r.data)));
+"
+// Deve mostrar count > 0 para leads com restrições processáveis</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── BUG P2-03 ─── -->
+<div id="bug-p203" class="bug-block p2-band">
+  <div class="bug-header">
+    <div class="bug-header-left">
+      <span class="bug-id">P2-03 · Independente</span>
+      <span class="bug-title">CrmListView sem coluna "documentos_pendentes" (leads invisíveis na vista Lista)</span>
+      <span class="bug-file">~/beta-mdflow/src/components/crm/CrmListView.tsx · linha 35</span>
+    </div>
+    <span class="badge badge-warn">P2</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Contexto</div>
+      <div class="context-block">
+        <ul>
+          <li>O kanban (<code>CrmKanban.tsx</code>) tem 6 colunas: <code>novos, em_atendimento, aguardando_documentos, documentos_pendentes, aguardando_assinatura, triagem</code></li>
+          <li>A lista (<code>CrmListView.tsx:35</code>) tem apenas 5: <code>novos, em_atendimento, aguardando_documentos, aguardando_assinatura, triagem</code> — falta <code>documentos_pendentes</code></li>
+          <li>Leads com <code>coluna_crm = 'documentos_pendentes'</code> ficam invisíveis quando o usuário muda para a vista Lista</li>
+          <li>Impacto atual baixo (nenhum lead nessa coluna hoje), mas pode crescer</li>
+        </ul>
+      </div>
+    </div>
+
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-box">
+        <div class="prompt-header">
+          <span class="prompt-label">Copie e cole no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt('prompt-p203')">Copiar</button>
+        </div>
+        <div class="prompt-text" id="prompt-p203">Arquivo: ~/beta-mdflow/src/components/crm/CrmListView.tsx
+
+Problema: A vista Lista do CRM não inclui a coluna "documentos_pendentes", então leads nessa coluna ficam invisíveis ao mudar de Kanban para Lista.
+
+O array COLUNAS atual (linha ~35):
+  const COLUNAS = [
+    { key: 'novos', label: 'Novos' },
+    { key: 'em_atendimento', label: 'Em Atendimento' },
+    { key: 'aguardando_documentos', label: 'Aguardando Documentos' },
+    { key: 'aguardando_assinatura', label: 'Aguardando Assinatura' },
+    { key: 'triagem', label: 'Triagem' },
+  ];
+
+O array COLUNAS correto (alinhar com CrmKanban.tsx):
+  const COLUNAS = [
+    { key: 'novos', label: 'Novos' },
+    { key: 'em_atendimento', label: 'Em Atendimento' },
+    { key: 'aguardando_documentos', label: 'Aguardando Documentos' },
+    { key: 'documentos_pendentes', label: 'Docs Pendentes' },
+    { key: 'aguardando_assinatura', label: 'Aguardando Assinatura' },
+    { key: 'triagem', label: 'Triagem' },
+  ];
+
+Apenas adicionar o item { key: 'documentos_pendentes', label: 'Docs Pendentes' } na posição correta (entre aguardando_documentos e aguardando_assinatura). Não alterar mais nada.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MEGA PROMPT ─── -->
+<div id="mega" class="mega-block">
+  <div class="mega-header">
+    <h3>🔍 Mega Prompt de Revisão Final — Rodar DEPOIS dos 3 prompts acima</h3>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">O que esse prompt faz</div>
+      <div class="context-block">
+        Verifica cada fix aplicado com evidência real, faz git commit+push e gera HTML de resultado.
+      </div>
+    </div>
+
+    <div>
+      <div class="prompt-box">
+        <div class="prompt-header">
+          <span class="prompt-label">Mega Prompt — Copie e cole no Claude Code por último</span>
+          <button class="copy-btn" onclick="copyPrompt('prompt-mega')">Copiar</button>
+        </div>
+        <div class="prompt-text" id="prompt-mega">Você acabou de aplicar os fixes P2-01, P2-02 e P2-03 da página /crm.
+
+Faça a revisão completa com evidências reais:
+
+═══ VERIFICAÇÕES ═══
+
+BUG P2-01 (CrmPage.tsx — totalAtivos exclui 'convertido'):
+- Ler ~/beta-mdflow/src/pages/crm/CrmPage.tsx
+- Confirmar que o filtro tem: c.coluna_crm !== 'arquivados' && c.coluna_crm !== 'convertido'
+- Resultado esperado: ✅ código correto
+
+BUG P2-02 (view_crm_leads_kanban — restricoes_processaveis_count):
+- Verificar se migration foi criada e aplicada:
+  source ~/.env && cd ~/beta-mdflow && npx supabase migration repair --status reverted 20260304 20260306 20260307 20260308 20260312 20260320 20260325 2>/dev/null; npx supabase db push --linked --include-all 2>&1 | tail -3
+- Confirmar resultado no banco:
+  source ~/.env && node -e "
+  const { createClient } = require('/Users/beto/beta-mdflow/node_modules/@supabase/supabase-js');
+  const s = createClient('https://qdivfairxhdihaqqypgb.supabase.co', process.env.SUPABASE_KEY);
+  s.from('view_crm_leads_kanban').select('id,nome,coluna_crm,restricoes_processaveis_count').eq('coluna_crm','triagem').limit(5).then(r=>console.log(JSON.stringify(r.data)));
+  "
+- Resultado esperado: leads em triagem com restrições processáveis mostram count > 0
+
+BUG P2-03 (CrmListView.tsx — coluna documentos_pendentes):
+- Ler ~/beta-mdflow/src/components/crm/CrmListView.tsx
+- Confirmar que 'documentos_pendentes' está no array COLUNAS
+- Resultado esperado: ✅ array tem 6 colunas incluindo documentos_pendentes
+
+═══ TYPESCRIPT ═══
+
+cd ~/beta-mdflow && npx tsc --noEmit 2>&1 | grep "error TS" | head -10
+
+═══ GIT COMMIT + PUSH (obrigatório) ═══
+
+cd ~/beta-mdflow
+git add -A
+git commit -m "fix(crm): execution-v1 — P2-01 badge convertido, P2-02 view kanban count, P2-03 list colunas
+
+Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>"
+git push origin main
+
+═══ GERAR HTML DE RESULTADO ═══
+
+Gerar arquivo ~/jarbas-reports/beto/crm/execution-result-v1-2026-03-31.html com:
+
+1. Tabela de status:
+   | BUG | Status | Evidência | Observação |
+   | P2-01 | ✅/❌/⚠️ | [código/output] | |
+   | P2-02 | ✅/❌/⚠️ | [output curl/node] | |
+   | P2-03 | ✅/❌/⚠️ | [código] | |
+
+2. Hash do commit (git log --oneline -1)
+3. Migrations aplicadas (se P2-02 necessitou)
+4. O que ainda precisa ser feito (se algum ❌)
+
+CSS obrigatório:
+:root {
+  --bg: #12100e; --surface: #1a1715; --border: #2d2925;
+  --primary: #20c997; --text: #e8e0d8; --muted: #8a7f78;
+  --green: #22c55e; --red: #ef4444; --yellow: #f59e0b;
+}
+body { background: var(--bg); color: var(--text); font-family: Inter, sans-serif; padding: 24px; max-width: 900px; margin: 0 auto; }
+
+Salvar e fazer commit+push do report:
+cd ~/jarbas-reports && git add beto/ && git commit -m "beto: execution-result /crm v1 2026-03-31" && git push</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>Execute os <strong>3 prompts</strong> individualmente, depois rode o <strong>Mega Prompt de Revisão</strong>.</p>
+  <p style="margin-top:8px;">Quando tiver o HTML de resultado, mande aqui para análise automática → gerarei v2 se necessário ou sugerirei <code>/page-finalize crm</code>.</p>
+</div>
+
+<script>
+function copyPrompt(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const btn = el.parentElement.parentElement.querySelector('.copy-btn');
+    const orig = btn.textContent;
+    btn.textContent = 'Copiado ✓';
+    btn.style.color = '#22c55e';
+    setTimeout(() => { btn.textContent = orig; btn.style.color = ''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>

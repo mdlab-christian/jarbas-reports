@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.16 (2026-03-31)</title>
+<title>MdFlow Core — Referência Técnica v4.17 (2026-03-31)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -1972,17 +1972,120 @@
 <section id="page-decisoes" class="page-section">
   <div class="pg-header">
     <h2>Decisões</h2>
-    <p class="sub">Registro e análise de decisões judiciais</p>
-    <div class="badge-row"><span class="badge badge-route">/decisoes</span><span class="badge badge-info">Dispara deep link p/ Execuções</span></div>
+    <p class="sub">Gestão de decisões judiciais — sentenças, tutelas, acórdãos, despachos</p>
+    <div class="badge-row">
+      <span class="badge badge-route">/decisoes</span>
+      <span class="badge badge-ok">✅ Operacional</span>
+      <span style="font-size:11px;color:#9e978a;">QA + Execution v1 — 2026-03-31</span>
+    </div>
   </div>
+
   <details open>
-    <summary>📋 Core + Ligações</summary>
+    <summary>🏗️ Estrutura — 24 Arquivos (5.037 linhas)</summary>
     <div class="details-body">
-      <p>Registro de decisões judiciais. Para decisões favoráveis, botão "Criar Execução" navega para /execucoes com pré-preenchimento. Análise de prazo de recurso.</p>
-      <ul class="ilist" style="margin-top: 12px;">
-        <li><span class="tag tag-table">decisoes</span> CRUD — tipo, resultado, data_publicacao, valor_condenacao, recurso_prazo</li>
-        <li><span class="tag tag-table">processos</span> Join</li>
-        <li>→ Execuções: <code>navigate('/execucoes?nova=true&decisao_id=X&processo_id=Y&valor=Z')</code></li>
+      <div class="tree">
+<span class="c">src/pages/decisoes/</span>
+├── <span class="f">index.tsx</span>                           <span class="m">— Entry point: 6 tabs (Dashboard, Aguardando, Tutelas, Mérito+, Mérito-, Arquivadas)</span>
+├── types/
+│   └── <span class="f">decisoes.types.ts</span>               <span class="m">— Decisao, DecisaoFormData, labels, cores, INITIAL_FORM_DATA</span>
+├── hooks/
+│   ├── <span class="f">useDecisoes.ts</span>                  <span class="m">— Query principal + Realtime subscription (cleanup ok)</span>
+│   └── <span class="f">useDecisoesDashboard.ts</span>         <span class="m">— KPIs dashboard (porResultado, porTipo, metaMes)</span>
+├── components/
+│   ├── <span class="f">DecisoesDashboard.tsx</span>           <span class="m">— Dashboard KPIs + donut chart (Recharts) + meta mensal</span>
+│   ├── <span class="f">DecisaoCard.tsx</span>                 <span class="m">— Card decisão (tutelas/mérito) com ações contextuais</span>
+│   ├── <span class="f">DecisaoListTab.tsx</span>              <span class="m">— Tab genérica com filtros + paginação</span>
+│   ├── <span class="f">AguardandoCard.tsx</span>              <span class="m">— Card "aguardando validação" (urgência 48h, aprovar/rejeitar)</span>
+│   ├── <span class="f">AguardandoTabContent.tsx</span>        <span class="m">— Tab Aguardando com filtros específicos</span>
+│   ├── <span class="f">DecisaoCalculoSection.tsx</span>       <span class="m">— Cálculo valor atualizado (IPCA/INPC/SELIC/CDI)</span>
+│   └── <span class="f">DecisaoStatusBadge.tsx</span>          <span class="m">— Badges de status e resultado</span>
+└── modals/
+    ├── <span class="f">DecisaoModalShell.tsx</span>           <span class="m">— Modal detalhe: 5 abas (Dados, Processo, Documentos, Histórico, IA)</span>
+    ├── <span class="f">ModalAprovarDecisao.tsx</span>         <span class="m">— Aprovar + opção criar execução + confetti</span>
+    ├── <span class="f">ModalArquivar.tsx</span>               <span class="m">— Arquivar (RPC rpc_decisoes_arquivar)</span>
+    ├── <span class="f">ModalConfirmarDesarquivar.tsx</span>   <span class="m">— Desarquivar (motivo ≥10 chars)</span>
+    ├── <span class="f">ModalConfirmarRejeicao.tsx</span>      <span class="m">— Rejeitar análise (motivo ≥10 chars)</span>
+    ├── <span class="f">ModalHistoricoInsights.tsx</span>      <span class="m">— Insights históricos</span>
+    ├── <span class="f">ModalImportarDecisoes.tsx</span>       <span class="m">— Importar decisões (upload IA)</span>
+    ├── <span class="f">ModalNovaDecisaoManual.tsx</span>      <span class="m">— Wizard 3 steps (Processo → Dados → Arquivo)</span>
+    ├── <span class="f">ModalNotificarCliente.tsx</span>       <span class="m">— Notificar via WhatsApp/Email (webhook n8n)</span>
+    ├── components/
+    │   └── <span class="f">RecursosVinculados.tsx</span>      <span class="m">— Recursos interpostos (query decisoes_recursos)</span>
+    └── steps/
+        ├── <span class="f">Step1Informacoes.tsx</span>        <span class="m">— Processo + tipo + resultado</span>
+        ├── <span class="f">Step2Detalhes.tsx</span>           <span class="m">— Datas, valores, julgador, ementa</span>
+        └── <span class="f">Step3Arquivo.tsx</span>            <span class="m">— Upload PDF + providências</span>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>📋 Banco + RPCs</summary>
+    <div class="details-body">
+      <div class="section-title">Tabelas</div>
+      <ul class="ilist">
+        <li><span class="tag tag-table">decisoes</span> Principal — 24+ colunas, soft delete, RLS modelo A (4 policies)</li>
+        <li><span class="tag tag-table">decisoes_recursos</span> Recursos interpostos vinculados</li>
+        <li><span class="tag tag-table">decisoes_analises</span> Resultados de análise IA</li>
+      </ul>
+      <div class="section-title">RPCs (7)</div>
+      <ul class="ilist">
+        <li><code>rpc_decisoes_aprovar</code> — Aprovar decisão (SECURITY DEFINER)</li>
+        <li><code>rpc_decisoes_arquivar</code> / <code>rpc_decisoes_desarquivar</code> — Arquivo (SSOT: campo <code>arquivada</code> boolean)</li>
+        <li><code>rpc_decisoes_rejeitar</code> — Rejeitar análise</li>
+        <li><code>rpc_decisoes_criar_execucao</code> — Criar execução a partir de decisão favorável</li>
+        <li><code>rpc_calcular_valor_atualizado</code> — Cálculo com juros/correção (IPCA/INPC/SELIC/CDI)</li>
+        <li><code>rpc_decisoes_inserir_via_pipeline</code> — INSERT atômico do controller pipeline</li>
+      </ul>
+      <div class="section-title">Trigger</div>
+      <ul class="ilist">
+        <li><code>fn_trg_decisao_update_processo</code> — Atualiza <code>processos.ultima_decisao_*</code> (filtra <code>arquivada=false AND deleted_at IS NULL</code>)</li>
+      </ul>
+      <div class="section-title">Regra importante</div>
+      <ul class="ilist">
+        <li><code>arquivada</code> (bool) = SSOT para arquivo. <code>status_analise</code> = ciclo de análise (pendente/processando/aprovado/rejeitado/erro). Ortogonais.</li>
+        <li>CHECK constraint: <code>status_analise IN ('pendente','processando','aprovado','rejeitado','erro')</code></li>
+        <li>11 índices em organizacao_id (incl. parciais active/archived)</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>🔗 Ligações</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>→ <strong>Execuções:</strong> Decisão favorável → "Criar Execução" (deep link + RPC)</li>
+        <li>→ <strong>Controller:</strong> Pipeline gera decisões via <code>rpc_decisoes_inserir_via_pipeline</code></li>
+        <li>→ <strong>n8n:</strong> Webhooks <code>decisoes/notificar</code> (WhatsApp/Email) e <code>decisoes/analisar</code> (IA async)</li>
+        <li>← <strong>Processos:</strong> Trigger atualiza <code>processos.ultima_decisao_*</code></li>
+        <li><span class="tag tag-hook">realtime</span> Canal <code>decisoes-realtime</code> filtrado por organizacao_id</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>✅ QA Execution v1 — 2026-03-31 (16 bugs corrigidos)</summary>
+    <div class="details-body">
+      <div class="section-title">Frontend (14 fixes)</div>
+      <ul class="ilist">
+        <li>P0: Hardcode yellow-400/blue-400 → warning/info (RecursosVinculados.tsx)</li>
+        <li>P1: getComputedStyle com fallback hex → cores diretas (ModalAprovarDecisao.tsx)</li>
+        <li>P1: Duplo as unknown as unknown → single cast (ModalAprovarDecisao.tsx)</li>
+        <li>P1: 10x <code>as any</code> removidos em chamadas Supabase (tipos já existiam)</li>
+        <li>P1: UPDATE sem organizacao_id explícito (ModalNovaDecisaoManual.tsx)</li>
+        <li>P1: async desnecessário em onClick síncrono (DecisaoModalShell.tsx)</li>
+      </ul>
+      <div class="section-title">Banco (2 fixes + 3 validações)</div>
+      <ul class="ilist">
+        <li>P0: Conflito arquivada vs status_analise resolvido (migration 20260401000002)</li>
+        <li>P1: CHECK constraint em status_analise aplicada</li>
+        <li>Validado: RLS ON + 4 policies + 11 índices — tudo OK</li>
+      </ul>
+      <div class="section-title">Pendências P2</div>
+      <ul class="ilist">
+        <li>⚠️ FK bidirecional intimacao_id (ambos campos vazios — sem urgência)</li>
+        <li>⚠️ Empty states sem CTA</li>
+        <li>⚠️ Componentes com >15 imports (refactoring)</li>
       </ul>
     </div>
   </details>

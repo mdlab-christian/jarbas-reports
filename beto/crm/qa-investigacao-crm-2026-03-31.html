@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QA Investigação CRM — Drawer Documentos, Restrições, Auditoria e Distribuição</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --surface: #1a1714;
+    --card: #201d1a;
+    --card2: #252119;
+    --border: #2e2b27;
+    --border2: #3a3530;
+    --primary: #20c997;
+    --primary-dim: rgba(32,201,151,0.12);
+    --primary-dim2: rgba(32,201,151,0.06);
+    --warn: #f59e0b;
+    --warn-dim: rgba(245,158,11,0.12);
+    --danger: #ef4444;
+    --danger-dim: rgba(239,68,68,0.12);
+    --success: #22c55e;
+    --success-dim: rgba(34,197,94,0.12);
+    --info: #60a5fa;
+    --info-dim: rgba(96,165,250,0.12);
+    --text: #f2efe8;
+    --muted: #9e978a;
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .header {
+    border: 1px solid var(--border2);
+    border-left: 4px solid var(--primary);
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin-bottom: 28px;
+  }
+  .header h1 { font-size: 20px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+  .header .meta { font-size: 12px; color: var(--muted); display: flex; gap: 20px; flex-wrap: wrap; margin-top: 8px; }
+  .header .meta span { display: flex; align-items: center; gap: 5px; }
+
+  /* ── Nav ── */
+  .nav {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 28px;
+  }
+  .nav a {
+    padding: 6px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--muted); text-decoration: none;
+    font-size: 12px; transition: all 0.15s;
+  }
+  .nav a:hover { border-color: var(--primary); color: var(--primary); }
+
+  /* ── Summary cards ── */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 28px;
+  }
+  @media(max-width: 900px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
+  .summary-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; text-align: center;
+  }
+  .summary-card .num { font-size: 28px; font-weight: 800; font-family: var(--mono); }
+  .summary-card .lbl { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .num-p0 { color: var(--danger); }
+  .num-p1 { color: var(--warn); }
+  .num-p2 { color: var(--info); }
+  .num-ok { color: var(--success); }
+
+  /* ── Section ── */
+  .section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .section-header h2 { font-size: 15px; font-weight: 700; }
+  .section-header .section-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .section-body { padding: 20px; }
+
+  /* ── Subsection ── */
+  .subsection {
+    border: 1px solid var(--border);
+    border-radius: 8px; margin-bottom: 16px; overflow: hidden;
+  }
+  .subsection-header {
+    padding: 12px 16px; background: var(--card);
+    border-bottom: 1px solid var(--border);
+    font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px;
+  }
+  .subsection-body { padding: 16px; }
+
+  /* ── Bug Card ── */
+  .bug-card {
+    border-radius: 8px; margin-bottom: 16px; overflow: hidden;
+    border-left: 4px solid;
+  }
+  .bug-card.p0 { border-left-color: var(--danger); background: var(--danger-dim); border: 1px solid rgba(239,68,68,0.2); border-left: 4px solid var(--danger); }
+  .bug-card.p1 { border-left-color: var(--warn); background: var(--warn-dim); border: 1px solid rgba(245,158,11,0.2); border-left: 4px solid var(--warn); }
+  .bug-card.p2 { border-left-color: var(--info); background: var(--info-dim); border: 1px solid rgba(96,165,250,0.2); border-left: 4px solid var(--info); }
+  .bug-card.ok { border-left-color: var(--success); background: var(--success-dim); border: 1px solid rgba(34,197,94,0.2); border-left: 4px solid var(--success); }
+  .bug-header {
+    padding: 14px 16px;
+    display: flex; align-items: flex-start; gap: 12px;
+  }
+  .bug-badge {
+    padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700;
+    font-family: var(--mono); flex-shrink: 0; margin-top: 2px;
+  }
+  .badge-p0 { background: rgba(239,68,68,0.2); color: var(--danger); }
+  .badge-p1 { background: rgba(245,158,11,0.2); color: var(--warn); }
+  .badge-p2 { background: rgba(96,165,250,0.2); color: var(--info); }
+  .badge-ok { background: rgba(34,197,94,0.2); color: var(--success); }
+  .bug-title { font-size: 14px; font-weight: 700; flex: 1; }
+  .bug-body { padding: 0 16px 16px 16px; }
+  .bug-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+  .bug-file {
+    font-family: var(--mono); font-size: 11px; color: var(--primary);
+    background: var(--primary-dim); padding: 3px 8px; border-radius: 4px;
+    border: 1px solid rgba(32,201,151,0.2);
+  }
+
+  /* ── Code block ── */
+  pre {
+    background: #0d0b09; border: 1px solid var(--border);
+    border-radius: 6px; padding: 14px; overflow-x: auto;
+    font-family: var(--mono); font-size: 12px; line-height: 1.6;
+    margin: 10px 0; color: #d4cfc7;
+  }
+  code { font-family: var(--mono); font-size: 12px; }
+  .hl-bad { color: var(--danger); font-weight: bold; }
+  .hl-good { color: var(--success); font-weight: bold; }
+  .hl-neutral { color: var(--warn); }
+  .hl-path { color: var(--primary); }
+  .hl-comment { color: var(--muted); }
+
+  /* ── Table ── */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th { background: var(--card); padding: 10px 12px; font-size: 11px; text-align: left; color: var(--muted); border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  /* ── Flow diagram ── */
+  .flow {
+    display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+    background: var(--card); border-radius: 8px; padding: 16px;
+    border: 1px solid var(--border); margin: 12px 0;
+  }
+  .flow-step {
+    background: var(--card2); border: 1px solid var(--border2);
+    border-radius: 6px; padding: 8px 14px; font-size: 12px; font-weight: 600;
+    text-align: center; min-width: 80px;
+  }
+  .flow-step.ok { border-color: rgba(34,197,94,0.4); color: var(--success); }
+  .flow-step.warn { border-color: rgba(245,158,11,0.4); color: var(--warn); }
+  .flow-step.bad { border-color: rgba(239,68,68,0.4); color: var(--danger); }
+  .flow-arrow { color: var(--muted); font-size: 16px; padding: 0 8px; }
+  .flow-label { font-size: 10px; color: var(--muted); text-align: center; margin-top: 4px; }
+
+  /* ── Tier card ── */
+  .tier-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 14px; margin-bottom: 12px;
+  }
+  .tier-card h4 { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--primary); }
+  .tier-card ul { list-style: none; space-y: 4px; }
+  .tier-card li { font-size: 12px; color: var(--muted); padding: 3px 0; display: flex; align-items: flex-start; gap: 8px; }
+  .tier-card li::before { content: '›'; color: var(--primary); flex-shrink: 0; }
+  .tier-card li.bad::before { content: '✗'; color: var(--danger); }
+  .tier-card li.ok::before { content: '✓'; color: var(--success); }
+  .tier-card li.warn::before { content: '⚠'; color: var(--warn); }
+
+  /* ── Badges ── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .badge-primary { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(32,201,151,0.25); }
+  .badge-success { background: var(--success-dim); color: var(--success); border: 1px solid rgba(34,197,94,0.25); }
+  .badge-warn { background: var(--warn-dim); color: var(--warn); border: 1px solid rgba(245,158,11,0.25); }
+  .badge-danger { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(239,68,68,0.25); }
+  .badge-muted { background: rgba(158,151,138,0.1); color: var(--muted); border: 1px solid rgba(158,151,138,0.2); }
+
+  /* ── Fix proposal box ── */
+  .fix-box {
+    background: var(--primary-dim2); border: 1px solid rgba(32,201,151,0.2);
+    border-radius: 8px; padding: 14px; margin-top: 12px;
+  }
+  .fix-box h5 { color: var(--primary); font-size: 12px; font-weight: 700; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .fix-box ul { list-style: none; }
+  .fix-box li { font-size: 12px; color: var(--text); padding: 3px 0; display: flex; align-items: flex-start; gap: 8px; }
+  .fix-box li::before { content: '→'; color: var(--primary); flex-shrink: 0; }
+
+  /* ── Separator ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+
+  /* ── Info box ── */
+  .info-box { border: 1px solid var(--border2); border-radius: 8px; padding: 14px; margin: 12px 0; }
+  .info-box.info { background: var(--info-dim); border-color: rgba(96,165,250,0.2); }
+  .info-box.warn { background: var(--warn-dim); border-color: rgba(245,158,11,0.2); }
+  .info-box.success { background: var(--success-dim); border-color: rgba(34,197,94,0.2); }
+  .info-box.danger { background: var(--danger-dim); border-color: rgba(239,68,68,0.2); }
+  .info-box p { font-size: 13px; }
+
+  /* ── Checklist ── */
+  .checklist { list-style: none; }
+  .checklist li { padding: 5px 0; font-size: 13px; display: flex; align-items: flex-start; gap: 8px; border-bottom: 1px solid var(--border); }
+  .checklist li:last-child { border-bottom: none; }
+  .ci { width: 20px; height: 20px; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+  .ci-ok { background: var(--success-dim); color: var(--success); }
+  .ci-bad { background: var(--danger-dim); color: var(--danger); }
+  .ci-warn { background: var(--warn-dim); color: var(--warn); }
+  .ci-info { background: var(--info-dim); color: var(--info); }
+
+  /* ── Tag row ── */
+  .tag-row { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 24px; color: var(--muted); font-size: 12px; border-top: 1px solid var(--border); margin-top: 32px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     HEADER
+═══════════════════════════════════════════════════ -->
+<div class="header">
+  <h1>🔍 Investigação QA — CRM Drawer</h1>
+  <p style="color:var(--muted); font-size:13px; margin-top:6px;">
+    Investigação profunda de 4 áreas do CRM: aba Documentos, aba Restrições, matching nome auditoria e fluxo CRM→Distribuição.
+    <br><strong style="color:var(--text)">Relatório pré-execução</strong> — para validação antes das correções.
+  </p>
+  <div class="meta">
+    <span>📅 2026-03-31</span>
+    <span>🔬 Modo QA (sem alterações de código)</span>
+    <span>📁 Arquivos lidos: 12</span>
+    <span>🐛 Bugs: 1 × P0 | 2 × P1 | 2 × P2</span>
+  </div>
+</div>
+
+<!-- Nav -->
+<div class="nav">
+  <a href="#sumario">Resumo</a>
+  <a href="#area1">Aba Documentos</a>
+  <a href="#area2">Aba Restrições</a>
+  <a href="#area3">Auditoria CPF</a>
+  <a href="#area4">CRM → Distribuição</a>
+  <a href="#bugs">Todos os Bugs</a>
+  <a href="#plano">Plano de Execução</a>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SUMMARY
+═══════════════════════════════════════════════════ -->
+<div id="sumario" class="summary-grid">
+  <div class="summary-card">
+    <div class="num num-p0">1</div>
+    <div class="lbl">P0 — Crítico</div>
+  </div>
+  <div class="summary-card">
+    <div class="num num-p1">2</div>
+    <div class="lbl">P1 — Importante</div>
+  </div>
+  <div class="summary-card">
+    <div class="num num-p2">2</div>
+    <div class="lbl">P2 — Melhoria</div>
+  </div>
+  <div class="summary-card">
+    <div class="num num-ok">3</div>
+    <div class="lbl">Funcionando ✓</div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     ÁREA 1 — ABA DOCUMENTOS
+═══════════════════════════════════════════════════ -->
+<div id="area1" class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(96,165,250,0.12);">📁</div>
+    <div>
+      <h2>Área 1 — Aba Documentos do Drawer</h2>
+      <p style="font-size:12px;color:var(--muted)">ClienteDrawerTabDocumentosLead.tsx · RestricaoPastaCard.tsx · DocumentoItem.tsx · documentos_lead_hooks.ts</p>
+    </div>
+  </div>
+  <div class="section-body">
+
+    <!-- Arquitetura -->
+    <div class="subsection">
+      <div class="subsection-header">🏗️ Arquitetura atual — 3 tiers</div>
+      <div class="subsection-body">
+        <p style="color:var(--muted);font-size:12px;margin-bottom:14px;">
+          Todos os documentos (lead, restrição, processo) ficam na mesma tabela <code>processos_documentos</code>, diferenciados por <code>categoria</code> + relacionamentos. Storage: bucket <code>leads-docs</code>.
+        </p>
+
+        <div class="tier-card">
+          <h4>Tier 1 — Documentos Centrais do Lead</h4>
+          <ul>
+            <li class="ok">Categoria: <code>documento_lead</code>, <code>restricao_id = null</code></li>
+            <li class="ok">Upload com drag-drop na área central</li>
+            <li class="ok">Lista de arquivos com <code>DocumentoItem</code> (Abrir, Baixar, Renomear, Excluir)</li>
+            <li class="bad">Sem seleção múltipla — apenas ações individuais por arquivo</li>
+          </ul>
+        </div>
+
+        <div class="tier-card" style="border-color:rgba(245,158,11,0.3);">
+          <h4 style="color:var(--warn);">Tier 2 — Pastas por Restrição Processável (RestricaoPastaCard)</h4>
+          <ul>
+            <li class="ok">Categoria: <code>documento_restricao</code> — uma pasta accordion por restrição processável</li>
+            <li class="ok">Upload com drag-drop por pasta</li>
+            <li class="ok">Cada arquivo tem ações individuais via <code>DocumentoItem</code> (Abrir, Baixar, Renomear, Excluir)</li>
+            <li class="warn">Tier 1 docs aparecem dentro de cada pasta também (por design — visibilidade)</li>
+            <li class="bad"><strong>Sem checkboxes de seleção múltipla</strong> — não tem bulk select</li>
+            <li class="bad"><strong>Sem botão de apagar a PASTA (restrição)</strong> no header do card</li>
+          </ul>
+        </div>
+
+        <div class="tier-card">
+          <h4>Tier 3 — Contratos Gerados (ProcessosDocs)</h4>
+          <ul>
+            <li class="ok">Docs vinculados a processos gerados após distribuição</li>
+            <li class="ok">Botão "Gerar Petição" / "Gerar Procuração" por processo</li>
+            <li class="ok">Tem seleção múltipla — mas apenas para Download (não Rename/Delete)</li>
+            <li class="warn">Label muda com <code>isDistribuicao</code>: "Gerar Petição" vs "Gerar Procuração"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- DocumentoItem actions -->
+    <div class="subsection">
+      <div class="subsection-header">⚡ Ações individuais do DocumentoItem (por arquivo)</div>
+      <div class="subsection-body">
+        <table>
+          <thead><tr><th>Ação</th><th>Ícone</th><th>Comportamento</th><th>Tier 1</th><th>Tier 2</th><th>Bulk?</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Abrir</td><td><code>ExternalLink</code></td>
+              <td>Abre em nova aba. Resolve signed URL do Storage se necessário.</td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-danger">✗</span></td>
+            </tr>
+            <tr>
+              <td>Baixar</td><td><code>Download</code></td>
+              <td>Fetch + Blob download. Fallback para nova aba se CORS bloquear.</td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-warn">Tier 3 só</span></td>
+            </tr>
+            <tr>
+              <td>Renomear</td><td><code>Pencil</code></td>
+              <td>Inline edit. Salva em <code>processos_documentos.nome</code> via Supabase.</td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-danger">✗</span></td>
+            </tr>
+            <tr>
+              <td>Excluir</td><td><code>Trash2</code></td>
+              <td>Soft-delete (<code>deleted_at</code>) com undo toast de 3.2s.</td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-success">✓</span></td>
+              <td><span class="badge badge-danger">✗</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="info-box warn">
+          <p>⚠️ <strong>DocumentoItem.tsx linha 79/105</strong>: usa <code>supabase.from('processos_documentos' as any)</code> para rename e delete. Isso é <strong>correto</strong> — documentos de lead são armazenados nesta tabela com <code>lead_id</code> e <code>categoria='documento_lead'</code>. Não é um bug de tabela errada.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-001 -->
+    <div class="bug-card p1" id="bug-001">
+      <div class="bug-header">
+        <span class="bug-badge badge-p1">P1</span>
+        <div>
+          <div class="bug-title">BUG-001 — Tier 2 sem seleção múltipla de documentos nas pastas</div>
+          <div class="tag-row">
+            <span class="bug-file">RestricaoPastaCard.tsx:162-339</span>
+            <span class="bug-file">ClienteDrawerTabDocumentosLead.tsx</span>
+          </div>
+        </div>
+      </div>
+      <div class="bug-body">
+        <p style="margin-bottom:10px;">Dentro de cada pasta de restrição (<code>RestricaoPastaCard</code>), os arquivos têm ações individuais mas não há checkboxes para seleção múltipla. A solicitação é adicionar bulk select com as mesmas ações disponíveis individualmente.</p>
+
+        <p style="font-size:12px;color:var(--muted);margin-bottom:8px;"><strong style="color:var(--text)">Estado atual:</strong></p>
+        <pre><span class="hl-comment">// RestricaoPastaCard.tsx — lista de documentos (linha ~220)</span>
+<span class="hl-bad">{documentos.map((doc) => (</span>
+  &lt;DocumentoItem key={doc.id} doc={doc} onRefetch={onRefetch} /&gt;
+<span class="hl-bad">))}</span>
+<span class="hl-comment">// ↑ Nenhum checkbox. Nenhum estado de seleção. Nenhuma toolbar de bulk.</span></pre>
+
+        <div class="fix-box">
+          <h5>Proposta de correção</h5>
+          <ul>
+            <li>Adicionar estado <code>selectedDocs: Set&lt;string&gt;</code> no <code>RestricaoPastaCard</code></li>
+            <li>Adicionar checkbox por <code>DocumentoItem</code> (ou wrapper com checkbox)</li>
+            <li>Quando <code>selectedDocs.size &gt; 0</code>: mostrar toolbar com ações em massa</li>
+            <li>Ações em massa: Baixar selecionados | Excluir selecionados (Renomear não faz sentido em bulk)</li>
+            <li>Checkbox "Selecionar todos" no header da lista de docs</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-002 -->
+    <div class="bug-card p2" id="bug-002">
+      <div class="bug-header">
+        <span class="bug-badge badge-p2">P2</span>
+        <div>
+          <div class="bug-title">BUG-002 — RestricaoPastaCard sem botão de apagar a pasta (restrição)</div>
+          <div class="tag-row">
+            <span class="bug-file">RestricaoPastaCard.tsx:162-210 (header)</span>
+          </div>
+        </div>
+      </div>
+      <div class="bug-body">
+        <p style="margin-bottom:10px;">O header do <code>RestricaoPastaCard</code> mostra empresa_nome, valor, data — mas não tem botão de excluir a restrição. Para deletar uma restrição pelo drawer, o usuário precisa ir à aba "Restrições" e apagar de lá.</p>
+
+        <div class="info-box success" style="margin-bottom:12px;">
+          <p>✅ <strong>Nota importante:</strong> A aba <strong>Restrições</strong> (<code>ClienteDrawerTabRestricoes.tsx</code>) JÁ TEM botão de delete por restrição (Trash2, linhas 325-337) com AlertDialog de confirmação. O que está faltando é SOMENTE na aba <strong>Documentos</strong>, no header do card da pasta.</p>
+        </div>
+
+        <p style="font-size:12px;color:var(--muted);margin-bottom:8px;"><strong style="color:var(--text)">Estado atual do header:</strong></p>
+        <pre><span class="hl-comment">// RestricaoPastaCard.tsx — header (linha ~179)</span>
+<span class="hl-bad">&lt;div&gt; {/* Header clicável — sem botão de delete */}</span>
+  &lt;span&gt;{restricao.empresa_nome}&lt;/span&gt;
+  {valorFormatado && &lt;span&gt;{valorFormatado}&lt;/span&gt;}
+  {dataFormatada && &lt;span&gt;{dataFormatada}&lt;/span&gt;}
+  &lt;ChevronRight/&gt; {/* OU ChevronDown */}
+<span class="hl-bad">&lt;/div&gt;</span>
+<span class="hl-comment">// ↑ Nenhum botão de delete para a restrição aqui</span></pre>
+
+        <div class="fix-box">
+          <h5>Proposta de correção</h5>
+          <ul>
+            <li>Adicionar prop <code>onDelete?: (restricaoId: string) =&gt; void</code> no <code>RestricaoPastaCard</code></li>
+            <li>No header do card: botão <code>Trash2</code> com <code>e.stopPropagation()</code> (não colapsa o accordion)</li>
+            <li>No <code>ClienteDrawerTabDocumentosLead</code>: passar <code>onDelete</code> que chama <code>useExcluirRestricao</code></li>
+            <li>AlertDialog de confirmação antes de excluir</li>
+            <li>Botão aparece apenas no hover (opacity-0 group-hover:opacity-100)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     ÁREA 2 — ABA RESTRIÇÕES
+═══════════════════════════════════════════════════ -->
+<div id="area2" class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(34,197,94,0.12);">🛡️</div>
+    <div>
+      <h2>Área 2 — Aba Restrições do Drawer</h2>
+      <p style="font-size:12px;color:var(--muted)">ClienteDrawerTabRestricoes.tsx</p>
+    </div>
+  </div>
+  <div class="section-body">
+
+    <div class="info-box success">
+      <p>✅ <strong>Boa notícia:</strong> A aba Restrições está mais completa do que esperado. Todas as funcionalidades principais existem.</p>
+    </div>
+
+    <div class="subsection" style="margin-top:14px;">
+      <div class="subsection-header">✅ O que existe e funciona</div>
+      <div class="subsection-body">
+        <ul class="checklist">
+          <li><span class="ci ci-ok">✓</span><span>KPIs: Total, Processáveis, Valor Total</span></li>
+          <li><span class="ci ci-ok">✓</span><span>Botão <strong>Adicionar</strong> → ModalAdicionarRestricoes</span></li>
+          <li><span class="ci ci-ok">✓</span><span>Import/Export CSV (ImportExportBar)</span></li>
+          <li><span class="ci ci-ok">✓</span><span>Por restrição: badge Tipo, badge Órgão, código contrato, data, valor</span></li>
+          <li><span class="ci ci-ok">✓</span><span>Botão Editar (<code>Pencil</code>) → FormRestricao</span></li>
+          <li><span class="ci ci-ok">✓</span><span>Botão Excluir (<code>Trash2</code>) com AlertDialog de confirmação — usa <code>useExcluirRestricao</code></span></li>
+          <li><span class="ci ci-ok">✓</span><span>Botão Gerar Documento (<code>FileText</code>) por restrição processável — GerarDocModal</span></li>
+          <li><span class="ci ci-ok">✓</span><span>Badge "Processo vinculado" / "Sem processo" quando <code>showProcessoStatus=true</code></span></li>
+          <li><span class="ci ci-ok">✓</span><span>Badge Processável / Não processável com motivo_nao_processavel</span></li>
+          <li><span class="ci ci-warn">⚠</span><span>Ações por restrição ficam com <code>opacity-0 group-hover:opacity-100</code> — pode passar despercebido em mobile</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="info-box info" style="margin-top:14px;">
+      <p>ℹ️ <strong>Conclusão:</strong> A aba Restrições NÃO tem bugs de funcionalidade principal. A solicitação do usuário "a pasta da restrição em documentos ter um botão de apagar" refere-se ao <strong>BUG-002</strong> acima (na aba Documentos, não aqui).</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     ÁREA 3 — AUDITORIA CPF
+═══════════════════════════════════════════════════ -->
+<div id="area3" class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(245,158,11,0.12);">🔍</div>
+    <div>
+      <h2>Área 3 — Matching Nome Lead = Bureau no Botão Auditar CPF</h2>
+      <p style="font-size:12px;color:var(--muted)">CrmPage.tsx · ModalNovaAuditoria.tsx · use_disparar_auditoria.ts · result_modal.tsx</p>
+    </div>
+  </div>
+  <div class="section-body">
+
+    <!-- Flow -->
+    <div class="subsection">
+      <div class="subsection-header">🔄 Fluxo completo — Auditar CPF a partir do CRM Card</div>
+      <div class="subsection-body">
+        <div class="flow">
+          <div>
+            <div class="flow-step ok">CrmLeadCard<br>"Auditar CPF"</div>
+            <div class="flow-label">onClick</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step warn">CrmPage<br>handleAuditoria</div>
+            <div class="flow-label">busca só cpf</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step warn">ModalNova<br>Auditoria</div>
+            <div class="flow-label">recebe cpf+leadId</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step ok">rpc_disparar<br>auditoria</div>
+            <div class="flow-label">cpf + lead_id</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step ok">Bureau<br>retorna</div>
+            <div class="flow-label">nome_titular</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step bad">ResultModal<br>mostra</div>
+            <div class="flow-label">nome_titular bureau</div>
+          </div>
+        </div>
+
+        <table style="margin-top:14px;">
+          <thead><tr><th>Dado</th><th>Origem</th><th>Passado para modal?</th><th>Mostrado no resultado?</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>cpf</code></td>
+              <td>Lead (buscado em <code>CrmPage.tsx:141</code>)</td>
+              <td><span class="badge badge-success">✓ Sim</span></td>
+              <td><span class="badge badge-success">✓ Exibido mascarado</span></td>
+            </tr>
+            <tr>
+              <td><code>nome</code> (lead)</td>
+              <td>Tabela <code>leads.nome</code></td>
+              <td><span class="badge badge-danger">✗ NÃO BUSCADO</span></td>
+              <td><span class="badge badge-danger">✗ Nunca mostrado</span></td>
+            </tr>
+            <tr>
+              <td><code>nome_titular</code></td>
+              <td>Bureau (retornado pela consulta)</td>
+              <td>—</td>
+              <td><span class="badge badge-success">✓ Exibido no resultado</span></td>
+            </tr>
+            <tr>
+              <td><code>lead_id</code></td>
+              <td><code>CrmPage.tsx:53</code></td>
+              <td><span class="badge badge-success">✓ Sim</span></td>
+              <td><span class="badge badge-muted">Vinculado em background</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- O problema -->
+    <div class="subsection">
+      <div class="subsection-header">⚠️ O Problema — Divergência de nome sem sinalização</div>
+      <div class="subsection-body">
+        <p style="margin-bottom:12px;">Quando o usuário clica "Auditar CPF" de um lead no CRM, o modal de auditoria abre mas <strong>não sabe o nome do lead</strong>. O resultado mostra apenas o <code>nome_titular</code> retornado pelo bureau.</p>
+
+        <div class="info-box warn">
+          <p>⚠️ <strong>Exemplo real do problema:</strong></p>
+          <p style="margin-top:6px;font-family:var(--mono);font-size:12px;">
+            Lead no CRM: <strong>"José Silva"</strong> (digitado pelo atendente)<br>
+            Bureau retorna: <strong>"JOSE FRANCISCO DA SILVA SANTOS JUNIOR"</strong><br>
+            → Resultado mostra só <code>nome_titular</code> do bureau<br>
+            → Não há comparação visual com o nome cadastrado<br>
+            → Usuário não sabe se é a mesma pessoa
+          </p>
+        </div>
+
+        <p style="font-size:12px;color:var(--muted);margin:12px 0 6px;"><strong style="color:var(--text)">Código atual em CrmPage.tsx:</strong></p>
+        <pre><span class="hl-comment">// CrmPage.tsx — linha 138-148</span>
+const handleAuditoriaLead = useCallback(async (leadId: string) =&gt; {
+  const { data } = await supabase
+    .from('leads')
+    <span class="hl-bad">.select('cpf')  // ← só cpf, não busca nome</span>
+    .eq('id', leadId)
+    .single();
+  setAuditoriaLeadId(leadId);
+  setAuditoriaCpf(data?.cpf ?? null);
+  <span class="hl-bad">// setAuditoriaNome ?  ← NÃO EXISTE</span>
+  setNovaAuditoriaOpen(true);
+}, []);</pre>
+
+        <p style="font-size:12px;color:var(--muted);margin:12px 0 6px;"><strong style="color:var(--text)">ModalNovaAuditoria não recebe nome:</strong></p>
+        <pre><span class="hl-comment">// modals/ModalNovaAuditoria.tsx — interface</span>
+interface ModalNovaAuditoriaProps {
+  open: boolean;
+  onOpenChange: (open: boolean) =&gt; void;
+  leadId?: string | null;
+  cpf?: string | null;
+  <span class="hl-bad">// nome?: string | null;  ← FALTANDO</span>
+}
+
+<span class="hl-comment">// AuditoriaFormCard recebe initialCpf mas não initialNome</span>
+&lt;AuditoriaFormCard
+  key={formKey}
+  initialCpf={cpf ?? undefined}
+  <span class="hl-bad">// initialNome={nome ?? undefined}  ← FALTANDO</span>
+/&gt;</pre>
+      </div>
+    </div>
+
+    <!-- BUG-003 -->
+    <div class="bug-card p1" id="bug-003">
+      <div class="bug-header">
+        <span class="bug-badge badge-p1">P1</span>
+        <div>
+          <div class="bug-title">BUG-003 — handleAuditoriaLead não busca nome do lead; sem cross-referência no resultado</div>
+          <div class="tag-row">
+            <span class="bug-file">CrmPage.tsx:138-148</span>
+            <span class="bug-file">modals/ModalNovaAuditoria.tsx</span>
+          </div>
+        </div>
+      </div>
+      <div class="bug-body">
+        <p style="margin-bottom:10px;"><strong>Impacto:</strong> Quando o usuário audita um CPF a partir do card do CRM, o modal não mostra o nome do lead cadastrado. O resultado da auditoria exibe <code>nome_titular</code> do bureau, mas sem comparação com o nome registrado. Possível confusão se os nomes diferirem.</p>
+
+        <div class="fix-box">
+          <h5>Proposta de correção</h5>
+          <ul>
+            <li><code>CrmPage.tsx</code>: adicionar <code>nome</code> no select (<code>.select('cpf, nome')</code>), adicionar state <code>auditoriaNome</code></li>
+            <li><code>ModalNovaAuditoria.tsx</code>: adicionar prop <code>nome?: string | null</code></li>
+            <li>No modal: exibir o nome do lead como contexto: <em>"Auditando lead: José Silva"</em></li>
+            <li>No <code>ResultModal</code>: se <code>lead_id</code> está presente, buscar e mostrar <code>leads.nome</code> lado a lado com <code>nome_titular</code> para comparação visual</li>
+            <li>Se os nomes divergirem: badge <span class="badge badge-warn">⚠ Nomes divergem</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     ÁREA 4 — CRM → DISTRIBUIÇÃO
+═══════════════════════════════════════════════════ -->
+<div id="area4" class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(32,201,151,0.12);">⚖️</div>
+    <div>
+      <h2>Área 4 — Fluxo CRM → Distribuição + Drawer da Restrição</h2>
+      <p style="font-size:12px;color:var(--muted)">CrmLeadCard.tsx · distribuir_lead_completo RPC · DistribuicaoDrawerRestricao.tsx · ClienteDrawerTabDocumentosLead.tsx</p>
+    </div>
+  </div>
+  <div class="section-body">
+
+    <!-- Fluxo CRM → Distribuição -->
+    <div class="subsection">
+      <div class="subsection-header">🔄 Fluxo Completo de Distribuição</div>
+      <div class="subsection-body">
+        <p style="color:var(--muted);font-size:12px;margin-bottom:14px;">Pré-requisitos: lead em <code>coluna_crm = 'triagem'</code> + <code>advogado_id</code> definido</p>
+
+        <div class="flow" style="flex-wrap:wrap;gap:8px;">
+          <div>
+            <div class="flow-step ok" style="min-width:100px;">CRM Card<br>"Distribuir"</div>
+            <div class="flow-label">coluna=triagem<br>+ advogado ok</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step ok" style="min-width:100px;">CrmChecklist<br>Modal</div>
+            <div class="flow-label">validação visual</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step ok" style="min-width:120px;">distribuir_lead<br>completo RPC</div>
+            <div class="flow-label">cria processos<br>+ arquiva lead</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step ok" style="min-width:100px;">n8n webhook<br>gerar_peticao</div>
+            <div class="flow-label">assíncrono</div>
+          </div>
+          <div class="flow-arrow">→</div>
+          <div>
+            <div class="flow-step ok" style="min-width:100px;">Lead arquivado<br>coluna=arquivados</div>
+            <div class="flow-label">valor+15k</div>
+          </div>
+        </div>
+
+        <table style="margin-top:16px;">
+          <thead><tr><th>Etapa</th><th>O que acontece</th><th>Status</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>Verificação pré-distribuição</td>
+              <td><code>CrmLeadCard.tsx:100</code> — botão só aparece se <code>coluna_crm === 'triagem' &amp;&amp; advogado_id &amp;&amp; restricoes_processaveis_count &gt; 0</code></td>
+              <td><span class="badge badge-success">✓ OK</span></td>
+            </tr>
+            <tr>
+              <td>Criação de processos</td>
+              <td>1 processo por restrição processável sem <code>processo_id</code>. <code>valor_causa = restricao.valor + 15.000</code></td>
+              <td><span class="badge badge-success">✓ OK</span></td>
+            </tr>
+            <tr>
+              <td>Atualização de vínculos</td>
+              <td><code>restricoes.processo_id</code> ← novo processo; <code>processos.restricao_id + empresa_nome + cliente_id</code></td>
+              <td><span class="badge badge-success">✓ OK</span></td>
+            </tr>
+            <tr>
+              <td>Disparo n8n</td>
+              <td>HTTP POST para <code>webhook/mdflow/distribuicao/gerar_peticao</code> em lotes de 5 via <code>pg_net</code></td>
+              <td><span class="badge badge-success">✓ OK</span></td>
+            </tr>
+            <tr>
+              <td>Arquivamento do lead</td>
+              <td><code>coluna_crm = 'arquivados'</code>, <code>arquivado = true</code>, motivo = 'Convertido'</td>
+              <td><span class="badge badge-success">✓ OK</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Como aparece na Distribuição -->
+    <div class="subsection">
+      <div class="subsection-header">📋 Como aparece na página /distribuicao e no drawer</div>
+      <div class="subsection-body">
+        <p style="margin-bottom:12px;">Após a distribuição, os processos criados aparecem em <code>/distribuicao</code>. Ao clicar numa restrição, abre <code>DistribuicaoDrawerRestricao</code> (Sheet lateral).</p>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div class="tier-card">
+            <h4 style="color:var(--success);">O que existe no DistribuicaoDrawerRestricao</h4>
+            <ul>
+              <li class="ok">Dados do Cliente: nome, CPF mascarado, data_nascimento, WhatsApp</li>
+              <li class="ok">Dados da Restrição: empresa_nome, orgao_nome, tipo, codigo_contrato, data_restricao, valor</li>
+              <li class="ok">Outros Processos do Cliente: lista de outros processos vinculados ao mesmo cliente</li>
+              <li class="ok">Botão "Ver Processo" → <code>/processos/{id}</code></li>
+            </ul>
+          </div>
+          <div class="tier-card" style="border-color:rgba(239,68,68,0.3);">
+            <h4 style="color:var(--danger);">O que NÃO existe no DistribuicaoDrawerRestricao</h4>
+            <ul>
+              <li class="bad">Nenhuma seção de documentos</li>
+              <li class="bad">Nenhum upload de arquivo</li>
+              <li class="bad">Nenhum acesso à pasta de documentos da restrição</li>
+              <li class="bad">Nenhum acesso a petições geradas</li>
+              <li class="bad">Nenhuma aba de Restrições ou histórico</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="info-box info" style="margin-top:12px;">
+          <p>ℹ️ <strong>Contraste:</strong> O drawer do CRM (<code>ClienteDrawerTabDocumentosLead</code> com <code>context="distribuicao"</code>) suporta visualização completa de Tier 1 + Tier 2 + Tier 3 com labels "Gerar Petição". Mas esse componente NÃO é usado na página <code>/distribuicao</code> — ela usa o <code>DistribuicaoDrawerRestricao</code> separado e muito mais simples.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Query do DistribuicaoDrawerRestricao -->
+    <div class="subsection">
+      <div class="subsection-header">🗄️ Query do DistribuicaoDrawerRestricao</div>
+      <div class="subsection-body">
+        <pre><span class="hl-comment">// DistribuicaoDrawerRestricao.tsx — query principal</span>
+supabase
+  .from('restricoes')
+  .select(`
+    id, empresa_nome, orgao_nome, tipo, codigo_contrato,
+    data_restricao, valor, processo_id,
+    lead:lead_id(id, nome, cpf, whatsapp, data_nascimento),
+    orgao:orgao_id(id, nome)
+  `)
+  .eq('id', restricaoId)
+  .single()
+
+<span class="hl-comment">// Outros processos do cliente:</span>
+supabase
+  .from('processos')
+  .select('id, numero_processo, empresa_nome, status, created_at')
+  .eq('cliente_id', clienteId)
+  .is('deleted_at', null)
+  .order('created_at', { ascending: false })
+  .limit(5)</pre>
+      </div>
+    </div>
+
+    <!-- BUG-004 -->
+    <div class="bug-card p2" id="bug-004">
+      <div class="bug-header">
+        <span class="bug-badge badge-p2">P2</span>
+        <div>
+          <div class="bug-title">BUG-004 — DistribuicaoDrawerRestricao sem seção de documentos</div>
+          <div class="tag-row">
+            <span class="bug-file">pages/distribuicao/drawers/DistribuicaoDrawerRestricao.tsx:1-267</span>
+          </div>
+        </div>
+      </div>
+      <div class="bug-body">
+        <p style="margin-bottom:10px;">O drawer da página de distribuição não permite ver ou fazer upload de documentos da restrição. Para acessar documentos, o usuário precisa navegar para <code>/processos/{id}</code>.</p>
+
+        <div class="fix-box">
+          <h5>Proposta de correção (opcional — só se for prioritário)</h5>
+          <ul>
+            <li>Adicionar aba "Documentos" ao <code>DistribuicaoDrawerRestricao</code></li>
+            <li>Usar <code>RestricaoPastaCard</code> com os docs da restrição específica</li>
+            <li>OU: adicionar link direto "Ver Documentos" que abre o drawer do cliente com context=distribuicao na aba Documentos</li>
+            <li>Prioridade baixa: o fluxo principal já funciona, documentos são acessíveis via página do processo</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-000 P0 -->
+    <div class="bug-card p0" id="bug-000">
+      <div class="bug-header">
+        <span class="bug-badge badge-p0">P0</span>
+        <div>
+          <div class="bug-title">BUG-000 — DocumentoItem: tabela hardcoded 'processos_documentos' mas sem google_drive_id na interface</div>
+          <div class="tag-row">
+            <span class="bug-file">DocumentoItem.tsx:41-48</span>
+          </div>
+        </div>
+      </div>
+      <div class="bug-body">
+        <p style="margin-bottom:10px;"><strong>Problema crítico de resolução de URL:</strong> <code>DocumentoItem</code> tenta resolver a URL do doc verificando <code>doc.google_drive_id</code> com <code>isStoragePath()</code>, mas a interface <code>DocumentoItemDoc</code> define esse campo como <code>google_drive_id?: string | null</code>. O problema real é que o campo no banco é <code>google_drive_id</code>, mas os hooks <code>useLeadDocs</code> e <code>useRestricaoDocs</code> NÃO incluem esse campo no SELECT.</p>
+
+        <pre><span class="hl-comment">// documentos_lead_hooks.ts — useLeadDocs (linha 26)</span>
+supabase
+  .from('processos_documentos')
+  <span class="hl-bad">.select('id, nome, arquivo_url, status, created_at')  // ← google_drive_id AUSENTE</span>
+
+<span class="hl-comment">// DocumentoItem.tsx — resolveUrl (linha 41-48)</span>
+const resolveUrl = async (): Promise&lt;string | null&gt; =&gt; {
+  <span class="hl-bad">if (isStoragePath(doc.google_drive_id ?? null)) {  // ← google_drive_id sempre undefined/null</span>
+    return getSignedUrl(doc.google_drive_id!, 'leads-docs')
+  }
+  if (doc.arquivo_url?.startsWith('http')) return doc.arquivo_url
+  <span class="hl-neutral">if (doc.arquivo_url) return getSignedUrl(doc.arquivo_url, 'leads-docs')  // ← este path funciona</span>
+  return null
+}</pre>
+
+        <div class="info-box warn">
+          <p>⚠️ <strong>Impacto real:</strong> Quando o arquivo está em Storage (path relativo em <code>arquivo_url</code> como <code>org-id/leads/uuid/file.pdf</code>), a resolução <strong>funciona via o último fallback</strong> (<code>getSignedUrl(doc.arquivo_url, 'leads-docs')</code>). Porém se o arquivo foi salvo com <code>google_drive_id</code> populado, o signed URL correto não seria gerado. Verificar se uploads recentes retornam <code>google_drive_id</code> ou apenas <code>arquivo_url</code>.</p>
+        </div>
+
+        <div class="fix-box">
+          <h5>Proposta de correção</h5>
+          <ul>
+            <li>Adicionar <code>google_drive_id</code> ao SELECT em <code>useLeadDocs</code> e <code>useRestricaoDocs</code></li>
+            <li>Verificar se <code>processos_documentos</code> tem a coluna <code>google_drive_id</code> no schema real</li>
+            <li>Se a coluna não existir no schema: remover a verificação de <code>google_drive_id</code> em <code>DocumentoItem</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     BUGS CONSOLIDADOS
+═══════════════════════════════════════════════════ -->
+<div id="bugs" class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(239,68,68,0.12);">🐛</div>
+    <h2>Tabela Consolidada de Bugs</h2>
+  </div>
+  <div class="section-body">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th><th>Prioridade</th><th>Descrição</th><th>Arquivo</th><th>Tipo</th><th>Pedido?</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>BUG-000</strong></td>
+          <td><span class="badge badge-danger">P0</span></td>
+          <td>google_drive_id ausente no SELECT dos hooks de documentos — URL de arquivo pode falhar se armazenado com google_drive_id</td>
+          <td><code class="hl-path">documentos_lead_hooks.ts:26,60</code></td>
+          <td>Bug de dados</td>
+          <td><span class="badge badge-muted">Descoberto</span></td>
+        </tr>
+        <tr>
+          <td><strong>BUG-001</strong></td>
+          <td><span class="badge badge-warn">P1</span></td>
+          <td>RestricaoPastaCard sem seleção múltipla de documentos nas pastas da aba Documentos</td>
+          <td><code class="hl-path">RestricaoPastaCard.tsx</code></td>
+          <td>Feature ausente</td>
+          <td><span class="badge badge-primary">✓ Pedido</span></td>
+        </tr>
+        <tr>
+          <td><strong>BUG-002</strong></td>
+          <td><span class="badge badge-info">P2</span></td>
+          <td>RestricaoPastaCard (aba Documentos) sem botão de apagar a restrição no header do card</td>
+          <td><code class="hl-path">RestricaoPastaCard.tsx:179-210</code></td>
+          <td>Feature ausente</td>
+          <td><span class="badge badge-primary">✓ Pedido</span></td>
+        </tr>
+        <tr>
+          <td><strong>BUG-003</strong></td>
+          <td><span class="badge badge-warn">P1</span></td>
+          <td>handleAuditoriaLead busca só CPF — nome do lead não é passado ao modal, sem cross-referência com nome_titular do bureau</td>
+          <td><code class="hl-path">CrmPage.tsx:138-148</code></td>
+          <td>UX + dado faltando</td>
+          <td><span class="badge badge-primary">✓ Pedido</span></td>
+        </tr>
+        <tr>
+          <td><strong>BUG-004</strong></td>
+          <td><span class="badge badge-info">P2</span></td>
+          <td>DistribuicaoDrawerRestricao sem seção de documentos — apenas dados cliente + restrição + outros processos</td>
+          <td><code class="hl-path">pages/distribuicao/drawers/DistribuicaoDrawerRestricao.tsx</code></td>
+          <td>Feature ausente</td>
+          <td><span class="badge badge-muted">Descoberto</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     O QUE ESTÁ FUNCIONANDO
+═══════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(34,197,94,0.12);">✅</div>
+    <h2>O que está funcionando bem</h2>
+  </div>
+  <div class="section-body">
+    <ul class="checklist">
+      <li><span class="ci ci-ok">✓</span><span><strong>Aba Restrições</strong>: KPIs, adicionar, editar, excluir (com confirmação), gerar documento, import/export CSV — tudo funcionando</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>Tier 1 upload</strong>: drag-drop central, nomes escolhidos, sync Drive em background</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>Tier 2 upload</strong>: drag-drop por pasta de restrição, categorização correta em <code>processos_documentos</code></span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>DocumentoItem ações individuais</strong>: Abrir, Baixar (com fallback CORS), Renomear inline, Excluir com undo</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>distribuir_lead_completo RPC</strong>: funcionando — cria processos, vincula restrições, arquiva lead, dispara n8n (confirmado na sessão anterior)</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>Botão Distribuir</strong> no CrmLeadCard: aparece apenas quando triagem + advogado + restrições processáveis — lógica correta</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>Tier 3 (contratos gerados)</strong>: lista por processo, seleção múltipla para download, polling quando status=gerando</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>DistribuicaoDrawerRestricao</strong>: dados do cliente e restrição corretos, outros processos do cliente listados</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>ModalNovaAuditoria</strong>: CPF pre-preenchido, bureaus selecionáveis, CustoEstimado exibido — fluxo de auditoria funciona</span></li>
+      <li><span class="ci ci-ok">✓</span><span><strong>ResultModal</strong>: mostra nome_titular, bureaus consultados, PDF oficial, opção de cadastrar restrições no lead</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     PLANO DE EXECUÇÃO
+═══════════════════════════════════════════════════ -->
+<div id="plano" class="section">
+  <div class="section-header">
+    <div class="section-icon" style="background:rgba(32,201,151,0.12);">⚡</div>
+    <h2>Plano de Execução Proposto</h2>
+  </div>
+  <div class="section-body">
+    <p style="color:var(--muted);font-size:12px;margin-bottom:16px;">Ordem recomendada de execução. Validar antes de prosseguir.</p>
+
+    <table>
+      <thead><tr><th>#</th><th>Bug</th><th>Prioridade</th><th>Escopo de mudança</th><th>Risco</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>1</strong></td>
+          <td><a href="#bug-000" style="color:var(--danger);">BUG-000</a> — google_drive_id no SELECT</td>
+          <td><span class="badge badge-danger">P0</span></td>
+          <td><code>documentos_lead_hooks.ts</code>: adicionar campo ao SELECT (1 linha)</td>
+          <td><span class="badge badge-success">Baixo</span></td>
+        </tr>
+        <tr>
+          <td><strong>2</strong></td>
+          <td><a href="#bug-003" style="color:var(--warn);">BUG-003</a> — Nome lead na auditoria</td>
+          <td><span class="badge badge-warn">P1</span></td>
+          <td><code>CrmPage.tsx</code> + <code>ModalNovaAuditoria.tsx</code>: buscar e passar nome</td>
+          <td><span class="badge badge-success">Baixo</span></td>
+        </tr>
+        <tr>
+          <td><strong>3</strong></td>
+          <td><a href="#bug-001" style="color:var(--warn);">BUG-001</a> — Multi-select nas pastas</td>
+          <td><span class="badge badge-warn">P1</span></td>
+          <td><code>RestricaoPastaCard.tsx</code>: adicionar estado de seleção + toolbar bulk</td>
+          <td><span class="badge badge-warn">Médio</span></td>
+        </tr>
+        <tr>
+          <td><strong>4</strong></td>
+          <td><a href="#bug-002" style="color:var(--info);">BUG-002</a> — Delete na pasta</td>
+          <td><span class="badge badge-info">P2</span></td>
+          <td><code>RestricaoPastaCard.tsx</code> + <code>ClienteDrawerTabDocumentosLead.tsx</code></td>
+          <td><span class="badge badge-success">Baixo</span></td>
+        </tr>
+        <tr>
+          <td><strong>5</strong></td>
+          <td><a href="#bug-004" style="color:var(--info);">BUG-004</a> — Docs no drawer distribuição</td>
+          <td><span class="badge badge-info">P2</span></td>
+          <td><code>DistribuicaoDrawerRestricao.tsx</code>: adicionar seção de docs</td>
+          <td><span class="badge badge-warn">Médio</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <hr>
+
+    <div class="info-box warn" style="margin-top:16px;">
+      <p><strong>⚠️ Aguardando validação:</strong> Antes de executar, confirmar:</p>
+      <ul style="list-style:none;margin-top:8px;">
+        <li style="padding:4px 0;font-size:13px;">① <strong>BUG-000</strong>: A coluna <code>google_drive_id</code> existe em <code>processos_documentos</code> no banco? Se não existir, é remoção da verificação morta em vez de adição ao SELECT.</li>
+        <li style="padding:4px 0;font-size:13px;">② <strong>BUG-003</strong>: Quer cross-referência visual (comparar nome lead vs bureau) ou apenas mostrar o nome do lead no modal ao abrir?</li>
+        <li style="padding:4px 0;font-size:13px;">③ <strong>BUG-004</strong>: É prioritário ter documentos no drawer de distribuição? Ou o link "Ver Processo" é suficiente por agora?</li>
+      </ul>
+    </div>
+
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <p>QA Investigação CRM · MdFlow · 2026-03-31 · Beto via Claude Code</p>
+  <p style="margin-top:4px;">Aguardando validação para iniciar execução — rode <strong>/page-executor crm</strong> após confirmar.</p>
+</div>
+
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.17 (2026-03-31)</title>
+<title>MdFlow Core — Referência Técnica v4.18 (2026-03-31)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -1395,7 +1395,7 @@
       <span class="badge badge-route">/clientes</span>
       <span class="badge badge-route">/clientes/:cpfSlug</span>
       <span class="badge badge-route">/pagina-cliente/id/:id</span>
-      <span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">✅ Revisado 2026-03-31 v6</span>
+      <span class="badge" style="background:rgba(34,197,94,0.15);color:#22c55e;">✅ Revisado 2026-03-31 v7</span>
     </div>
   </div>
 
@@ -1440,11 +1440,12 @@
         <thead><tr><th>Aba</th><th>Status</th><th>Notas</th></tr></thead>
         <tbody>
           <tr><td><strong>Dados Pessoais</strong></td><td style="color:var(--primary);">✅ OK</td><td>Dados + endereço OK. Máscaras: CPF, telefone, WhatsApp (applyPhoneMask). Advogado responsável aparece no modo view.</td></tr>
-          <tr><td><strong>Restrições</strong></td><td style="color:var(--primary);">✅ OK</td><td>9.919 restricoes no total: 741 backfill ADVBOX (restricao_orgao_nome, m200001) + corrigido empresa↔orgao (m200002) + 4.751 backfill ADVBOX empresa_nome (m200003). <code>apenasSemProcesso=false</code> em context=clientes → mostra todas.</td></tr>
+          <tr><td><strong>Restrições</strong></td><td style="color:var(--primary);">✅ OK</td><td>Lê da tabela <code>restricoes</code> diretamente (query direta, não RPC JWT-dependente). <code>orgao_nome</code>=bureau, <code>empresa_nome</code>=credor. <code>deriveBureauTipo(orgao_nome)</code> → badge visual. NovaRestricaoModal e EditarRestricaoModal ambos gravam na TABLE.</td></tr>
           <tr><td><strong>Jurídico</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Mostrar processos ativos + baixados. Adicionar tag separando os dois grupos.</td></tr>
           <tr><td><strong>Documentos</strong></td><td style="color:#3b82f6;">📋 Planejar</td><td>P3: implementar 2 seções — docs do cliente + docs pendentes do processo. Depois remover aba Pendentes.</td></tr>
           <tr><td><strong>Pendentes</strong></td><td style="color:var(--text-muted);">⏳ Deprecar</td><td>Será absorvida dentro da aba Documentos</td></tr>
           <tr><td><strong>Histórico</strong></td><td style="color:var(--text-muted);">P4</td><td>Baixíssima prioridade. Movimentações gerais do cliente.</td></tr>
+          <tr><td><del>Notas</del></td><td style="color:var(--red);">❌ Removida</td><td>Tab removida do drawer context=clientes (2026-03-31 CL-BUG-01) — não implementada.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1463,6 +1464,7 @@
           <tr><td>Período início</td><td>date</td><td>?de=2024-01-01</td><td></td></tr>
           <tr><td>Período fim</td><td>date</td><td>?ate=2024-12-31</td><td></td></tr>
           <tr><td>Carteira</td><td>select</td><td>?carteira=internos|parceiros</td><td>internos = sem parceiro_advogado_id</td></tr>
+          <tr><td><strong>Ordenação</strong></td><td>select</td><td><strong>?ordem=recentes|antigos|nome|interacao</strong></td><td>✅ Novo (2026-03-31) — padrão: recentes. RPC p_order_by: CASE ORDER BY.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1476,7 +1478,7 @@
         <li><span class="tag tag-table">processos</span> Join para KPIs + aba Jurídico. Quando processo é chamado, cliente vai junto</li>
         <li><span class="tag tag-table">restricoes</span> Via ClienteDrawer aba Restrições — leadId com fallback clienteById?.lead_id</li>
         <li><span class="tag tag-table">advogados</span> Join via advogado_responsavel_id ✅ (aparece no modo view)</li>
-        <li><span class="tag tag-rpc">RPC</span> get_clientes_paginados (m20260331200003: excluir PJ sem CNPJ por sufixo) · get_cliente_by_cpf</li>
+        <li><span class="tag tag-rpc">RPC</span> get_clientes_paginados — p_order_by (recentes/antigos/nome/interacao, m20260331220001) · excluir PJ sem CNPJ (m20260331200003) · get_cliente_by_cpf</li>
         <li><span class="tag tag-rpc">realtime</span> Canal clientes-realtime → postgres_changes em clientes</li>
         <li><span class="tag tag-table">eventos_operacionais</span> Audit trail em edições (tipo: cliente_editado)</li>
       </ul>
@@ -1487,21 +1489,23 @@
     <summary>🚦 Status & Pendências</summary>
     <div class="details-body">
       <div class="bug-card" style="background:rgba(34,197,94,0.08);border-color:rgba(34,197,94,0.3);">
-        <h4 style="color:#22c55e;">✅ Bugs críticos resolvidos em 2026-03-31</h4>
+        <h4 style="color:#22c55e;">✅ Bugs críticos resolvidos em 2026-03-31 (v7 — QA R3+R1)</h4>
         <ul style="margin-top:6px;font-size:12px;color:var(--text-muted);list-style:none;padding:0;">
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-01: valores restrição 100x menores — formatBRLReais (reais, não centavos)</li>
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-02+04: aba Restrições vazia + badge tipo "Outro" — query direta tabela restricoes + deriveBureauTipo(orgao_nome)</li>
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-03: NovaRestricaoModal escrevia no JSONB (add_cliente_restricao) — agora INSERT direto em restricoes TABLE</li>
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-05: badge "Restrições" sempre 0 — useClienteRestricoes().length (não JSONB)</li>
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-06: EditarRestricaoModal chamava RPC inexistente (update_cliente_restricao) — agora UPDATE direto na TABLE</li>
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-08: stale closure em handleGerarResumo — pollingStarted local (não resumoLoading)</li>
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-11: badge MdZap — removido waBlocked prop (componente verifica status real via clienteId)</li>
+          <li>→ <strong>[pagina_cliente R1]</strong> PC-BUG-12: email não aparecia na aba Dados — adicionado campo email na seção Contato</li>
+          <li>→ <strong>[clientes R3]</strong> CL-BUG-01: aba "Notas" aparecia no drawer context=clientes — removida</li>
+          <li>→ <strong>[clientes R3]</strong> CL-BUG-02: dedup advogados no filtro por id — corrigido para dedup por nome</li>
+          <li>→ <strong>[clientes R3 feature]</strong> Ordenação na lista: Mais recentes/Antigos/Nome/Última interação (?ordem=) — migration 20260331220001</li>
           <li>→ RPC overloading PGRST203 + adv.deleted_at 42703 — migration 20260331000001/000002/000003</li>
           <li>→ Empresas (CNPJ) em /clientes — p_excluir_cnpj:true na RPC</li>
-          <li>→ Advogado vinculado não aparecia — props + fallback + InfoRow</li>
-          <li>→ Restrições vazia (leadId null) — fallback clienteById?.lead_id</li>
-          <li>→ Restrições vazia (dados ADVBOX em campos processos) — migration 20260331200001: 741 rows backfillados em restricoes</li>
-          <li>→ empresa_nome/orgao_nome invertidos (tudo "Boa Vista") — migration 20260331200002: orgao_nome=bureau, empresa_nome=credor real</li>
-          <li>→ Empresas PJ sem CNPJ em /clientes (LTDA/EIRELI/S.A./S/A) — migration 20260331200003: filtro por sufixo empresarial (~494 registros excluídos)</li>
-          <li>→ 67% clientes sem restrições (ADVBOX só gravou empresa_nome) — migration 20260331200004: +4.751 restricoes backfilladas. Total: 9.919 restricoes</li>
-          <li>→ WhatsApp sem máscara edit mode — applyPhoneMask() em handleStartEdit</li>
-          <li>→ handleSaveCliente/handleDelete direto Supabase — migrados para WH-CLIENTES-CRUD</li>
-          <li>→ engajamento_nivel DEFAULT 'baixo' — migration remove DEFAULT</li>
-          <li>→ PageHeader overflow 375px — hidden sm:flex + DropdownMenu mobile</li>
-          <li>→ Filtro advogados nome repetido — label mostra UF</li>
+          <li>→ empresa_nome/orgao_nome invertidos — migration 20260331200002</li>
+          <li>→ 9.919 restricoes totais backfilladas do ADVBOX (migrations 200001/200004)</li>
         </ul>
       </div>
       <div class="bug-card warn">

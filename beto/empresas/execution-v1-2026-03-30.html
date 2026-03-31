@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Plan — Empresas v1 | 2026-03-30</title>
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1815;
+  --surface2: #221f1c;
+  --border: #2d2925;
+  --primary: #20c997;
+  --primary-dim: rgba(32,201,151,0.15);
+  --text: #e8e0d8;
+  --text-muted: #8a7f78;
+  --red: #ef4444;
+  --red-dim: rgba(239,68,68,0.15);
+  --yellow: #f59e0b;
+  --yellow-dim: rgba(245,158,11,0.15);
+  --blue: #3b82f6;
+  --blue-dim: rgba(59,130,246,0.15);
+  --green: #22c55e;
+  --green-dim: rgba(34,197,94,0.15);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; line-height: 1.6; padding: 24px; }
+.container { max-width: 1000px; margin: 0 auto; }
+
+/* Header */
+.header { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px 32px; margin-bottom: 24px; position: relative; overflow: hidden; }
+.header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--blue)); }
+.header-top { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.header-title { font-size: 24px; font-weight: 700; color: #f5f0eb; }
+.header-sub { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+.header-meta { text-align: right; font-size: 13px; color: var(--text-muted); }
+.header-meta strong { color: var(--text); }
+.stats-row { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
+.stat-pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 6px 16px; font-size: 13px; }
+.stat-pill span { color: var(--primary); font-weight: 600; }
+
+/* Índice */
+.index { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-bottom: 24px; }
+.index-title { font-size: 14px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 14px; }
+.index-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.index-list li a { color: var(--text); text-decoration: none; font-size: 14px; display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; transition: background 0.15s; }
+.index-list li a:hover { background: var(--surface2); }
+.idx-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.p1 { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+.p2 { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+.p3 { background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.25); }
+.mega { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(32,201,151,0.3); }
+
+/* Bug block */
+.bug-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 20px; overflow: hidden; }
+.bug-block.is-p1 { border-left: 4px solid var(--red); }
+.bug-block.is-p2 { border-left: 4px solid var(--yellow); }
+.bug-block.is-p3 { border-left: 4px solid var(--blue); }
+.bug-block.is-mega { border-left: 4px solid var(--primary); }
+.bug-head { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.bug-id-tag { font-size: 13px; font-weight: 700; color: var(--text-muted); font-family: monospace; }
+.bug-head-title { font-size: 15px; font-weight: 600; flex: 1; }
+.file-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; font-size: 12px; font-family: monospace; color: #93c5fd; }
+.seq-tag { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 10px; font-size: 12px; color: var(--text-muted); }
+
+/* Context */
+.ctx { padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.ctx-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 10px; }
+.ctx ul { padding-left: 20px; }
+.ctx li { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+.ctx li strong { color: var(--text); }
+.ctx code { background: #0e0c0a; border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 12px; font-family: monospace; color: #86efac; }
+
+/* Prompt box */
+.prompt-wrap { padding: 16px 20px; }
+.prompt-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--primary); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.prompt-box { background: #0a0908; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; line-height: 1.7; color: #d4cfc9; white-space: pre-wrap; word-break: break-word; position: relative; }
+.copy-btn { position: absolute; top: 10px; right: 10px; background: var(--surface2); border: 1px solid var(--border); color: var(--text-muted); border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; transition: all 0.15s; }
+.copy-btn:hover { background: var(--primary-dim); color: var(--primary); border-color: rgba(32,201,151,0.4); }
+
+/* Mega block */
+.mega-block { background: var(--surface); border: 2px solid rgba(32,201,151,0.35); border-radius: 10px; margin-bottom: 24px; overflow: hidden; }
+.mega-head { padding: 16px 20px; background: var(--primary-dim); border-bottom: 1px solid rgba(32,201,151,0.25); display: flex; align-items: center; gap: 10px; }
+.mega-head-title { font-size: 15px; font-weight: 700; color: var(--primary); }
+
+/* Footer */
+.footer { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; text-align: center; color: var(--text-muted); font-size: 14px; }
+.footer strong { color: var(--primary); }
+
+/* Alert */
+.alert { background: var(--red-dim); border: 1px solid rgba(239,68,68,0.3); border-radius: 8px; padding: 12px 16px; font-size: 13px; color: #fca5a5; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-title">⚡ Execution Plan — Empresas v1</div>
+        <div class="header-sub">MdFlow · QA Report 2026-03-30 · Bugs ativos: 8</div>
+      </div>
+      <div class="header-meta">
+        <div><strong>Data:</strong> 2026-03-30</div>
+        <div><strong>Ciclo:</strong> v1 (inicial)</div>
+        <div><strong>Projeto:</strong> ~/beta-mdflow/</div>
+      </div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-pill">🔴 P1 Críticos: <span>2</span></div>
+      <div class="stat-pill">🟡 P2 Moderados: <span>4</span></div>
+      <div class="stat-pill">🔵 P3 Menores: <span>2</span></div>
+      <div class="stat-pill">📋 Total prompts: <span>8 + 1 revisão</span></div>
+      <div class="stat-pill">🖥️ Terminais: <span>1</span></div>
+    </div>
+  </div>
+
+  <!-- ÍNDICE -->
+  <div class="index">
+    <div class="index-title">Sequência de Execução</div>
+    <ul class="index-list">
+      <li><a href="#bug002"><span class="idx-badge p1">P1</span> BUG-002 — TypeError: err.message em catch blocks (ModalConfirmacaoDelete + ModalMergeEmpresa)</a></li>
+      <li><a href="#bug003"><span class="idx-badge p1">P1</span> BUG-003 — Aprovação faz INSERT em vez de UPSERT (use_empresa_modal.ts)</a></li>
+      <li><a href="#bug004"><span class="idx-badge p2">P2</span> BUG-004 — Detecção de duplicatas só no CREATE, não no EDIT</a></li>
+      <li><a href="#bug005"><span class="idx-badge p2">P2</span> BUG-005 — Categoria não obrigatória para empresas processáveis</a></li>
+      <li><a href="#bug006"><span class="idx-badge p2">P2</span> BUG-006 — Campo legado <code>categoria</code> (string) vs <code>categoria_id</code> (FK) desincronizados</a></li>
+      <li><a href="#bug007"><span class="idx-badge p2">P2</span> BUG-007 — Import CSV sequencial sem batch (handleImportCSV)</a></li>
+      <li><a href="#bug009"><span class="idx-badge p3">P3</span> BUG-009 — Botão "Ver" no PopupDuplicidade não abre a empresa</a></li>
+      <li><a href="#bug010"><span class="idx-badge p3">P3</span> BUG-010 — useQuery anti-pattern (meta.onSuccess deprecated, TanStack v5)</a></li>
+      <li><a href="#mega"><span class="idx-badge mega">MEGA</span> Prompt de Revisão Final — gerar HTML de resultado</a></li>
+    </ul>
+  </div>
+
+  <!-- BUG-002 -->
+  <div class="bug-block is-p1" id="bug002">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-002</span>
+      <span class="idx-badge p1">🔴 P1</span>
+      <span class="bug-head-title">TypeError silencioso: err.message em catch block sem tipagem</span>
+      <span class="file-tag">ModalConfirmacaoDelete.tsx</span>
+      <span class="file-tag">ModalMergeEmpresa.tsx</span>
+      <span class="seq-tag">① Rodar primeiro — independente</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Causa raiz:</strong> <code>catch (err: unknown) { err.message }</code> sem type narrowing — TypeScript strict falha no build</li>
+        <li><strong>Arquivos:</strong> <code>~/beta-mdflow/src/modals/ModalConfirmacaoDelete.tsx</code> (~linha 62) e <code>~/beta-mdflow/src/modals/ModalMergeEmpresa.tsx</code></li>
+        <li><strong>Fix:</strong> Substituir por <code>err instanceof Error ? err.message : 'Erro desconhecido'</code></li>
+        <li><strong>Dependências:</strong> Independente — pode rodar em qualquer ordem</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p002">No projeto ~/beta-mdflow/, corrija o TypeError silencioso em catch blocks sem tipagem correta.
+
+ARQUIVOS A EDITAR:
+1. src/modals/ModalConfirmacaoDelete.tsx
+2. src/modals/ModalMergeEmpresa.tsx
+
+PROBLEMA:
+Em ambos os arquivos, os blocos catch usam `err.message` diretamente sem type narrowing, o que falha com TypeScript strict mode:
+  } catch (err: unknown) {
+    toast.error(err.message || 'Erro ao excluir empresa.')
+  }
+
+FIX OBRIGATÓRIO em todos os catch blocks dos dois arquivos:
+  } catch (err) {
+    toast.error(err instanceof Error ? err.message : 'Erro desconhecido.')
+  }
+
+PASSOS:
+1. Abrir ModalConfirmacaoDelete.tsx — localizar TODOS os catch blocks
+2. Substituir err.message por err instanceof Error ? err.message : 'Erro desconhecido'
+3. Repetir para ModalMergeEmpresa.tsx
+4. Verificar se existem outros arquivos em src/modals/ com o mesmo padrão problemático e corrigir também
+5. Confirmar que o TypeScript compila sem erro nos dois arquivos: npx tsc --noEmit --project tsconfig.json 2>&1 | grep -E "ModalConfirm|ModalMerge"
+
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p002')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- BUG-003 -->
+  <div class="bug-block is-p1" id="bug003">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-003</span>
+      <span class="idx-badge p1">🔴 P1</span>
+      <span class="bug-head-title">Aprovação de empresa cria NOVO registro — não atualiza existente (INSERT → UPSERT)</span>
+      <span class="file-tag">hooks/use_empresa_modal.ts</span>
+      <span class="seq-tag">② Rodar após BUG-002</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Causa raiz:</strong> No branch <code>mode === 'approve'</code> de <code>handleSave</code>, o código sempre faz INSERT na tabela <code>empresas</code> mesmo quando a empresa já existe com <code>status_aprovacao='pendente'</code></li>
+        <li><strong>Arquivo:</strong> <code>~/beta-mdflow/src/hooks/use_empresa_modal.ts</code> — função <code>handleSave</code>, branch <code>mode === 'approve'</code></li>
+        <li><strong>Cenário problemático:</strong> Empresa da fila (<code>empresas_aprovacao</code>) já tem <code>empresa_id</code> associado → aprovação deveria fazer UPDATE/UPSERT, não INSERT</li>
+        <li><strong>Fix:</strong> Verificar se <code>empresa_id</code> já existe na tabela <code>empresas</code> antes do INSERT. Se existir: fazer UPDATE do <code>status_aprovacao</code>. Se não: INSERT normalmente</li>
+        <li><strong>Dependências:</strong> Independente de BUG-002, mas rodar depois para manter contexto</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p003">No projeto ~/beta-mdflow/, corrija o fluxo de aprovação de empresa que cria duplicatas por usar INSERT em vez de UPSERT.
+
+ARQUIVO PRINCIPAL:
+src/hooks/use_empresa_modal.ts
+
+PROBLEMA:
+Na função handleSave(), o branch mode === 'approve' sempre executa um INSERT na tabela empresas.
+Se a empresa já existir no banco (empresa_id presente na fila empresas_aprovacao), isso cria uma duplicata.
+
+LÓGICA CORRETA A IMPLEMENTAR:
+1. Ao aprovar (mode === 'approve'), verificar se já existe registro em empresas com o empresa_id recebido da fila
+2. Se EXISTE: fazer UPDATE do registro existente (status_aprovacao, campos atualizados, etc.) — NÃO criar novo
+3. Se NÃO EXISTE: INSERT normal (comportamento atual)
+4. Após salvar em empresas: atualizar o registro na tabela empresas_aprovacao com status='aprovada' e empresa_id (se foi criado novo)
+
+PASSOS:
+1. Ler use_empresa_modal.ts completo para entender o fluxo atual
+2. Localizar a função handleSave e o branch mode === 'approve'
+3. Identificar como empresa_id é recebido do FilaPendentesSection (via props do modal)
+4. Implementar a verificação de existência antes do INSERT
+5. Usar .upsert() do Supabase com onConflict na coluna id, OU fazer SELECT primeiro + condicional INSERT/UPDATE
+6. Garantir que o campo status_aprovacao da tabela empresas_aprovacao seja atualizado para 'aprovada' após sucesso
+
+Supabase projeto: qdivfairxhdihaqqypgb
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p003')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- BUG-004 -->
+  <div class="bug-block is-p2" id="bug004">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-004</span>
+      <span class="idx-badge p2">🟡 P2</span>
+      <span class="bug-head-title">Detecção de duplicatas só no CREATE — EDIT não verifica similares</span>
+      <span class="file-tag">hooks/use_empresa_modal.ts</span>
+      <span class="seq-tag">③ Independente dos P1</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Causa raiz:</strong> <code>handleNomeBlur</code> tem guard <code>if (mode !== 'create' || ...) return;</code> — bloqueia a verificação em mode='edit'</li>
+        <li><strong>Arquivo:</strong> <code>~/beta-mdflow/src/hooks/use_empresa_modal.ts</code> — função <code>handleNomeBlur</code></li>
+        <li><strong>Fix:</strong> Remover a restrição de mode, manter a RPC <code>rpc_buscar_empresa_similar</code> funcionando em edit, e passar o próprio ID da empresa sendo editada para exclusão do resultado</li>
+        <li><strong>RPC existente:</strong> <code>rpc_buscar_empresa_similar(nome, threshold, exclude_id)</code> — já aceita parâmetro de exclusão</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p004">No projeto ~/beta-mdflow/, corrija a detecção de duplicatas de empresa para funcionar também no modo EDIT.
+
+ARQUIVO:
+src/hooks/use_empresa_modal.ts
+
+PROBLEMA:
+A função handleNomeBlur() que detecta empresas similares tem este guard:
+  if (mode !== 'create' || form.nome_fantasia.length < 3) return;
+
+Isso impede a detecção de duplicatas ao editar uma empresa — o usuário pode renomear para algo já existente sem aviso.
+
+FIX OBRIGATÓRIO:
+1. Remover a restrição `mode !== 'create'` do guard
+2. Novo guard: apenas verificar tamanho mínimo do nome: `if (form.nome_fantasia.length < 3) return;`
+3. Ao chamar rpc_buscar_empresa_similar, passar o ID da empresa atual como parâmetro de exclusão (para não sugerir ela mesma como duplicata em mode='edit')
+4. A RPC deve aceitar um parâmetro exclude_id — verificar a assinatura atual e ajustar se necessário
+5. Testar: em mode='edit', ao mudar nome_fantasia para algo similar a outra empresa, o PopupDuplicidade deve aparecer
+
+VERIFICAR também:
+- Se a RPC rpc_buscar_empresa_similar existe no Supabase e aceita exclude_id como parâmetro
+- Caso não aceite, adicionar o filtro de exclusão no resultado retornado (filtrar client-side pelo ID)
+
+Supabase projeto: qdivfairxhdihaqqypgb
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p004')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- BUG-005 -->
+  <div class="bug-block is-p2" id="bug005">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-005</span>
+      <span class="idx-badge p2">🟡 P2</span>
+      <span class="bug-head-title">Categoria obrigatória apenas para empresas processáveis — não validada no submit</span>
+      <span class="file-tag">hooks/use_empresa_modal.ts</span>
+      <span class="seq-tag">④ Independente — rodar após P1s</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Regra de negócio (confirmada pelo Gustavo):</strong> <code>categoria_id</code> é obrigatório SE <code>processavel = true</code>. Empresas não processáveis podem ser salvas sem categoria.</li>
+        <li><strong>Causa raiz:</strong> Nenhuma validação de categoria no submit dos modos create/edit. A validação existe apenas em mode='approve'.</li>
+        <li><strong>Arquivo:</strong> <code>~/beta-mdflow/src/hooks/use_empresa_modal.ts</code> — função de validação/submit do form</li>
+        <li><strong>Fix:</strong> Antes do save: <code>if (form.processavel && !form.categoria_id) → toast.error("Categoria obrigatória para empresas processáveis")</code></li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p005">No projeto ~/beta-mdflow/, adicione validação de categoria obrigatória para empresas processáveis no modal de empresas.
+
+ARQUIVO:
+src/hooks/use_empresa_modal.ts
+
+REGRA DE NEGÓCIO (confirmada):
+- Se empresa.processavel === true → categoria_id é OBRIGATÓRIO
+- Se empresa.processavel === false → categoria_id é OPCIONAL (pode salvar sem)
+
+IMPLEMENTAÇÃO:
+1. Localizar a função de validação do form (pode ser handleSave ou uma função validateForm separada)
+2. Adicionar a seguinte verificação ANTES de qualquer insert/update:
+   if (form.processavel && !form.categoria_id) {
+     toast.error('Categoria obrigatória para empresas processáveis.')
+     return // ou setError para destacar o campo
+   }
+3. Esta validação deve ocorrer em TODOS os modes: 'create', 'edit' e 'approve'
+4. Idealmente: marcar o campo categoria_id com asterisco (*) ou label "Obrigatório" no componente visual quando processavel=true
+   - Arquivo do formulário visual: procurar em src/modals/components/ ou src/modals/EmpresaModal.tsx
+
+BONUS (se possível sem grande esforço):
+- Tornar o campo categoria visualmente obrigatório (*) quando o toggle processável estiver ativo
+- Trigger: onChange do toggle processavel → validar se categoria_id está preenchido
+
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p005')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- BUG-006 -->
+  <div class="bug-block is-p2" id="bug006">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-006</span>
+      <span class="idx-badge p2">🟡 P2</span>
+      <span class="bug-head-title">Campo legado <code>categoria</code> (string) vs <code>categoria_id</code> (FK) — desincronizados</span>
+      <span class="file-tag">empresas.types.ts</span>
+      <span class="file-tag">use_empresa_modal.ts</span>
+      <span class="seq-tag">⑤ Rodar após BUG-005</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Causa raiz:</strong> A tabela <code>empresas</code> tem dois campos: <code>categoria</code> (string legado) e <code>categoria_id</code> (FK → empresas_categorias). O código novo usa apenas <code>categoria_id</code>, mas registros antigos têm apenas <code>categoria</code></li>
+        <li><strong>Risco:</strong> OlivIA pode estar lendo o campo <code>categoria</code> enquanto UI usa <code>categoria_id</code> — inconsistência silenciosa</li>
+        <li><strong>Arquivos:</strong> <code>~/beta-mdflow/src/types/empresas.types.ts</code>, <code>~/beta-mdflow/src/hooks/use_empresa_modal.ts</code></li>
+        <li><strong>Fix:</strong> Ao salvar empresa com <code>categoria_id</code>, popular o campo <code>categoria</code> com o nome da categoria correspondente (sync bidirecional)</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p006">No projeto ~/beta-mdflow/, sincronize o campo legado `categoria` (string) com o campo novo `categoria_id` (FK) na tabela empresas.
+
+CONTEXTO:
+A tabela empresas tem dois campos de categoria:
+- `categoria` (string, legado) — pode estar sendo lido pela OlivIA
+- `categoria_id` (UUID, FK → tabela empresas_categorias) — campo atual usado pela UI
+
+PROBLEMA: Ao salvar via UI, apenas categoria_id é preenchido. Registros antigos têm apenas categoria. Isso gera inconsistência.
+
+ARQUIVOS A VERIFICAR:
+1. src/types/empresas.types.ts — ver definição do tipo Empresa
+2. src/hooks/use_empresa_modal.ts — ver onde os dados são salvos no Supabase
+3. Fazer query no Supabase para ver o schema: SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'empresas' AND column_name LIKE 'categ%'
+
+FIX OBRIGATÓRIO:
+1. No handleSave (todos os modes), ao enviar para o Supabase:
+   - Incluir o campo `categoria` com o nome da categoria selecionada (não só o ID)
+   - Para obter o nome: buscar em empresas_categorias onde id = form.categoria_id
+   - Ou manter um mapa local de categorias já carregado no modal
+2. Garantir que o tipo Empresa em empresas.types.ts inclua o campo `categoria: string | null`
+
+VERIFICAR:
+- Se já existe um estado com lista de categorias carregadas no modal — usar para resolver o nome sem chamada extra ao banco
+- Se o campo `categoria` realmente existe no schema atual do Supabase antes de escrever
+
+Supabase projeto: qdivfairxhdihaqqypgb
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p006')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- BUG-007 -->
+  <div class="bug-block is-p2" id="bug007">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-007</span>
+      <span class="idx-badge p2">🟡 P2</span>
+      <span class="bug-head-title">Import CSV sequencial sem batch — timeout em +100 linhas</span>
+      <span class="file-tag">EmpresasPage.tsx</span>
+      <span class="seq-tag">⑥ Independente — qualquer ordem</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Causa raiz:</strong> <code>handleImportCSV</code> processa linha por linha com <code>await</code> + <code>sleep(100ms)</code> — 100 linhas = ~10s, 500 linhas = ~50s</li>
+        <li><strong>Arquivo:</strong> <code>~/beta-mdflow/src/components/EmpresasPage.tsx</code> (ou similar) — função <code>handleImportCSV</code></li>
+        <li><strong>Fix mínimo:</strong> Adicionar progress bar visível. <strong>Fix ideal:</strong> Processar em batches de 10-20 por request com progress counter</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p007">No projeto ~/beta-mdflow/, otimize o import CSV de empresas que trava em listas grandes.
+
+ARQUIVO:
+Localizar o componente que contém handleImportCSV — provavelmente src/components/EmpresasPage.tsx ou src/modals/ModalImportCSV.tsx
+
+PROBLEMA ATUAL:
+A função handleImportCSV processa linha por linha:
+  for (const row of rows) {
+    await callWebhook('empresas/capturar', row)
+    await sleep(100)
+  }
+100 linhas = ~10 segundos sem feedback. 500 linhas = ~50 segundos, pode travar a aba.
+
+FIX OBRIGATÓRIO — ao menos UMA das opções abaixo:
+
+OPÇÃO A (mínimo): Adicionar progress bar visual
+  - Mostrar "Processando X de Y empresas..." atualizado a cada item
+  - Adicionar botão de cancelamento (AbortController)
+
+OPÇÃO B (ideal): Processar em batches
+  - Dividir o array de rows em chunks de 20 itens
+  - Processar cada chunk em paralelo com Promise.all()
+  - Aguardar cada chunk antes do próximo (controla concorrência)
+  - Mostrar progresso por chunk: "Lote 1/10 processado..."
+
+PASSOS:
+1. Localizar handleImportCSV no projeto
+2. Implementar a opção A no mínimo (progress bar)
+3. Se possível sem quebrar outros fluxos, implementar também a opção B
+4. Garantir que erros por linha sejam coletados e exibidos no final (não interromper o import inteiro por 1 erro)
+
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p007')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- BUG-009 -->
+  <div class="bug-block is-p3" id="bug009">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-009</span>
+      <span class="idx-badge p3">🔵 P3</span>
+      <span class="bug-head-title">PopupDuplicidade: botão "Ver" não abre a empresa — apenas fecha o popup</span>
+      <span class="file-tag">empresa_tab_cadastro.tsx</span>
+      <span class="seq-tag">⑦ Independente — rodar por último entre P3s</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Causa raiz:</strong> <code>onView</code> prop recebe <code>() => onDismissSimilares()</code> — apenas fecha o popup sem abrir a empresa</li>
+        <li><strong>Arquivo:</strong> <code>~/beta-mdflow/src/modals/components/empresa_tab_cadastro.tsx</code></li>
+        <li><strong>Linha:</strong> <code>&lt;PopupDuplicidade onView={() => onDismissSimilares()} /&gt;</code></li>
+        <li><strong>Fix:</strong> <code>onView</code> deve fechar o modal atual e abrir a empresa similar em modo view, passando o ID da empresa similar</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p009">No projeto ~/beta-mdflow/, corrija o botão "Ver" no PopupDuplicidade para abrir a empresa similar em vez de apenas fechar o popup.
+
+ARQUIVO:
+src/modals/components/empresa_tab_cadastro.tsx
+
+PROBLEMA:
+O componente PopupDuplicidade recebe onView como prop, mas atualmente está implementado assim:
+  <PopupDuplicidade onView={() => onDismissSimilares()} />
+
+Isso apenas fecha o popup sem mostrar a empresa similar. O usuário fica sem conseguir comparar.
+
+FIX ESPERADO:
+1. Localizar onde empresa_tab_cadastro.tsx usa PopupDuplicidade
+2. Ver que dados de empresa similar estão disponíveis no estado (ID da empresa similar, nome, etc.)
+3. Implementar onView para:
+   a. Fechar o popup de duplicidade (onDismissSimilares)
+   b. Abrir a empresa similar em modo 'view' ou 'edit' — usando o mecanismo já existente de abertura de modal de empresa
+4. Verificar como outros lugares no código abrem o modal de empresa (setEmpresaModal?, setSelectedEmpresa?) e usar o mesmo padrão
+
+VERIFICAR:
+- Qual é a interface/tipo do PopupDuplicidade para saber quais dados de empresa similar são passados
+- Se o PopupDuplicidade recebe o ID da empresa similar como prop
+- Como o modal de empresa é aberto programaticamente em outros contextos
+
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p009')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- BUG-010 -->
+  <div class="bug-block is-p3" id="bug010">
+    <div class="bug-head">
+      <span class="bug-id-tag">BUG-010</span>
+      <span class="idx-badge p3">🔵 P3</span>
+      <span class="bug-head-title">useQuery com meta.onSuccess deprecated — anti-pattern TanStack Query v5</span>
+      <span class="file-tag">hooks/use_empresa_modal.ts</span>
+      <span class="seq-tag">⑧ Independente — rodar por último</span>
+    </div>
+    <div class="ctx">
+      <div class="ctx-title">Contexto</div>
+      <ul>
+        <li><strong>Causa raiz:</strong> Dupla chamada <code>useQuery</code> com mesmo key — uma com <code>meta: { onSuccess: undefined }</code>, outra com <code>enabled: false</code></li>
+        <li><strong>Arquivo:</strong> <code>~/beta-mdflow/src/hooks/use_empresa_modal.ts</code></li>
+        <li><strong>Anti-pattern:</strong> TanStack Query v5 removeu <code>onSuccess</code> de <code>meta</code>. Race condition: se cache vazia, form fica vazio</li>
+        <li><strong>Fix:</strong> Usar apenas um <code>useQuery</code> e reagir ao <code>data</code> via <code>useEffect</code> com dependência correta</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Prompt para Claude Code</div>
+      <div class="prompt-box" id="p010">No projeto ~/beta-mdflow/, corrija o anti-pattern de duplo useQuery para carregamento de dados do modal de empresa.
+
+ARQUIVO:
+src/hooks/use_empresa_modal.ts
+
+PROBLEMA:
+O hook usa dois useQuery com o mesmo queryKey ['empresa-detail', empresa_id]:
+  // Query 1: busca os dados
+  const { isLoading: loadingEmpresa } = useQuery({
+    queryKey: ['empresa-detail', empresa_id],
+    meta: { onSuccess: undefined },  // ← deprecated no TanStack v5
+    ...
+  })
+
+  // Query 2: só lê do cache
+  const { data: empresaData } = useQuery({
+    queryKey: ['empresa-detail', empresa_id],
+    enabled: false  // ← nunca busca, só lê cache
+  })
+
+Problemas:
+1. meta.onSuccess foi removido no TanStack Query v5
+2. Se o cache não estiver populado quando o modal abre, empresaData fica undefined e o formulário fica vazio
+
+FIX:
+1. Unificar em um único useQuery que busca os dados quando empresa_id existe:
+   const { data: empresaData, isLoading: loadingEmpresa } = useQuery({
+     queryKey: ['empresa-detail', empresa_id],
+     queryFn: () => fetchEmpresa(empresa_id),
+     enabled: !!empresa_id,
+   })
+
+2. Preencher o formulário via useEffect reagindo a empresaData:
+   useEffect(() => {
+     if (empresaData) {
+       setForm(mapEmpresaToForm(empresaData))
+     }
+   }, [empresaData])
+
+3. Remover a segunda chamada useQuery com enabled: false
+4. Garantir que o useEffect de preenchimento não sobrescreva edições do usuário (checar se já tem guard para isso)
+
+Raiz do projeto: ~/beta-mdflow/
+      <button class="copy-btn" onclick="copyPrompt('p010')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- MEGA PROMPT -->
+  <div class="mega-block" id="mega">
+    <div class="mega-head">
+      <span style="font-size: 20px;">🎯</span>
+      <span class="mega-head-title">Mega Prompt de Revisão Final — Executar após todos os prompts acima</span>
+    </div>
+    <div class="ctx" style="background: var(--surface);">
+      <div class="ctx-title">Instruções</div>
+      <ul>
+        <li>Rodar este prompt DEPOIS de ter executado todos os prompts anteriores</li>
+        <li>O Claude Code deve verificar cada arquivo editado, confirmar as correções e gerar um HTML de resultado</li>
+        <li><strong>Salvar o HTML em:</strong> <code>~/jarbas-reports/beto/empresas/execution-result-v1-2026-03-30.html</code></li>
+        <li>Após o CC gerar o HTML, manda o caminho aqui que continuo o loop automaticamente</li>
+      </ul>
+    </div>
+    <div class="prompt-wrap">
+      <div class="prompt-title">📋 Mega Prompt de Revisão</div>
+      <div class="prompt-box" id="pmega">Você acabou de executar 8 correções no projeto ~/beta-mdflow/ (página Empresas).
+
+Agora faça uma revisão completa de cada bug corrigido e gere um HTML de resultado.
+
+BUGS QUE FORAM TRABALHADOS:
+- BUG-002: TypeError err.message em ModalConfirmacaoDelete.tsx e ModalMergeEmpresa.tsx
+- BUG-003: INSERT → UPSERT no fluxo de aprovação em use_empresa_modal.ts
+- BUG-004: Detecção de duplicatas habilitada para mode='edit' em use_empresa_modal.ts
+- BUG-005: Validação categoria obrigatória para processavel=true em use_empresa_modal.ts
+- BUG-006: Sincronização campo categoria (legado) com categoria_id em use_empresa_modal.ts
+- BUG-007: Import CSV com progress bar e/ou batch processing em EmpresasPage.tsx
+- BUG-009: Botão "Ver" PopupDuplicidade abre empresa similar em empresa_tab_cadastro.tsx
+- BUG-010: Unificação de duplo useQuery em use_empresa_modal.ts
+
+PARA CADA BUG, VERIFICAR:
+1. Abrir o arquivo relevante
+2. Confirmar se a correção foi aplicada (ler o código atual)
+3. Classificar: ✅ Resolvido / ❌ Não aplicado / ⚠️ Parcial
+
+GERAR HTML DE RESULTADO e salvar em:
+~/jarbas-reports/beto/empresas/execution-result-v1-2026-03-30.html
+
+ESTRUTURA DO HTML DE RESULTADO:
+- Design escuro (#12100e fundo, #20c997 primário)
+- Tabela resumo no topo: BUG | Arquivo | Status (✅/❌/⚠️) | Evidência (trecho de código)
+- Para cada bug: seção com status + evidência do código atual + observação
+- Seção "O que ainda precisa ser feito" (bugs com ❌ ou ⚠️)
+- Footer com timestamp
+
+IMPORTANTE:
+- Incluir trechos reais do código atual como evidência (não o que deveria ser, o que ESTÁ)
+- Se alguma correção não foi aplicada: explicar o motivo e o que seria necessário
+
+Raiz do projeto: ~/beta-mdflow/
+Salvar HTML em: ~/jarbas-reports/beto/empresas/execution-result-v1-2026-03-30.html
+      <button class="copy-btn" onclick="copyPrompt('pmega')">Copiar</button></div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <p>Após rodar todos os prompts, peça ao Claude Code para rodar o <strong>Mega Prompt de Revisão</strong> e mande o HTML de resultado aqui 👆</p>
+    <p style="margin-top: 8px; font-size: 12px; color: var(--text-muted);">Loop automático: Beto analisa o resultado e gera v2 com os bugs pendentes</p>
+  </div>
+
+</div>
+
+<script>
+function copyPrompt(id) {
+  const el = document.getElementById(id);
+  const text = el.innerText.replace('Copiar', '').trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = el.querySelector('.copy-btn');
+    btn.textContent = 'Copiado!';
+    btn.style.color = '#20c997';
+    setTimeout(() => { btn.textContent = 'Copiar'; btn.style.color = ''; }, 2000);
+  });
+}
+</script>
+</body>
+</html>

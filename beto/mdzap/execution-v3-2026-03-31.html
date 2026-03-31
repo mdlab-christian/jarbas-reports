@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Execution Plan — mdzap v3 — 2026-03-31</title>
+<style>
+  :root {
+    --bg: #12100e; --surface: #1a1815; --surface2: #221f1c;
+    --border: #2d2925; --primary: #20c997; --primary-dim: rgba(32,201,151,0.15);
+    --text: #e8e0d8; --text-muted: #8a7f78;
+    --red: #ef4444; --red-dim: rgba(239,68,68,0.15);
+    --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.15);
+    --blue: #3b82f6; --blue-dim: rgba(59,130,246,0.15);
+    --green: #22c55e; --green-dim: rgba(34,197,94,0.15);
+    --mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: Inter, sans-serif; margin: 0; padding: 24px; max-width: 1100px; margin: 0 auto; line-height: 1.6; }
+  h1 { font-family: Manrope, sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  h2 { font-family: Manrope, sans-serif; font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 28px 0 10px; }
+  .subtitle { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 20px; }
+  .meta-bar { display: flex; gap: 16px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 0.8rem; }
+  .meta-bar span { color: var(--text-muted); } .meta-bar strong { color: var(--text); }
+  .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 24px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+  .kpi .val { font-family: Manrope, sans-serif; font-size: 1.8rem; font-weight: 800; }
+  .kpi .lbl { font-size: 0.72rem; color: var(--text-muted); margin-top: 2px; }
+  .kpi.p0 .val { color: var(--red); } .kpi.p1 .val { color: var(--yellow); }
+  .kpi.p2 .val { color: var(--blue); } .kpi.total .val { color: var(--primary); }
+  .index { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; margin-bottom: 24px; }
+  .index-title { font-family: Manrope, sans-serif; font-size: 0.85rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
+  .index-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px; }
+  .index-item { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 5px; font-size: 0.8rem; text-decoration: none; color: var(--text); transition: background 0.15s; }
+  .index-item:hover { background: var(--surface2); }
+  .dot-p0 { width: 8px; height: 8px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+  .dot-p1 { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); flex-shrink: 0; }
+  .dot-p2 { width: 8px; height: 8px; border-radius: 50%; background: var(--blue); flex-shrink: 0; }
+  .dot-mega { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); flex-shrink: 0; }
+  .bug-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin: 14px 0; overflow: hidden; }
+  .bug-header { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .bug-header.p0 { background: var(--red-dim); border-bottom-color: rgba(239,68,68,0.25); }
+  .bug-header.p1 { background: var(--yellow-dim); border-bottom-color: rgba(245,158,11,0.25); }
+  .bug-header.p2 { background: var(--blue-dim); border-bottom-color: rgba(59,130,246,0.25); }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.04em; }
+  .badge-p0 { background: rgba(239,68,68,0.2); color: var(--red); border: 1px solid rgba(239,68,68,0.4); }
+  .badge-p1 { background: rgba(245,158,11,0.2); color: var(--yellow); border: 1px solid rgba(245,158,11,0.4); }
+  .badge-p2 { background: rgba(59,130,246,0.2); color: var(--blue); border: 1px solid rgba(59,130,246,0.4); }
+  .bug-title { font-weight: 700; font-size: 0.95rem; flex: 1; }
+  .dep-badge { font-size: 0.72rem; color: var(--text-muted); background: var(--surface2); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px; font-family: var(--mono); }
+  .bug-body { padding: 16px 18px; }
+  .ctx-row { display: flex; gap: 6px; align-items: flex-start; margin-bottom: 6px; font-size: 0.82rem; }
+  .ctx-label { color: var(--text-muted); min-width: 80px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; padding-top: 1px; }
+  .ctx-val { color: var(--text); font-family: var(--mono); font-size: 0.78rem; }
+  .prompt-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; margin: 14px 0 6px; display: flex; align-items: center; justify-content: space-between; }
+  .prompt-box { background: #0d0b09; border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: var(--mono); font-size: 0.77rem; line-height: 1.7; color: #c8e6c9; white-space: pre-wrap; word-break: break-word; position: relative; }
+  .copy-btn { background: var(--primary-dim); border: 1px solid rgba(32,201,151,0.3); color: var(--primary); border-radius: 5px; padding: 3px 10px; font-size: 0.72rem; cursor: pointer; font-family: Inter, sans-serif; transition: background 0.15s; }
+  .copy-btn:hover { background: rgba(32,201,151,0.25); }
+  .sep { height: 1px; background: var(--border); margin: 24px 0; }
+  .mega-block { background: var(--surface); border: 2px solid rgba(32,201,151,0.3); border-radius: 10px; margin: 14px 0; overflow: hidden; }
+  .mega-header { background: var(--primary-dim); border-bottom: 1px solid rgba(32,201,151,0.3); padding: 14px 18px; display: flex; align-items: center; gap: 10px; }
+  .mega-header .badge-mega { background: rgba(32,201,151,0.25); color: var(--primary); border: 1px solid rgba(32,201,151,0.4); display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; }
+  .footer { margin-top: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px 20px; text-align: center; font-size: 0.83rem; color: var(--text-muted); }
+  @media (max-width: 600px) { .summary-grid { grid-template-columns: repeat(3, 1fr); } }
+</style>
+<script>
+function copyPrompt(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  navigator.clipboard.writeText(el.innerText).then(() => {
+    const btn = el.previousElementSibling.querySelector('.copy-btn');
+    if (btn) { const orig = btn.textContent; btn.textContent = '✓ Copiado!'; setTimeout(() => btn.textContent = orig, 1800); }
+  });
+}
+</script>
+</head>
+<body>
+
+<h1>Execution Plan — /mdzap v3</h1>
+<p class="subtitle">QA R1 2026-03-31 · 11 bugs · Gerado pelo page-executor v2.0-CC</p>
+
+<div class="meta-bar">
+  <div><span>Página: </span><strong>/mdzap</strong></div>
+  <div><span>Data: </span><strong>2026-03-31</strong></div>
+  <div><span>Ciclo: </span><strong>v3 (após QA R1)</strong></div>
+  <div><span>Source: </span><strong>qa-report-2026-03-31.html</strong></div>
+  <div><span>Total de prompts: </span><strong>12 (11 bugs + 1 mega)</strong></div>
+</div>
+
+<div class="summary-grid">
+  <div class="kpi total"><div class="val">11</div><div class="lbl">Total bugs</div></div>
+  <div class="kpi p0"><div class="val">2</div><div class="lbl">P0 críticos</div></div>
+  <div class="kpi p1"><div class="val">5</div><div class="lbl">P1 importantes</div></div>
+  <div class="kpi p2"><div class="val">4</div><div class="lbl">P2 melhorias</div></div>
+  <div class="kpi" style="border-color:rgba(32,201,151,0.3)"><div class="val" style="color:var(--primary)">1</div><div class="lbl">migração SQL</div></div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="index">
+  <div class="index-title">Índice — Ordem de Execução</div>
+  <div class="index-list">
+    <a class="index-item" href="#bug01"><div class="dot-p0"></div>BUG-01 · P0 · invalidateQueries sem orgId (sendMessage)</a>
+    <a class="index-item" href="#bug02"><div class="dot-p0"></div>BUG-02 · P0 · fn_mdzap_conversas fila vazia</a>
+    <a class="index-item" href="#bug07"><div class="dot-p1"></div>BUG-07 · P1 · Heartbeat null → número offline</a>
+    <a class="index-item" href="#bug06"><div class="dot-p1"></div>BUG-06 · P1 · filterDroppedFiles rejeita áudio</a>
+    <a class="index-item" href="#bug03"><div class="dot-p1"></div>BUG-03 · P1 · Seletor período cosmético (Dashboard)</a>
+    <a class="index-item" href="#bug04"><div class="dot-p1"></div>BUG-04 · P1 · 5 mensagens órfãs banco</a>
+    <a class="index-item" href="#bug05"><div class="dot-p1"></div>BUG-05 · P1 · nao_lidas não zerada ao arquivar</a>
+    <a class="index-item" href="#bug08"><div class="dot-p2"></div>BUG-08 · P2 · CPF sem máscara LGPD</a>
+    <a class="index-item" href="#bug09"><div class="dot-p2"></div>BUG-09 · P2 · Busca sem hint &lt; 2 chars</a>
+    <a class="index-item" href="#bug10"><div class="dot-p2"></div>BUG-10 · P2 · staleTime 60s no Dashboard</a>
+    <a class="index-item" href="#bug11"><div class="dot-p2"></div>BUG-11 · P2 · request_id duplicado em retry</a>
+    <a class="index-item" href="#mega"><div class="dot-mega"></div>Mega Prompt — Revisão + HTML resultado</a>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<!-- ═══════════════════════════════════════════ BUG-01 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug01">
+  <div class="bug-header p0">
+    <span class="badge badge-p0">P0</span>
+    <div class="bug-title">BUG-01 — invalidateQueries em sendText/sendFile sem orgId na key</div>
+    <span class="dep-badge">Independente · 1º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/hooks/mdzap/useMdzapSendMessage.ts : linhas 76 e 152</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">invalidateQueries usa ['mdzap','mensagens', conversa.id] mas queryKey real é ['mdzap','mensagens', orgId, conversaId] → invalidação imprecisa</div></div>
+    <div class="ctx-row"><div class="ctx-label">Impacto</div><div class="ctx-val">P0 multi-tenant: em prod com múltiplos orgs, invalida cache de mensagens de outros tenants</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #1 — BUG-01</span>
+      <button class="copy-btn" onclick="copyPrompt('p01')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p01">Arquivo: ~/beta-mdflow/src/hooks/mdzap/useMdzapSendMessage.ts
+
+BUG: invalidateQueries após sendText (linha 76) e sendFile (linha 152) usa queryKey
+['mdzap', 'mensagens', conversa.id] mas o queryKey real de useMdzapMensagens é
+['mdzap', 'mensagens', orgId, conversaId]. Cache miss / invalidação incorreta em multi-tenant.
+
+CONTEXTO — o hook já tem acesso ao organizacao_id:
+  const { organizacao_id } = useAuth();  // disponível no topo do hook
+
+FIX — localizar as 2 ocorrências de invalidateQueries de mensagens e corrigir:
+
+ANTES (linha 76):
+  queryClient.invalidateQueries({ queryKey: ['mdzap', 'mensagens', conversa.id] });
+
+DEPOIS:
+  queryClient.invalidateQueries({ queryKey: ['mdzap', 'mensagens', organizacao_id ?? '', conversa.id] });
+
+Aplicar o mesmo fix na linha 152 (sendFile) — mesma correção.
+
+VERIFICAR: buscar todas as ocorrências de invalidateQueries com key 'mensagens' no arquivo:
+  grep -n "invalidateQueries" ~/beta-mdflow/src/hooks/mdzap/useMdzapSendMessage.ts
+
+Corrigir TODAS as ocorrências encontradas (pode ser mais de 2).
+
+NÃO alterar a lógica de envio, apenas as queryKeys nas chamadas invalidateQueries.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-02 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug02">
+  <div class="bug-header p0">
+    <span class="badge badge-p0">P0</span>
+    <div class="bug-title">BUG-02 — fn_mdzap_conversas: lead_awaiting_human sempre false → tab "Fila" vazia</div>
+    <span class="dep-badge">SQL · 2º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">Supabase RPC fn_mdzap_conversas (migration SQL)</div></div>
+    <div class="ctx-row"><div class="ctx-label">Evidência</div><div class="ctx-val">conversa 4d6287ba tem metadata.awaiting_human=true, lead_id=null → RPC retorna lead_awaiting_human=false</div></div>
+    <div class="ctx-row"><div class="ctx-label">Impacto</div><div class="ctx-val">Tab "Fila" permanentemente vazia → agentes não veem conversas aguardando humano</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #2 — BUG-02</span>
+      <button class="copy-btn" onclick="copyPrompt('p02')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p02">Supabase project: qdivfairxhdihaqqypgb
+
+BUG: A RPC fn_mdzap_conversas retorna lead_awaiting_human=false para TODAS as conversas,
+mesmo quando whatsapp_conversas.metadata->>'awaiting_human' = 'true'.
+O RPC calcula o campo via JOIN com leads, mas conversas sem lead_id (lead_id=null) nunca
+têm o campo true.
+
+Resultado: MdzapConversaList.tsx (linha 64) filtra conversas Fila com
+  c.lead_awaiting_human === true → sempre vazio.
+
+PASSO 1 — Ver definição atual do RPC:
+  Buscar em ~/beta-mdflow/supabase/migrations/ o arquivo que define fn_mdzap_conversas:
+    grep -rl "fn_mdzap_conversas" ~/beta-mdflow/supabase/migrations/
+
+PASSO 2 — Criar nova migration corrigindo o campo lead_awaiting_human:
+  O arquivo deve estar em ~/beta-mdflow/supabase/migrations/ com nome:
+    20260331000001_fix_fn_mdzap_conversas_awaiting_human.sql
+
+  A correção é substituir o cálculo atual de lead_awaiting_human por:
+    COALESCE(
+      l.awaiting_human,
+      (wc.metadata->>'awaiting_human')::boolean,
+      false
+    ) AS lead_awaiting_human
+
+  Onde wc é o alias de whatsapp_conversas e l é o alias de leads (LEFT JOIN).
+
+PASSO 3 — Aplicar a migration:
+  cd ~/beta-mdflow && npx supabase db push --linked
+
+PASSO 4 — Confirmar com curl que a conversa 4d6287ba agora retorna lead_awaiting_human=true:
+  curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/rpc/fn_mdzap_conversas" \
+    -X POST \
+    -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Content-Type: application/json" \
+    -d '{"p_org_id":"55a0c7ba-7e6c-4427-beea-00f75c2c5a3b","p_numero_id":null}' \
+    | python3 -m json.tool | grep -A2 "awaiting_human"
+
+NÃO alterar nenhum arquivo .tsx/.ts — apenas criar a migration SQL.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-07 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug07">
+  <div class="bug-header p1">
+    <span class="badge badge-p1">P1</span>
+    <div class="bug-title">BUG-07 — Heartbeat null não detecta número offline em useMdzapStatus</div>
+    <span class="dep-badge">Independente · 3º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/hooks/useMdzapStatus.ts : linhas 30–40</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">Guard `if (n.ultimo_heartbeat)` nunca executa quando ultimo_heartbeat=null → status=connected permanece mesmo sem heartbeat</div></div>
+    <div class="ctx-row"><div class="ctx-label">Banco</div><div class="ctx-val">Ambos os números têm ultimo_heartbeat=null no banco</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #3 — BUG-07</span>
+      <button class="copy-btn" onclick="copyPrompt('p07')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p07">Arquivo: ~/beta-mdflow/src/hooks/useMdzapStatus.ts
+
+BUG: O useMemo que aplica a regra de heartbeat só roda quando n.ultimo_heartbeat é truthy.
+Números com ultimo_heartbeat=null e status='connected' ficam como 'connected' indefinidamente,
+mesmo estando offline.
+
+CÓDIGO ATUAL (linhas ~30-40):
+  numeros.map((n) => {
+    if (n.status === 'connected' && n.ultimo_heartbeat) {
+      const diff = now - new Date(n.ultimo_heartbeat).getTime();
+      if (diff > HEARTBEAT_OFFLINE_MS) {
+        return { ...n, status: 'disconnected' as const };
+      }
+    }
+    return n;
+  })
+
+FIX — Adicionar tratamento para null ANTES do check de diff:
+  numeros.map((n) => {
+    if (n.status === 'connected') {
+      // Se nunca houve heartbeat, considerar offline
+      if (!n.ultimo_heartbeat) {
+        return { ...n, status: 'disconnected' as const };
+      }
+      // Heartbeat muito antigo
+      const diff = now - new Date(n.ultimo_heartbeat).getTime();
+      if (diff > HEARTBEAT_OFFLINE_MS) {
+        return { ...n, status: 'disconnected' as const };
+      }
+    }
+    return n;
+  })
+
+NÃO alterar mais nada no hook — apenas este useMemo nas linhas 30-40.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-06 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug06">
+  <div class="bug-header p1">
+    <span class="badge badge-p1">P1</span>
+    <div class="bug-title">BUG-06 — filterDroppedFiles rejeita arquivos de áudio no drag&drop</div>
+    <span class="dep-badge">Independente · 4º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/components/mdzap/MdzapMsgInput.tsx : linha ~41</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">Condição allowed não inclui mime.startsWith('audio/') → .mp3/.aac/.ogg/.opus vão para rejected</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #4 — BUG-06</span>
+      <button class="copy-btn" onclick="copyPrompt('p06')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p06">Arquivo: ~/beta-mdflow/src/components/mdzap/MdzapMsgInput.tsx
+
+BUG: A função exportada filterDroppedFiles rejeita arquivos de áudio (.mp3, .aac, .ogg,
+.opus, .amr, .m4a, .wav) com toast "tipo não suportado". Mas sendFile no sistema suporta
+áudio perfeitamente (bucket mdzap-audios existe).
+
+CÓDIGO ATUAL — localizar a função filterDroppedFiles (linha ~41):
+  A condição allowed provavelmente verifica:
+    mime.startsWith('image/') ||
+    mime.startsWith('video/') ||
+    /\.(pdf|doc|docx|xls|xlsx|txt)$/.test(name)
+  // ← áudio AUSENTE
+
+FIX — Adicionar suporte a áudio na condição:
+    mime.startsWith('image/') ||
+    mime.startsWith('video/') ||
+    mime.startsWith('audio/') ||   // ← ADICIONAR esta linha
+    /\.(pdf|doc|docx|xls|xlsx|txt)$/.test(name)
+
+NÃO alterar mais nada no componente.
+Confirmar que a função filterDroppedFiles está no arquivo antes de editar:
+  grep -n "filterDroppedFiles" ~/beta-mdflow/src/components/mdzap/MdzapMsgInput.tsx</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-03 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug03">
+  <div class="bug-header p1">
+    <span class="badge badge-p1">P1</span>
+    <div class="bug-title">BUG-03 — Dashboard: seletor Hoje/7d/30d cosmético — não filtra dados</div>
+    <span class="dep-badge">Independente · 5º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/components/mdzap/MdzapDashboard.tsx : linha 49 e 53-65</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">Estado periodo declarado mas nunca passado para fn_mdzap_stats nem fn_mdzap_conversas</div></div>
+    <div class="ctx-row"><div class="ctx-label">Impacto</div><div class="ctx-val">KPIs e gráficos sempre mostram total histórico — seletor engana o usuário</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #5 — BUG-03</span>
+      <button class="copy-btn" onclick="copyPrompt('p03')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p03">Arquivo: ~/beta-mdflow/src/components/mdzap/MdzapDashboard.tsx
+
+BUG: O seletor de período (Hoje/7d/30d) tem estado declarado mas nunca é passado para as
+queries. Dados não filtram por período.
+
+ESTRATÉGIA RECOMENDADA — "Solução B conservadora": remover o seletor até o backend
+suportar filtragem por período (evita UI que engana o usuário sem implementar SQL complexo).
+
+FIX:
+1. Ler o arquivo para identificar exatamente onde o seletor está renderizado
+2. Remover o seletor visual do JSX (os botões Hoje/7d/30d e o useState<Periodo>)
+3. Se houver comentário, adicionar: {/* TODO: filtro por período — aguarda fn_mdzap_stats suportar p_periodo */}
+4. Os KPIs e queries ficam como estão (sempre carregando dados totais) — apenas remover a UI enganosa
+
+ALTERNATIVA (se o seletor for importante para UX imediata):
+Adicionar uma nota visual abaixo do seletor:
+  <p className="text-xs text-muted-foreground">Dados históricos totais — filtro em breve</p>
+
+Confirmar linhas do seletor antes de editar:
+  grep -n "periodo\|Periodo\|7d\|30d\|Hoje" ~/beta-mdflow/src/components/mdzap/MdzapDashboard.tsx</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-04 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug04">
+  <div class="bug-header p1">
+    <span class="badge badge-p1">P1</span>
+    <div class="bug-title">BUG-04 — 5 mensagens órfãs com conversa_id=null no banco</div>
+    <span class="dep-badge">Banco · 6º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Tabela</div><div class="ctx-val">whatsapp_mensagens (Supabase qdivfairxhdihaqqypgb)</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">Webhook MDZap recebeu mensagens antes de criar conversa — conversa_id ficou NULL</div></div>
+    <div class="ctx-row"><div class="ctx-label">IDs</div><div class="ctx-val">6e8ba218, b79c6bb9 (+ 3 outros)</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #6 — BUG-04</span>
+      <button class="copy-btn" onclick="copyPrompt('p04')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p04">Supabase project: qdivfairxhdihaqqypgb
+
+BUG: Existem 5 mensagens com conversa_id=NULL na tabela whatsapp_mensagens.
+Ficam invisíveis na UI e poluem o banco.
+
+PASSO 1 — Confirmar os registros órfãos:
+  curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/whatsapp_mensagens?select=id,conversa_id,direcao,tipo,created_at&conversa_id=is.null&limit=10" \
+    -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY"
+
+PASSO 2 — Criar migration para soft-delete das órfãs e adicionar constraint:
+  Arquivo: ~/beta-mdflow/supabase/migrations/20260331000002_fix_mensagens_orfas.sql
+  Conteúdo:
+    -- Soft-delete das 5 mensagens órfãs existentes (conversa_id=null)
+    UPDATE whatsapp_mensagens
+    SET deleted_at = now()
+    WHERE conversa_id IS NULL
+      AND deleted_at IS NULL;
+
+    -- Não adicionar NOT NULL constraint agora (pode quebrar webhook existente)
+    -- TODO: após corrigir webhook, adicionar:
+    -- ALTER TABLE whatsapp_mensagens ALTER COLUMN conversa_id SET NOT NULL;
+
+PASSO 3 — Aplicar a migration:
+  cd ~/beta-mdflow && npx supabase db push --linked
+
+PASSO 4 — Confirmar que COUNT zerou:
+  curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/whatsapp_mensagens?select=id&conversa_id=is.null&deleted_at=is.null&limit=1" \
+    -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY"
+  # Resultado esperado: []</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-05 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug05">
+  <div class="bug-header p1">
+    <span class="badge badge-p1">P1</span>
+    <div class="bug-title">BUG-05 — nao_lidas não zerada ao arquivar conversa</div>
+    <span class="dep-badge">SQL · 7º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">Tabela whatsapp_conversas + trigger PostgreSQL (migration)</div></div>
+    <div class="ctx-row"><div class="ctx-label">Evidência</div><div class="ctx-val">conversa c1000000: status=arquivada, nao_lidas=2</div></div>
+    <div class="ctx-row"><div class="ctx-label">Impacto</div><div class="ctx-val">Ao desarquivar, conversa volta com badge de 2 não lidas incorretas</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #7 — BUG-05</span>
+      <button class="copy-btn" onclick="copyPrompt('p05')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p05">Supabase project: qdivfairxhdihaqqypgb
+
+BUG: Conversa arquivada (status='arquivada') mantém nao_lidas=2 no banco.
+Ao desarquivar no futuro, voltará com badge incorreto de não lidas.
+
+PASSO 1 — Criar migration com trigger que zera nao_lidas ao arquivar:
+  Arquivo: ~/beta-mdflow/supabase/migrations/20260331000003_trigger_zera_nao_lidas_arquivada.sql
+  Conteúdo:
+
+    -- Corrigir registro existente
+    UPDATE whatsapp_conversas
+    SET nao_lidas = 0
+    WHERE status = 'arquivada' AND nao_lidas > 0;
+
+    -- Trigger para garantir comportamento futuro
+    CREATE OR REPLACE FUNCTION zera_nao_lidas_ao_arquivar()
+    RETURNS TRIGGER LANGUAGE plpgsql AS $$
+    BEGIN
+      IF NEW.status = 'arquivada' AND OLD.status != 'arquivada' THEN
+        NEW.nao_lidas := 0;
+      END IF;
+      RETURN NEW;
+    END;
+    $$;
+
+    DROP TRIGGER IF EXISTS trg_zera_nao_lidas_arquivada ON whatsapp_conversas;
+    CREATE TRIGGER trg_zera_nao_lidas_arquivada
+      BEFORE UPDATE ON whatsapp_conversas
+      FOR EACH ROW EXECUTE FUNCTION zera_nao_lidas_ao_arquivada();
+
+PASSO 2 — Aplicar:
+  cd ~/beta-mdflow && npx supabase db push --linked
+
+PASSO 3 — Confirmar que o registro c1000000 agora tem nao_lidas=0:
+  curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/whatsapp_conversas?select=id,status,nao_lidas&status=eq.arquivada" \
+    -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY"
+  # Esperado: nao_lidas=0 em todos</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-08 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug08">
+  <div class="bug-header p2">
+    <span class="badge badge-p2">P2</span>
+    <div class="bug-title">BUG-08 — ContextBar exibe CPF completo sem mascaramento (LGPD P-06)</div>
+    <span class="dep-badge">Independente · 8º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/components/mdzap/MdzapMsgBubble.tsx : linhas 38-60 (ContextBar)</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">CPF exibido diretamente sem máscara — violação LGPD (P-06 CLAUDE.md)</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #8 — BUG-08</span>
+      <button class="copy-btn" onclick="copyPrompt('p08')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p08">Arquivo: ~/beta-mdflow/src/components/mdzap/MdzapMsgBubble.tsx
+
+BUG: A função ContextBar exibe o CPF do contato sem mascaramento.
+LGPD (P-06 do CLAUDE.md): CPF deve ser redacted em UI visual.
+
+LOCALIZAR a exibição do CPF na ContextBar (linhas 38-60):
+  Provavelmente: <span className="font-mono text-foreground/80">{cpf}</span>
+
+FIX — substituir a exibição direta por CPF mascarado:
+  Antes:
+    <span className="font-mono text-foreground/80">{cpf}</span>
+
+  Depois (manter formato visual, mascarar dígitos centrais):
+    <span className="font-mono text-foreground/80">
+      {cpf.replace(/(\d{3})\.\d{3}\.\d{3}-(\d{2})/, '$1.***.***-$2')}
+    </span>
+
+  Se o CPF vier sem formatação (só números), usar:
+    {cpf.length === 11
+      ? cpf.replace(/(\d{3})\d{3}\d{3}(\d{2})/, '$1.***.***-$2')
+      : cpf.replace(/(\d{3})\.\d{3}\.\d{3}-(\d{2})/, '$1.***.***-$2')}
+
+NÃO alterar mais nada na ContextBar nem em outras partes do componente.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-09 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug09">
+  <div class="bug-header p2">
+    <span class="badge badge-p2">P2</span>
+    <div class="bug-title">BUG-09 — Busca sem hint quando < 2 caracteres (MdzapConversaList)</div>
+    <span class="dep-badge">Independente · 9º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/components/mdzap/MdzapConversaList.tsx : linha ~95</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">Filtro ativo apenas com >= 2 chars mas sem feedback ao usuário</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #9 — BUG-09</span>
+      <button class="copy-btn" onclick="copyPrompt('p09')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p09">Arquivo: ~/beta-mdflow/src/components/mdzap/MdzapConversaList.tsx
+
+BUG: Quando o usuário digita apenas 1 caractere na busca, a lista não filtra (correto),
+mas sem nenhum feedback visual — parece que a busca não funciona.
+
+FIX — Adicionar hint abaixo do campo de busca quando search.length === 1.
+
+PASSO 1 — Localizar onde o campo de busca é renderizado:
+  grep -n "search\|busca\|placeholder" ~/beta-mdflow/src/components/mdzap/MdzapConversaList.tsx | head -20
+
+PASSO 2 — Após o campo de busca, adicionar:
+  {search.length === 1 && (
+    <p className="text-xs text-muted-foreground px-3 pb-1">
+      Digite mais 1 caractere para buscar...
+    </p>
+  )}
+
+Adaptar a posição e className ao contexto do componente.
+NÃO alterar a lógica de filtro — apenas adicionar o hint visual.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-10 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug10">
+  <div class="bug-header p2">
+    <span class="badge badge-p2">P2</span>
+    <div class="bug-title">BUG-10 — MdzapDashboard usa staleTime=60_000 (padrão é 30_000)</div>
+    <span class="dep-badge">Independente · 10º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/components/mdzap/MdzapDashboard.tsx : linha ~63</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">staleTime: 60_000 na query de conversas do dashboard — fora do padrão MdFlow (30_000)</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #10 — BUG-10</span>
+      <button class="copy-btn" onclick="copyPrompt('p10')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p10">Arquivo: ~/beta-mdflow/src/components/mdzap/MdzapDashboard.tsx
+
+BUG: staleTime está em 60_000ms (60 segundos) dentro de um useQuery do Dashboard.
+O padrão do projeto MdFlow é staleTime: 30_000 em TODOS os hooks React Query.
+
+FIX — localizar e corrigir:
+  grep -n "staleTime" ~/beta-mdflow/src/components/mdzap/MdzapDashboard.tsx
+
+Alterar todas as ocorrências de staleTime: 60_000 para staleTime: 30_000.
+
+NÃO alterar mais nada.</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ BUG-11 ═══════════════════════════════════════════ -->
+<div class="bug-block" id="bug11">
+  <div class="bug-header p2">
+    <span class="badge badge-p2">P2</span>
+    <div class="bug-title">BUG-11 — baseData() recalcula request_id a cada chamada (duplicatas em retry)</div>
+    <span class="dep-badge">Independente · 11º</span>
+  </div>
+  <div class="bug-body">
+    <div class="ctx-row"><div class="ctx-label">Arquivo</div><div class="ctx-val">~/beta-mdflow/src/hooks/mdzap/useMdzapSendMessage.ts : linhas 46-51</div></div>
+    <div class="ctx-row"><div class="ctx-label">Causa</div><div class="ctx-val">const baseData = () => ({ request_id: crypto.randomUUID() }) gera novo UUID a cada call</div></div>
+    <div class="prompt-label">
+      <span>📋 Prompt #11 — BUG-11</span>
+      <button class="copy-btn" onclick="copyPrompt('p11')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="p11">Arquivo: ~/beta-mdflow/src/hooks/mdzap/useMdzapSendMessage.ts
+
+BUG: A função baseData() inclui request_id: crypto.randomUUID() — se chamada mais de uma
+vez por operação (retry, re-render), gera UUIDs diferentes, causando duplicatas em
+webhook_requests para o mesmo envio.
+
+CÓDIGO ATUAL (linhas ~46-51):
+  const baseData = () => ({
+    request_id: crypto.randomUUID(),
+    organizacao_id: organizacao_id ?? '',
+    actor_user_id: user?.user_id ?? '',
+    origem_rota: '/mdzap',
+  });
+
+FIX — Nos locais onde baseData() é chamado em sendText e sendFile/sendLink,
+gerar o requestId ANTES e passá-lo como objeto separado:
+
+Localizar todos os usos de baseData():
+  grep -n "baseData()" ~/beta-mdflow/src/hooks/mdzap/useMdzapSendMessage.ts
+
+Para cada chamada, extrair o requestId antes:
+  // ANTES:
+  const payload = { ...baseData(), data: { ... } };
+
+  // DEPOIS:
+  const requestId = crypto.randomUUID();
+  const payload = { ...baseData(), request_id: requestId, data: { ... } };
+
+  // E remover request_id do baseData():
+  const baseData = () => ({
+    // request_id removido daqui
+    organizacao_id: organizacao_id ?? '',
+    actor_user_id: user?.user_id ?? '',
+    origem_rota: '/mdzap',
+  });
+
+Ler o arquivo inteiro antes de editar para entender todos os pontos de uso.</div>
+  </div>
+</div>
+
+<div class="sep"></div>
+
+<!-- ═══════════════════════════════════════════ MEGA PROMPT ═══════════════════════════════════════════ -->
+<div class="mega-block" id="mega">
+  <div class="mega-header">
+    <span class="badge-mega">MEGA</span>
+    <div class="bug-title" style="color:var(--primary)">Mega Prompt — Revisão Final + HTML de Resultado</div>
+    <span class="dep-badge" style="margin-left:auto">Rodar POR ÚLTIMO</span>
+  </div>
+  <div class="bug-body">
+    <div class="prompt-label">
+      <span>📋 Mega Prompt — Rodar após todos os 11 prompts</span>
+      <button class="copy-btn" onclick="copyPrompt('pmega')">Copiar</button>
+    </div>
+    <div class="prompt-box" id="pmega">Você acabou de aplicar correções nos seguintes arquivos/migrações do projeto ~/beta-mdflow/:
+
+CÓDIGO (arquivos .tsx/.ts):
+- src/hooks/mdzap/useMdzapSendMessage.ts (BUG-01: invalidateQueries com orgId + BUG-11: requestId)
+- src/hooks/useMdzapStatus.ts (BUG-07: heartbeat null → disconnected)
+- src/components/mdzap/MdzapMsgInput.tsx (BUG-06: audio em filterDroppedFiles)
+- src/components/mdzap/MdzapDashboard.tsx (BUG-03: remove seletor cosmético + BUG-10: staleTime 30s)
+- src/components/mdzap/MdzapMsgBubble.tsx (BUG-08: CPF mascarado)
+- src/components/mdzap/MdzapConversaList.tsx (BUG-09: hint busca < 2 chars)
+
+MIGRATIONS SQL:
+- supabase/migrations/20260331000001_fix_fn_mdzap_conversas_awaiting_human.sql (BUG-02)
+- supabase/migrations/20260331000002_fix_mensagens_orfas.sql (BUG-04)
+- supabase/migrations/20260331000003_trigger_zera_nao_lidas_arquivada.sql (BUG-05)
+
+PASSO 1 — Verificar migrations pendentes:
+  ls ~/beta-mdflow/supabase/migrations/ | grep "20260331"
+
+PASSO 2 — Aplicar todas as migrations:
+  cd ~/beta-mdflow && npx supabase db push --linked
+
+PASSO 3 — Confirmar cada migration via curl:
+  # BUG-02: fn_mdzap_conversas retorna awaiting_human=true para conversa 4d6287ba
+  curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/rpc/fn_mdzap_conversas" \
+    -X POST \
+    -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Content-Type: application/json" \
+    -d '{"p_org_id":"55a0c7ba-7e6c-4427-beea-00f75c2c5a3b","p_numero_id":null}' \
+    | python3 -m json.tool | grep "awaiting_human"
+
+  # BUG-04: mensagens órfãs = 0
+  curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/whatsapp_mensagens?select=id&conversa_id=is.null&deleted_at=is.null" \
+    -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY"
+  # Esperado: []
+
+  # BUG-05: conversa arquivada com nao_lidas=0
+  curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/whatsapp_conversas?select=id,status,nao_lidas&status=eq.arquivada" \
+    -H "apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY" \
+    -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY"
+
+PASSO 4 — Git commit + push:
+  cd ~/beta-mdflow
+  git add -A
+  git commit -m "fix(mdzap): execution-v3 — 11 correções QA R1 2026-03-31"
+  git push
+
+PASSO 5 — Gerar HTML de resultado com:
+  - Título: "Execution Result — /mdzap v3 — 2026-03-31"
+  - Tabela: BUG-ID | Status (✅/❌/⚠️) | Evidência | Observação
+  - Seção Migrations: arquivo | status push | confirmação curl
+  - Hash do commit
+  - O que ainda precisa ser testado no browser
+  - Próximos passos
+
+CSS: background #12100e, primary #20c997, fontes Inter/Manrope/JetBrains Mono
+
+Salvar em: ~/jarbas-reports/beto/mdzap/execution-result-v3-2026-03-31.html
+
+Commit do report:
+  cd ~/jarbas-reports && git add beto/ && git commit -m "beto: execution-result mdzap v3 2026-03-31" && git push</div>
+  </div>
+</div>
+
+<div class="footer">
+  Após rodar todos os 11 prompts individualmente, rodar o Mega Prompt.<br/>
+  Ao receber o HTML de resultado → mandar aqui para análise automática do loop.
+</div>
+
+</body>
+</html>

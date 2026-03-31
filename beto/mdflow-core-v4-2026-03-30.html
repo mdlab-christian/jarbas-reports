@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.14 (2026-03-31)</title>
+<title>MdFlow Core — Referência Técnica v4.15 (2026-03-31)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -2670,15 +2670,17 @@
     <p class="sub">Chat interno tipo Slack para a equipe</p>
     <div class="badge-row">
       <span class="badge badge-route">/mdchat</span>
+      <span class="badge badge-ok">✅ Operacional</span>
       <span class="badge badge-ok">Realtime</span>
       <span class="badge badge-info">Provisioning automático</span>
+      <span class="badge badge-info">Rev. 2026-03-31</span>
     </div>
   </div>
 
   <details open>
     <summary>📋 Core</summary>
     <div class="details-body">
-      <p>Chat interno tipo Slack. 3 painéis: sidebar de canais (esquerda), timeline de mensagens (centro), painel de leitura/threads (direita). Suporte a threads, DMs, e canais por organização. Provisioning automático da workspace ao primeiro acesso.</p>
+      <p>Chat interno tipo Slack. 3 painéis: sidebar de canais (esquerda), timeline de mensagens (centro), painel de leitura/threads (direita). Suporte a threads, DMs, canais públicos/privados, reações emoji, upload/download de anexos, pins, edição e exclusão de mensagens, unreads por canal, deep link <code>?channel=X&amp;thread=Y</code>. Provisioning automático via RPC SECURITY DEFINER ao primeiro acesso do usuário.</p>
     </div>
   </details>
 
@@ -2688,23 +2690,31 @@
       <div class="tree">
 <span class="c">src/pages/MdChat/MdChatPage.tsx</span>
 ├── <span class="f">MdChatProvisioningScreen</span>  <span class="m">— tela de setup inicial</span>
-├── <span class="f">MdChatWorkspaceSidebar</span>    <span class="m">— lista de canais + DMs + unreads</span>
+├── <span class="f">MdChatWorkspaceSidebar</span>    <span class="m">— lista de canais + DMs + unreads (filtra archived_at)</span>
 ├── <span class="f">MdChatTimeline</span>            <span class="m">— mensagens do canal ativo</span>
-├── <span class="f">MdChatReaderPanel</span>         <span class="m">— threads + info do canal</span>
+│   ├── <span class="f">MdChatMessageList</span>     <span class="m">— lista com DateSeparator</span>
+│   ├── <span class="f">MdChatMessageBubble</span>   <span class="m">— avatar, reactions, thread link, hover actions</span>
+│   └── <span class="f">MdChatComposer</span>        <span class="m">— input + upload de anexos</span>
+├── <span class="f">MdChatReaderPanel</span>         <span class="m">— threads + info do canal (tabs)</span>
+│   ├── <span class="f">MdChatThreadView</span>      <span class="m">— query por ID direto, staleTime 30s</span>
+│   ├── <span class="f">MdChatMembersTab</span>      <span class="m">— lista membros com role (dono/admin/membro)</span>
+│   ├── <span class="f">MdChatFilesTab</span>        <span class="m">— anexos com download signed URL</span>
+│   ├── <span class="f">MdChatPinnedTab</span>       <span class="m">— mensagens fixadas</span>
+│   └── <span class="f">MdChatAboutTab</span>        <span class="m">— info do canal + arquivar</span>
 └── modals/
     ├── <span class="f">MdChatModalNovo</span>
-    ├── <span class="f">MdChatModalCriarCanal</span>
+    ├── <span class="f">MdChatModalCriarCanal</span>   <span class="m">— salva nome original (não slug)</span>
     ├── <span class="f">MdChatModalCriarDM</span>
     └── <span class="f">MdChatModalEditarCanal</span>
       </div>
 
       <div class="section-title">Hooks</div>
       <ul class="ilist">
-        <li><span class="tag tag-hook">hook</span> useMdChatChannels — lista canais disponíveis</li>
-        <li><span class="tag tag-hook">hook</span> useMdChatMessages — mensagens do canal ativo</li>
-        <li><span class="tag tag-hook">hook</span> useMdChatRealtime — subscriptions em tempo real</li>
-        <li><span class="tag tag-hook">hook</span> useMdChatProvisioning — provisiona workspace nova</li>
-        <li><span class="tag tag-hook">hook</span> useMdChatUnreads — contagem de mensagens não lidas</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdChatChannels</code> — lista canais disponíveis via RPC <code>mdchat_get_channels_with_info</code></li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdChatMessages</code> — mensagens do canal ativo, staleTime 30_000</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdChatRealtime</code> — subscriptions em tempo real por channel_id + organizacao_id</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdChatProvisioning</code> — verifica memberships do usuário (mdchat_channel_members), não canais da org</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdChatUnreads</code> — 2 batch queries (reads + messages recentes), counting client-side</li>
       </ul>
     </div>
   </details>
@@ -2713,10 +2723,48 @@
     <summary>🔗 Ligações</summary>
     <div class="details-body">
       <ul class="ilist">
-        <li><span class="tag tag-table">mdchat_channels</span> Leitura/escrita + Realtime</li>
-        <li><span class="tag tag-table">mdchat_messages</span> Leitura/escrita + Realtime (postgres_changes)</li>
-        <li>Deep link: <code>?channel=X&thread=Y</code> para canal e thread específicos</li>
+        <li><span class="tag tag-table">mdchat_channels</span> Leitura/escrita + Realtime. RPC: <code>mdchat_get_channels_with_info</code></li>
+        <li><span class="tag tag-table">mdchat_messages</span> Leitura/escrita + Realtime (postgres_changes). attachments em JSONB — nunca usar JSON.stringify</li>
+        <li><span class="tag tag-table">mdchat_channel_members</span> Membership do usuário. role: dono/admin/membro</li>
+        <li><span class="tag tag-table">mdchat_reactions</span> Reações emoji por mensagem</li>
+        <li><span class="tag tag-table">mdchat_pinned_messages</span> Mensagens fixadas no canal</li>
+        <li><span class="tag tag-rpc">RPC</span> <code>mdchat_provision_default_channels(p_org_id, p_user_id)</code> — SECURITY DEFINER, funciona com anon key</li>
+        <li>Deep link: <code>?channel=X&amp;thread=Y</code> para canal e thread específicos</li>
         <li>localStorage: <code>mdchat_last_channel</code> persiste último canal aberto</li>
+        <li>Storage: signed URLs via <code>getAttachmentSignedUrl(path)</code> para download de anexos</li>
+      </ul>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🔧 Última execução — 2026-03-31 (16 bugs)</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>✅ <strong>P0-01</strong>: Remove <code>JSON.stringify(attachments)</code> em <code>updateMessageAttachments</code> — Supabase JSONB não precisa de serialização manual</li>
+        <li>✅ <strong>P0-02</strong>: Guard <code>created_at</code> vazio em <code>MdChatAboutTab</code> — evita crash do <code>date-fns format()</code></li>
+        <li>✅ <strong>P0-03</strong>: <code>useMdChatProvisioning</code> verifica <code>mdchat_channel_members</code> por user_id (não canais da org)</li>
+        <li>✅ <strong>P1-01</strong>: <code>member_count</code> com fallback <code>Number(row.member_count) || 0</code> — evita "NaN membros"</li>
+        <li>✅ <strong>P1-02</strong>: FilesTab com botão de download + signed URL + spinner Loader2</li>
+        <li>✅ <strong>P1-03</strong>: ThreadView busca parent por ID direto + <code>staleTime: 30_000</code></li>
+        <li>✅ <strong>P1-04</strong>: useMdChatUnreads reescrito com 2 batch queries (anti N+1)</li>
+        <li>✅ <strong>P1-05/06</strong>: Sidebar filtra <code>archived_at</code> + archive invalida sidebar imediatamente</li>
+        <li>✅ <strong>P2-02</strong>: MdChatChannelListItem com botão "..." hover (acessível em touch)</li>
+        <li>✅ <strong>P2-03</strong>: EmojiPicker expandido para 24 emojis em grid 8 colunas</li>
+        <li>✅ <strong>P2-04</strong>: Modal canal salva <code>nome.trim()</code> (não slug)</li>
+        <li>✅ <strong>P2-05</strong>: useEffect separados — URL sync + initial channel selection</li>
+        <li>✅ <strong>NEW-01</strong>: Guards <code>isNaN(d.getTime())</code> em <code>formatTimestamp</code>, <code>MdChatDateSeparator</code>, <code>MdChatChannelHeader</code></li>
+        <li>✅ <strong>NEW-01e</strong>: MdChatMembersTab: <code>const { user } = useAuth(); const orgId = user?.organizacao_id</code></li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>⚠️ Bugs conhecidos abertos</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>⚠️ RPC <code>mdchat_get_channels_with_info</code> não retorna <code>created_at</code> nem <code>member_count</code> — mitigado com fallbacks no service</li>
+        <li>⚠️ Notificações desktop (browser Notifications API) não implementadas</li>
+        <li>⚠️ Busca global nas mensagens não implementada</li>
       </ul>
     </div>
   </details>
@@ -2724,7 +2772,7 @@
   <details>
     <summary>🚦 Status</summary>
     <div class="details-body">
-      <p style="color: var(--primary);">✅ Funciona. Realtime ativo. Unreads calculados por canal. Threads implementados.</p>
+      <p style="color: var(--primary);">✅ Operacional. Realtime ativo. Unreads otimizados (2 batch queries). Threads por ID direto. Provisioning via SECURITY DEFINER RPC. 16 bugs corrigidos em 2026-03-31.</p>
     </div>
   </details>
 </section>

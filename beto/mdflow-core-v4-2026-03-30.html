@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.22 (2026-03-31)</title>
+<title>MdFlow Core — Referência Técnica v4.23 (2026-03-31)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -2070,17 +2070,116 @@
 <section id="page-audiencias" class="page-section">
   <div class="pg-header">
     <h2>Audiências</h2>
-    <p class="sub">Agenda de audiências judiciais</p>
-    <div class="badge-row"><span class="badge badge-route">/audiencias</span><span class="badge badge-ok">Funciona</span></div>
+    <p class="sub">Agenda de audiências judiciais — CRUD, correspondentes, pagamentos, IA</p>
+    <div class="badge-row">
+      <span class="badge badge-route">/audiencias</span>
+      <span class="badge badge-ok">✅ Operacional</span>
+      <span style="font-size:11px;color:#9e978a;">QA + Execution + Reteste — 2026-03-31</span>
+    </div>
   </div>
+
   <details open>
-    <summary>📋 Core + Ligações</summary>
+    <summary>🏗️ Estrutura — 25 Arquivos (~4.090 linhas)</summary>
     <div class="details-body">
-      <p>Calendário e lista de audiências marcadas. Filtrável por advogado, data, tipo, status. Integrado com ProcessoPage para visão inline das audiências do processo.</p>
-      <ul class="ilist" style="margin-top: 12px;">
-        <li><span class="tag tag-table">audiencias</span> CRUD — processo_id, data_hora, tipo, status, local, observacoes</li>
-        <li><span class="tag tag-table">processos</span> Join para exibir número CNJ</li>
-        <li><span class="tag tag-table">advogados</span> Join para filtros por advogado</li>
+      <div class="tree">
+<span class="c">src/pages/audiencias/</span>
+├── <span class="f">index.tsx</span>                           <span class="m">— Entry point: PageHeader + KPIs + Tabs + Modal + OlivIA drawer</span>
+├── hooks/
+│   ├── <span class="f">useAudiencias.ts</span>                <span class="m">— Query principal (audiencias_vw) + Realtime + paginação</span>
+│   ├── <span class="f">useAudienciasKPIs.ts</span>            <span class="m">— 4 KPIs: semana, próxima, realizadas, a pagar</span>
+│   ├── <span class="f">useAudienciaCalendar.ts</span>         <span class="m">— Query para visão calendário</span>
+│   ├── <span class="f">useAudienciaForm.ts</span>             <span class="m">— Form criar/editar (webhook p/ criar, Supabase p/ editar)</span>
+│   ├── <span class="f">useAudienciaIA.ts</span>               <span class="m">— useQuery + Realtime (audiencias_ia_resultados)</span>
+│   ├── <span class="f">useAudienciaFilterParams.ts</span>     <span class="m">— Filtros via URL params (shareáveis)</span>
+│   ├── <span class="f">useCorrespondentes.ts</span>           <span class="m">— CRUD correspondentes + Realtime</span>
+│   ├── <span class="f">useCorrespondenteForm.ts</span>        <span class="m">— Form correspondente</span>
+│   └── <span class="f">useCorrespondenteSelect.ts</span>      <span class="m">— Select dropdown correspondentes</span>
+├── components/
+│   ├── <span class="f">AudienciasKpiGrid.tsx</span>           <span class="m">— Grid 4 KPIs com cegueira financeira</span>
+│   ├── <span class="f">AudienciasTabs.tsx</span>              <span class="m">— Tabs de status com badges contagem</span>
+│   ├── <span class="f">AudienciasTabContent.tsx</span>        <span class="m">— Conteúdo tabs + Exportar/Importar (webhooks n8n)</span>
+│   ├── <span class="f">AudienciasFilterBar.tsx</span>         <span class="m">— Busca + filtros dropdown (status, tipo, modalidade, pago, data)</span>
+│   ├── <span class="f">AudienciasListView.tsx</span>          <span class="m">— Lista/tabela com paginação</span>
+│   ├── <span class="f">AudienciasCalendarView.tsx</span>      <span class="m">— Visão calendário mensal</span>
+│   ├── <span class="f">AudienciaCard.tsx</span>               <span class="m">— Card individual com CNJ, data, status, ações</span>
+│   ├── <span class="f">CorrespondentesTab.tsx</span>          <span class="m">— Tab correspondentes com PIX copy, cegueira financeira</span>
+│   ├── <span class="f">ModalImportAudiencias.tsx</span>       <span class="m">— Import CSV com preview e validação</span>
+│   └── <span class="f">UploadAta.tsx</span>                   <span class="m">— Upload ata multi-formato (500MB max, webhook IA)</span>
+└── modals/
+    ├── <span class="f">ModalAudiencia.tsx</span>              <span class="m">— Modal principal criar/editar (496 linhas, dirty state)</span>
+    ├── <span class="f">ModalConfirmacaoPagamento.tsx</span>   <span class="m">— Confirmar pagamento (webhook sync_financeiro)</span>
+    ├── <span class="f">ModalReverterPagamento.tsx</span>      <span class="m">— Reverter pagamento (webhook + fallback RPC)</span>
+    ├── <span class="f">ModalCorrespondente.tsx</span>         <span class="m">— CRUD correspondente</span>
+    └── <span class="f">SecaoResumoIA.tsx</span>               <span class="m">— Resumo IA da ata processada</span>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>📋 Banco + RPCs</summary>
+    <div class="details-body">
+      <div class="section-title">Tabelas (6)</div>
+      <ul class="ilist">
+        <li><span class="tag tag-table">audiencias</span> Principal — 23 colunas, RLS modelo A, soft delete, trigger updated_at</li>
+        <li><span class="tag tag-table">audiencias_vw</span> View materializada para listagem (joins processo + advogado)</li>
+        <li><span class="tag tag-table">advogados_correspondentes</span> Correspondentes (nome, OAB, valor, PIX, UF)</li>
+        <li><span class="tag tag-table">audiencias_ia_resultados</span> Resultados de análise IA de atas</li>
+        <li><span class="tag tag-table">audiencias_arquivos</span> Arquivos de ata uploadados</li>
+        <li><span class="tag tag-table">audiencias_participantes</span> Participantes (advogado, cliente, juiz)</li>
+      </ul>
+      <div class="section-title">RPCs (5)</div>
+      <ul class="ilist">
+        <li><span class="tag tag-rpc">get_audiencias_semana</span> KPI semana atual</li>
+        <li><span class="tag tag-rpc">get_proxima_audiencia</span> Próxima audiência agendada</li>
+        <li><span class="tag tag-rpc">check_conflito_audiencia</span> Verifica conflito de horário</li>
+        <li><span class="tag tag-rpc">registrar_pagamento_audiencia</span> Registrar pagamento (valida existência)</li>
+        <li><span class="tag tag-rpc">reverter_pagamento_audiencia</span> Reverter pagamento (valida existência — fix 2026-03-31)</li>
+      </ul>
+      <div class="section-title">Índices</div>
+      <ul class="ilist">
+        <li><code>idx_audiencias_org_id</code> — organizacao_id</li>
+        <li><code>idx_audiencias_org_id_active</code> — parcial WHERE deleted_at IS NULL</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>🔗 Webhooks n8n (5)</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li><span class="tag tag-webhook">audiencias/crud</span> ATIVO — agendar, registrar_resultado, cancelar</li>
+        <li><span class="tag tag-webhook">audiencias/sync_financeiro</span> ATIVO — registrar/reverter pagamento</li>
+        <li><span class="tag tag-webhook">audiencias/processar_ata</span> ATIVO — Whisper+Claude para análise de ata (stub)</li>
+        <li><span class="tag tag-webhook">audiencias/chat</span> ATIVO — Chat OlivIA (stub)</li>
+        <li><span class="tag tag-webhook">audiencias/calendar</span> DESABILITADO — Google Calendar (aguarda OAuth2)</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>✅ O que foi feito (QA 2026-03-31)</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li><strong>BUG-001 (P0):</strong> staleTime 5min→30s em 5 hooks React Query</li>
+        <li><strong>BUG-002 (P1):</strong> RPC reverter_pagamento_audiencia — validação de existência adicionada</li>
+        <li><strong>BUG-003 (P1):</strong> Mobile 375px — header buttons + FilterBar + TabContent responsivos (2 rounds)</li>
+        <li><strong>BUG-004 (P2):</strong> Cegueira financeira padronizada "R$ •••••" em correspondentes</li>
+        <li><strong>BUG-005 (P2):</strong> Removido cast <code>as never</code> em audiencias_participantes (tipos já existiam)</li>
+        <li><strong>BUG-006 (P2):</strong> useAudienciaIA refatorado useState→useQuery com cache e invalidation</li>
+      </ul>
+      <p style="margin-top:8px;color:#9e978a;">9 commits | Reteste visual confirmado | Zero regressões</p>
+    </div>
+  </details>
+
+  <details>
+    <summary>⚠️ Pendências conhecidas</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>WH-AUD-01: Análise IA de ata (webhook stub — sem Whisper+Claude implementado)</li>
+        <li>WH-AUD-02: Chat OlivIA (webhook stub — sem IA conectada)</li>
+        <li>WH-AUD-05: Google Calendar sync (aguarda OAuth2 — botão desabilitado no frontend)</li>
+        <li>audiencias/exportar workflow INACTIVE com ghost route (pode quebrar em restart n8n)</li>
+        <li>ModalAudiencia.tsx em 496 linhas (próximo do limite 500 — monitorar)</li>
       </ul>
     </div>
   </details>

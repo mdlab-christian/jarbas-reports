@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v9.4 (2026-03-30)</title>
+<title>MdFlow Core — Referência Técnica v9.5 (2026-03-30)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -2628,7 +2628,7 @@
   <div class="pg-header">
     <h2>Empresas</h2>
     <p class="sub">Cadastro central de empresas restritivas — pré-requisito para restrições</p>
-    <div class="badge-row"><span class="badge badge-route">/empresas</span><span class="badge badge-ok">EmpresasPage.tsx</span><span class="badge badge-warn">Revisão de dados necessária</span></div>
+    <div class="badge-row"><span class="badge badge-route">/empresas</span><span class="badge badge-ok">EmpresasPage.tsx</span><span class="badge badge-ok">✅ Operacional — QA 2026-03-30</span><span class="badge badge-warn">Limpeza de dados pendente</span></div>
   </div>
 
   <details open>
@@ -2669,7 +2669,7 @@
       <ul class="ilist">
         <li><span class="tag tag-comp">OlivIA</span> Abre OlivIA drawer (<code>olivia:open-drawer</code> event)</li>
         <li><span class="tag tag-comp">Exportar</span> CSV com filtros ativos (somente na aba "empresas")</li>
-        <li><span class="tag tag-comp">Importar</span> CSV via <code>callWebhook('empresas/capturar')</code> — rate limited (100ms/item)</li>
+        <li><span class="tag tag-comp">Importar</span> CSV via <code>callWebhook('empresas/capturar')</code> — batches de 10 via Promise.all + progress toast</li>
         <li><span class="tag tag-comp">Nova Empresa</span> Abre <code>ModalEmpresa mode=create</code> — oculto para perfil operacional</li>
       </ul>
     </div>
@@ -2685,7 +2685,7 @@
           <tr><td>Nome Fantasia *</td><td>text (UPPERCASE)</td><td>required</td><td>Blur → verifica duplicatas similares (<code>PopupDuplicidade</code>)</td></tr>
           <tr><td>Razão Social</td><td>text (UPPERCASE)</td><td>opcional</td><td></td></tr>
           <tr><td>CNPJ</td><td>text masked</td><td>opcional (required em approve+processável)</td><td>Blur → verifica CNPJ duplicado; máscara <code>maskCNPJ()</code></td></tr>
-          <tr><td>Categoria *</td><td>select</td><td>required em approve</td><td>FK <code>empresas_categorias</code> — crítico para OlivIA</td></tr>
+          <tr><td>Categoria *</td><td>select</td><td>required se processavel=true (todos os modes); opcional para não-processáveis</td><td>FK <code>empresas_categorias</code> — crítico para OlivIA. Label com * quando processavel=true</td></tr>
           <tr><td>Processável?</td><td>switch</td><td>boolean</td><td>Define se pode ser ré em processos judiciais</td></tr>
           <tr><td>Empresa Ativa?</td><td>switch</td><td>boolean</td><td>Inativo exibe campo motivo</td></tr>
           <tr><td>Motivo Inativação</td><td>text</td><td>condicional (só se inativo)</td><td>max 500 chars</td></tr>
@@ -2695,7 +2695,7 @@
           <tr><td>Buscar dados (Enrichment)</td><td>botão</td><td>CNPJ com 14 dígitos</td><td>Consulta ReceitaWS + IA; exibe <code>ScoreIndicator</code> com blocos de completude</td></tr>
         </tbody>
       </table>
-      <div class="warn-note">⚠️ Modo <strong>approve</strong>: Categoria e Endereços viram obrigatórios. Popup de aprovação com dados da fila.</div>
+      <div class="warn-note">ℹ️ Modo <strong>approve</strong>: Endereços viram obrigatórios se processável. Aprovação: se empresa_id existe → UPDATE; se não → INSERT (sem duplicatas). Fila atualiza status para 'aprovada'.</div>
     </div>
   </details>
 
@@ -2736,24 +2736,48 @@
   <details open>
     <summary>🐛 Pendências</summary>
     <div class="details-body">
-      <div class="section-title">Problemas de dados (backend antigo)</div>
+      <div class="section-title">✅ Corrigidos — Ciclo v1 (2026-03-30)</div>
+      <div class="bug-card" style="border-left:3px solid #22c55e; background:rgba(34,197,94,0.05)">
+        <h4 style="color:#22c55e">✅ 8 bugs corrigidos — TypeScript 0 erros</h4>
+        <p><strong>BUG-002</strong>: TypeError err.message → instanceof Error (ModalConfirmacaoDelete + ModalMergeEmpresa)<br>
+        <strong>BUG-003</strong>: Aprovação INSERT → UPSERT condicional por empresa_id (sem duplicatas na fila)<br>
+        <strong>BUG-004</strong>: Detecção de duplicatas habilitada no EDIT (handleNomeBlur, filtra próprio ID)<br>
+        <strong>BUG-005</strong>: Categoria obrigatória para processavel=true em todos os modes + label visual *<br>
+        <strong>BUG-006</strong>: Campo legado <code>categoria</code> populado no save via lookup (schema: campo já existe)<br>
+        <strong>BUG-007</strong>: Import CSV em batches de 10 + progress toast (~10x mais rápido)<br>
+        <strong>BUG-009</strong>: Botão "Ver" PopupDuplicidade abre ModalEmpresa mode=view corretamente<br>
+        <strong>BUG-010</strong>: Duplo useQuery unificado, meta.onSuccess deprecated removido, staleTime: 30s</p>
+      </div>
+
+      <div class="section-title">🔴 Dados — limpeza pendente (backend antigo)</div>
       <div class="bug-card crit">
-        <h4>🔴 Nomes duplicados / muito parecidos</h4>
-        <p>Backend antigo gerou cadastros inconsistentes. Muitas empresas com nomes iguais ou quase iguais. Revisão via relatório de similaridade (query SQL com <code>similarity()</code> ou <code>levenshtein()</code>).</p>
+        <h4>🔴 Nomes duplicados / muito parecidos (E1)</h4>
+        <p>Backend antigo gerou cadastros inconsistentes. 847 empresas — revisão via query <code>similarity()</code> necessária.</p>
       </div>
       <div class="bug-card crit">
-        <h4>🔴 Nomes de clientes misturados com empresas</h4>
-        <p>Registros de pessoas físicas (CPF) aparecem na lista de empresas — limpeza necessária.</p>
+        <h4>🔴 Nomes de clientes misturados com empresas (E2)</h4>
+        <p>Registros de pessoas físicas (CPF) podem aparecer na lista de empresas — limpeza necessária.</p>
       </div>
-      <div class="bug-card crit">
-        <h4>🔴 CNPJ incorreto em alguns cadastros</h4>
-        <p>Exemplo: "Lojas Labz" duplicada com CNPJ começando em 90 (incorreto). Correto: CNPJ 11.271... com variações <code>Drabz Financeira S.A.</code> e <code>Labz Financeira S.A.</code></p>
-      </div>
-      <div class="section-title">Revisões necessárias</div>
+      <div class="section-title">🟡 Revisões de dados necessárias</div>
       <div class="bug-card warn">
-        <h4>🟡 Gerar relatório de duplicatas + validar categorias</h4>
-        <p>Query SQL com <code>similarity()</code> para listar nomes parecidos. Validar que todas as empresas têm <code>categoria</code> e <code>orgao_restritivo</code> preenchidos.</p>
+        <h4>🟡 Processar auditoria R1/R2/R3 no Supabase</h4>
+        <p>R1: <code>similarity()</code> para listar nomes parecidos. R2: empresas processáveis sem categoria_id. R3: órgão restritivo incorreto. Queries disponíveis em empresas.md.</p>
       </div>
+      <div class="bug-card warn">
+        <h4>🟡 BUG-008 — orgao_id não existe na tabela empresas</h4>
+        <p>Filtro por órgão na listagem impossível. Relação empresa ↔ órgão existe apenas via processos. Requer migration ou feature nova.</p>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>📊 Dados do banco (2026-03-30)</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>847 empresas ativas | 372 processáveis | 62 inativas</li>
+        <li>Top: Boa Vista (2071 proc.) · Mercado Pago (1042) · Nubank (544) · Santander (422)</li>
+        <li>CNPJ Santander <code>90.400.888/0001-42</code> — correto (banco com capital estrangeiro)</li>
+      </ul>
     </div>
   </details>
 </section>

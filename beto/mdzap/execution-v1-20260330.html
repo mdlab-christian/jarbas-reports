@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Plan — mdzap v1 — 2026-03-30</title>
+<style>
+  :root {
+    --bg: #12100e; --surface: #1a1815; --surface2: #221f1c; --border: #2d2925;
+    --primary: #20c997; --primary-dim: rgba(32,201,151,0.15);
+    --text: #e8e0d8; --text-muted: #8a7f78;
+    --red: #ef4444; --red-dim: rgba(239,68,68,0.15);
+    --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.15);
+    --blue: #3b82f6; --blue-dim: rgba(59,130,246,0.15);
+    --green: #22c55e; --green-dim: rgba(34,197,94,0.15);
+    --violet: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; font-size: 14px; line-height: 1.6; padding: 2rem; max-width: 1100px; margin: 0 auto; }
+  h1 { font-family: Manrope, sans-serif; font-size: 1.75rem; color: var(--primary); margin-bottom: 0.25rem; }
+  h2 { font-family: Manrope, sans-serif; font-size: 1.15rem; color: var(--text); margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-family: Manrope, sans-serif; font-size: 0.95rem; color: var(--text); margin: 1rem 0 0.4rem; }
+  .meta { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 2rem; }
+  .meta span { margin-right: 1.5rem; }
+
+  /* Índice */
+  .index { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 2rem; }
+  .index h3 { color: var(--primary); margin-top: 0; }
+  .index ol { padding-left: 1.5rem; }
+  .index ol li { padding: 0.2rem 0; font-size: 0.88rem; }
+  .index ol li a { color: var(--primary); text-decoration: none; }
+  .index ol li a:hover { text-decoration: underline; }
+  .index .seq-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 0.75rem; font-style: italic; }
+
+  /* Bug block */
+  .bug-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 2rem; }
+  .bug-block-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.9rem 1.25rem; flex-wrap: wrap; }
+  .bug-block-header.p0 { background: rgba(239,68,68,0.08); border-bottom: 1px solid rgba(239,68,68,0.2); }
+  .bug-block-header.p1 { background: rgba(245,158,11,0.08); border-bottom: 1px solid rgba(245,158,11,0.2); }
+  .bug-block-header.p2 { background: rgba(158,151,138,0.08); border-bottom: 1px solid var(--border); }
+  .bug-id { font-family: Manrope, sans-serif; font-weight: 700; font-size: 1rem; }
+  .bug-id.p0 { color: var(--red); }
+  .bug-id.p1 { color: var(--yellow); }
+  .bug-id.p2 { color: var(--text-muted); }
+  .bug-title { font-size: 0.95rem; font-weight: 600; flex: 1; }
+  .file-tag { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--primary); background: var(--primary-dim); border: 1px solid rgba(32,201,151,0.3); border-radius: 4px; padding: 2px 7px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+  .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-muted { background: rgba(158,151,138,0.12); color: var(--text-muted); border: 1px solid var(--border); }
+  .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+
+  .bug-body { padding: 1.25rem; }
+  .section-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 0.35rem; margin-top: 1rem; }
+  .section-label:first-child { margin-top: 0; }
+
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; color: var(--primary); }
+  pre { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 1rem; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; line-height: 1.55; margin: 0.5rem 0; }
+
+  /* Prompt box */
+  .prompt-box { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; margin-top: 0.75rem; overflow: hidden; }
+  .prompt-box-header { background: var(--surface2); padding: 0.5rem 1rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); }
+  .prompt-box-header span { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); }
+  .copy-btn { font-size: 0.72rem; background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(32,201,151,0.3); border-radius: 4px; padding: 2px 10px; cursor: pointer; font-weight: 600; }
+  .copy-btn:hover { background: rgba(32,201,151,0.25); }
+  .prompt-content { padding: 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; line-height: 1.6; color: #c9d1d9; white-space: pre-wrap; word-break: break-word; }
+
+  .dep-note { background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.2); border-radius: 6px; padding: 0.5rem 0.85rem; font-size: 0.82rem; color: var(--blue); margin-top: 0.75rem; }
+  .dep-note::before { content: "⚙️ "; }
+
+  /* Summary */
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin: 1.25rem 0 2rem; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.9rem; text-align: center; }
+  .kpi .num { font-family: Manrope, sans-serif; font-size: 1.8rem; font-weight: 700; display: block; }
+  .kpi .lbl { color: var(--text-muted); font-size: 0.78rem; }
+  .kpi.red .num { color: var(--red); }
+  .kpi.yellow .num { color: var(--yellow); }
+  .kpi.blue .num { color: var(--blue); }
+
+  /* Mega prompt */
+  .mega-prompt { border: 2px solid rgba(32,201,151,0.4); border-radius: 10px; overflow: hidden; margin-top: 2rem; }
+  .mega-prompt-header { background: var(--primary-dim); padding: 0.85rem 1.25rem; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(32,201,151,0.3); }
+  .mega-prompt-header h3 { color: var(--primary); font-family: Manrope, sans-serif; font-size: 1rem; margin: 0; }
+
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.78rem; text-align: center; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+
+  .order-badge { background: rgba(32,201,151,0.1); color: var(--primary); border: 1px solid rgba(32,201,151,0.25); border-radius: 4px; padding: 1px 7px; font-size: 0.72rem; font-weight: 700; }
+</style>
+<script>
+  function copyPrompt(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    navigator.clipboard.writeText(el.innerText).then(() => {
+      const btn = el.closest('.prompt-box').querySelector('.copy-btn');
+      const orig = btn.innerText;
+      btn.innerText = '✅ Copiado!';
+      setTimeout(() => btn.innerText = orig, 1800);
+    });
+  }
+</script>
+</head>
+<body>
+
+<h1>⚡ Execution Plan — /mdzap v1</h1>
+<div class="meta">
+  <span>📅 2026-03-30</span>
+  <span>🔁 Ciclo: v1</span>
+  <span>📋 Baseado em: qa-report-20260330.html</span>
+  <span>🏗️ Projeto: ~/beta-mdflow/</span>
+</div>
+
+<div class="summary-grid">
+  <div class="kpi red"><span class="num">2</span><div class="lbl">🔴 P0 — Críticos</div></div>
+  <div class="kpi yellow"><span class="num">4</span><div class="lbl">🟡 P1 — Médios</div></div>
+  <div class="kpi blue"><span class="num">7</span><div class="lbl">📋 Prompts totais</div></div>
+  <div class="kpi"><span class="num" style="color:var(--primary)">1</span><div class="lbl">🖥️ Terminal</div></div>
+</div>
+
+<!-- ÍNDICE -->
+<div class="index">
+  <h3>📋 Sequência de execução</h3>
+  <ol>
+    <li><a href="#bug02">BUG-02 🔴 P0</a> — useMdzapMensagens: adicionar orgId no queryKey <span style="color:var(--text-muted)">(independente)</span></li>
+    <li><a href="#bug03">BUG-03 🔴 P0</a> — MdzapMsgBubble: adicionar DialogDescription <span style="color:var(--text-muted)">(independente)</span></li>
+    <li><a href="#bug04">BUG-04 🟡 P1</a> — useMdzapStats + useMdzapStatus: staleTime 60_000 → 30_000 <span style="color:var(--text-muted)">(independente)</span></li>
+    <li><a href="#bug05">BUG-05 🟡 P1</a> — useMdzapTemplates: migrar useState → React Query <span style="color:var(--text-muted)">(independente)</span></li>
+    <li><a href="#bug06">BUG-06 🟡 P1</a> — useMdzapKeyboardShortcuts: adicionar Ctrl+K <span style="color:var(--text-muted)">(independente)</span></li>
+    <li><a href="#bug07">BUG-07 🟡 P1</a> — MdzapConnectionIndicator: adicionar estado de erro <span style="color:var(--text-muted)">(após BUG-04)</span></li>
+    <li><a href="#mega">📋 Mega Prompt de Revisão</a> — gerar HTML de resultado <span style="color:var(--primary)">(rodar por último)</span></li>
+  </ol>
+  <div class="seq-note">Todos os prompts são independentes entre si exceto BUG-07 (depende de useMdzapStatus atualizado pelo BUG-04). Rodar na ordem listada para segurança. Use 1 terminal Claude Code para toda a sessão.</div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- PROMPT 1 — BUG-02                 -->
+<!-- ══════════════════════════════════ -->
+<div id="bug02" class="bug-block">
+  <div class="bug-block-header p0">
+    <span class="bug-id p0">BUG-02</span>
+    <span class="badge badge-red">P0 — CRÍTICO</span>
+    <span class="order-badge">1º</span>
+    <span class="bug-title">useMdzapMensagens — queryKey sem organizacaoId</span>
+    <span class="file-tag">src/hooks/mdzap/useMdzapMensagens.ts:14</span>
+    <span class="badge badge-muted">Independente</span>
+  </div>
+  <div class="bug-body">
+    <div class="section-label">Contexto</div>
+    <p>O hook <code>useMdzapMensagens</code> define a queryKey como <code>['mdzap', 'mensagens', conversaId]</code>. Em ambiente multi-tenant, se dois tenants tiverem o mesmo <code>conversaId</code> (possível em seeds/testes), o React Query pode retornar o cache de um tenant para o outro. O fix é incluir <code>orgId</code> no queryKey.</p>
+
+    <div class="section-label">Código atual (linha 14)</div>
+    <pre>const queryKey = ['mdzap', 'mensagens', conversaId];</pre>
+
+    <div class="section-label">Fix esperado</div>
+    <pre>// Adicionar orgId no parâmetro do hook e na queryKey
+export function useMdzapMensagens(conversaId: string | null, orgId: string) {
+  // ...
+  const queryKey = ['mdzap', 'mensagens', orgId, conversaId];
+</pre>
+
+    <div class="section-label">Prompt para Claude Code</div>
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <span>Prompt #1 — BUG-02</span>
+        <button class="copy-btn" onclick="copyPrompt('p-bug02')">📋 Copiar</button>
+      </div>
+      <div class="prompt-content" id="p-bug02">Arquivo: ~/beta-mdflow/src/hooks/mdzap/useMdzapMensagens.ts
+
+BUG: a queryKey não inclui orgId, causando risco de vazamento de dados entre organizações em ambiente multi-tenant.
+
+CÓDIGO ATUAL (linha 14):
+  const queryKey = ['mdzap', 'mensagens', conversaId];
+
+FIX NECESSÁRIO:
+1. Adicionar `orgId: string` como segundo parâmetro da função `useMdzapMensagens`
+2. Atualizar a queryKey para incluir orgId:
+   const queryKey = ['mdzap', 'mensagens', orgId, conversaId];
+3. Verificar os callers desse hook (buscar por `useMdzapMensagens(` no projeto) e passar o orgId necessário:
+   - Provavelmente em MdzapMsgThread.tsx — verificar se já tem acesso ao organizacaoId (via prop ou useAuth)
+4. NÃO alterar a lógica de fetch (queryFn), realtime subscription ou exports
+
+Referência do projeto: ~/beta-mdflow/
+Buscar callers: grep -r "useMdzapMensagens(" ~/beta-mdflow/src --include="*.tsx" --include="*.ts"
+
+IMPORTANTE: Não criar novos arquivos. Apenas editar os arquivos existentes onde o hook é declarado e onde é chamado.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- PROMPT 2 — BUG-03                 -->
+<!-- ══════════════════════════════════ -->
+<div id="bug03" class="bug-block">
+  <div class="bug-block-header p0">
+    <span class="bug-id p0">BUG-03</span>
+    <span class="badge badge-red">P0 — CRÍTICO</span>
+    <span class="order-badge">2º</span>
+    <span class="bug-title">MdzapMsgBubble — DialogDescription ausente (Radix a11y warning)</span>
+    <span class="file-tag">src/components/mdzap/MdzapMsgBubble.tsx:68–83</span>
+    <span class="badge badge-muted">Independente</span>
+  </div>
+  <div class="bug-body">
+    <div class="section-label">Contexto</div>
+    <p>O <code>DialogContent</code> do preview de imagem em <code>MdzapMsgBubble</code> tem <code>DialogTitle</code> (com <code>sr-only</code>) mas não tem <code>DialogDescription</code>. O Radix UI exige um dos dois: <code>&lt;DialogDescription&gt;</code> ou <code>aria-describedby={'{undefined}'}</code> para silenciar o warning.</p>
+
+    <div class="section-label">Código atual (linhas 67–83)</div>
+    <pre>&lt;Dialog open onOpenChange={(o) =&gt; { if (!o) onClose(); }}&gt;
+  &lt;DialogContent className="max-w-3xl p-0 bg-black/90 border-border overflow-hidden"&gt;
+    &lt;DialogTitle className="sr-only"&gt;Preview de imagem&lt;/DialogTitle&gt;
+    {/* SEM DialogDescription — warning Radix em produção */}
+    &lt;img src={url} ... /&gt;
+  &lt;/DialogContent&gt;
+&lt;/Dialog&gt;</pre>
+
+    <div class="section-label">Fix esperado (opção 1 — recomendada)</div>
+    <pre>import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+
+// Adicionar após DialogTitle:
+&lt;DialogDescription className="sr-only"&gt;Visualização da imagem em tamanho completo&lt;/DialogDescription&gt;</pre>
+
+    <div class="section-label">Prompt para Claude Code</div>
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <span>Prompt #2 — BUG-03</span>
+        <button class="copy-btn" onclick="copyPrompt('p-bug03')">📋 Copiar</button>
+      </div>
+      <div class="prompt-content" id="p-bug03">Arquivo: ~/beta-mdflow/src/components/mdzap/MdzapMsgBubble.tsx
+
+BUG: Console de produção exibe warning Radix UI:
+  "Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}"
+
+O DialogContent do preview de imagem tem DialogTitle (com sr-only) mas não tem DialogDescription.
+
+FIX:
+1. Adicionar `DialogDescription` ao import da linha 7:
+   import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+
+2. Adicionar após a linha do DialogTitle (aprox. linha 69):
+   &lt;DialogDescription className="sr-only"&gt;Visualização da imagem em tamanho completo&lt;/DialogDescription&gt;
+
+Resultado esperado: warning "Missing Description" deve desaparecer do console.
+NÃO alterar nenhuma outra parte do componente.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- PROMPT 3 — BUG-04                 -->
+<!-- ══════════════════════════════════ -->
+<div id="bug04" class="bug-block">
+  <div class="bug-block-header p1">
+    <span class="bug-id p1">BUG-04</span>
+    <span class="badge badge-yellow">P1 — MÉDIO</span>
+    <span class="order-badge">3º</span>
+    <span class="bug-title">useMdzapStats + useMdzapStatus — staleTime 60_000 → 30_000</span>
+    <span class="file-tag">src/hooks/useMdzapStats.ts:19 | src/hooks/useMdzapStatus.ts:25</span>
+    <span class="badge badge-muted">Independente</span>
+  </div>
+  <div class="bug-body">
+    <div class="section-label">Contexto</div>
+    <p>Os hooks <code>useMdzapStats</code> e <code>useMdzapStatus</code> usam <code>staleTime: 60_000</code>. O padrão do projeto MdFlow é <code>staleTime: 30_000</code>. Isso faz com que dados do Dashboard de KPIs e do status do número WhatsApp fiquem até 60 segundos desatualizados.</p>
+
+    <div class="section-label">Prompt para Claude Code</div>
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <span>Prompt #3 — BUG-04</span>
+        <button class="copy-btn" onclick="copyPrompt('p-bug04')">📋 Copiar</button>
+      </div>
+      <div class="prompt-content" id="p-bug04">Arquivos:
+  ~/beta-mdflow/src/hooks/useMdzapStats.ts (linha 19)
+  ~/beta-mdflow/src/hooks/useMdzapStatus.ts (linha 25)
+
+BUG: staleTime está em 60_000ms em ambos os hooks. O padrão do projeto é 30_000ms.
+
+FIX — alterar em cada arquivo:
+  staleTime: 60_000,   →   staleTime: 30_000,
+
+Isso se aplica a:
+- useMdzapStats.ts: linha ~19 dentro do useQuery
+- useMdzapStatus.ts: linha ~25 dentro do useQuery
+
+NÃO alterar mais nada — apenas a linha do staleTime em cada arquivo.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- PROMPT 4 — BUG-05                 -->
+<!-- ══════════════════════════════════ -->
+<div id="bug05" class="bug-block">
+  <div class="bug-block-header p1">
+    <span class="bug-id p1">BUG-05</span>
+    <span class="badge badge-yellow">P1 — MÉDIO</span>
+    <span class="order-badge">4º</span>
+    <span class="bug-title">useMdzapTemplates — migrar useState local → React Query</span>
+    <span class="file-tag">src/hooks/mdzap/useMdzapTemplates.ts</span>
+    <span class="badge badge-muted">Independente</span>
+  </div>
+  <div class="bug-body">
+    <div class="section-label">Contexto</div>
+    <p>O hook <code>useMdzapTemplates</code> usa <code>useState + useEffect</code> manual para buscar templates do Supabase. Isso causa re-fetch toda vez que a tab "Templates" é aberta, sem cache, sem deduplicação. O padrão do projeto é usar <code>useQuery</code> do React Query.</p>
+
+    <div class="section-label">Código atual (padrão incorreto)</div>
+    <pre>import { useState, useEffect, useCallback } from 'react';
+
+const [templates, setTemplates] = useState&lt;WhatsappTemplate[]&gt;([]);
+const [isLoading, setIsLoading] = useState(false);
+const refetch = useCallback(async () => { ... fetch manual ... }, []);
+useEffect(() => { refetch(); }, [refetch]);</pre>
+
+    <div class="section-label">Padrão correto (React Query)</div>
+    <pre>import { useQuery, useQueryClient } from '@tanstack/react-query';
+
+const { data: templates = [], isLoading } = useQuery&lt;WhatsappTemplate[]&gt;({
+  queryKey: ['mdzap', 'templates', orgId],
+  queryFn: async () => { /* mesmo fetch atual */ },
+  staleTime: 30_000,
+  enabled: !!orgId,
+});
+
+const queryClient = useQueryClient();
+const refetch = () => queryClient.invalidateQueries({ queryKey: ['mdzap', 'templates', orgId] });</pre>
+
+    <div class="section-label">Prompt para Claude Code</div>
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <span>Prompt #4 — BUG-05</span>
+        <button class="copy-btn" onclick="copyPrompt('p-bug05')">📋 Copiar</button>
+      </div>
+      <div class="prompt-content" id="p-bug05">Arquivo: ~/beta-mdflow/src/hooks/mdzap/useMdzapTemplates.ts
+
+BUG: O hook usa useState + useEffect manual para fetch de templates. Isso causa re-fetch a cada montagem sem cache.
+
+O padrão do projeto MdFlow é usar useQuery do @tanstack/react-query.
+
+FIX — refatorar o hook seguindo este padrão:
+
+1. Substituir os imports de useState/useEffect pelo useQuery + useQueryClient:
+   import { useQuery, useQueryClient } from '@tanstack/react-query';
+   (manter useCallback se necessário para create/update/deactivate)
+
+2. Substituir o useState + useEffect de fetch por:
+   const { data: templates = [], isLoading } = useQuery<WhatsappTemplate[]>({
+     queryKey: ['mdzap', 'templates', orgId],
+     queryFn: async () => {
+       // mover aqui o mesmo código de fetch que estava no refetch callback
+       const { data, error } = await supabase.from('whatsapp_templates').select(...)...;
+       if (error) throw error;
+       return data ?? [];
+     },
+     staleTime: 30_000,
+     enabled: !!orgId,
+   });
+
+3. Substituir o refetch manual por:
+   const queryClient = useQueryClient();
+   const refetch = () => queryClient.invalidateQueries({ queryKey: ['mdzap', 'templates', orgId] });
+
+4. Verificar onde orgId vem — provavelmente é passado como parâmetro ou via useAuth().
+   Se o hook não recebe orgId hoje, adicionar como parâmetro e atualizar os callers:
+   grep -r "useMdzapTemplates(" ~/beta-mdflow/src --include="*.tsx"
+
+5. Manter os métodos create, update e deactivate existentes — apenas remover o fetch manual
+   e usar invalidateQueries após mutations.
+
+IMPORTANTE: Preservar os tipos WhatsappTemplate e a estrutura de retorno do hook.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- PROMPT 5 — BUG-06                 -->
+<!-- ══════════════════════════════════ -->
+<div id="bug06" class="bug-block">
+  <div class="bug-block-header p1">
+    <span class="bug-id p1">BUG-06</span>
+    <span class="badge badge-yellow">P1 — MÉDIO</span>
+    <span class="order-badge">5º</span>
+    <span class="bug-title">useMdzapKeyboardShortcuts — adicionar Ctrl+K como alias de Ctrl+/</span>
+    <span class="file-tag">src/hooks/mdzap/useMdzapKeyboardShortcuts.ts:24</span>
+    <span class="badge badge-muted">Independente</span>
+  </div>
+  <div class="bug-body">
+    <div class="section-label">Contexto</div>
+    <p>O hook implementa <code>Ctrl+/</code> para focar a busca de conversas, mas a documentação (comentário na linha 1) e o checklist especificam <code>Ctrl+K</code> como o atalho padrão. <code>Ctrl+K</code> está ausente, causando UX inconsistente — usuário que tenta <code>Ctrl+K</code> abre o comando global do MdFlow.</p>
+
+    <div class="section-label">Código atual (linha 24)</div>
+    <pre>if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+  e.preventDefault();
+  onBuscar();
+  return;
+}</pre>
+
+    <div class="section-label">Fix esperado</div>
+    <pre>if ((e.ctrlKey || e.metaKey) && (e.key === '/' || e.key === 'k')) {
+  e.preventDefault();
+  onBuscar();
+  return;
+}</pre>
+
+    <div class="section-label">Prompt para Claude Code</div>
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <span>Prompt #5 — BUG-06</span>
+        <button class="copy-btn" onclick="copyPrompt('p-bug06')">📋 Copiar</button>
+      </div>
+      <div class="prompt-content" id="p-bug06">Arquivo: ~/beta-mdflow/src/hooks/mdzap/useMdzapKeyboardShortcuts.ts
+
+BUG: O atalho Ctrl+K não está mapeado para focar a busca de conversas no MDZap.
+Apenas Ctrl+/ está implementado (linha 24). O spec e comentário do hook indicam Ctrl+K também.
+
+FIX — alterar linha 24, adicionar 'k' como alias de '/':
+
+ANTES:
+  if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+
+DEPOIS:
+  if ((e.ctrlKey || e.metaKey) && (e.key === '/' || e.key === 'k')) {
+
+Manter tudo o mais igual — apenas adicionar `|| e.key === 'k'` na condição existente.
+
+OBSERVAÇÃO: Não há conflito com o comando global do MdFlow porque o handler aqui roda antes do global e chama e.preventDefault().</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════ -->
+<!-- PROMPT 6 — BUG-07                 -->
+<!-- ══════════════════════════════════ -->
+<div id="bug07" class="bug-block">
+  <div class="bug-block-header p1">
+    <span class="bug-id p1">BUG-07</span>
+    <span class="badge badge-yellow">P1 — MÉDIO</span>
+    <span class="order-badge">6º</span>
+    <span class="bug-title">MdzapConnectionIndicator — sem estado de erro visual</span>
+    <span class="file-tag">src/components/mdzap/MdzapConnectionIndicator.tsx:19–21</span>
+  </div>
+  <div class="bug-body">
+    <div class="section-label">Contexto</div>
+    <p>Quando a API WhatsApp cai ou a query falha, <code>MdzapConnectionIndicator</code> simplesmente retorna <code>null</code> (componente invisível). O usuário não tem feedback de que a conexão WA está com problema. O hook <code>useMdzapStatus</code> expõe <code>isError</code> do React Query após o fix do BUG-04.</p>
+    <div class="dep-note">Rodar após BUG-04 — depende do useMdzapStatus com staleTime correto</div>
+
+    <div class="section-label">Código atual (linha 19–21)</div>
+    <pre>const { isEnabled, isLoading, numeros, numerosConectados, hasConnected } = useMdzapStatus();
+if (!isEnabled && !isLoading) return null;
+// Sem: if (isError) return &lt;ErrorState /&gt;</pre>
+
+    <div class="section-label">Fix esperado</div>
+    <pre>// Desestruturar isError do hook:
+const { isEnabled, isLoading, isError, numeros, numerosConectados, hasConnected } = useMdzapStatus();
+
+// Adicionar before do return null:
+if (isError) {
+  return (
+    &lt;div className="flex items-center gap-1.5 text-xs text-destructive"&gt;
+      &lt;span className="h-2 w-2 rounded-full bg-destructive" /&gt;
+      WA Offline
+    &lt;/div&gt;
+  );
+}</pre>
+
+    <div class="section-label">Prompt para Claude Code</div>
+    <div class="prompt-box">
+      <div class="prompt-box-header">
+        <span>Prompt #6 — BUG-07</span>
+        <button class="copy-btn" onclick="copyPrompt('p-bug07')">📋 Copiar</button>
+      </div>
+      <div class="prompt-content" id="p-bug07">Arquivo: ~/beta-mdflow/src/components/mdzap/MdzapConnectionIndicator.tsx
+
+BUG: Quando a API WhatsApp falha, o componente retorna null silenciosamente.
+O usuário não recebe feedback visual de que a conexão WA está offline/com erro.
+
+FIX:
+1. Verificar se useMdzapStatus expõe `isError` — se não expuser, adicionar ao retorno do hook:
+   - Arquivo do hook: ~/beta-mdflow/src/hooks/useMdzapStatus.ts
+   - Adicionar `isError` ao retorno: `return { ..., isError: query.isError }`
+
+2. Em MdzapConnectionIndicator.tsx, desestruturar isError:
+   const { isEnabled, isLoading, isError, numeros, numerosConectados, hasConnected } = useMdzapStatus();
+
+3. Adicionar tratamento de erro ANTES do `if (!isEnabled && !isLoading) return null`:
+   if (isError) {
+     return (
+       <div className="flex items-center gap-1.5 text-xs text-destructive">
+         <span className="h-2 w-2 rounded-full bg-destructive inline-block" />
+         WA Offline
+       </div>
+     );
+   }
+
+Manter todo o resto do componente igual. Apenas adicionar o tratamento de erro.</div>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ══════════════════════════════════ -->
+<!-- MEGA PROMPT DE REVISÃO            -->
+<!-- ══════════════════════════════════ -->
+<div id="mega" class="mega-prompt">
+  <div class="mega-prompt-header">
+    <h3>📋 Mega Prompt de Revisão — Rodar por último</h3>
+    <button class="copy-btn" onclick="copyPrompt('p-mega')" style="font-size:0.8rem; padding: 3px 12px;">📋 Copiar</button>
+  </div>
+  <div style="padding: 1.25rem;">
+    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.75rem;">
+      Após rodar os 6 prompts acima, copie este mega prompt para o Claude Code gerar o HTML de resultado.
+    </p>
+    <div class="prompt-box" style="border: none; border-radius: 0;">
+      <div class="prompt-content" id="p-mega">Você acabou de aplicar correções nos seguintes arquivos do projeto ~/beta-mdflow/:
+- src/hooks/mdzap/useMdzapMensagens.ts (BUG-02: orgId no queryKey)
+- src/components/mdzap/MdzapMsgBubble.tsx (BUG-03: DialogDescription)
+- src/hooks/useMdzapStats.ts (BUG-04: staleTime 30_000)
+- src/hooks/useMdzapStatus.ts (BUG-04: staleTime 30_000)
+- src/hooks/mdzap/useMdzapTemplates.ts (BUG-05: React Query)
+- src/hooks/mdzap/useMdzapKeyboardShortcuts.ts (BUG-06: Ctrl+K)
+- src/components/mdzap/MdzapConnectionIndicator.tsx (BUG-07: estado de erro)
+
+Agora gere um HTML de resultado documentando o que foi feito. Salve em:
+~/jarbas-reports/beto/mdzap/execution-result-v1-20260330.html
+
+O HTML deve ter:
+1. Header: "Execution Result — /mdzap v1 — 2026-03-30"
+2. Tabela resumo por bug: BUG-ID | Status (✅ Resolvido / ❌ Falhou / ⚠️ Parcial) | Arquivo | Evidência (trecho do código corrigido)
+3. Para cada bug: seção detalhada com antes/depois do código
+4. O que ainda precisa ser testado manualmente (browser)
+5. Próximos passos
+
+CSS Design System MdFlow (#12100e fundo, #20c997 primário).
+
+Ao terminar, confirme o caminho do arquivo gerado.</div>
+    </div>
+  </div>
+</div>
+
+<hr>
+<footer>
+  <p>⚡ Execution Plan — /mdzap v1 — 2026-03-30 | Gerado por Beto (Beto) | MdLab LegalTech</p>
+  <p style="margin-top: 0.4rem;">Após rodar todos os prompts, mande o HTML de resultado aqui para análise do ciclo v2.</p>
+  <p style="margin-top: 0.4rem;">📁 ~/jarbas-reports/beto/mdzap/execution-v1-20260330.html</p>
+</footer>
+
+</body>
+</html>

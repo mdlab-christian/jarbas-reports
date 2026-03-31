@@ -1390,7 +1390,7 @@
         <thead><tr><th>Aba</th><th>Status</th><th>Notas</th></tr></thead>
         <tbody>
           <tr><td><strong>Dados Pessoais</strong></td><td style="color:var(--primary);">✅ OK</td><td>Dados + endereço OK. Máscaras: CPF, telefone, WhatsApp (applyPhoneMask). Advogado responsável aparece no modo view.</td></tr>
-          <tr><td><strong>Restrições</strong></td><td style="color:var(--primary);">✅ OK</td><td>741 rows backfillados via migration 20260331200001. <code>apenasSemProcesso=false</code> em context=clientes → mostra todas.</td></tr>
+          <tr><td><strong>Restrições</strong></td><td style="color:var(--primary);">✅ OK</td><td>9.919 restricoes no total: 741 backfill ADVBOX (restricao_orgao_nome, m200001) + corrigido empresa↔orgao (m200002) + 4.751 backfill ADVBOX empresa_nome (m200003). <code>apenasSemProcesso=false</code> em context=clientes → mostra todas.</td></tr>
           <tr><td><strong>Jurídico</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Mostrar processos ativos + baixados. Adicionar tag separando os dois grupos.</td></tr>
           <tr><td><strong>Documentos</strong></td><td style="color:#3b82f6;">📋 Planejar</td><td>P3: implementar 2 seções — docs do cliente + docs pendentes do processo. Depois remover aba Pendentes.</td></tr>
           <tr><td><strong>Pendentes</strong></td><td style="color:var(--text-muted);">⏳ Deprecar</td><td>Será absorvida dentro da aba Documentos</td></tr>
@@ -1426,7 +1426,7 @@
         <li><span class="tag tag-table">processos</span> Join para KPIs + aba Jurídico. Quando processo é chamado, cliente vai junto</li>
         <li><span class="tag tag-table">restricoes</span> Via ClienteDrawer aba Restrições — leadId com fallback clienteById?.lead_id</li>
         <li><span class="tag tag-table">advogados</span> Join via advogado_responsavel_id ✅ (aparece no modo view)</li>
-        <li><span class="tag tag-rpc">RPC</span> get_clientes_paginados (migration 000002) · get_cliente_by_cpf (migration 000003)</li>
+        <li><span class="tag tag-rpc">RPC</span> get_clientes_paginados (m20260331200003: excluir PJ sem CNPJ por sufixo) · get_cliente_by_cpf</li>
         <li><span class="tag tag-rpc">realtime</span> Canal clientes-realtime → postgres_changes em clientes</li>
         <li><span class="tag tag-table">eventos_operacionais</span> Audit trail em edições (tipo: cliente_editado)</li>
       </ul>
@@ -1444,6 +1444,9 @@
           <li>→ Advogado vinculado não aparecia — props + fallback + InfoRow</li>
           <li>→ Restrições vazia (leadId null) — fallback clienteById?.lead_id</li>
           <li>→ Restrições vazia (dados ADVBOX em campos processos) — migration 20260331200001: 741 rows backfillados em restricoes</li>
+          <li>→ empresa_nome/orgao_nome invertidos (tudo "Boa Vista") — migration 20260331200002: orgao_nome=bureau, empresa_nome=credor real</li>
+          <li>→ Empresas PJ sem CNPJ em /clientes (LTDA/EIRELI/S.A./S/A) — migration 20260331200003: filtro por sufixo empresarial (~494 registros excluídos)</li>
+          <li>→ 67% clientes sem restrições (ADVBOX só gravou empresa_nome) — migration 20260331200004: +4.751 restricoes backfilladas. Total: 9.919 restricoes</li>
           <li>→ WhatsApp sem máscara edit mode — applyPhoneMask() em handleStartEdit</li>
           <li>→ handleSaveCliente/handleDelete direto Supabase — migrados para WH-CLIENTES-CRUD</li>
           <li>→ engajamento_nivel DEFAULT 'baixo' — migration remove DEFAULT</li>
@@ -1452,12 +1455,12 @@
         </ul>
       </div>
       <div class="bug-card warn">
-        <h4>⚠️ Restrições — processos sem cliente_id (~1.605)</h4>
-        <p>Processos com dados legados de restrição mas sem <code>cliente_id</code> definido. Não é possível migrar sem join confiável. Esses clientes ainda podem não ver restrições.</p>
+        <h4>⚠️ Restrições — processos sem cliente_id (~1.608)</h4>
+        <p>Processos com <code>restricao_orgao_nome IS NOT NULL</code> mas sem <code>cliente_id</code>. Não é possível migrar sem join confiável (risco de homônimos). ~238 poderiam ser linkados por nome único — aguardando decisão CTO.</p>
       </div>
-      <div class="bug-card warn">
-        <h4>⚠️ Dados importados no front</h4>
-        <p>Info do MDFlow legado + AdvBox existe no banco mas algumas abas podem não renderizar tudo. Revisar joins.</p>
+      <div class="bug-card" style="background:rgba(59,130,246,0.08);border-color:rgba(59,130,246,0.3);">
+        <h4 style="color:#3b82f6;">ℹ️ orgao_nome NULL em restrições ADVBOX</h4>
+        <p>~4.751 restrições backfilladas do ADVBOX têm <code>orgao_nome = NULL</code> (bureau desconhecido — ADVBOX não gravava o campo). <code>empresa_nome</code> está correto (ré do processo). Não é bug, é limitação da fonte.</p>
       </div>
     </div>
   </details>

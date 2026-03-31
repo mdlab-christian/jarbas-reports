@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cecília v2 — Diagnóstico Pós E2E</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d0f18;color:#e2e8f0;padding:24px;line-height:1.6}
+.wrap{max-width:1100px;margin:0 auto}
+h1{color:#f8fafc;border-bottom:3px solid #ef4444;padding-bottom:14px;margin-bottom:6px;font-size:24px}
+h2{color:#a5b4fc;margin:32px 0 12px;font-size:17px;padding-bottom:6px;border-bottom:1px solid #1e2235}
+h3{color:#cbd5e1;margin:14px 0 8px;font-size:14px;font-weight:600}
+p{margin:8px 0;color:#94a3b8;font-size:14px}
+.sub{color:#64748b;font-size:13px;margin-bottom:24px}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.card{background:#1a1f35;border:1px solid #1e2235;border-radius:10px;padding:16px;text-align:center}
+.card .val{font-size:28px;font-weight:800;margin-bottom:4px}
+.card .lbl{font-size:11px;color:#64748b;line-height:1.4}
+.red{color:#f87171}.green{color:#4ade80}.yellow{color:#fbbf24}.blue{color:#60a5fa}.cyan{color:#22d3ee}
+.table-wrap{overflow-x:auto;margin:12px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#1a1f35;color:#94a3b8;padding:10px 12px;text-align:left;font-weight:600;border-bottom:1px solid #1e2235}
+td{padding:9px 12px;border-bottom:1px solid #1a1d2e;vertical-align:top;font-size:13px}
+tr:hover td{background:#1a1f35}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-red{background:#7f1d1d;color:#fca5a5}
+.badge-green{background:#14532d;color:#86efac}
+.badge-yellow{background:#78350f;color:#fcd34d}
+.badge-blue{background:#1e3a5f;color:#93c5fd}
+.badge-gray{background:#1e2235;color:#64748b}
+.box{background:#1a1f35;border:1px solid #1e2235;border-radius:10px;padding:16px;margin:12px 0}
+.box-red{border-color:#7f1d1d;background:#1a0a0a}
+.box-green{border-color:#14532d;background:#0a1a0f}
+.box-yellow{border-color:#78350f;background:#1a1000}
+.box-blue{border-color:#1e3a5f;background:#0a1020}
+.box-purple{border-color:#4c1d95;background:#0f0a1a}
+code{background:#1a1f35;padding:1px 5px;border-radius:3px;font-size:12px;color:#a5b4fc;font-family:'SF Mono','Fira Code',monospace}
+pre{background:#0a0c14;border:1px solid #1e2235;border-radius:8px;padding:14px;font-size:12px;color:#94a3b8;overflow-x:auto;margin:10px 0;font-family:'SF Mono','Fira Code',monospace;white-space:pre-wrap}
+.bug-block{background:#1a0a0a;border:2px solid #7f1d1d;border-radius:10px;padding:18px;margin:14px 0}
+.bug-title{color:#f87171;font-size:15px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+.bug-num{background:#7f1d1d;color:#fca5a5;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0}
+.fix-block{background:#0a1a0f;border:1px solid #14532d;border-radius:8px;padding:14px;margin:10px 0}
+.fix-title{color:#4ade80;font-size:13px;font-weight:600;margin-bottom:8px}
+.divider{border:none;border-top:1px solid #1e2235;margin:28px 0}
+.tag-file{background:#1e2235;color:#a5b4fc;padding:2px 7px;border-radius:4px;font-size:11px;font-family:monospace}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>🔴 Cecília v2 — Diagnóstico Pós E2E</h1>
+<p class="sub">Jarbas 2.0 🐙 | 2026-03-31 | Análise direta do código + dados do banco após o teste</p>
+
+<!-- RESUMO DO QUE RODOU -->
+<h2>📊 O Que Aconteceu no Teste E2E</h2>
+<div class="cards">
+  <div class="card"><div class="val green">158</div><div class="lbl">Intimações inseridas (fonte=cecilia_v2)</div></div>
+  <div class="card"><div class="val yellow">85</div><div class="lbl">Classe A (54%) — muitas não deveriam ter chegado ao banco</div></div>
+  <div class="card"><div class="val yellow">53</div><div class="lbl">Classe D (34%) — maioria sem responsável definido</div></div>
+  <div class="card"><div class="val green">2</div><div class="lbl">Classe E — correto, foram identificadas</div></div>
+</div>
+
+<div class="box-yellow box">
+  <h3>⚠️ Pausar o ciclo no meio não causou dano</h3>
+  <p>O sistema persiste cada processo individualmente — o que já foi salvo, foi salvo. Ao pausar, você simplesmente parou o loop antes de processar as OABs restantes. O <code>processo_id</code> que você viu preencher depois provavelmente foi o <code>batchLookupProcessoIds</code> rodando antes da análise final. Não tem rollback nem estado corrompido.</p>
+</div>
+
+<hr class="divider">
+
+<!-- BUGS IDENTIFICADOS -->
+<h2>🐛 4 Bugs Críticos Identificados (análise do código + banco)</h2>
+
+<!-- BUG 1 -->
+<div class="bug-block">
+  <div class="bug-title"><div class="bug-num">1</div> CRÍTICO — tipo_evento = nome da classe do processo, não o evento real</div>
+  <p>O campo <code>tipo_evento</code> está sendo preenchido com o nome da <strong>classe processual</strong> do processo (<code>"Indenização por dano moral, Responsabilidade civil, DIREITO CIVIL"</code>) em vez do nome do evento (ex: <code>"Disponibilizado no DJEN"</code>). Isso acontece porque o XLS do EPROC tem uma coluna "Classe" (tipo do processo) e o campo mapeado para <code>ultimoEvento</code> está capturando a coluna errada para alguns processos.</p>
+  <p style="margin-top:8px"><strong>Evidência no banco:</strong> <code>23x "Indenização por dano moral" como tipo_evento</code> — isso não é um evento processual, é o assunto do processo.</p>
+  <p style="margin-top:8px"><strong>Impacto:</strong> A IA recebe o assunto do processo como "evento" e não consegue classificar corretamente. Acaba classificando como A ou D sem fundamento real.</p>
+
+  <div class="fix-block">
+    <div class="fix-title">✅ Fix — skill_processar_planilha.mjs</div>
+    <pre>// O problema está no mapeamento de colunas para alguns processos.
+// Verificar qual índice corresponde ao último evento no XLS de cada tribunal.
+// O campo correto é o "Último Evento" ou "Evento" — não "Classe" ou "Assunto".
+
+// Adicionar validação: se tipo_evento parece ser assunto (>30 chars sem verbos de ação):
+function pareceTipoProcessual(texto) {
+  if (!texto) return false;
+  // Indicadores de que é assunto, não evento:
+  return (
+    texto.includes('DIREITO') ||
+    texto.includes('Responsabilidade civil') ||
+    texto.includes('Indenização por') ||
+    texto.includes('Inscrição em Cadastro') ||
+    (texto.length > 60 && !texto.match(/^\d{2}\/\d{2}/) && !texto.match(/conclusos|publicado|expedida|remetido/i))
+  );
+}
+
+// Se ultimoEvento parece ser tipo processual → descartar essa linha
+// (o evento real provavelmente está em outra coluna ou não foi capturado)
+if (pareceTipoProcessual(ultimoEvento)) {
+  console.error(`   ⚠️ [BUG1] tipo_evento parece ser classe processual, não evento: ${ultimoEvento.slice(0,50)}`);
+  filtradoData++; // ou criar categoria 'filtradoSemEvento'
+  continue;
+}
+
+// RAIZ DO PROBLEMA: inspecionar as colunas do XLS para cada tribunal
+// Rodar: console.log(JSON.stringify(rows[0])) para ver cabecalho real
+// e confirmar que col.evento aponta para a coluna correta</pre>
+  </div>
+</div>
+
+<!-- BUG 2 -->
+<div class="bug-block">
+  <div class="bug-title"><div class="bug-num">2</div> CRÍTICO — Eventos "Conclusos" e "DJEN" chegando ao controller</div>
+  <p>Na amostra do banco aparecem: <code>"Conclusos para decisão/despacho" (7x A)</code>, <code>"Conclusos para julgamento" (3x A)</code>, <code>"Publicado no DJEN" (2x A)</code>. Esses deveriam ser <strong>filtrados no XLS</strong> pelo <code>isRuido()</code> e nunca chegar ao banco.</p>
+
+  <p style="margin-top:8px"><strong>O problema:</strong> O <code>RUIDO_PATTERNS</code> atual tem <code>/conclus[oã]o?\s+(ao|para)/i</code>, mas "Conclusos para decisão/despacho" usa a forma "Conclusos" (plural com 's') + "para" sem a preposição "ao". O pattern não está matchando essa variação.</p>
+
+  <p style="margin-top:8px"><strong>Além disso:</strong> Processos com <code>tipo_evento = assunto do processo</code> (Bug 1) passam pelo <code>isRuido()</code> porque nenhum pattern de ruído pega texto genérico de assunto como "DIREITO CIVIL".</p>
+
+  <div class="fix-block">
+    <div class="fix-title">✅ Fix — eproc-utils.mjs — RUIDO_PATTERNS expandido</div>
+    <pre>const RUIDO_PATTERNS = [
+  /^DJE\b/i,
+  /^DJEN\b/i,               // ← adicionar
+  /^DJM\b/i,
+  /^Di[aá]rio/i,
+  /peti[cç][aã]o\s+protocolada/i,
+  /conclus[oa][s]?\s+(ao|para)/i,    // ← foi: conclus[oã]o?\s+(ao|para) — não pegava "Conclusos"
+  /^conclusos?\s+para/i,             // ← NOVO: "Conclusos para decisão" / "Conclusos para julgamento"
+  /^conclusos?\s+(ao|de|em)/i,       // ← NOVO: outras variações
+  /certid[aã]o\s+(de\s+)?(publica[cç][aã]o|intima[cç][aã]o)/i,
+  /remetidos?\s+(os\s+)?autos/i,
+  /recebidos?\s+(os\s+)?autos/i,
+  /prazo\s+decorrido/i,
+  /juntada\s+de\s+peti[cç][aã]o/i,
+  /disponibilizado\s+no\s+(DJE|DJEN|DJM)/i,  // ← NOVO: "Disponibilizado no DJEN"
+  /publicado\s+no\s+(DJE|DJEN|DJM)/i,         // ← NOVO: "Publicado no DJEN"
+  /audi[eê]ncia.*cancelada/i,                  // ← NOVO: audiência cancelada
+  /^Incluído em pauta/i,                        // ← NOVO
+  /designada\s+sess[aã]o/i,                    // ← NOVO
+  /vista\s+(ao|para)\s+(MP|minist[eé]rio)/i,
+];
+
+// PRE_CLASS_A também deve incluir esses patterns:</pre>
+  </div>
+</div>
+
+<!-- BUG 3 -->
+<div class="bug-block">
+  <div class="bug-title"><div class="bug-num">3</div> CRÍTICO — Classe A inserida no banco (deveria ser descartada)</div>
+  <p>Classe A = irrelevante, não deveria aparecer no controller. Mas 85 de 158 intimações (54%) são classe A. O problema tem duas causas:</p>
+  <p style="margin-top:8px"><strong>Causa A:</strong> Processos pré-classificados como A pelo <code>preClassificarEvento()</code> estão sendo persistidos no banco. Eles deveriam ser <strong>descartados</strong>, não inseridos.</p>
+  <p style="margin-top:8px"><strong>Causa B:</strong> A IA também está classificando como A processos que chegaram com evento genérico (Bug 1). Com texto como "DIREITO CIVIL", a IA não sabe o que fazer e marca A por segurança.</p>
+  <p style="margin-top:8px"><strong>Evidência:</strong> <code>fonte_preclass = 'IA'</code> em todos os A do banco — esses não vieram do pré-classificador, vieram da IA com input errado.</p>
+
+  <div class="fix-block">
+    <div class="fix-title">✅ Fix — skill_orquestrador.mjs — não inserir classe A</div>
+    <pre>// Em persistirIntimacao() ou antes de chamar ela:
+async function persistirIntimacao(r, cicloId, oab, tribunal, processoIdMap) {
+
+  // ← NOVO: Classe A não vai para o banco — é ruído, já filtrado na triagem
+  // Se chegou até aqui com A, é porque a IA classificou como A (edge case não coberto pelo filtro)
+  // Descartar silenciosamente
+  if (r.classe === 'A') {
+    console.log(`   🗑️  [A] Descartado (irrelevante): ${r.cnj} — ${r.evento?.slice(0,50)}`);
+    return { skipped: true, reason: 'classe_a_irrelevante' };
+  }
+
+  // ← NOVO: Processos pré-classificados como A também não persistir
+  // (atualmente os _preClassificado:A são adicionados em movimentacoesParaIA e chegam aqui)
+  if (r._preClassificado && r._preClass?.classe === 'A') {
+    return { skipped: true, reason: 'pre_class_a' };
+  }
+
+  // ... resto da função
+}
+
+// ALTERNATIVA MELHOR: filtrar no loop de pré-classificados, antes de adicionar a movimentacoesParaIA:
+// if (proc._preClass?.classe === 'A') continue; // não adicionar à fila de IA/persistência</pre>
+  </div>
+</div>
+
+<!-- BUG 4 -->
+<div class="bug-block">
+  <div class="bug-title"><div class="bug-num">4</div> ALTO — Classe D sem responsável (confiança 0.3 = Haiku não leu documento)</div>
+  <p>53 intimações Classe D, maioria com <code>confianca_ia = 0.3</code>. Quando a confiança é 0.3, o Haiku classificou sem texto de documento — só com o nome do evento. Isso significa que o documento do evento não foi lido (não chegou no L1/L2/L3) ou que o evento não tinha documento vinculado.</p>
+  <p style="margin-top:8px"><strong>Exemplos reais:</strong> <code>"Decisão de saneamento e de organização do processo"</code> com D e confiança 0.3 — o Haiku recebeu só o título do evento, sem o texto da decisão. Com o texto real, provavelmente classificaria corretamente (D ou E dependendo do conteúdo).</p>
+  <p style="margin-top:8px"><strong>Regra que está faltando:</strong> Se confiança < 0.5, o sistema deve tentar Sonnet antes de persistir — não insere com confiança baixa sem escalação.</p>
+
+  <div class="fix-block">
+    <div class="fix-title">✅ Fix — skill_analisar_ia.mjs — escalação por confiança baixa</div>
+    <pre>// Já existe lógica de escalação para Sonnet, mas o critério atual é:
+// mereceSonnet() → só escala D/E/F com texto substancial (>200 chars)
+// 
+// O problema: eventos com documento não lido chegam com texto curto (só o título)
+// e o Haiku classifica com confiança 0.3 sem escalar para Sonnet.
+//
+// Fix: adicionar critério de confiança baixa:
+function mereceSonnet(mov, haikuClasse, haikuConfianca) {
+  if (!['D', 'E', 'F'].includes(haikuClasse)) return false;
+  if (mov.isAssinatura) return false;
+  
+  // ← NOVO: baixa confiança → sempre escalar
+  if (haikuConfianca < 0.55) {
+    console.log(`   🔄 Escalando para Sonnet (confiança baixa: ${haikuConfianca})`);
+    return true;
+  }
+  
+  if (!mov.texto || mov.texto.length < 200) return false;
+  return isDecisaoJudicial(mov.evento) || isEventoFinanceiro(mov.evento) ||
+         isDecisaoJudicial(mov.texto?.slice(0, 500)) || isEventoFinanceiro(mov.texto?.slice(0, 500));
+}
+
+// Depois: se Sonnet também retornar confiança < 0.50 → não inserir, criar log para revisão manual:
+if (resultado.confianca < 0.50) {
+  await notificarFalhaManual({ cnj, evento, motivo: 'confiança < 0.50 mesmo com Sonnet' });
+  return { skipped: true, reason: 'confianca_insuficiente' };
+}</pre>
+  </div>
+</div>
+
+<!-- BUG 5 (bônus) -->
+<div class="bug-block" style="border-color:#78350f;background:#1a1000">
+  <div class="bug-title" style="color:#fbbf24"><div class="bug-num" style="background:#78350f;color:#fcd34d">5</div> MÉDIO — JavaScript injetado aparecendo como evento</div>
+  <p>Na amostra do banco apareceu: <code>"26       if (window.carregarTooltipSuspensaoEFeriado === undefined) {"</code> como tipo_evento. O <code>skillAcessarProcesso</code> está capturando texto de scripts JavaScript da página do EPROC como se fosse texto de evento. Acontece quando o DOM não foi carregado completamente antes da extração ou quando o seletor pega elementos errados.</p>
+
+  <div class="fix-block">
+    <div class="fix-title">✅ Fix — skill_acessar_processo.mjs</div>
+    <pre>// Ao extrair texto de eventos do DOM, filtrar texto que parece JavaScript:
+function pareceJavaScript(texto) {
+  if (!texto) return false;
+  return (
+    texto.includes('function ') ||
+    texto.includes('window.') ||
+    texto.includes('if (') ||
+    texto.includes('var ') ||
+    texto.includes('const ') ||
+    /^\d+\s+(if|var|function|window|const|let)\b/.test(texto)
+  );
+}
+
+// No loop de extração de eventos:
+if (pareceJavaScript(textoEvento)) {
+  console.error(`   ⚠️ [BUG5] JS injetado como evento — ignorando: ${textoEvento.slice(0,50)}`);
+  continue;
+}
+
+// CAUSA RAIZ: aguardar networkidle ou selector específico antes de extrair
+// await page.waitForSelector('.evento-lista', { timeout: 5000 });
+// ou usar waitForLoadState('domcontentloaded') antes de page.evaluate()</pre>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- PROBLEMA RAIZ CENTRAL -->
+<h2>🎯 Problema Raiz Central</h2>
+
+<div class="box-red box">
+  <h3>O XLS do EPROC não está sendo lido corretamente para todos os tribunais</h3>
+  <p>O <code>skill_processar_planilha.mjs</code> tem detecção dinâmica de colunas, mas para alguns processos o campo <code>ultimoEvento</code> está capturando a coluna de <strong>assunto/classe processual</strong> em vez do último evento. Isso contamina todo o pipeline:</p>
+  <ol style="margin:10px 0 0 16px;color:#94a3b8;font-size:14px;line-height:1.8">
+    <li>XLS lê coluna errada → <code>ultimoEvento = "Indenização por dano moral..."</code></li>
+    <li>isRuido() não pega (não é ruído, é assunto) → passa para análise</li>
+    <li>Pré-classificador não pega (nenhum pattern) → vai para EPROC</li>
+    <li>EPROC extrai eventos e documentos mas o contexto já está errado</li>
+    <li>IA classifica com confiança baixa (0.3) sem saber o que está analisando</li>
+    <li>Resultado incorreto vai para o banco e aparece no controller</li>
+  </ol>
+  <p style="margin-top:12px"><strong>Fix raiz:</strong> Inspecionar o cabeçalho real do XLS para cada tribunal (TJRS, TJSC, TJSP) e confirmar qual coluna é o último evento. Adicionar log explícito: <code>console.log('Cabeçalho detectado:', JSON.stringify(rows[0]))</code>.</p>
+</div>
+
+<!-- PLANO DE CORREÇÃO -->
+<h2>🔧 Plano de Correção — Ordem de Execução para o CC</h2>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>#</th><th>Bug</th><th>Arquivo</th><th>Prioridade</th><th>Esforço</th></tr></thead>
+<tbody>
+<tr>
+  <td><span class="badge badge-red">1</span></td>
+  <td><strong>Inspecionar cabeçalho XLS</strong> — logar <code>rows[0]</code> e confirmar qual índice é "último evento" em cada tribunal. Corrigir COLUMN_ALIASES se necessário.</td>
+  <td><span class="tag-file">skill_processar_planilha.mjs</span></td>
+  <td class="red">P0</td>
+  <td>Baixo</td>
+</tr>
+<tr>
+  <td><span class="badge badge-red">2</span></td>
+  <td><strong>Não persistir Classe A</strong> — filtrar antes de inserir no banco. Classes A são ruído, não devem poluir o controller.</td>
+  <td><span class="tag-file">skill_orquestrador.mjs</span></td>
+  <td class="red">P0</td>
+  <td>Baixo</td>
+</tr>
+<tr>
+  <td><span class="badge badge-red">3</span></td>
+  <td><strong>Expandir RUIDO_PATTERNS</strong> — adicionar "Conclusos para", "Disponibilizado no DJEN", "Publicado no DJEN", "audiência cancelada".</td>
+  <td><span class="tag-file">eproc-utils.mjs</span></td>
+  <td class="red">P0</td>
+  <td>Baixo</td>
+</tr>
+<tr>
+  <td><span class="badge badge-yellow">4</span></td>
+  <td><strong>Escalar Sonnet quando confiança < 0.55</strong> — garantir que decisões importantes não fiquem com classificação fraca por falta de escalação.</td>
+  <td><span class="tag-file">skill_analisar_ia.mjs</span></td>
+  <td class="yellow">P1</td>
+  <td>Baixo</td>
+</tr>
+<tr>
+  <td><span class="badge badge-yellow">5</span></td>
+  <td><strong>Filtrar JavaScript capturado como evento</strong> — validar texto extraído do DOM antes de usar.</td>
+  <td><span class="tag-file">skill_acessar_processo.mjs</span></td>
+  <td class="yellow">P1</td>
+  <td>Baixo</td>
+</tr>
+<tr>
+  <td><span class="badge badge-blue">6</span></td>
+  <td><strong>Limpar banco pós-fix</strong> — deletar as 158 intimações do teste E2E (foram geradas com dados incorretos). Restartar Cecília e rodar novo E2E limpo.</td>
+  <td>Supabase SQL</td>
+  <td class="yellow">P1</td>
+  <td>Baixo</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<!-- SQL DE LIMPEZA -->
+<h2>🗄️ SQL de Limpeza Pós-Diagnóstico</h2>
+
+<div class="box-blue box">
+  <h3>Executar no Supabase após o CC aplicar os fixes</h3>
+  <pre>-- 1. Ver o que vai ser deletado (dry-run)
+SELECT COUNT(*), classe_cecilia
+FROM intimacoes
+WHERE organizacao_id = '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+  AND fonte = 'cecilia_v2'
+  AND created_at > '2026-03-31 00:00:00+00'
+GROUP BY classe_cecilia;
+
+-- 2. Deletar tudo do teste E2E (após confirmar o count acima)
+DELETE FROM intimacoes
+WHERE organizacao_id = '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+  AND fonte = 'cecilia_v2'
+  AND created_at > '2026-03-31 00:00:00+00';
+
+-- 3. Resetar cecilia_ultima_analise_em para novo ciclo limpo
+UPDATE processos
+SET cecilia_ultima_analise_em = '2026-03-31 03:00:00+00'  -- meia-noite BRT
+WHERE organizacao_id = '55a0c7ba-1a23-4ae1-b69b-a13811324735';</pre>
+</div>
+
+<!-- CRITÉRIOS DE VALIDAÇÃO -->
+<h2>✅ Critérios para Novo E2E ser Considerado Bem-Sucedido</h2>
+
+<div class="table-wrap">
+<table>
+<thead><tr><th>Critério</th><th>Mínimo aceitável</th></tr></thead>
+<tbody>
+<tr><td>Nenhuma intimação Classe A no banco</td><td>0 registros com classe_cecilia='A'</td></tr>
+<tr><td>Nenhum tipo_evento = assunto processual ("Indenização por dano moral...")</td><td>0 ocorrências</td></tr>
+<tr><td>Nenhum tipo_evento = JavaScript ("if (window...")</td><td>0 ocorrências</td></tr>
+<tr><td>Nenhum tipo_evento = "Conclusos para..." ou "Publicado no DJEN"</td><td>0 ocorrências</td></tr>
+<tr><td>Taxa de confiança > 0.70 nas classes D/E/F</td><td>>80% dos registros</td></tr>
+<tr><td>Classes E e F com responsável definido</td><td>100%</td></tr>
+<tr><td>Controller mostra intimações relevantes (D/E/F/G apenas)</td><td>100% relevantes</td></tr>
+</tbody>
+</table>
+</div>
+
+<div class="box-green box" style="margin-top:24px">
+  <p>💡 <strong>Conclusão:</strong> O pipeline está funcionando — ele navega nos processos, extrai eventos e chama a IA. O problema não é arquitetural, são 5 bugs específicos e bem localizados. O mais crítico é o mapeamento incorreto de colunas do XLS (Bug 1) que contamina todo o fluxo. Corrigido esse, os outros 4 são ajustes pontuais de 15-20 linhas cada. O tempo estimado para o CC aplicar tudo: 1-2 horas. Depois disso, um novo E2E vai gerar dados limpos no controller.</p>
+</div>
+
+<p style="text-align:center;color:#334155;font-size:12px;margin-top:32px">Jarbas 2.0 🐙 | MdLab LegalTech | 2026-03-31 | Diagnóstico baseado em análise direta do código + banco de dados</p>
+</div>
+</body>
+</html>

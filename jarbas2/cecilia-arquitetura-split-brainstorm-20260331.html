@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>🧠 Brainstorm — Arquitetura Split: Node.js Captura + n8n/Frontend Análise</title>
+<style>
+:root{
+  --bg:#0c0e1a;--bg2:#141828;--bg3:#090b14;--bg4:#1e2438;
+  --border:#1e2438;--border2:#2a3050;
+  --text:#e2e8f0;--muted:#94a3b8;--subtle:#4a5568;
+  --accent:#6366f1;--accent2:#a5b4fc;--accent3:#818cf8;
+  --red:#ef4444;--rb:#150808;--rbd:#7f1d1d;--rbt:#fca5a5;
+  --yellow:#f59e0b;--yb:#160e00;--ybd:#78350f;--ybt:#fcd34d;
+  --green:#22c55e;--gb:#071510;--gbd:#14532d;--gbt:#86efac;
+  --blue:#3b82f6;--bb:#080f1f;--bbd:#1e3a5f;--bbt:#93c5fd;
+  --purple:#8b5cf6;--pb:#0e0a1a;--pbd:#4c1d95;--pbt:#c4b5fd;
+  --cyan:#06b6d4;--orange:#f97316;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7}
+.wrap{max-width:1200px;margin:0 auto;padding:32px 28px}
+
+.hero{text-align:center;padding:52px 20px 36px;margin-bottom:40px;position:relative}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(99,102,241,.07) 0%,transparent 65%);pointer-events:none}
+.hero h1{font-size:38px;font-weight:900;background:linear-gradient(135deg,#6366f1,#a5b4fc,#06b6d4);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:12px;line-height:1.2}
+.hero .sub{color:var(--muted);font-size:14px;max-width:760px;margin:0 auto;line-height:1.9}
+.verdict{display:inline-block;margin-top:18px;padding:10px 24px;border-radius:30px;font-weight:800;font-size:14px}
+
+h2{font-size:19px;font-weight:800;color:var(--accent2);margin:52px 0 16px;padding-bottom:10px;border-bottom:2px solid var(--border2);display:flex;align-items:center;gap:8px}
+h3{font-size:14px;font-weight:700;color:#cbd5e1;margin:16px 0 8px}
+h4{font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 5px;text-transform:uppercase;letter-spacing:.6px}
+p{color:var(--muted);font-size:13.5px;margin:5px 0;line-height:1.8}
+strong{color:var(--text)}
+ul{list-style:none;margin:8px 0}
+ul li{color:var(--muted);font-size:13px;padding:3px 0;display:flex;align-items:flex-start;gap:8px;line-height:1.7}
+ul li::before{content:'→';color:var(--accent3);flex-shrink:0;margin-top:2px}
+
+.box{border-radius:12px;padding:18px 20px;margin:10px 0;border:1px solid}
+.br{border-color:var(--rbd);background:var(--rb)}
+.by{border-color:var(--ybd);background:var(--yb)}
+.bg{border-color:var(--gbd);background:var(--gb)}
+.bb{border-color:var(--bbd);background:var(--bb)}
+.bp{border-color:var(--pbd);background:var(--pb)}
+.bn{border-color:var(--border2);background:var(--bg2)}
+.bc{border-color:#134e4a;background:#041a18}
+.bi{border-color:#312e81;background:#0e0b24}
+
+.tw{overflow-x:auto;margin:10px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--bg2);color:var(--subtle);padding:9px 14px;text-align:left;font-weight:700;border-bottom:1px solid var(--border);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+td{padding:8px 14px;border-bottom:1px solid var(--border);vertical-align:top;color:var(--muted)}
+tr:hover td{background:#0f1224}
+td strong{color:var(--text)}
+
+.b{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;white-space:nowrap}
+.br2{background:var(--rbd);color:var(--rbt)}
+.by2{background:var(--ybd);color:var(--ybt)}
+.bg2{background:var(--gbd);color:var(--gbt)}
+.bb2{background:var(--bbd);color:var(--bbt)}
+.bp2{background:var(--pbd);color:var(--pbt)}
+.bx2{background:var(--border2);color:var(--muted)}
+.bc2{background:#134e4a;color:#67e8f9}
+
+code{background:var(--bg2);padding:2px 7px;border-radius:4px;font-size:12px;color:var(--accent2);font-family:'SF Mono',monospace;border:1px solid var(--border)}
+pre{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:12px;color:var(--muted);overflow-x:auto;margin:8px 0;white-space:pre-wrap;line-height:1.7;font-family:'SF Mono',monospace}
+
+.cr{color:var(--red)}.cy{color:var(--yellow)}.cg{color:var(--green)}.cb{color:var(--blue)}.cp{color:var(--purple)}.cc{color:var(--cyan)}
+
+hr{border:none;border-top:1px solid var(--border2);margin:44px 0}
+
+/* ARCH DIAGRAM */
+.arch{background:var(--bg2);border:1px solid var(--border2);border-radius:14px;padding:24px;margin:16px 0}
+.arch-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0}
+.arch-step{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 16px;min-width:130px;text-align:center}
+.arch-step .label{font-size:11px;font-weight:700;color:var(--accent2)}
+.arch-step .sublabel{font-size:10px;color:var(--muted);margin-top:3px}
+.arch-arrow{color:var(--subtle);font-size:20px;flex-shrink:0}
+
+/* SPLIT COMPARISON */
+.split{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
+
+/* SCORE */
+.score-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+.score-card{background:var(--bg2);border:1px solid var(--border2);border-radius:12px;padding:16px;text-align:center}
+.score-num{font-size:28px;font-weight:900;margin-bottom:4px}
+.score-label{font-size:11px;color:var(--muted);font-weight:600}
+
+.footer-note{text-align:center;color:var(--subtle);font-size:12px;margin-top:48px;padding-top:20px;border-top:1px solid var(--border2)}
+
+@media(max-width:800px){.split{grid-template-columns:1fr}.score-grid{grid-template-columns:repeat(2,1fr)}.arch-flow{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hero">
+  <h1>🧠 Brainstorm: Split Architecture</h1>
+  <p class="sub">
+    Ideia do Christian: separar o sistema em duas camadas independentes.<br>
+    <strong>Node.js (Cecília)</strong> → só captura e entrega dados brutos.<br>
+    <strong>n8n + Frontend</strong> → análise IA, treinamento, playbooks, controller.<br>
+    <span style="color:var(--subtle)">Jarbas 2.0 · 2026-03-31 · Brainstorm completo</span>
+  </p>
+  <div class="verdict" style="background:#312e81;border:2px solid #4c1d95;color:#c4b5fd">
+    🎯 Veredicto: Plano B válido — mas não agora. Fase 2 após Cecília v2 estável.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<h2>🏗️ Arquitetura Atual vs Proposta</h2>
+
+<div class="arch">
+  <h3>Atual — Arquitetura Monolítica (Cecília Node.js faz tudo)</h3>
+  <div class="arch-flow">
+    <div class="arch-step">
+      <div class="label">Playwright</div>
+      <div class="sublabel">Login EPROC + XLS</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="label">skill_processar_planilha</div>
+      <div class="sublabel">Parser XLS → CNJs</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="label">skill_analisar_ia</div>
+      <div class="sublabel">Claude Haiku/Sonnet</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step">
+      <div class="label">skill_orquestrador</div>
+      <div class="sublabel">INSERT intimacoes</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step" style="border-color:var(--accent)">
+      <div class="label" style="color:var(--accent2)">Controller João</div>
+      <div class="sublabel">Frontend MdFlow</div>
+    </div>
+  </div>
+  <p>Um processo, uma responsabilidade, um ponto de falha. Simples, mas frágil. Haiku falha → batch inteiro vira fallback D.</p>
+</div>
+
+<div class="arch">
+  <h3>Proposta — Arquitetura Split (Captura → Análise separados)</h3>
+  <div class="arch-flow">
+    <div class="arch-step" style="border-color:#134e4a">
+      <div class="label" style="color:#67e8f9">Playwright</div>
+      <div class="sublabel">Login EPROC + XLS</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step" style="border-color:#134e4a">
+      <div class="label" style="color:#67e8f9">Parser XLS</div>
+      <div class="sublabel">CNJ + evento bruto</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step" style="border-color:#134e4a">
+      <div class="label" style="color:#67e8f9">INSERT intimacoes_raw</div>
+      <div class="sublabel">Sem análise IA ainda</div>
+    </div>
+    <div class="arch-arrow" style="color:var(--yellow)">⚡</div>
+    <div class="arch-step" style="border-color:var(--ybd)">
+      <div class="label" style="color:var(--ybt)">n8n Workflow</div>
+      <div class="sublabel">Trigger → IA analysis</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step" style="border-color:var(--ybd)">
+      <div class="label" style="color:var(--ybt)">Claude / GPT</div>
+      <div class="sublabel">Classificação + roteamento</div>
+    </div>
+    <div class="arch-arrow">→</div>
+    <div class="arch-step" style="border-color:var(--accent)">
+      <div class="label" style="color:var(--accent2)">Controller João</div>
+      <div class="sublabel">Frontend MdFlow</div>
+    </div>
+  </div>
+  <p>Node.js vira <strong>coletor puro</strong>. n8n vira <strong>motor de análise</strong>. Frontend vira <strong>interface de treinamento</strong>. Cada camada tem responsabilidade única.</p>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2>✅ Prós da Arquitetura Split</h2>
+
+<div class="split">
+  <div>
+    <div class="box bg">
+      <h3 class="cg">1. Node.js muito mais simples e estável</h3>
+      <p>Hoje o Node.js faz: login Playwright, download XLS, parse, busca Supabase, análise IA, retry, circuit breaker. São 6 responsabilidades em um processo.</p>
+      <p style="margin-top:8px">Na split, o Node.js faz apenas: login → download → parse → INSERT raw. <strong>4 responsabilidades eliminadas</strong>. Ponto de falha principal (IA) sai do Playwright.</p>
+      <p style="margin-top:8px"><strong>Benefício:</strong> ciclo EPROC de 90min → 15-20min. Sem Haiku → sem timeout de 10.3s/processo. Playwright não fica aberto enquanto a IA pensa.</p>
+    </div>
+
+    <div class="box bg" style="margin-top:12px">
+      <h3 class="cg">2. n8n = retry nativo, filas, observabilidade</h3>
+      <p>n8n tem retry automático, exponential backoff, queue management, webhook triggers e dashboard de execuções <strong>nativo</strong>. Tudo que a gente está tentando reimplementar no Node.js manualmente.</p>
+      <p style="margin-top:8px">Uma análise IA falha? n8n retenta automaticamente. Sem contaminar batch inteiro. Sem `parseJsonArray` frágil.</p>
+    </div>
+
+    <div class="box bg" style="margin-top:12px">
+      <h3 class="cg">3. Treinamento via Playbooks vira realidade</h3>
+      <p>Hoje o vault Obsidian da Cecília precisa ser sincronizado via SSH. Com n8n + Supabase, o João edita no frontend → Supabase atualiza → n8n lê o playbook na próxima análise.</p>
+      <p style="margin-top:8px"><strong>Loop de treinamento:</strong> João classifica errado → feedback vai pro Supabase → n8n usa o histórico de correções como few-shot examples. Sem tocar código.</p>
+    </div>
+  </div>
+  <div>
+    <div class="box bg">
+      <h3 class="cg">4. Escala independente por camada</h3>
+      <p>Hoje se SC074025 tem 392 processos e trava o ciclo de 69min, todas as outras OABs esperam. Com split:</p>
+      <ul>
+        <li>Node.js coleta todas as OABs em paralelo (sem IA travando)</li>
+        <li>n8n analisa o batch inteiro em paralelo (múltiplos workers)</li>
+        <li>OABs grandes não bloqueiam as menores</li>
+      </ul>
+    </div>
+
+    <div class="box bg" style="margin-top:12px">
+      <h3 class="cg">5. Observabilidade real</h3>
+      <p>n8n tem dashboard de execuções, logs por nó, histórico de runs, alertas. Hoje para saber o que aconteceu num ciclo precisa ir no Supabase e decodificar logs manuais.</p>
+      <p style="margin-top:8px">Com n8n: Christian abre o painel → vê cada execução → click numa falha → vê o erro específico → retenta manual se quiser.</p>
+    </div>
+
+    <div class="box bg" style="margin-top:12px">
+      <h3 class="cg">6. Modelos de IA facilmente intercambiáveis</h3>
+      <p>No Node.js atual, trocar de Haiku para GPT-4o-mini exige alterar código. No n8n, é trocar um nó por outro. Dá pra testar modelos A/B em produção sem deploy.</p>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2>❌ Contras e Riscos</h2>
+
+<div class="split">
+  <div>
+    <div class="box br">
+      <h3 class="cr">1. Latência aumenta (pode ser problema)</h3>
+      <p>Hoje: XLS capturado → análise IA → João vê no controller, tudo num ciclo de 90min.</p>
+      <p style="margin-top:8px">Com split: XLS capturado → INSERT raw → trigger n8n → análise → UPDATE. São 2 passos assíncronos. O João abre o controller e vê intimações sem classificação por alguns minutos.</p>
+      <p style="margin-top:8px"><strong>Mitigação:</strong> mostrar badge "Analisando..." no controller enquanto análise está pendente. O João já vê a intimação crua, IA classifica em background.</p>
+      <p style="margin-top:8px"><strong>Impacto real:</strong> baixo. O ciclo atual já demora 90min. Adicionar 5-10min de processamento n8n não muda a experiência do João.</p>
+    </div>
+
+    <div class="box br" style="margin-top:12px">
+      <h3 class="cr">2. Complexidade de infraestrutura aumenta</h3>
+      <p>Hoje: 1 processo Node.js + Supabase. Com split: Node.js + n8n + Supabase + possível queue (Redis ou Supabase Realtime como trigger).</p>
+      <p style="margin-top:8px">Mais componentes = mais coisas para monitorar, mais pontos de falha de infra.</p>
+      <p style="margin-top:8px"><strong>Mitigação:</strong> n8n já está rodando no Railway. O trigger pode ser simples: cron no n8n que faz SELECT em `intimacoes_raw` WHERE analisada = false.</p>
+    </div>
+  </div>
+  <div>
+    <div class="box br">
+      <h3 class="cr">3. Migração exige reescrita significativa</h3>
+      <p>O skill_analisar_ia.mjs e skill_orquestrador.mjs precisam ser reescritos. O schema do Supabase precisaria de uma nova tabela intermediária (`intimacoes_raw`) ou um campo `status_analise` em `intimacoes`.</p>
+      <p style="margin-top:8px"><strong>Estimativa:</strong> 2-3 semanas de CC para migração limpa. Hoje o CC está resolvendo os 12 bugs da v2 — não é o momento de mudar arquitetura.</p>
+    </div>
+
+    <div class="box br" style="margin-top:12px">
+      <h3 class="cr">4. n8n Railway tem custo e limites</h3>
+      <p>A instância n8n no Railway é compartilhada. 300-600 análises IA/ciclo × 2 ciclos/dia = 600-1200 execuções/dia. Verificar se o plano Railway aguenta a carga.</p>
+      <p style="margin-top:8px">Alternativa: n8n no Mac Mini (já instalado) rodando 24/7 — zero custo adicional de infra.</p>
+    </div>
+
+    <div class="box by" style="margin-top:12px">
+      <h3 class="cy">5. Problema de contexto: Node.js perde acesso ao resultado IA</h3>
+      <p>Hoje o Node.js analisa e persiste num loop sincronizado. Com split, o Node.js não sabe se a análise IA foi bem-sucedida. O fluxo de notificação (Telegram → João) precisa ser redesenhado para disparar depois do n8n terminar.</p>
+    </div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2>📊 Comparativo Técnico</h2>
+
+<div class="tw">
+<table>
+  <thead><tr><th>Dimensão</th><th>Atual (Monolítico)</th><th>Proposta (Split)</th><th>Vencedor</th></tr></thead>
+  <tbody>
+    <tr>
+      <td><strong>Velocidade do ciclo EPROC</strong></td>
+      <td>~90min (Playwright + IA juntos)</td>
+      <td>~20-30min (só Playwright)</td>
+      <td><span class="b bg2">Split ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Resiliência a falha de IA</strong></td>
+      <td>Batch inteiro vira fallback D</td>
+      <td>Item individual falha, n8n retenta</td>
+      <td><span class="b bg2">Split ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Treinamento / Playbooks</strong></td>
+      <td>Editar arquivo .md no Obsidian → SSH sync</td>
+      <td>Frontend edita Supabase → n8n lê</td>
+      <td><span class="b bg2">Split ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Observabilidade</strong></td>
+      <td>Logs manuais no Supabase</td>
+      <td>Dashboard n8n nativo</td>
+      <td><span class="b bg2">Split ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Latência para o João ver</strong></td>
+      <td>Ciclo completo antes de aparecer</td>
+      <td>Aparece cru imediatamente, IA em background</td>
+      <td><span class="b bx2">Empate</span></td>
+    </tr>
+    <tr>
+      <td><strong>Complexidade de infra</strong></td>
+      <td>Simples — 1 processo</td>
+      <td>Mais componentes</td>
+      <td><span class="b br2">Atual ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Custo de migração</strong></td>
+      <td>Zero (já feito)</td>
+      <td>2-3 semanas CC</td>
+      <td><span class="b br2">Atual ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Custo de IA</strong></td>
+      <td>~$40/mês (projetado)</td>
+      <td>Igual (mesmo volume de tokens)</td>
+      <td><span class="b bx2">Empate</span></td>
+    </tr>
+    <tr>
+      <td><strong>Escalabilidade</strong></td>
+      <td>Limitada (sequencial)</td>
+      <td>Alta (n8n paralelo por OAB)</td>
+      <td><span class="b bg2">Split ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Risco de quebra em migração</strong></td>
+      <td>Zero</td>
+      <td>Alto — schema, código, crons</td>
+      <td><span class="b br2">Atual ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Independência da Cecília</strong></td>
+      <td>Análise IA acoplada ao Node.js</td>
+      <td>Análise IA totalmente independente</td>
+      <td><span class="b bg2">Split ✅</span></td>
+    </tr>
+    <tr>
+      <td><strong>Debug quando algo falha</strong></td>
+      <td>Ler logs manualmente</td>
+      <td>Dashboard n8n + retry one-click</td>
+      <td><span class="b bg2">Split ✅</span></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+
+<div class="score-grid">
+  <div class="score-card">
+    <div class="score-num" style="color:#22c55e">8</div>
+    <div class="score-label">Critérios Split vence</div>
+  </div>
+  <div class="score-card">
+    <div class="score-num" style="color:#ef4444">3</div>
+    <div class="score-label">Critérios Atual vence</div>
+  </div>
+  <div class="score-card">
+    <div class="score-num" style="color:#94a3b8">2</div>
+    <div class="score-label">Empates</div>
+  </div>
+  <div class="score-card">
+    <div class="score-num" style="color:#a5b4fc">7/10</div>
+    <div class="score-label">Nota da proposta</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2>🗺️ Como Ficaria a Nova Arquitetura</h2>
+
+<div class="box bi">
+  <h3>Fluxo completo da proposta Split</h3>
+
+  <pre style="color:#a5b4fc">
+LAYER 1 — CAPTURA (Node.js Cecília, 24/7)
+══════════════════════════════════════════════════════════
+Cron 00h, 06h, 12h, 18h BRT
+  → Playwright: login EPROC (RS116571, RS131163, SC074025...)
+  → Gerar planilha XLS por OAB
+  → Parse XLS → lista de CNJs + evento bruto
+  → Lookup MdFlow: processo_id por CNJ
+  → INSERT intimacoes (status = 'pendente_analise', sem classe_cecilia)
+  → Trigger: UPDATE cecilia_ciclos (status='captura_concluida')
+
+LAYER 2 — ANÁLISE IA (n8n, assíncrono)
+══════════════════════════════════════════════════════════
+Trigger: SELECT * FROM intimacoes WHERE status='pendente_analise'
+  (cron n8n a cada 5 minutos OU Supabase Realtime webhook)
+  → Para cada intimação:
+    ① Filtro zero-custo: polo=reu → Classe B automático
+    ② Filtro ruído: RUIDO_PATTERNS → Classe A automático
+    ③ Claude Haiku: classificação D/E/F/C/G com contexto MdFlow
+    ④ Validação JSON robusta (n8n tem parse nativo)
+    ⑤ UPDATE intimacoes SET classe_cecilia=X, confianca_ia=Y, status='nova'
+  → Se falhar: retry automático n8n (3x com backoff)
+  → Se falhar 3x: status='erro_analise', notificar Jarbas
+
+LAYER 3 — CONTROLLER (Frontend MdFlow)
+══════════════════════════════════════════════════════════
+João abre /controller:
+  → Ver intimações com status='pendente_analise' → badge "Analisando..."
+  → Ver intimações com status='nova' → classificadas, prontas para ação
+  → Playbooks: editar taxonomia no frontend → Supabase → n8n usa no próximo ciclo
+  → Feedback: João discorda da classificação → INSERT feedback_ia → few-shot para n8n
+  </pre>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2>🎯 Veredicto — O Que Fazer</h2>
+
+<div class="box bi">
+  <h3>Resposta direta: A ideia é boa, mas é Fase 2 — não agora</h3>
+
+  <p style="margin-top:8px">A arquitetura split é <strong>claramente superior no longo prazo</strong>. Node.js mais simples, n8n mais robusto, treinamento via frontend funcionando de verdade, ciclos mais rápidos, debug visual.</p>
+
+  <p style="margin-top:8px"><strong>Mas tem um problema: o CC está consertando 12 bugs agora.</strong></p>
+
+  <p style="margin-top:8px">Fazer essa migração agora seria como trocar os pneus de um carro com o motor ainda em chamas. A Cecília v2.3 precisa ficar estável primeiro — 2 semanas de E2E limpos com fallback D abaixo de 40 — antes de mexer na arquitetura.</p>
+</div>
+
+<div class="split">
+  <div class="box bg">
+    <h3 class="cg">✅ O que fazer agora (Cecília v2.3)</h3>
+    <ul>
+      <li>CC terminar as 12 correções</li>
+      <li>E2E limpo: fallback D &lt; 40, zero Classe A no banco</li>
+      <li>Estruturar <code>intimacoes</code> com campo <code>status_analise</code> (preparação para split)</li>
+      <li>Documentar schema atual antes de migrar</li>
+    </ul>
+  </div>
+  <div class="box bp">
+    <h3 class="cp">📅 O que fazer em 2-4 semanas (Fase 2)</h3>
+    <ul>
+      <li>Migrar análise IA para n8n (workflow dedicado)</li>
+      <li>Node.js vira coletor puro (muito mais simples)</li>
+      <li>Implementar Playbooks com loop de feedback</li>
+      <li>Dashbboard n8n como monitoramento principal</li>
+    </ul>
+  </div>
+</div>
+
+<div class="box by">
+  <h3>🔑 Decisão de prep que o CC pode tomar AGORA</h3>
+  <p>Adicionar coluna <code>status_analise</code> em <code>intimacoes</code>:</p>
+  <pre style="margin-top:8px">
+ALTER TABLE intimacoes
+ADD COLUMN IF NOT EXISTS status_analise text DEFAULT 'concluida'
+  CHECK (status_analise IN ('pendente', 'processando', 'concluida', 'erro'));
+
+-- Índice para o n8n fazer SELECT rápido depois
+CREATE INDEX IF NOT EXISTS idx_intimacoes_status_analise
+  ON intimacoes(status_analise) WHERE status_analise = 'pendente';
+  </pre>
+  <p>Isso não quebra nada hoje (default='concluida' = comportamento atual). Mas prepara o banco para a split quando chegar a hora.</p>
+</div>
+
+<hr>
+
+<!-- ============================================================ -->
+<h2>💡 Resumo Executivo</h2>
+
+<div class="tw">
+<table>
+  <thead><tr><th>Pergunta</th><th>Resposta</th></tr></thead>
+  <tbody>
+    <tr><td><strong>A ideia é válida?</strong></td><td>Sim — arquitetura superior no longo prazo</td></tr>
+    <tr><td><strong>Vai melhorar o sistema?</strong></td><td>Significativamente: ciclo mais rápido, resiliência maior, treinamento real</td></tr>
+    <tr><td><strong>Faz mudança drástica?</strong></td><td>Sim — Node.js vira coletor puro, n8n vira motor IA</td></tr>
+    <tr><td><strong>Vale a pena?</strong></td><td>Sim — mas só depois da Cecília v2.3 estar estável</td></tr>
+    <tr><td><strong>É um Plano B válido?</strong></td><td>É melhor que Plano B — é o Plano Definitivo para escala</td></tr>
+    <tr><td><strong>O CC deve fazer isso agora?</strong></td><td>Não — apenas adicionar <code>status_analise</code> como prep</td></tr>
+    <tr><td><strong>Quando migrar?</strong></td><td>2-4 semanas após v2.3 estável com E2E limpo</td></tr>
+    <tr><td><strong>Tornaria independente da Cecília?</strong></td><td>Sim — análise IA desacoplada do Node.js completamente</td></tr>
+  </tbody>
+</table>
+</div>
+
+<div class="footer-note">
+  🐙 Jarbas 2.0 · MdLab LegalTech · 2026-03-31 20:52 BRT<br>
+  Brainstorm gerado com base na ideia do Christian + análise do código Cecília atual<br>
+  Stack analisada: Node.js (skill_orquestrador, skill_analisar_ia, eproc-utils) + n8n Railway + Supabase
+</div>
+
+</div>
+</body>
+</html>

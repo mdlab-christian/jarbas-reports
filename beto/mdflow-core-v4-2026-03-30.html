@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.5 (2026-03-31)</title>
+<title>MdFlow Core — Referência Técnica v4.6 (2026-03-31)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -2641,6 +2641,8 @@
       <span class="badge badge-route">/mdzap</span>
       <span class="badge badge-route">/mdzap/app</span>
       <span class="badge badge-info">Mobile fullscreen</span>
+      <span class="badge badge-ok">✅ Operacional</span>
+      <span class="badge badge-info">Rev. 2026-03-31</span>
     </div>
   </div>
 
@@ -2651,15 +2653,75 @@
     </div>
   </details>
 
+  <details open>
+    <summary>🏗️ Estrutura</summary>
+    <div class="details-body">
+      <div class="tree">
+<span class="c">src/pages/mdzap/index.tsx</span>  (MdzapPage — redirect mobile &lt;1024px → /mdzap/app)
+└── <span class="c">src/components/mdzap/MdzapChatPanel.tsx</span>  (5 tabs)
+    ├── <span class="f">MdzapConversaList.tsx</span>  — Fila/Minhas/Todas, filtros, busca (mín 2 chars)
+    ├── <span class="f">MdzapMsgThread.tsx</span>  — DragOverlay + SmartReplies + AudioRecorder
+    ├── <span class="f">MdzapMsgInput.tsx</span>  — Audio + Attach (audio/* aceito) + AIComposer
+    ├── <span class="f">MdzapMsgBubble.tsx</span>  — Bolhas + preview imagem + CPF mascarado (LGPD)
+    ├── <span class="f">MdzapConnectionIndicator.tsx</span>  — isEnabled/isError/WA Offline state
+    ├── <span class="f">MdzapDashboard.tsx</span>  — 6 KPIs + 2 gráficos (staleTime 30_000)
+    ├── <span class="f">MdzapLeadPanel.tsx</span>  — Lead | Memória | Tom | Histórico
+    ├── <span class="f">MdzapGestaoPanel.tsx</span>  — Números, usuários, stages, histórico
+    ├── <span class="f">MdzapJuliaLab.tsx</span>  — Simulador SDR. Prompt v12
+    └── <span class="f">TemplatesManagerDialog.tsx</span>  — 3 templates: boas_vindas_lead, cobranca_documento, proposta_acordo
+      </div>
+      <div class="section-title" style="margin-top:12px">Hooks críticos</div>
+      <ul class="ilist">
+        <li><span class="tag tag-hook">hook</span> <code>useMdzapMensagens(conversaId, orgId)</code> — queryKey inclui orgId (anti cross-org)</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdzapConversas</code> — Realtime 2 channels. staleTime 30_000</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdzapStatus</code> — isError exposto. heartbeat null → disconnected</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdzapTemplates</code> — useQuery (React Query, migrado de useState)</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdzapSendMessage</code> — request_id gerado por call. invalidateQueries com orgId</li>
+        <li><span class="tag tag-hook">hook</span> <code>useMdzapKeyboardShortcuts</code> — Ctrl+/ e Ctrl+K → busca</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>🗄️ SQL / Migrations</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li><span class="tag tag-table">fn_mdzap_conversas(p_org_id, p_numero_id)</span> — RPC principal. <code>COALESCE(l.awaiting_human, (wc.metadata->>'awaiting_human')::boolean, false)</code> para lead_awaiting_human correto mesmo sem lead_id</li>
+        <li><span class="tag tag-table">whatsapp_conversas</span> — trigger <code>trg_zera_nao_lidas_arquivada</code> zera nao_lidas ao mudar status → 'arquivada'</li>
+        <li><span class="tag tag-table">whatsapp_mensagens</span> — soft delete obrigatório. Mensagens com conversa_id IS NULL devem ter deleted_at</li>
+      </ul>
+    </div>
+  </details>
+
   <details>
     <summary>🔗 Ligações</summary>
     <div class="details-body">
       <ul class="ilist">
-        <li><span class="tag tag-rpc">webhook</span> n8n workflows para envio de mensagens automáticas</li>
-        <li><span class="tag tag-table">leads</span> Vinculação de conversas com leads</li>
+        <li><span class="tag tag-rpc">webhook</span> n8n: mdzap/enviar-mensagem (text, file, link)</li>
+        <li><span class="tag tag-table">leads</span> Vinculação de conversas com leads (LEFT JOIN — conversa pode existir sem lead)</li>
         <li>↔ ClienteDrawer aba "MDZap" — view inline da conversa do lead</li>
         <li><span class="tag tag-hook">hook</span> useMdzap — gerencia estado de conexão/instância</li>
       </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>🐛 Bugs corrigidos — 2026-03-31 (QA R1, execution-v3)</summary>
+    <div class="details-body">
+      <table style="width:100%;font-size:0.82rem">
+        <tr><th>ID</th><th>P</th><th>Descrição</th></tr>
+        <tr><td>BUG-01</td><td>P0</td><td>useMdzapSendMessage — invalidateQueries sem orgId causava cache stale cross-org</td></tr>
+        <tr><td>BUG-02</td><td>P0</td><td>fn_mdzap_conversas — lead_awaiting_human sempre false quando sem lead_id (COALESCE fix)</td></tr>
+        <tr><td>BUG-03</td><td>P1</td><td>MdzapDashboard — seletor de período cosmético removido (RPCs não suportam p_periodo)</td></tr>
+        <tr><td>BUG-04</td><td>P1</td><td>5 mensagens órfãs (conversa_id=null) — soft-delete aplicado via migration</td></tr>
+        <tr><td>BUG-05</td><td>P1</td><td>nao_lidas não zerada ao arquivar — trigger trg_zera_nao_lidas_arquivada criado</td></tr>
+        <tr><td>BUG-06</td><td>P1</td><td>MdzapMsgInput drag&amp;drop não aceitava audio/* — filterDroppedFiles corrigido</td></tr>
+        <tr><td>BUG-07</td><td>P1</td><td>useMdzapStatus — heartbeat null não marcava número como offline</td></tr>
+        <tr><td>BUG-08</td><td>P1</td><td>MdzapMsgBubble — CPF exibido sem máscara (LGPD) — padrão $1.***.***-$2</td></tr>
+        <tr><td>BUG-09</td><td>P2</td><td>MdzapConversaList — busca sem hint de 2 chars mínimos</td></tr>
+        <tr><td>BUG-10</td><td>P2</td><td>MdzapDashboard — staleTime 60_000 corrigido para 30_000</td></tr>
+        <tr><td>BUG-11</td><td>P1</td><td>useMdzapSendMessage — request_id duplicado em mensagens rápidas (gerado por call)</td></tr>
+      </table>
     </div>
   </details>
 </section>

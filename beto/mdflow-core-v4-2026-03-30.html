@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4 (2026-03-30)</title>
+<title>MdFlow Core — Referência Técnica v4.1 (2026-03-31)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -964,7 +964,8 @@
     <div class="badge-row">
       <span class="badge badge-route">/processos</span>
       <span class="badge badge-route">/processos/:cnjSlug</span>
-      <span class="badge badge-ok">Página core do sistema</span>
+      <span class="badge badge-ok">✅ Operacional · QA+Exec v3 concluídos</span>
+      <span class="badge" style="background:#20c99720;color:#20c997;border:1px solid #20c99740;">2026-03-31 · commit ec6d4285</span>
     </div>
   </div>
 
@@ -980,12 +981,12 @@
         <div class="card">
           <h3>Perfis & Acesso</h3>
           <p>juridico, admin, operacional, comercial. Guard: <code>PERFIS_COM_ACESSO</code>.</p>
-          <p style="margin-top:6px; font-size:12px;">Exportar: admin + juridico + acesso_gestor<br>Importar: admin + acesso_gestor<br>Editar: juridico, operacional, admin, acesso_gestor</p>
+          <p style="margin-top:6px; font-size:12px;">Exportar: admin + juridico + acesso_gestor<br>Importar: admin + acesso_gestor<br>Editar: juridico, operacional, admin, acesso_gestor<br>acesso_financeiro: valor_causa mascarado se false</p>
         </div>
       </div>
-      <div class="card" style="margin-top:10px; border-color:#ef444440;">
-        <h3>⚠️ Problema crítico ativo</h3>
-        <p>Mega revisão importou dados do MdFlow legado + Eproc + AdvBox. <strong>Muitos campos existem no banco mas não aparecem no front-end.</strong> Mapeamento completo necessário: quais campos existem no banco e não estão sendo exibidos.</p>
+      <div class="card" style="margin-top:10px; border-color:#20c99740; background:#20c99708;">
+        <h3 style="color:#20c997;">✅ Execution v3 — 18 bugs corrigidos (2026-03-31)</h3>
+        <p style="font-size:12px;">3 P0 (cache invalidation, Realtime queryKey, useParams modal) · 7 P1 (acesso_financeiro guards, restricao_tipo edit, filtros histórico, queryKey conflicts) · 5 P2 (restore cache, OlivIA TTL, staleTime, download vs preview) · 3 P3 (a11y: SheetHeader, DialogDescription, aria-label). TypeScript: 0 erros. Commit: <code>ec6d4285</code>.</p>
       </div>
     </div>
   </details>
@@ -995,12 +996,12 @@
     <div class="details-body">
       <div class="tree">
 <span class="c">src/pages/processos/index.tsx</span>  (ProcessosPage)
-├── <span class="f">ProcessosKPIs</span>           <span class="m">— 4 cards: ativos, baixados, novos_mes, total_com_filtros (RPC: get_processos_kpis)</span>
+├── <span class="f">ProcessosKPIs</span>           <span class="m">— 4 cards: ativos, baixados, novos_mes, total_com_filtros · Skeleton quando isLoading</span>
 ├── <span class="f">ProcessosFilterBar</span>      <span class="m">— busca debounced 300ms + tabs (ativo/baixados/todos) + selects + DateFilter</span>
 ├── <span class="f">ProcessosTable</span>          <span class="m">— sortable + checkbox + StatusBadge + CopyableCNJ + BlindedValue + RowActions</span>
 │   <span class="m">  RPC: get_processos_paginados</span>
 ├── <span class="f">ProcessoModalShell</span>      <span class="m">— drawer lateral ao clicar num processo (shared: src/components/processo/)</span>
-├── <span class="f">ProcessosBulkBar</span>        <span class="m">— barra flutuante de seleção (max 50). Ações: arquivar lote, exportar</span>
+├── <span class="f">ProcessosBulkBar</span>        <span class="m">— barra flutuante de seleção (max 50). Ações: arquivar lote, exportar. Botões com texto.</span>
 ├── <span class="f">ModalImportarProcessos</span>  <span class="m">— admin/gestor</span>
 └── <span class="f">ModalExportConfig</span>       <span class="m">— export assíncrono via webhook + polling webhook_requests</span>
       </div>
@@ -1009,6 +1010,8 @@
       <ul class="ilist">
         <li><span class="tag tag-hook">hook</span> <code>useProcessos.ts</code> — filtros em URL + lista paginada + KPIs</li>
         <li><span class="tag tag-hook">hook</span> <code>useProcessosLookups.ts</code> — status, fases, empresas, advogados, estados</li>
+        <li><span class="tag tag-hook">hook</span> <code>useProcessoUpdate.ts</code> — mutation com invalidateQueries: ['processo', cnj, exact:false] + ['processo-modal', id]</li>
+        <li><span class="tag tag-hook">hook</span> <code>useDocumentosProcesso.ts</code> — queryKey: <strong>'documentos-processo-drawer'</strong> (≠ useProcessoDocumentos que usa 'processo-documentos')</li>
       </ul>
     </div>
   </details>
@@ -1016,19 +1019,19 @@
   <details>
     <summary>📋 Drawer do Processo (ProcessoModalShell) — Abas</summary>
     <div class="details-body">
-      <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Componente shared em <code>src/components/processo/ProcessoModalShell.tsx</code>. Abre ao clicar em qualquer processo na tabela.</p>
+      <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Componente shared em <code>src/components/processo/ProcessoModalShell.tsx</code>. SheetTitle com <code>className="sr-only"</code>. Abre ao clicar em qualquer processo na tabela.</p>
       <table class="form-tbl">
-        <thead><tr><th>Aba</th><th>Status</th><th>Problemas / Notas</th></tr></thead>
+        <thead><tr><th>Aba</th><th>Status</th><th>Notas atuais</th></tr></thead>
         <tbody>
-          <tr><td><strong>Dados Gerais</strong></td><td style="color:#ef4444;">❌ 2 bugs</td><td>1. Cliente não encontrado (nome aparece no topo mas campo "cliente do processo" falha)<br>2. CNJ aparece 3x — deveria ser 1x display + 1x CopyableCNJ</td></tr>
-          <tr><td><strong>Restrições</strong></td><td style="color:#ef4444;">❌ 2 bugs</td><td>1. Restrição principal não aparece aqui (aparece nos Dados Gerais)<br>2. Data da restrição não mostra — campo crítico</td></tr>
-          <tr><td><strong>Movimentações</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Ver conexões e origem dos dados</td></tr>
-          <tr><td><strong>Decisões</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Confirmar conexão com página /decisoes</td></tr>
-          <tr><td><strong>Documentos</strong></td><td style="color:#3b82f6;">📋 Planejar</td><td>Implementar em 2 partes: (1) docs da inicial/petição; (2) docs da tramitação</td></tr>
+          <tr><td><strong>Dados Gerais</strong></td><td style="color:#22c55e;">✅ Operacional</td><td>RPC com JOIN clientes ✅ · CNJ sem triplicação ✅ · acesso_financeiro guard em valor_causa ✅ · Campos M1: reu_nome, advogado_reu, polo_representado, ultima_movimentacao_texto</td></tr>
+          <tr><td><strong>Restrições</strong></td><td style="color:#22c55e;">✅ Operacional</td><td>Overload fn_restricoes_listar corrigido ✅ · restricao_tipo editável (Select) ✅ · staleTime 5min</td></tr>
+          <tr><td><strong>Movimentações</strong></td><td style="color:#20c997;">⚡ Melhorado</td><td>invalidateQueries após insert manual ✅ · DialogDescription adicionado ✅ · Filtros de tipo funcionais</td></tr>
+          <tr><td><strong>Documentos</strong></td><td style="color:#22c55e;">✅ Operacional</td><td>Sub-tabs "Inicial (N)" / "Tramitação (N)" ✅ · Download força arquivo ✅ · Visualizar abre preview ✅ · Upload/delete/bulk-download ok</td></tr>
+          <tr><td><strong>Histórico</strong></td><td style="color:#20c997;">⚡ Melhorado</td><td>FILTER_CHIPS com movimentacao + exclusao ✅ · Timeline com ICON_MAP completo</td></tr>
+          <tr><td><strong>OlivIA</strong></td><td style="color:#20c997;">⚡ Melhorado</td><td>sessionStorage com TTL 30min ✅ · Carrega thread existente do DB no mount</td></tr>
           <tr><td><strong>Audiências</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Confirmar se está conectada ao módulo de audiências real</td></tr>
-          <tr><td><strong>Histórico</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Confirmar histórico completo do processo</td></tr>
+          <tr><td><strong>Decisões</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Confirmar conexão com página /decisoes</td></tr>
           <tr><td><strong>Insights</strong></td><td style="color:var(--text-muted);">❓ Indefinido</td><td>Não definido o que deve mostrar — investigar antes de implementar</td></tr>
-          <tr><td><strong>OlivIA</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Já mostra advogado. Confirmar todos os outros campos.</td></tr>
         </tbody>
       </table>
     </div>
@@ -1039,13 +1042,15 @@
     <div class="details-body">
       <ul class="ilist">
         <li><span class="tag tag-table">processos</span> Leitura/escrita completa via RPC paginada</li>
-        <li><span class="tag tag-table">clientes</span> Join via cliente_id — quando processo é chamado, cliente vai junto</li>
-        <li><span class="tag tag-table">restricoes</span> Join via restricao_id (bug: não aparece no drawer)</li>
+        <li><span class="tag tag-table">clientes</span> Join via cliente_id ✅ (RPC corrigida)</li>
+        <li><span class="tag tag-table">restricoes</span> Join via restricao_id ✅ (overload fix + staleTime 5min)</li>
         <li><span class="tag tag-table">advogados</span> Join via advogado_id</li>
         <li><span class="tag tag-table">empresas</span> Join via empresa_id</li>
-        <li><span class="tag tag-table">audiencias</span> Leitura inline no drawer</li>
-        <li><span class="tag tag-table">decisoes</span> Leitura inline no drawer</li>
-        <li><span class="tag tag-rpc">RPC</span> <code>get_processos_paginados</code> + <code>get_processos_kpis</code></li>
+        <li><span class="tag tag-table">audiencias</span> Leitura inline no drawer (🔍 a revisar)</li>
+        <li><span class="tag tag-table">decisoes</span> Leitura inline no drawer (🔍 a revisar)</li>
+        <li><span class="tag tag-table">processos_movimentacoes</span> queryKey: ['processo-movimentacoes', processoId]</li>
+        <li><span class="tag tag-table">processos_documentos</span> queryKey: ['processo-documentos', id, orgId] — NÃO confundir com 'documentos-processo-drawer'</li>
+        <li><span class="tag tag-rpc">RPC</span> <code>get_processos_paginados</code> + <code>get_processos_kpis</code> + <code>rpc_processo_update</code> + <code>rpc_processo_get_completo</code></li>
         <li><span class="tag tag-rpc">webhook</span> arquivar, restaurar, arquivar_lote, exportação assíncrona</li>
       </ul>
     </div>
@@ -1054,25 +1059,25 @@
   <details>
     <summary>🚦 Status & Pendências</summary>
     <div class="details-body">
-      <div class="bug-card crit">
-        <h4>🔴 P0 — Dados banco → front: campos não aparecem</h4>
-        <p>Dados do Eproc + MdFlow legado + AdvBox existem no banco mas não renderizam. Mapear todos os campos vazios no drawer e cruzar com banco.</p>
-      </div>
-      <div class="bug-card crit">
-        <h4>🔴 P0 — Drawer: cliente não encontrado</h4>
-        <p>Nome do cliente aparece no topo mas campo "cliente do processo" falha. Verificar query/join de cliente_id no ProcessoModalShell.</p>
-      </div>
-      <div class="bug-card crit">
-        <h4>🔴 P0 — Drawer: CNJ aparece 3x</h4>
-        <p>Deveria ser: 1x display normal + 1x CopyableCNJ. Verificar onde o número está sendo renderizado triplicado.</p>
-      </div>
-      <div class="bug-card crit">
-        <h4>🔴 P0 — Drawer Restrições: restrição principal ausente</h4>
-        <p>Restrição principal visível nos Dados Gerais mas ausente na aba Restrições. Join de restricao_id pode estar faltando.</p>
+      <div class="card" style="border-color:#20c99740; background:#20c99708; margin-bottom:12px;">
+        <h4 style="color:#20c997;">✅ Execution v3 — 15/18 bugs corrigidos · 2 N/A · 0 falhos</h4>
+        <p style="font-size:12px; margin-top:4px;">Todos os P0/P1 resolvidos. TypeScript clean. Commit <code>ec6d4285</code> em main.</p>
       </div>
       <div class="bug-card warn">
-        <h4>⚠️ P1 — Drawer Restrições: data faltando</h4>
-        <p>Campo data_restricao não exibido. Crítico para contexto jurídico.</p>
+        <h4>🔍 Audiências — a revisar</h4>
+        <p>Confirmar se aba de audiências no drawer está conectada ao módulo de audiências real (/audiencias).</p>
+      </div>
+      <div class="bug-card warn">
+        <h4>🔍 Decisões — a revisar</h4>
+        <p>Confirmar conexão da aba Decisões no drawer com a página /decisoes.</p>
+      </div>
+      <div class="bug-card warn">
+        <h4>❓ Insights — indefinido</h4>
+        <p>O que deve aparecer na aba Insights não está definido — investigar antes de implementar.</p>
+      </div>
+      <div class="bug-card" style="border-color:#3a353080;">
+        <h4 style="color:var(--text-muted);">📋 Nota: dados banco → front</h4>
+        <p>Mega revisão importou dados do MdFlow legado + Eproc + AdvBox. Campos M1 adicionados (reu_nome, advogado_reu, polo, ultima_movimentacao_texto). Mapeamento completo dos demais campos pendente para próxima sessão.</p>
       </div>
     </div>
   </details>

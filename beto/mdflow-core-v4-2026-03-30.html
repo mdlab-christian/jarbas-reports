@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.3 (2026-03-31)</title>
+<title>MdFlow Core — Referência Técnica v4.4 (2026-03-31)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -862,26 +862,38 @@
 <section id="page-distribuicao" class="page-section">
   <div class="pg-header">
     <h2>Distribuição</h2>
-    <p class="sub">Central de distribuição de processos para advogados</p>
+    <p class="sub">Elo central do sistema — onde leads viram clientes e restrições viram processos</p>
     <div class="badge-row">
       <span class="badge badge-route">/distribuicao</span>
-      <span class="badge badge-warn">Fase crítica do fluxo</span>
+      <span class="badge badge-warn">~2.795 em Aguardando Preparação</span>
+      <span class="badge badge-ok">DistribuicaoPage.tsx</span>
+      <span class="badge badge-info">RPC-driven</span>
     </div>
   </div>
 
   <details open>
-    <summary>📋 Core</summary>
+    <summary>📋 Core — O que é, propósito, fluxo</summary>
     <div class="details-body">
-      <div class="grid-2">
+      <div class="grid-3">
         <div class="card">
           <h3>O que é</h3>
-          <p><strong>Elo central do sistema.</strong> É aqui onde leads se transformam em clientes e restrições se transformam em processos. Página mais elaborada e mais estável — poucos erros.</p>
-          <p style="margin-top:8px; font-size:12px; color:var(--text-muted);">Fluxo: CRM (lead) → Distribuição (lead vira cliente + restrições vinculadas) → <strong>Efetuar Distribuição</strong> → cada restrição vira 1 processo em /processos</p>
+          <p><strong>Elo central do sistema.</strong> É aqui onde leads se transformam em clientes e restrições se transformam em processos. Página mais elaborada e mais estável do sistema.</p>
+          <p style="margin-top:8px; font-size:12px; color:var(--text-muted);">Página quase funcionando — poucos erros. Efetuar distribuição operacional. Principal problema: aba Aguardando Preparação.</p>
         </div>
         <div class="card">
           <h3>Quem usa</h3>
-          <p>Admin, operacional, gestor. Leads chegam após triagem no CRM. Página que precisa estar sempre funcionando para distribuição manual.</p>
-          <p style="margin-top:8px; font-size:12px; color:var(--text-muted);">⚠️ <strong>~2.795 processos</strong> na aba Aguardando Preparação com dados incompletos — investigação prioritária.</p>
+          <p>Admin, operacional, gestor. Leads chegam após triagem no CRM. Deve estar sempre funcionando para distribuição manual.</p>
+          <p style="margin-top:6px; font-size:12px; color:var(--text-muted);">Auth guard: <code>useAuth()</code> → <code>organizacao_id</code></p>
+        </div>
+        <div class="card card-accent">
+          <h3>Fluxo completo</h3>
+          <p style="font-size:12px; line-height:1.8;">
+            <strong>CRM (lead)</strong><br>
+            ↓ envia para distribuição<br>
+            <strong>Distribuição:</strong> lead vira CLIENTE + restrições vinculadas<br>
+            ↓ efetuar distribuição<br>
+            <strong>Processos:</strong> cada restrição vira 1 PROCESSO individual
+          </p>
         </div>
       </div>
       <div class="card" style="margin-top:10px; border-color: #f59e0b40;">
@@ -890,7 +902,7 @@
           <li>Cliente vinculado (criado automaticamente ao entrar na distribuição)</li>
           <li>Empresa ré vinculada</li>
           <li>Advogado responsável</li>
-          <li>Restrições (cada uma vira 1 processo individual)</li>
+          <li>Restrições — cada uma vira 1 processo individual</li>
           <li>Informações da restrição: tipo, órgão, contrato, valor, data</li>
           <li style="color:#f59e0b;">⚠️ TODO: mapear exatamente quais campos chegam e quais não estão chegando</li>
         </ul>
@@ -898,22 +910,115 @@
     </div>
   </details>
 
-  <details>
-    <summary>🏗️ Estrutura — Abas</summary>
+  <details open>
+    <summary>🏗️ Estrutura — Árvore de Componentes</summary>
     <div class="details-body">
       <div class="tree">
 <span class="c">src/pages/distribuicao/DistribuicaoPage.tsx</span>
-├── <span class="f">TabDashboard</span>              <span class="m">— KPIs (distribuídos hoje, agendados, aguardando dist., aguardando prep.) + EvolucaoChart</span>
-├── <span class="f">TabPreparacao</span>             <span class="m">— ⚠️ ~2.795 processos com dados incompletos. Foco da próxima revisão.</span>
-│   └── <span class="f">DistribuicaoDrawerPreparacao</span>  <span class="m">— Sheet lateral. Avança quando advogado + ≥3 docs OK</span>
-├── <span class="f">TabAguardando</span>             <span class="m">— Prontos para efetuar. Fluxo principal.</span>
-│   ├── <span class="f">ModalEfetuarDistribuicao</span> <span class="m">— NÃO pode exigir petição/comprovante obrigatórios</span>
-│   ├── <span class="f">WizardAgendarDistribuicao</span><span class="m">— multi-step para agendar</span>
-│   ├── <span class="f">ModalDevolverCRM</span>         <span class="m">— devolve para CRM</span>
-│   └── <span class="f">ModalDistribuicaoLote</span>    <span class="m">— distribuição em lote</span>
-├── <span class="f">TabAgendados</span>              <span class="m">— processos com data agendada</span>
-└── <span class="f">TabJarbas</span>                 <span class="m">— monitor do robô. Pode ficar ativo por enquanto.</span>
+├── <span class="f">PageHeader</span> (shared)
+│   └── Buttons: OlivIA | Filtros | Novo Processo
+├── <span class="f">Tabs</span> (shadcn) — controlado por filters.tab via URL
+│   ├── <span class="f">TabsList</span> (badges de KPIs nos triggers)
+│   │   └── 5 triggers: dashboard | preparacao | aguardando | agendados | jarbas
+│   ├── <span class="f">DistribuicaoFilterBar</span>  <span class="m">— visível apenas em preparacao/aguardando/agendados</span>
+│   ├── <span class="d">TabsContent "dashboard"</span>
+│   │   └── <span class="f">TabDashboard</span>
+│   │       ├── <span class="f">KpiShell</span> ×8 (clicáveis → navega para tab)
+│   │       └── <span class="f">EvolucaoChart</span> (Recharts LineChart)
+│   ├── <span class="d">TabsContent "preparacao"</span>
+│   │   └── <span class="f">TabPreparacao</span>
+│   │       └── <span class="f">DistribuicaoProcessoCard</span> ×N
+│   │           └── <span class="f">DistribuicaoDrawerPreparacao</span> (Sheet)
+│   │               <span class="m">— avança quando advogado + ≥3 docs OK</span>
+│   ├── <span class="d">TabsContent "aguardando"</span>
+│   │   └── <span class="f">TabAguardando</span>
+│   │       ├── Table com ProcessoDistribuicao rows
+│   │       ├── <span class="f">ModalEfetuarDistribuicao</span>  <span class="m">— NÃO pode exigir petição/comprovante obrigatórios</span>
+│   │       ├── <span class="f">WizardAgendarDistribuicao</span> <span class="m">— multi-step agendar</span>
+│   │       ├── <span class="f">ModalDevolverCRM</span>          <span class="m">— devolve para CRM</span>
+│   │       ├── <span class="f">ModalDistribuicaoLote</span>     <span class="m">— lote múltiplos processos</span>
+│   │       └── <span class="f">ModalExcluirProcesso</span>      <span class="m">— confirma exclusão</span>
+│   ├── <span class="d">TabsContent "agendados"</span>
+│   │   └── <span class="f">TabAgendados</span>
+│   │       └── Table com processos agendados
+│   └── <span class="d">TabsContent "jarbas"</span>
+│       └── <span class="f">TabJarbas</span>  <span class="m">— monitor do robô JARBAS</span>
+│
+├── <span class="f">ModalCriarProcesso</span>  <span class="m">— abre via "Novo Processo". Vincula cliente + restrição</span>
+└── <span class="m">Realtime inline</span>  <span class="m">— supabase.channel('distribuicao-rt')</span>
       </div>
+
+      <div class="section-title" style="margin-top:16px;">Modais e Drawers</div>
+      <table class="tbl">
+        <thead><tr><th>Componente</th><th>Arquivo</th><th>Propósito</th></tr></thead>
+        <tbody>
+          <tr><td><code>ModalCriarProcesso</code></td><td>modals/</td><td>Cria processo novo vinculando cliente + restrição</td></tr>
+          <tr><td><code>ModalEfetuarDistribuicao</code></td><td>modals/</td><td>Executa distribuição manual. Geração de documentos NÃO obrigatória.</td></tr>
+          <tr><td><code>WizardAgendarDistribuicao</code></td><td>modals/</td><td>Wizard multi-step para agendar data de distribuição</td></tr>
+          <tr><td><code>ModalDevolverCRM</code></td><td>modals/</td><td>Reverte processo de volta ao CRM</td></tr>
+          <tr><td><code>ModalDistribuicaoLote</code></td><td>modals/</td><td>Distribuição em lote de múltiplos processos</td></tr>
+          <tr><td><code>ModalExcluirProcesso</code></td><td>modals/</td><td>Confirma exclusão permanente</td></tr>
+          <tr><td><code>ModalGerarPeticao</code></td><td>modals/</td><td>Dispara geração da petição (P0 futuro, não agora)</td></tr>
+          <tr><td><code>ModalPreparacaoDocumentos</code></td><td>modals/</td><td>Upload e checagem de docs na preparação</td></tr>
+          <tr><td><code>ModalPreparoProcesso</code></td><td>modals/</td><td>Configura processo antes da distribuição</td></tr>
+          <tr><td><code>DistribuicaoDrawerPreparacao</code></td><td>drawers/</td><td>Sheet lateral — revisão docs. Avança: advogado + ≥3 docs OK</td></tr>
+          <tr><td><code>DistribuicaoDrawerRestricao</code></td><td>drawers/</td><td>Sheet lateral — detalhes da restrição</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>⚙️ Hooks</summary>
+    <div class="details-body">
+      <table class="tbl">
+        <thead><tr><th>Hook</th><th>O que faz</th><th>Tabelas / RPCs</th></tr></thead>
+        <tbody>
+          <tr><td><code>useDistribuicaoFilterParams</code></td><td>Filtros da página via URL params</td><td>— (URL state)</td></tr>
+          <tr><td><code>useDistribuicaoKPIs</code></td><td>KPIs de todas as etapas. <code>refetchInterval: 60_000</code></td><td><code>fn_distribuicao_kpis</code> (RPC)</td></tr>
+          <tr><td><code>useProcessosDistribuicao</code></td><td>Lista paginada por etapa</td><td><code>fn_processos_distribuicao_listar</code> (RPC)</td></tr>
+          <tr><td><code>useDistribuicaoEvolucao</code></td><td>Evolução histórica (gráfico dashboard)</td><td>RPC ou view</td></tr>
+          <tr><td><code>useDistribuicaoConfig</code></td><td>Configurações da distribuição</td><td>tabela config</td></tr>
+          <tr><td><code>useAdvogadosSelect</code></td><td>Lookup de advogados para select</td><td><code>advogados</code></td></tr>
+          <tr><td><code>useJarbasStatus</code></td><td>Status do robô JARBAS</td><td>tabela/edge function</td></tr>
+          <tr><td><code>useGerarComprovante</code></td><td>Gera comprovante de restrição</td><td>webhook/storage</td></tr>
+          <tr><td>Realtime inline</td><td>Invalida queries ao receber eventos</td><td><code>processos</code>, <code>processos_agendamentos</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>🗄️ Banco de Dados</summary>
+    <div class="details-body">
+      <table class="tbl">
+        <thead><tr><th>Tabela / RPC</th><th>Uso</th><th>Colunas-chave</th></tr></thead>
+        <tbody>
+          <tr><td><code>processos</code></td><td>Tabela principal</td><td><code>etapa_distribuicao</code>, <code>distribuicao_manual</code>, <code>comprovante_restricao_status</code>, <code>restricao_id</code>, <code>peticao_status</code>, <code>prioridade</code></td></tr>
+          <tr><td><code>processos_agendamentos</code></td><td>Agendamentos de distribuição</td><td><code>processo_id</code>, <code>data_agendada</code></td></tr>
+          <tr><td><code>fn_processos_distribuicao_listar</code></td><td>Lista paginada por etapa</td><td>params: <code>p_etapa</code>, <code>p_search</code>, <code>p_advogado_id</code>, <code>p_empresa_id</code>, <code>p_prioritario</code>, <code>p_limit</code>, <code>p_offset</code></td></tr>
+          <tr><td><code>fn_distribuicao_kpis</code></td><td>KPIs agregados</td><td>→ <code>aguardando_preparacao</code>, <code>aguardando_distribuicao</code>, <code>agendados</code>, <code>distribuindo_agora</code>, <code>distribuidos_hoje</code>, <code>distribuidos_semana</code>, <code>distribuidos_mes</code>, <code>prioritarios</code></td></tr>
+          <tr><td><code>advogados</code></td><td>Lookup</td><td><code>id</code>, <code>nome</code>, <code>oab</code>, <code>oab_uf</code>, <code>ativo</code></td></tr>
+          <tr><td><code>empresas</code></td><td>Lookup empresas-rés</td><td><code>id</code>, <code>nome_fantasia</code></td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title" style="margin-top:14px;">Tipo ProcessoDistribuicao (campos retornados pelo RPC)</div>
+      <div class="tree" style="font-size:11px; line-height:1.6;">
+<span class="c">ProcessoDistribuicao</span>
+├── <span class="f">id</span>, <span class="f">etapa_distribuicao</span>, <span class="f">peticao_status</span>, <span class="f">numero_cnj</span>, <span class="f">status</span>, <span class="f">prioridade</span>
+├── <span class="f">cliente_id</span>, <span class="f">cliente_nome</span>, <span class="f">cliente_cpf</span>
+├── <span class="f">empresa_id</span>, <span class="f">empresa_nome</span>
+├── <span class="f">advogado_id</span>, <span class="f">advogado_nome</span>, <span class="f">advogado_oab</span>, <span class="f">advogado_oab_uf</span>
+├── <span class="f">distribuicao_agendada</span>, <span class="f">dias_parado</span> <span class="m">(calculado pelo RPC, não existe na tabela raw)</span>
+├── <span class="f">distribuicao_manual</span>
+├── <span class="f">comprovante_restricao_url</span>, <span class="f">comprovante_restricao_status</span> <span class="m">(pendente|gerando|sucesso|falhou)</span>
+├── <span class="f">restricao_tipo</span>, <span class="f">restricao_orgao_nome</span>, <span class="f">restricao_contrato</span>, <span class="f">restricao_valor</span>, <span class="f">restricao_data</span>
+└── <span class="f">procuracao_url</span>, <span class="f">restricao_id</span>
+      </div>
+
+      <div class="section-title" style="margin-top:14px;">Etapas (EtapaDistribuicao)</div>
+      <p style="font-family: monospace; font-size:12px; color: var(--primary);">'preparacao' | 'aguardando' | 'em_distribuicao' | 'agendado' | 'distribuido'</p>
     </div>
   </details>
 
@@ -922,13 +1027,32 @@
     <div class="details-body">
       <ul class="ilist">
         <li><span class="tag tag-table">leads</span> Leitura (coluna_crm = 'triagem'/'distribuindo')</li>
-        <li><span class="tag tag-table">processos</span> Criação ao efetuar distribuição. Campo key: <code>etapa_distribuicao</code>, <code>distribuicao_manual</code></li>
+        <li><span class="tag tag-table">processos</span> Criação ao efetuar. Campos-chave: <code>etapa_distribuicao</code>, <code>distribuicao_manual</code></li>
         <li><span class="tag tag-table">clientes</span> Criação automática quando lead entra na distribuição</li>
         <li><span class="tag tag-table">restricoes</span> Leitura. Cada restrição vira 1 processo. Campo: <code>restricao_id</code> em processos</li>
         <li><span class="tag tag-table">documentos</span> Leitura: comprovante, procuração, contrato</li>
         <li><span class="tag tag-table">advogados</span> Leitura (seleção para distribuição)</li>
         <li><span class="tag tag-rpc">RPC</span> <code>fn_processos_distribuicao_listar</code> + <code>fn_distribuicao_kpis</code></li>
         <li><span class="tag tag-rpc">n8n</span> Webhook ao confirmar distribuição</li>
+        <li><span class="tag tag-rpc">realtime</span> Canal <code>distribuicao-rt</code> — invalida queries ao mudar <code>processos</code> e <code>processos_agendamentos</code></li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>📝 Observações para Geração de Código</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li><strong>Filtros em URL:</strong> <code>useDistribuicaoFilterParams</code> serializa tudo. Tab é um filtro (<code>?tab=aguardando</code>). Novas features → adicionar ao hook.</li>
+        <li><strong>RPC-driven:</strong> diferente do CRM (usa views), Distribuição usa RPCs. Alterações de dados → alterar RPC no Supabase.</li>
+        <li><strong>Etapa vs Tab:</strong> <code>EtapaDistribuicao</code> é o valor no banco. <code>DistribuicaoTabId</code> é a aba da UI. Mapeamento não é 1:1.</li>
+        <li><strong>Comprovante:</strong> <code>comprovante_restricao_status</code> → <code>'pendente'|'gerando'|'sucesso'|'falhou'</code>. UI exibe spinner quando <code>'gerando'</code>.</li>
+        <li><strong>Petição:</strong> <code>peticao_status</code> → <code>pendente|gerando|sucesso|falhou|customizada</code>. <code>PETICAO_OK = ['sucesso', 'customizada']</code>.</li>
+        <li><strong>Prioridade:</strong> campo <code>prioridade: boolean</code>. UI exibe ícone ⭐ e badge amarelo.</li>
+        <li><strong>DrawerPreparacao:</strong> condição para avançar → <code>advogadoId != null && docsDisponiveis >= 3</code>.</li>
+        <li><strong>Export CSV:</strong> client-side via <code>exportToCSV</code> utility. Colunas definidas em <code>EXPORT_COLUMNS</code>.</li>
+        <li><strong>KPIs refetch:</strong> <code>refetchInterval: 60_000</code> como fallback caso realtime caia.</li>
+        <li><strong>JARBAS tab:</strong> pode ficar ativo por enquanto. <code>useJarbasStatus</code> provê status em tempo real.</li>
       </ul>
     </div>
   </details>
@@ -938,19 +1062,24 @@
     <div class="details-body">
       <div class="bug-card ok">
         <h4>✅ Página estável — poucos erros gerais</h4>
-        <p>Efetuar distribuição operacional. Página mais elaborada do sistema.</p>
+        <p>Efetuar distribuição operacional. Página mais elaborada do sistema. Poucos bugs gerais.</p>
       </div>
       <div class="bug-card crit">
-        <h4>🔴 Aguardando Preparação: ~2.795 processos com dados incompletos</h4>
-        <p>Problemas: sem empresa vinculada, sem restrições, sem pasta Drive. Incerteza se distribuição já foi efetuada no sistema legado. Verificar: <code>distribuicao_manual</code> na tabela processos; campo <code>distribuido: true</code> no legado.</p>
+        <h4>🔴 Aguardando Preparação — ~2.795 processos com dados incompletos</h4>
+        <p>Problemas: sem empresa vinculada, sem restrições, sem pasta Drive, incerteza se distribuição já foi efetuada no legado.<br>
+        <strong>Ação:</strong> verificar <code>distribuicao_manual</code> em <code>processos</code>; campo <code>distribuido: true</code> no legado; confirmar vínculo restrições; entender por que empresa/restrições não aparecem.</p>
+      </div>
+      <div class="bug-card warn">
+        <h4>⚠️ Efetuar Distribuição — Regra importante</h4>
+        <p>Ao efetuar, <strong>NÃO pode ser obrigatório</strong> gerar petição inicial e comprovantes. Deixar o fluxo funcionar — geração de documentos é opcional/posterior.</p>
       </div>
       <div class="bug-card warn">
         <h4>⚠️ Comprovantes — NÃO testados após mudanças recentes</h4>
-        <p>Apenas Dr. Christian/Paz disponível por enquanto. Dra. Eloísa será criado depois. Testar geração para Christian/Paz.</p>
+        <p>Apenas Dr. Christian/Paz disponível por enquanto. Dra. Eloísa será criada depois. Testar geração para Christian/Paz — várias mudanças aplicadas, ainda não testado.</p>
       </div>
-      <div class="bug-card ok">
+      <div class="bug-card info">
         <h4>🔵 Petição Inicial — NÃO agora</h4>
-        <p>Prioridade máxima futura mas não implementar agora. Ao efetuar distribuição, geração de petição/comprovante NÃO pode ser obrigatória.</p>
+        <p>Prioridade máxima futura mas <strong>não implementar agora</strong>. Será elaborada posteriormente.</p>
       </div>
     </div>
   </details>
@@ -960,81 +1089,167 @@
 <section id="page-processos" class="page-section">
   <div class="pg-header">
     <h2>Processos</h2>
-    <p class="sub">Gestão completa da carteira de processos judiciais</p>
+    <p class="sub">A página mais importante do sistema — carteira de processos judiciais</p>
     <div class="badge-row">
       <span class="badge badge-route">/processos</span>
       <span class="badge badge-route">/processos/:cnjSlug</span>
-      <span class="badge badge-ok">✅ Operacional · QA R1+R2 · Exec v3+v4 concluídos</span>
-      <span class="badge" style="background:#20c99720;color:#20c997;border:1px solid #20c99740;">2026-03-31 · commit f7c044da</span>
+      <span class="badge badge-ok">Página core do sistema</span>
+      <span class="badge badge-crit">Dados no banco não aparecem no front</span>
     </div>
   </div>
 
   <details open>
-    <summary>📋 Core</summary>
+    <summary>📋 Core — O que é, propósito, problema crítico</summary>
     <div class="details-body">
-      <div class="grid-2">
+      <div class="grid-3">
         <div class="card">
           <h3>O que é</h3>
-          <p><strong>A página mais importante do sistema.</strong> Cada restrição se torna 1 processo individual. Após efetuar a distribuição, as restrições viram processos e aparecem aqui.</p>
-          <p style="margin-top:8px; font-size:12px; color:var(--text-muted);">A maioria das páginas usa input de processo (número CNJ) — é daqui que vêm as informações. Quando um número de processo é chamado em qualquer lugar, o cliente vinculado vai junto.</p>
+          <p><strong>A página mais importante do sistema.</strong> Cada restrição distribuída se torna 1 processo individual. Após efetuar a distribuição, cada restrição vira um processo aqui.</p>
+          <p style="margin-top:8px; font-size:12px; color:var(--text-muted);">A maioria das páginas usa input de processo (número CNJ). Quando número de processo é chamado em qualquer lugar, o cliente vinculado vai junto.</p>
         </div>
         <div class="card">
           <h3>Perfis & Acesso</h3>
           <p>juridico, admin, operacional, comercial. Guard: <code>PERFIS_COM_ACESSO</code>.</p>
-          <p style="margin-top:6px; font-size:12px;">Exportar: admin + juridico + acesso_gestor<br>Importar: admin + acesso_gestor<br>Editar: juridico, operacional, admin, acesso_gestor<br>acesso_financeiro: valor_causa mascarado se false</p>
+          <p style="margin-top:6px; font-size:12px;">Exportar: admin + juridico + acesso_gestor<br>Importar: admin + acesso_gestor<br>Editar: juridico, operacional, admin, acesso_gestor</p>
+        </div>
+        <div class="card" style="border-color:#ef444440;">
+          <h3>⚠️ Problema crítico ativo</h3>
+          <p>Mega revisão importou dados do MdFlow legado + Eproc + AdvBox. <strong>Muitos campos existem no banco mas não aparecem no front-end.</strong> Mapeamento completo necessário.</p>
         </div>
       </div>
-      <div class="card" style="margin-top:10px; border-color:#20c99740; background:#20c99708;">
-        <h3 style="color:#20c997;">✅ Execution v4 — QA R2 · 3 bugs corrigidos (2026-03-31)</h3>
-        <p style="font-size:12px;">BUG-N1: schema drift <code>useProcessoDecisoes</code> (prazo_recursal_dias → prazo_recurso) · BUG-N2: <code>useProcessoInsights</code> filtro ia_status='erro' + 5 campos na interface · BUG-N3: audiência data 2222 soft-deleted. TypeScript: 0 erros. Commit: <code>f7c044da</code>.</p>
-        <p style="font-size:12px; margin-top:4px; color:var(--text-muted);">Execution v3 (anterior): 18 bugs · 3 P0 · 7 P1 · 5 P2 · 3 P3 · commit ec6d4285</p>
-      </div>
+      <div class="note" style="margin-top:10px;"><strong>Fontes de dados históricas:</strong> Eproc (sistema de tribunais) + MdFlow legado (migrado) + AdvBox (integração externa, token API configurado)</div>
     </div>
   </details>
 
-  <details>
-    <summary>🏗️ Estrutura</summary>
+  <details open>
+    <summary>🏗️ Estrutura — Árvore de Componentes</summary>
     <div class="details-body">
       <div class="tree">
 <span class="c">src/pages/processos/index.tsx</span>  (ProcessosPage)
-├── <span class="f">ProcessosKPIs</span>           <span class="m">— 4 cards: ativos, baixados, novos_mes, total_com_filtros · Skeleton quando isLoading</span>
-├── <span class="f">ProcessosFilterBar</span>      <span class="m">— busca debounced 300ms + tabs (ativo/baixados/todos) + selects + DateFilter</span>
-├── <span class="f">ProcessosTable</span>          <span class="m">— sortable + checkbox + StatusBadge + CopyableCNJ + BlindedValue + RowActions</span>
-│   <span class="m">  RPC: get_processos_paginados</span>
-├── <span class="f">ProcessoModalShell</span>      <span class="m">— drawer lateral ao clicar num processo (shared: src/components/processo/)</span>
-├── <span class="f">ProcessosBulkBar</span>        <span class="m">— barra flutuante de seleção (max 50). Ações: arquivar lote, exportar. Botões com texto.</span>
-├── <span class="f">ModalImportarProcessos</span>  <span class="m">— admin/gestor</span>
-└── <span class="f">ModalExportConfig</span>       <span class="m">— export assíncrono via webhook + polling webhook_requests</span>
+├── <span class="f">PageHeader</span> (shared)
+│   └── Buttons: OlivIA | Importar | Exportar
+│
+├── <span class="f">SectionErrorBoundary</span>  <span class="m">← isola KPIs individualmente</span>
+│   └── <span class="f">ProcessosKPIs</span>
+│       └── <span class="f">GlassCard</span> ×4 (ativos, baixados, novos_mes, total_com_filtros)
+│           <span class="m">RPC: get_processos_kpis</span>
+│
+├── <span class="f">SectionErrorBoundary</span>
+│   └── <span class="f">ProcessosFilterBar</span>
+│       ├── Input busca (debounced 300ms)
+│       ├── Tabs ativo/baixados/todos
+│       ├── Select ordenação
+│       ├── <span class="f">MultiSelectCombobox</span>: status, fase, empresa, advogado
+│       ├── <span class="f">DateFilter</span>: data_dist_start / data_dist_end
+│       ├── Select estado
+│       ├── Checkbox: pendências, IA status
+│       └── Button limpar filtros
+│
+├── <span class="f">SectionErrorBoundary</span>
+│   └── <span class="f">ProcessosTable</span>
+│       ├── Table shadcn com sortable headers
+│       ├── Checkbox seleção por linha
+│       ├── <span class="f">StatusBadge</span> (cor calculada do banco, hex → alpha 15%)
+│       ├── <span class="f">IaStatusBadge</span>
+│       ├── <span class="f">CopyableCNJ</span>
+│       ├── <span class="f">BlindedValue</span> (oculta dados sem permissão: ••••••)
+│       ├── <span class="f">ProcessoRowActions</span> (DropdownMenu por linha)
+│       └── Paginação
+│
+├── <span class="f">ProcessoModalShell</span>         <span class="m">— modal de detalhe (click na linha). Shared: src/components/processo/</span>
+├── <span class="f">ModalImportarProcessos</span>     <span class="m">— restrito a admin/acesso_gestor</span>
+├── <span class="f">ModalExportConfig</span>          <span class="m">— colunas + formato antes de exportar (assíncrono webhook)</span>
+├── <span class="f">ProcessosBulkBar</span>           <span class="m">— barra flutuante. Aparece quando há seleção. Max 50. Ações: arquivar lote, exportar</span>
+└── <span class="f">ConfirmDialog</span> ×2           <span class="m">— arquivar/restaurar individual e em lote</span>
       </div>
 
       <div class="section-title" style="margin-top:16px;">Hooks</div>
-      <ul class="ilist">
-        <li><span class="tag tag-hook">hook</span> <code>useProcessos.ts</code> — filtros em URL + lista paginada + KPIs</li>
-        <li><span class="tag tag-hook">hook</span> <code>useProcessosLookups.ts</code> — status, fases, empresas, advogados, estados</li>
-        <li><span class="tag tag-hook">hook</span> <code>useProcessoUpdate.ts</code> — mutation com invalidateQueries: ['processo', cnj, exact:false] + ['processo-modal', id]</li>
-        <li><span class="tag tag-hook">hook</span> <code>useDocumentosProcesso.ts</code> — queryKey: <strong>'documentos-processo-drawer'</strong> (≠ useProcessoDocumentos que usa 'processo-documentos')</li>
-      </ul>
+      <table class="tbl">
+        <thead><tr><th>Hook</th><th>O que faz</th><th>Tabelas / RPCs</th></tr></thead>
+        <tbody>
+          <tr><td><code>useProcessos</code></td><td>Estado completo: filtros (URL), lista paginada, KPIs</td><td><code>get_processos_paginados</code>, <code>get_processos_kpis</code></td></tr>
+          <tr><td><code>useStatusLookup</code></td><td>Status configuráveis</td><td><code>processos_status</code></td></tr>
+          <tr><td><code>useFaseLookup</code></td><td>Fases do workflow</td><td><code>processos_fases</code></td></tr>
+          <tr><td><code>useEmpresaLookup</code></td><td>Empresas-rés</td><td><code>empresas</code></td></tr>
+          <tr><td><code>useAdvogadoLookup</code></td><td>Advogados ativos</td><td><code>advogados</code></td></tr>
+          <tr><td><code>useEstadoLookup</code></td><td>Estados de distribuição</td><td><code>estados_distribuicao</code></td></tr>
+        </tbody>
+      </table>
     </div>
   </details>
 
   <details>
-    <summary>📋 Drawer do Processo (ProcessoModalShell) — Abas</summary>
+    <summary>🗄️ Banco de Dados</summary>
     <div class="details-body">
-      <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Componente shared em <code>src/components/processo/ProcessoModalShell.tsx</code>. SheetTitle com <code>className="sr-only"</code>. Abre ao clicar em qualquer processo na tabela.</p>
-      <table class="form-tbl">
-        <thead><tr><th>Aba</th><th>Status</th><th>Notas atuais</th></tr></thead>
+      <table class="tbl">
+        <thead><tr><th>Tabela / RPC</th><th>Uso</th><th>Colunas / Params relevantes</th></tr></thead>
         <tbody>
-          <tr><td><strong>Dados Gerais</strong></td><td style="color:#22c55e;">✅ Operacional</td><td>RPC com JOIN clientes ✅ · CNJ sem triplicação ✅ · acesso_financeiro guard em valor_causa ✅ · Campos M1: reu_nome, advogado_reu, polo_representado, ultima_movimentacao_texto</td></tr>
-          <tr><td><strong>Restrições</strong></td><td style="color:#22c55e;">✅ Operacional</td><td>Overload fn_restricoes_listar corrigido ✅ · restricao_tipo editável (Select) ✅ · staleTime 5min</td></tr>
-          <tr><td><strong>Movimentações</strong></td><td style="color:#20c997;">⚡ Melhorado</td><td>invalidateQueries após insert manual ✅ · DialogDescription adicionado ✅ · Filtros de tipo funcionais</td></tr>
-          <tr><td><strong>Documentos</strong></td><td style="color:#22c55e;">✅ Operacional</td><td>Sub-tabs "Inicial (N)" / "Tramitação (N)" ✅ · Download força arquivo ✅ · Visualizar abre preview ✅ · Upload/delete/bulk-download ok</td></tr>
-          <tr><td><strong>Histórico</strong></td><td style="color:#20c997;">⚡ Melhorado</td><td>FILTER_CHIPS com movimentacao + exclusao ✅ · Timeline com ICON_MAP completo</td></tr>
-          <tr><td><strong>OlivIA</strong></td><td style="color:#20c997;">⚡ Melhorado</td><td>sessionStorage com TTL 30min ✅ · Carrega thread existente do DB no mount</td></tr>
-          <tr><td><strong>Audiências</strong></td><td style="color:#20c997;">⚡ Operacional</td><td>Código funcional · registro lixo (data 2222) removido via soft-delete · sem dados reais ainda</td></tr>
-          <tr><td><strong>Decisões</strong></td><td style="color:#22c55e;">✅ Operacional</td><td>8.701 registros · BUG-N1: schema drift corrigido (prazo_recurso/tipo_recurso) · ordenação por data_decisao desc</td></tr>
-          <tr><td><strong>Insights</strong></td><td style="color:#20c997;">⚡ Melhorado</td><td>BUG-N2: filtro .not('ia_status','eq','erro') + 5 campos na interface · dados escassos (n8n precisa gerar)</td></tr>
+          <tr><td><code>get_processos_paginados</code></td><td>Lista paginada com filtros</td><td>params: <code>search</code>, <code>ativo</code>, <code>status_ids</code>, <code>fase_ids</code>, <code>empresa_ids</code>, <code>advogado_ids</code>, <code>estado_id</code>, <code>pendencias</code>, <code>ia_status</code>, <code>data_dist_start</code>, <code>data_dist_end</code>, <code>sort_field</code>, <code>sort_dir</code>, <code>page</code></td></tr>
+          <tr><td><code>get_processos_kpis</code></td><td>KPIs agregados</td><td>→ <code>ativos</code>, <code>baixados</code>, <code>novos_mes</code></td></tr>
+          <tr><td><code>processos_status</code></td><td>Status configuráveis</td><td><code>id</code>, <code>nome</code>, <code>cor</code> (hex), <code>ativo</code>, <code>ordem</code></td></tr>
+          <tr><td><code>processos_fases</code></td><td>Fases do workflow</td><td><code>id</code>, <code>nome</code>, <code>ativo</code>, <code>ordem</code></td></tr>
+          <tr><td><code>empresas</code></td><td>Empresas-rés</td><td><code>id</code>, <code>nome_fantasia</code>, <code>deleted_at</code></td></tr>
+          <tr><td><code>advogados</code></td><td>Advogados ativos</td><td><code>id</code>, <code>nome</code>, <code>oab</code>, <code>ativo</code></td></tr>
+          <tr><td><code>estados_distribuicao</code></td><td>Estados</td><td><code>id</code>, <code>uf</code>, <code>ativo</code></td></tr>
+          <tr><td><code>webhook_requests</code></td><td>Polling de status do export</td><td><code>request_id</code>, <code>status</code>, <code>result_storage_path</code></td></tr>
+          <tr><td>Storage <code>exports</code></td><td>Download do arquivo exportado</td><td><code>createSignedUrl</code> (TTL 300s)</td></tr>
         </tbody>
       </table>
+
+      <div class="section-title" style="margin-top:14px;">Tipo ProcessoRow (retornado por get_processos_paginados)</div>
+      <div class="tree" style="font-size:11px; line-height:1.6;">
+<span class="c">ProcessoRow</span>
+├── <span class="f">id</span>, <span class="f">numero_cnj</span>, <span class="f">ativo</span>, <span class="f">ia_status</span>, <span class="f">pendencias_count</span>
+├── <span class="f">cliente_nome</span>, <span class="f">cliente_cpf</span>
+├── <span class="f">empresa_nome</span>
+├── <span class="f">advogado_nome</span>, <span class="f">advogado_oab</span>
+├── <span class="f">status_nome</span>, <span class="f">status_cor</span> <span class="m">(hex → usa ${cor}26 para bg, ${cor}40 para border)</span>
+├── <span class="f">fase_nome</span>
+├── <span class="f">valor_causa</span>, <span class="f">data_distribuicao</span>, <span class="f">estado_uf</span>
+└── <span class="f">created_at</span>, <span class="f">organizacao_id</span>
+      </div>
+
+      <div class="section-title" style="margin-top:14px;">Interface ProcessosFiltros</div>
+      <div class="tree" style="font-size:11px; line-height:1.6;">
+<span class="c">ProcessosFiltros</span>
+├── <span class="f">search</span>: string
+├── <span class="f">ativo</span>: boolean | undefined  <span class="m">← undefined = todos</span>
+├── <span class="f">status_ids</span>: string[], <span class="f">fase_ids</span>: string[], <span class="f">empresa_ids</span>: string[], <span class="f">advogado_ids</span>: string[]
+├── <span class="f">estado_id</span>: string | undefined
+├── <span class="f">pendencias</span>: boolean | undefined, <span class="f">ia_status</span>: string | undefined
+├── <span class="f">data_dist_start</span>: string | undefined, <span class="f">data_dist_end</span>: string | undefined
+├── <span class="f">sort_field</span>: string  <span class="m">← default: 'created_at'</span>
+├── <span class="f">sort_dir</span>: 'asc' | 'desc'  <span class="m">← default: 'desc'</span>
+└── <span class="f">page</span>: number  <span class="m">← default: 1</span>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>📋 Drawer do Processo (ProcessoModalShell) — Abas & Bugs</summary>
+    <div class="details-body">
+      <p style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">Componente shared em <code>src/components/processo/ProcessoModalShell.tsx</code>. Recebe apenas <code>processoId</code>. Abre ao clicar em qualquer processo na tabela (também usado de outras páginas).</p>
+
+      <table class="form-tbl">
+        <thead><tr><th>Aba</th><th>Status</th><th>Problemas / Notas</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Dados Gerais</strong></td><td style="color:#ef4444;">❌ 2 bugs</td><td>1. Cliente não encontrado (nome aparece no topo mas campo "cliente do processo" falha)<br>2. CNJ aparece 3x — deveria ser 1x display + 1x <code>CopyableCNJ</code></td></tr>
+          <tr><td><strong>Restrições</strong></td><td style="color:#ef4444;">❌ 2 bugs</td><td>1. Restrição principal não aparece aqui (aparece nos Dados Gerais)<br>2. Data da restrição não mostra — campo crítico</td></tr>
+          <tr><td><strong>Movimentações</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Ver conexões e de onde vêm os dados</td></tr>
+          <tr><td><strong>Decisões</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Confirmar conexão com página /decisoes</td></tr>
+          <tr><td><strong>Documentos</strong></td><td style="color:#3b82f6;">📋 Planejar</td><td>Implementar 2 seções: (1) docs da inicial/petição; (2) docs da tramitação</td></tr>
+          <tr><td><strong>Audiências</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Confirmar se está conectada ao módulo real de audiências</td></tr>
+          <tr><td><strong>Histórico</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Confirmar histórico completo do processo</td></tr>
+          <tr><td><strong>Insights</strong></td><td style="color:var(--text-muted);">❓ Indefinido</td><td>Não definido o que deve mostrar — investigar antes de implementar</td></tr>
+          <tr><td><strong>OlivIA</strong></td><td style="color:#f59e0b;">🔍 Revisar</td><td>Já mostra advogado. Confirmar todos os outros campos preenchidos.</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note" style="margin-top:12px;">
+        <strong>Documentos — Estrutura planejada (2 seções):</strong><br>
+        1. <strong>Documentos da inicial</strong> — petição inicial e docs que vieram com a distribuição<br>
+        2. <strong>Documentos da tramitação</strong> — gerados/recebidos durante o andamento do processo
+      </div>
     </div>
   </details>
 
@@ -1043,17 +1258,33 @@
     <div class="details-body">
       <ul class="ilist">
         <li><span class="tag tag-table">processos</span> Leitura/escrita completa via RPC paginada</li>
-        <li><span class="tag tag-table">clientes</span> Join via cliente_id ✅ (RPC corrigida)</li>
-        <li><span class="tag tag-table">restricoes</span> Join via restricao_id ✅ (overload fix + staleTime 5min)</li>
-        <li><span class="tag tag-table">advogados</span> Join via advogado_id</li>
-        <li><span class="tag tag-table">empresas</span> Join via empresa_id</li>
-        <li><span class="tag tag-table">audiencias</span> Leitura inline no drawer ✅ · sem dados reais ainda</li>
-        <li><span class="tag tag-table">decisoes</span> Leitura inline no drawer ✅ · schema drift corrigido (BUG-N1)</li>
-        <li><span class="tag tag-table">processos_insights</span> queryKey: ['processo-insights', processoId] · filtro ia_status!='erro' ✅</li>
-        <li><span class="tag tag-table">processos_movimentacoes</span> queryKey: ['processo-movimentacoes', processoId]</li>
-        <li><span class="tag tag-table">processos_documentos</span> queryKey: ['processo-documentos', id, orgId] — NÃO confundir com 'documentos-processo-drawer'</li>
-        <li><span class="tag tag-rpc">RPC</span> <code>get_processos_paginados</code> + <code>get_processos_kpis</code> + <code>rpc_processo_update</code> + <code>rpc_processo_get_completo</code></li>
-        <li><span class="tag tag-rpc">webhook</span> arquivar, restaurar, arquivar_lote, exportação assíncrona</li>
+        <li><span class="tag tag-table">clientes</span> Join via <code>cliente_id</code> — quando processo é chamado, cliente vai junto</li>
+        <li><span class="tag tag-table">restricoes</span> Join via <code>restricao_id</code> (bug: não aparece no drawer)</li>
+        <li><span class="tag tag-table">advogados</span> Join via <code>advogado_id</code></li>
+        <li><span class="tag tag-table">empresas</span> Join via <code>empresa_id</code></li>
+        <li><span class="tag tag-table">audiencias</span> Leitura inline no drawer (aba Audiências)</li>
+        <li><span class="tag tag-table">decisoes</span> Leitura inline no drawer (aba Decisões)</li>
+        <li><span class="tag tag-rpc">RPC</span> <code>get_processos_paginados</code> + <code>get_processos_kpis</code></li>
+        <li><span class="tag tag-rpc">webhook</span> arquivar, restaurar, arquivar_lote (max 50), exportação assíncrona</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>📝 Observações para Geração de Código</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li><strong>Permissões granulares:</strong> <code>canExport</code> (juridico|admin|gestor), <code>canImport</code> (admin|gestor), <code>canEdit</code> (juridico|operacional|admin|gestor)</li>
+        <li><strong>Export via webhook assíncrono:</strong> <code>callWebhook('processos/export')</code> → polling em <code>webhook_requests</code> a cada 2s por até 5min → signed URL no storage <code>exports</code>. Rate limit: 60s entre exportações.</li>
+        <li><strong>Arquivar/Restaurar via webhook:</strong> <code>callWebhook('processos/arquivar')</code> e <code>callWebhook('processos/restaurar')</code>. Resposta pode incluir <code>action</code> para <code>handleWebhookAction</code>.</li>
+        <li><strong>Bulk archive via webhook:</strong> <code>callWebhook('processos/arquivar_lote')</code>. Máximo 50 itens.</li>
+        <li><strong>Seleção máxima 50:</strong> toast de warning se tentar adicionar além.</li>
+        <li><strong>SectionErrorBoundary inline:</strong> classe React.Component definida no próprio arquivo. Isola KPIs, FilterBar e Table individualmente.</li>
+        <li><strong>Filtros persistidos em URL:</strong> qualquer mudança de filtro atualiza a URL (<code>replace: true</code>). Back do browser restaura filtros.</li>
+        <li><strong>StatusBadge:</strong> cor vem do banco (hex). Usa <code>${cor}26</code> para background (opacity 15%) e <code>${cor}40</code> para border.</li>
+        <li><strong>IaStatusBadge:</strong> mostra IA ✓ (success), IA... (processando), IA ✗ (erro). Não renderiza se status = <code>pendente</code> ou null.</li>
+        <li><strong>Sort:</strong> default <code>created_at DESC</code>. Campos: <code>data_distribuicao</code>, <code>cliente_nome</code>, <code>empresa_nome</code>, <code>valor_causa</code>. Nome → asc; data/valor → desc.</li>
+        <li><strong>ProcessoModalShell:</strong> componente shared — não é específico desta página. Recebe apenas <code>processoId</code>.</li>
       </ul>
     </div>
   </details>
@@ -1061,22 +1292,46 @@
   <details>
     <summary>🚦 Status & Pendências</summary>
     <div class="details-body">
-      <div class="card" style="border-color:#20c99740; background:#20c99708; margin-bottom:12px;">
-        <h4 style="color:#20c997;">✅ Execution v4 — 3/3 bugs QA R2 · TypeScript clean · Commit f7c044da</h4>
-        <p style="font-size:12px; margin-top:4px;">Decisões: schema drift corrigido. Insights: filtro erro + 5 campos. Audiências: lixo removido. Total ciclo completo: 21 bugs (v3+v4).</p>
+      <div class="bug-card crit">
+        <h4>🔴 P0 — Dados banco → front: campos não aparecem</h4>
+        <p>Dados do Eproc + MdFlow legado + AdvBox existem no banco mas não renderizam no front-end. Mapear todos os campos vazios no drawer e cruzar com o banco.</p>
       </div>
-      <div class="bug-card" style="border-color:#3a353080;">
-        <h4 style="color:var(--text-muted);">📋 Audiências — sem dados reais</h4>
-        <p>Aba funcional. Sem audiências cadastradas além do registro de teste (removido). Aguardando dados reais do módulo /audiencias.</p>
+      <div class="bug-card crit">
+        <h4>🔴 P0 — Drawer: cliente não encontrado</h4>
+        <p>Nome do cliente aparece no topo mas campo "cliente do processo" falha. Verificar query/join de <code>cliente_id</code> no ProcessoModalShell.</p>
       </div>
-      <div class="bug-card" style="border-color:#3a353080;">
-        <h4 style="color:var(--text-muted);">📋 Insights — dados escassos</h4>
-        <p>49/50 registros com ia_status='erro'. Hook corrigido (BUG-N2). n8n precisa regenerar insights com sucesso para popular a aba.</p>
+      <div class="bug-card crit">
+        <h4>🔴 P0 — Drawer: CNJ aparece 3x</h4>
+        <p>Deveria ser: 1x display normal + 1x <code>CopyableCNJ</code>. Verificar onde o número está sendo renderizado triplicado.</p>
       </div>
-      <div class="bug-card" style="border-color:#3a353080;">
-        <h4 style="color:var(--text-muted);">📋 Nota: dados banco → front</h4>
-        <p>Mega revisão importou dados do MdFlow legado + Eproc + AdvBox. Campos M1 adicionados (reu_nome, advogado_reu, polo, ultima_movimentacao_texto). Mapeamento completo dos demais campos pendente para próxima sessão.</p>
+      <div class="bug-card crit">
+        <h4>🔴 P0 — Drawer Restrições: restrição principal ausente</h4>
+        <p>Restrição principal visível nos Dados Gerais mas ausente na aba Restrições. Join de <code>restricao_id</code> pode estar faltando.</p>
       </div>
+      <div class="bug-card warn">
+        <h4>⚠️ P1 — Drawer Restrições: data faltando</h4>
+        <p>Campo <code>data_restricao</code> não exibido. Campo crítico para contexto jurídico.</p>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>✅ QA Checklist</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>Abrir drawer de um processo real</li>
+        <li>Verificar número CNJ: aparece quantas vezes? (esperado: 1 normal + 1 copiável)</li>
+        <li>Verificar nome do cliente nos dados gerais vs. campo "cliente do processo"</li>
+        <li>Aba Restrições: restrição principal aparece? tem data?</li>
+        <li>Aba Movimentações: dados carregam? de onde vêm?</li>
+        <li>Aba Decisões: lista decisões? link com /decisoes funciona?</li>
+        <li>Aba Documentos: tem as duas seções (inicial + tramitação)?</li>
+        <li>Aba Audiências: está conectada com o módulo de audiências?</li>
+        <li>Aba Histórico: mostra histórico completo?</li>
+        <li>Aba Insights: o que está mostrando?</li>
+        <li>Aba OlivIA: quais campos estão preenchidos? quais estão vazios?</li>
+        <li>Mapear todos os campos vazios/null no drawer e cruzar com banco</li>
+      </ul>
     </div>
   </details>
 </section>
@@ -1437,18 +1692,153 @@
 <section id="page-atividades" class="page-section">
   <div class="pg-header">
     <h2>Atividades</h2>
-    <p class="sub">Tarefas e atividades dos processos</p>
-    <div class="badge-row"><span class="badge badge-route">/atividades</span><span class="badge badge-ok">Funciona</span></div>
+    <p class="sub">Tarefas operacionais atribuídas pelo controller — página principal da equipe</p>
+    <div class="badge-row"><span class="badge badge-route">/atividades</span><span class="badge badge-crit">Bugs críticos</span><span class="badge badge-warn">Aguarda revisão com controller</span></div>
   </div>
+
+  <details open>
+    <summary>🏗️ Estrutura — Arquivos e Componentes</summary>
+    <div class="details-body">
+      <div class="tree">
+<span class="c">src/pages/atividades/AtividadesPage.tsx</span>
+├── <span class="f">layout/AtividadesPageHeader.tsx</span>     <span class="m">— Header com botão Nova Atividade + Exportar</span>
+├── <span class="f">layout/AtividadesViewSwitcher.tsx</span>   <span class="m">— Switcher lista/kanban/feed/calendário (persistido em localStorage)</span>
+├── <span class="f">layout/AtividadesFilterBar.tsx</span>      <span class="m">— Filtros: status, tipo, prazo, urgente, atrasadas</span>
+├── <span class="f">kpis/AtividadesKpiGrid.tsx</span>          <span class="m">— Grid KPIs (fn_atividades_kpis RPC)</span>
+├── <span class="f">kpis/AtividadesProdutividadeChart.tsx</span> <span class="m">— Gráfico de produtividade</span>
+├── views/
+│   ├── <span class="f">AtividadesLista.tsx</span>            <span class="m">— ✅ View principal — lista com paginação</span>
+│   ├── <span class="f">AtividadesKanbanBoard.tsx</span>      <span class="m">— ❌ Bug: não exibe dados</span>
+│   ├── <span class="f">AtividadesFeed.tsx</span>             <span class="m">— ❌ Bug: não exibe dados</span>
+│   └── <span class="f">AtividadesCalendario.tsx</span>       <span class="m">— ✅ Funciona — click em dia vazio pré-preenche data</span>
+├── cards/
+│   └── <span class="f">AtividadesActivityCard.tsx</span>     <span class="m">— Card na view lista</span>
+├── drawer/
+│   ├── <span class="f">AtividadeDrawer.tsx</span>            <span class="m">— Drawer lateral (deep link: ?atividade=UUID)</span>
+│   ├── <span class="f">DrawerTabDetalhes.tsx</span>          <span class="m">— Tab dados da atividade</span>
+│   ├── <span class="f">DrawerTabChecklist.tsx</span>         <span class="m">— Tab checklist de subtarefas</span>
+│   ├── <span class="f">DrawerTabComentarios.tsx</span>       <span class="m">— Tab comentários</span>
+│   ├── <span class="f">DrawerTabEventos.tsx</span>           <span class="m">— Tab histórico de eventos</span>
+│   └── <span class="f">DrawerTabOlivIA.tsx</span>            <span class="m">— Tab OlivIA contextual</span>
+├── modals/
+│   └── <span class="f">NovaAtividadeModal.tsx</span>         <span class="m">— Modal criação com ProcessoSearchField</span>
+└── sheets/
+    ├── <span class="f">CompartilharSheet.tsx</span>          <span class="m">— Compartilhar atividade</span>
+    └── <span class="f">TransferirSheet.tsx</span>            <span class="m">— Transferir para outro usuário</span>
+      </div>
+      <div class="section-title">Comportamentos especiais</div>
+      <ul class="ilist">
+        <li><span class="tag tag-hook">hook</span> <code>useAtividadeDrawer</code> — contexto global; deep link <code>?atividade=UUID</code> abre drawer</li>
+        <li><span class="tag tag-hook">hook</span> <code>useFilterParams</code> — filtros em URL params (status, tipo, urgente, atrasadas, prazo_from/to)</li>
+        <li>Atalhos de teclado: <code>N</code> → abre modal Nova Atividade; <code>/</code> → foca busca</li>
+        <li>Banner de atrasadas: aparece quando <code>kpis.atrasadas &gt; 0</code> e filtro atrasadas não está ativo</li>
+        <li>Kanban bloqueado no mobile (guard + toast.warning)</li>
+        <li>Export CSV via <code>fn_atividades_lista_com_leitura</code> RPC (limit 2000)</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>📝 Inputs & Formulários — NovaAtividadeModal</summary>
+    <div class="details-body">
+      <table class="form-tbl">
+        <thead><tr><th>Campo</th><th>Tipo</th><th>Validação</th><th>Obs</th></tr></thead>
+        <tbody>
+          <tr><td>Título *</td><td>text</td><td>required</td><td>Campo principal da atividade</td></tr>
+          <tr><td>Tipo</td><td>select</td><td>opcional</td><td>FK <code>atividades_tipos</code> da organização</td></tr>
+          <tr><td>Responsável</td><td>select</td><td>opcional</td><td>Pré-preenche com <code>user.user_id</code> do usuário logado</td></tr>
+          <tr><td>Processo</td><td>ProcessoSearchField</td><td>opcional</td><td>Busca por CNJ/nome; preenche <code>processo_id</code></td></tr>
+          <tr><td>Descrição</td><td>textarea</td><td>opcional</td><td>Detalhe da atividade</td></tr>
+          <tr><td>Data da Atividade</td><td>date picker (Calendar)</td><td>opcional</td><td>Pré-preenchida via click no calendário (<code>prefillDate</code>)</td></tr>
+          <tr><td>Prazo Interno</td><td>date picker</td><td>opcional</td><td></td></tr>
+          <tr><td>Prazo Fatal</td><td>date picker</td><td>opcional</td><td>Pré-preenchido com <code>prefillDate</code> se vindo do calendário</td></tr>
+          <tr><td>Urgente</td><td>switch</td><td>boolean</td><td></td></tr>
+          <tr><td>Importante</td><td>switch</td><td>boolean</td><td></td></tr>
+          <tr><td>Prioridade</td><td>select</td><td>opcional</td><td>Opções: baixa / média / alta / urgente</td></tr>
+          <tr><td>Recorrência</td><td>objeto {tipo, intervalo}</td><td>opcional</td><td>null = sem recorrência</td></tr>
+        </tbody>
+      </table>
+      <div class="warn-note">⚠️ Modal pergunta "Descartar alterações?" se fechar com <code>isDirty</code> (título/desc/tipo/processo preenchidos)</div>
+    </div>
+  </details>
+
   <details open>
     <summary>📋 Core + Ligações</summary>
     <div class="details-body">
-      <p>Lista de tarefas/atividades vinculadas aos processos. Filtros por tipo, status, responsável, período. Usado por time jurídico e operacional para controle de prazos.</p>
+      <p>Página operacional principal — o <strong>controller cria e atribui atividades</strong> a usuários específicos. Cada usuário vê apenas suas tarefas. Usada em paralelo ao OlivIA. <strong>Antes de revisar: consultar o controller</strong> — ele define o layout ideal, pois é quem vai usar para atribuir.</p>
       <ul class="ilist" style="margin-top: 12px;">
-        <li><span class="tag tag-table">atividades</span> CRUD — tipo, status, prazo, descricao, processo_id, usuario_id</li>
-        <li><span class="tag tag-table">processos</span> Join para contexto</li>
-        <li><span class="tag tag-table">users</span> Join para responsável</li>
+        <li><span class="tag tag-table">atividades</span> CRUD — tipo, status, prazo, descricao, processo_id, usuario_id, advogado_id</li>
+        <li><span class="tag tag-table">processos</span> Join — número CNJ vinculado à atividade</li>
+        <li><span class="tag tag-table">clientes</span> Join — parte autora da atividade</li>
+        <li><span class="tag tag-table">empresas</span> Join — empresa ré da atividade</li>
+        <li>→ Controller: cria e atribui as atividades</li>
+        <li>→ Processos e Clientes: ligação direta</li>
       </ul>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🖥️ Views Disponíveis</summary>
+    <div class="details-body">
+      <div class="bug-card ok">
+        <h4>📋 Lista — ✅ Funciona</h4>
+        <p>Exibe 36 atividades. Dados mocados funcionam nesta view.</p>
+      </div>
+      <div class="bug-card crit">
+        <h4>🗂 Kanban — ❌ Bug</h4>
+        <p>Abre mas não exibe nenhuma atividade. Modo lista funciona normalmente.</p>
+      </div>
+      <div class="bug-card crit">
+        <h4>📰 Feed — ❌ Bug</h4>
+        <p>Não exibe atividades no feed. Dados mocados só funcionam no modo lista.</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>📅 Calendário — ✅ Funciona</h4>
+        <p>Exibe atividades corretamente.</p>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🐛 Pendências</summary>
+    <div class="details-body">
+      <div class="section-title">🔴 Críticos</div>
+      <div class="bug-card crit">
+        <h4>Sem botão/ação para concluir atividade</h4>
+        <p>Funcionalidade completamente ausente. Não há como marcar uma atividade como concluída. É bloqueante para o uso real da página.</p>
+      </div>
+      <div class="bug-card crit">
+        <h4>Views Kanban e Feed vazias</h4>
+        <p>Kanban abre mas não mostra nada. Feed não exibe atividades. Dados mocados só funcionam no modo lista.</p>
+      </div>
+      <div class="section-title">🟠 Alta prioridade</div>
+      <div class="bug-card warn">
+        <h4>Modal cortado no scroll</h4>
+        <p>Ao rolar para baixo dentro do modal da atividade, o conteúdo some — tela cortada (não é scroll visível).</p>
+      </div>
+      <div class="bug-card warn">
+        <h4>Número do processo: apagado e não copiável</h4>
+        <p>Aparece muito discreto/escondido no modal. Não dá para copiar com clique.</p>
+      </div>
+      <div class="section-title">🟡 UX dos cards</div>
+      <div class="bug-card info">
+        <h4>Card: faltam parte autora, empresa ré e OAB</h4>
+        <p>Card deve mostrar: parte autora + empresa ré (alinhado à direita do card) + OAB do advogado responsável.</p>
+      </div>
+      <div class="bug-card info">
+        <h4>Modal: empresa ré e cliente não destacados</h4>
+        <p>Ao abrir atividade: número do processo (copiável), empresa ré e cliente devem aparecer de forma visível e destacada.</p>
+      </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>💡 Ideia Futura (não é pendência)</summary>
+    <div class="details-body">
+      <div class="bug-card info">
+        <h4>Pasta de documentos na atividade</h4>
+        <p>Permitir upload do que foi feito diretamente na atividade. Anotar para estruturação futura — não executar agora.</p>
+      </div>
     </div>
   </details>
 </section>
@@ -1497,19 +1887,117 @@
 <section id="page-documentos-pendentes" class="page-section">
   <div class="pg-header">
     <h2>Documentos Pendentes</h2>
-    <p class="sub">Fila de documentos aguardando upload ou aprovação</p>
-    <div class="badge-row"><span class="badge badge-route">/documentos-pendentes</span></div>
+    <p class="sub">Gestão de documentos pós-fase processual (pós-CRM)</p>
+    <div class="badge-row"><span class="badge badge-route">/documentos-pendentes</span><span class="badge badge-crit">Será redesenhada</span></div>
   </div>
+
+  <details open>
+    <summary>🏗️ Estrutura — Arquivos e Componentes</summary>
+    <div class="details-body">
+      <div class="tree">
+<span class="c">src/pages/documentos-pendentes/</span>
+├── <span class="f">index.tsx</span>
+└── components/
+    ├── <span class="f">DocumentosPendentesPage.tsx</span>         <span class="m">— Página principal (tabs + filtros + realtime)</span>
+    ├── <span class="f">KpiCards.tsx</span>                         <span class="m">— KPIs: total pendentes + métricas</span>
+    ├── <span class="f">PendenciaAccordion.tsx</span>               <span class="m">— Accordion agrupado por cliente</span>
+    ├── <span class="f">PendenciaItem.tsx</span>                    <span class="m">— Item individual de pendência</span>
+    ├── <span class="f">DocumentosPendentesFilterBar.tsx</span>     <span class="m">— Filtros avançados</span>
+    ├── <span class="f">DocumentosPendentesChipsRapidos.tsx</span>  <span class="m">— Chips de filtro rápido</span>
+    ├── <span class="f">DocPendentesBulkBar.tsx</span>              <span class="m">— Barra de ações em lote (resolve/cobra/cancela)</span>
+    ├── <span class="f">OrigemChip.tsx</span>                       <span class="m">— Chip de origem do documento</span>
+    ├── modals/
+    │   ├── <span class="f">NovoDocumentoModal.tsx</span>           <span class="m">— Criar/editar pendência (react-hook-form + zod)</span>
+    │   ├── <span class="f">NovoDocumentoClienteField.tsx</span>    <span class="m">— Campo de busca de cliente</span>
+    │   ├── <span class="f">NovoDocumentoFieldWrap.tsx</span>       <span class="m">— Wrapper de campo com label+error</span>
+    │   ├── <span class="f">NovoDocumentoModalResponsaveis.tsx</span> <span class="m">— Seção responsáveis jurídico/comercial</span>
+    │   ├── <span class="f">ConfirmarDuplicataModal.tsx</span>      <span class="m">— Alerta de pendência duplicada cross-processo</span>
+    │   ├── <span class="f">ConfirmarResolverModal.tsx</span>       <span class="m">— Confirm de resolver pendência</span>
+    │   ├── <span class="f">ReabrirPendenciaModal.tsx</span>        <span class="m">— Reabrir pendência resolvida</span>
+    │   └── <span class="f">PreviewMensagemModal.tsx</span>         <span class="m">— Preview de mensagem de cobrança</span>
+    └── sheets/
+        ├── <span class="f">AnexarSheet.tsx</span>                  <span class="m">— Sheet de upload de documentos</span>
+        ├── <span class="f">ClienteCockpitSheet.tsx</span>          <span class="m">— Cockpit completo do cliente</span>
+        ├── <span class="f">HistoricoDrawer.tsx</span>              <span class="m">— Histórico de movimentações</span>
+        └── <span class="f">ModoSequencialSheet.tsx</span>          <span class="m">— Revisar pendências em sequência (um a um)</span>
+      </div>
+      <div class="section-title">Comportamentos especiais</div>
+      <ul class="ilist">
+        <li><span class="tag tag-hook">realtime</span> Supabase Realtime na tabela <code>documentos_pendentes</code> — atualiza sem refresh</li>
+        <li><span class="tag tag-hook">bulk</span> Seleção múltipla com <code>selectedIds</code> — max <code>MAX_SELECTION</code> itens por vez; ESC limpa seleção</li>
+        <li><span class="tag tag-comp">Modo Sequencial</span> Revisão de pendências uma por uma em sheet dedicada</li>
+        <li><span class="tag tag-comp">Cobrar Todos</span> Gera mensagens de cobrança em lote — requer confirmação</li>
+        <li>Tab <code>resolvidos</code>: seletor de período (7d/30d/90d/all) para filtrar resolvidos</li>
+        <li>Deep link: <code>?tab=resolvidos</code> abre aba de resolvidos diretamente</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>📝 Inputs & Formulários — NovoDocumentoModal</summary>
+    <div class="details-body">
+      <div class="section-title">Schema (react-hook-form + zod)</div>
+      <table class="form-tbl">
+        <thead><tr><th>Campo</th><th>Tipo</th><th>Validação</th><th>Obs</th></tr></thead>
+        <tbody>
+          <tr><td>Cliente *</td><td>NovoDocumentoClienteField (busca)</td><td>required, min 1</td><td>Busca por nome/CPF; pré-preenchível via <code>defaultClienteId</code></td></tr>
+          <tr><td>Processo</td><td>ProcessoSearchField</td><td>opcional</td><td>Ao selecionar processo preenche cliente automaticamente (flag <code>processoFillingCliente</code>)</td></tr>
+          <tr><td>Tipo(s) de Documento *</td><td>multi-select (Combobox)</td><td>required, min 1</td><td>Multi-seleção; FK <code>documentos_tipos</code></td></tr>
+          <tr><td>Descrição customizada</td><td>textarea</td><td>opcional, max 500</td><td></td></tr>
+          <tr><td>Prazo Limite</td><td>date picker (Calendar)</td><td>opcional</td><td>Default: hoje + 7 dias (<code>addDays(new Date(), 7)</code>)</td></tr>
+          <tr><td>Urgente</td><td>switch</td><td>boolean</td><td></td></tr>
+          <tr><td>Status</td><td>select</td><td>opcional</td><td>Default: <code>solicitado</code></td></tr>
+          <tr><td>Responsável Jurídico</td><td>select</td><td>opcional</td><td>Componente <code>NovoDocumentoModalResponsaveis</code></td></tr>
+          <tr><td>Responsável Comercial</td><td>select</td><td>opcional</td><td>Componente <code>NovoDocumentoModalResponsaveis</code></td></tr>
+          <tr><td>Observações</td><td>textarea</td><td>opcional, max 2000</td><td></td></tr>
+        </tbody>
+      </table>
+      <div class="warn-note">⚠️ Modo <strong>edit</strong>: carrega dados da pendência via <code>pendenciaId</code>. Detecta duplicatas cross-processo e abre <code>ConfirmarDuplicataModal</code>.</div>
+      <div class="warn-note">⚠️ Salva via <code>callWebhook</code> — não é insert direto no Supabase.</div>
+    </div>
+  </details>
+
   <details open>
     <summary>📋 Core + Ligações</summary>
     <div class="details-body">
-      <p>Central de gestão de documentos pendentes. Filtra documentos que ainda não foram enviados (procurações, contratos, comprovantes). Abre ClienteDrawer aba "Pendentes" para resolver.</p>
+      <p>Gerencia documentos necessários na <strong>fase pós-processual</strong> (depois do CRM e distribuição). O controller atribui quais documentos estão pendentes por cliente. <strong>Não se conecta com o CRM</strong> — é uma etapa separada, pós-distribuição.</p>
       <ul class="ilist" style="margin-top: 12px;">
-        <li><span class="tag tag-table">documentos</span> Leitura filtrada por status='pendente'</li>
+        <li><span class="tag tag-table">documentos</span> Filtrado por status=pendente — fase pós-processual</li>
         <li><span class="tag tag-table">clientes</span> Join para nome do cliente</li>
         <li><span class="tag tag-table">processos</span> Join para número CNJ</li>
-        <li>↔ ClienteDrawer (aba docs-pendentes) para resolver pendências</li>
+        <li>→ Controller: atribui quais documentos estão pendentes</li>
+        <li>⚠️ CRM: <strong>NÃO se conecta</strong> — etapa pós-CRM</li>
+        <li>🔮 MDZAP: integração futura — receber documentos via WhatsApp</li>
+        <li>🔮 SDR: integração futura — SDR de documentos pendentes</li>
       </ul>
+    </div>
+  </details>
+
+  <details open>
+    <summary>📊 Estado Atual</summary>
+    <div class="details-body">
+      <div class="bug-card ok">
+        <h4>Modal de anexar documentos — ✅ Existe</h4>
+        <p>Modal de upload de documentos identificado e funcional.</p>
+      </div>
+      <div class="bug-card crit">
+        <h4>Cards e fluxo completo — ❌ A implementar</h4>
+        <p>Não foram identificados cards de atividade/documentos nem outros modais. Fluxo completo ainda não implementado.</p>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🐛 Pendências</summary>
+    <div class="details-body">
+      <div class="bug-card warn">
+        <h4>🟠 Página será redesenhada por Gustavo</h4>
+        <p>Fluxo completo será repensado. Não investir em refactoring profundo agora — aguardar redesenho antes de qualquer implementação.</p>
+      </div>
+      <div class="bug-card info">
+        <h4>🔵 Avaliar integração MDZAP e SDR (futuro)</h4>
+        <p>Receber documentos via WhatsApp (MDZAP) e via SDR de documentos pendentes. Definir no momento do redesenho.</p>
+      </div>
     </div>
   </details>
 </section>
@@ -2331,19 +2819,133 @@
 <section id="page-empresas" class="page-section">
   <div class="pg-header">
     <h2>Empresas</h2>
-    <p class="sub">Cadastro de empresas devedoras/ré</p>
-    <div class="badge-row"><span class="badge badge-route">/empresas</span></div>
+    <p class="sub">Cadastro central de empresas restritivas — pré-requisito para restrições</p>
+    <div class="badge-row"><span class="badge badge-route">/empresas</span><span class="badge badge-ok">EmpresasPage.tsx</span><span class="badge badge-warn">Revisão de dados necessária</span></div>
   </div>
+
+  <details open>
+    <summary>🏗️ Estrutura — Arquivos e Componentes</summary>
+    <div class="details-body">
+      <div class="tree">
+<span class="c">src/pages/empresas/EmpresasPage.tsx</span>
+├── <span class="f">components/DashboardKPIs.tsx</span>       <span class="m">— KPIs do dashboard (atualizado 00h)</span>
+├── <span class="f">components/RankingTable.tsx</span>          <span class="m">— Ranking de empresas</span>
+├── <span class="f">components/TabEmpresasContent.tsx</span>    <span class="m">— Lista/grid de empresas + fila pendentes</span>
+├── <span class="f">components/TabOrgaosContent.tsx</span>      <span class="m">— Órgãos restritivos (Boa Vista, Serasa...)</span>
+├── <span class="f">components/TabCategoriasContent.tsx</span>  <span class="m">— Categorias de empresa → alimenta OlivIA</span>
+├── <span class="f">components/TabEscritoriosContent.tsx</span> <span class="m">— Escritórios jurídicos</span>
+├── <span class="f">components/EmpresasFilterBar.tsx</span>     <span class="m">— Filtros: ativo, processável, categoria, busca</span>
+├── <span class="f">components/FilaPendentesSection.tsx</span>  <span class="m">— Badge de pendentes de aprovação</span>
+├── <span class="f">components/PopupDuplicidade.tsx</span>      <span class="m">— Alerta de empresa similar ao digitar nome</span>
+└── modals/
+    ├── <span class="f">ModalEmpresa.tsx</span>                 <span class="m">— Modal create/edit/view/approve</span>
+    │   └── components/
+    │       ├── <span class="f">empresa_tab_cadastro.tsx</span> <span class="m">— Tab de campos do formulário</span>
+    │       └── <span class="f">empresa_tab_metricas.tsx</span> <span class="m">— Tab de métricas (modo edit/view)</span>
+    ├── <span class="f">ModalEmpresaDetalhe.tsx</span>          <span class="m">— Drawer de detalhes rápidos</span>
+    ├── <span class="f">ModalOrgao.tsx</span>                   <span class="m">— CRUD de órgão restritivo</span>
+    ├── <span class="f">ModalCategoria.tsx</span>               <span class="m">— CRUD de categoria</span>
+    ├── <span class="f">ModalEscritorio.tsx</span>              <span class="m">— CRUD de escritório</span>
+    ├── <span class="f">ModalMergeEmpresa.tsx</span>            <span class="m">— Merge de empresas duplicadas</span>
+    └── <span class="f">ModalConfirmacaoDelete.tsx</span>       <span class="m">— Confirm exclusão</span>
+      </div>
+      <div class="section-title">Abas da Página</div>
+      <ul class="ilist">
+        <li><span class="tag tag-comp">dashboard</span> KPIs + Ranking — atualizado às 00h</li>
+        <li><span class="tag tag-comp">empresas</span> Lista com badge de pendentes (<code>pendentesCount</code>)</li>
+        <li><span class="tag tag-comp">orgaos</span> Órgãos restritivos (Boa Vista, Serasa etc.)</li>
+        <li><span class="tag tag-comp">categorias</span> Categorias — campo crítico para OlivIA e petições</li>
+        <li><span class="tag tag-comp">escritorios</span> Escritórios jurídicos</li>
+      </ul>
+      <div class="section-title">Ações do Header</div>
+      <ul class="ilist">
+        <li><span class="tag tag-comp">OlivIA</span> Abre OlivIA drawer (<code>olivia:open-drawer</code> event)</li>
+        <li><span class="tag tag-comp">Exportar</span> CSV com filtros ativos (somente na aba "empresas")</li>
+        <li><span class="tag tag-comp">Importar</span> CSV via <code>callWebhook('empresas/capturar')</code> — rate limited (100ms/item)</li>
+        <li><span class="tag tag-comp">Nova Empresa</span> Abre <code>ModalEmpresa mode=create</code> — oculto para perfil operacional</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>📝 Inputs & Formulários — ModalEmpresa</summary>
+    <div class="details-body">
+      <div class="section-title">Tab Cadastro (create/edit/view/approve)</div>
+      <table class="form-tbl">
+        <thead><tr><th>Campo</th><th>Tipo</th><th>Validação</th><th>Obs</th></tr></thead>
+        <tbody>
+          <tr><td>Nome Fantasia *</td><td>text (UPPERCASE)</td><td>required</td><td>Blur → verifica duplicatas similares (<code>PopupDuplicidade</code>)</td></tr>
+          <tr><td>Razão Social</td><td>text (UPPERCASE)</td><td>opcional</td><td></td></tr>
+          <tr><td>CNPJ</td><td>text masked</td><td>opcional (required em approve+processável)</td><td>Blur → verifica CNPJ duplicado; máscara <code>maskCNPJ()</code></td></tr>
+          <tr><td>Categoria *</td><td>select</td><td>required em approve</td><td>FK <code>empresas_categorias</code> — crítico para OlivIA</td></tr>
+          <tr><td>Processável?</td><td>switch</td><td>boolean</td><td>Define se pode ser ré em processos judiciais</td></tr>
+          <tr><td>Empresa Ativa?</td><td>switch</td><td>boolean</td><td>Inativo exibe campo motivo</td></tr>
+          <tr><td>Motivo Inativação</td><td>text</td><td>condicional (só se inativo)</td><td>max 500 chars</td></tr>
+          <tr><td>Observações</td><td>textarea</td><td>opcional</td><td>min-h 80px</td></tr>
+          <tr><td>Endereços por Estado *</td><td>JSONB editor inline</td><td>required em approve+processável</td><td>Campos: CEP, Estado (UF select), Cidade, Endereço. Máx 27 entradas (1 por UF)</td></tr>
+          <tr><td>Variações de Nome</td><td>chip input (Enter)</td><td>opcional, max 20</td><td>Matching com comprovantes de auditoria — crítico para fluxo automático</td></tr>
+          <tr><td>Buscar dados (Enrichment)</td><td>botão</td><td>CNPJ com 14 dígitos</td><td>Consulta ReceitaWS + IA; exibe <code>ScoreIndicator</code> com blocos de completude</td></tr>
+        </tbody>
+      </table>
+      <div class="warn-note">⚠️ Modo <strong>approve</strong>: Categoria e Endereços viram obrigatórios. Popup de aprovação com dados da fila.</div>
+    </div>
+  </details>
 
   <details open>
     <summary>📋 Core + Ligações</summary>
     <div class="details-body">
-      <p>Cadastro das empresas que aparecem como ré nos processos (bancos, telecos, etc.). Consultadas na criação de processos e restrições.</p>
+      <p>Cadastro das empresas restritivas (credores, bureaus). É o <strong>pré-requisito para criar restrições</strong>: sem empresa corretamente cadastrada não é possível criar uma restrição. Cada empresa tem <strong>variações de nome</strong> — nomes alternativos que aparecem nos comprovantes de auditoria, usados para matching automático.</p>
       <ul class="ilist" style="margin-top: 12px;">
-        <li><span class="tag tag-table">empresas</span> CRUD — nome, cnpj, tipo, setor</li>
-        <li><span class="tag tag-table">restricoes</span> Join empresa_nome</li>
-        <li><span class="tag tag-table">processos</span> Join empresa_nome</li>
+        <li><span class="tag tag-table">empresas</span> CRUD — nome, cnpj, <strong>categoria</strong>, orgao_restritivo, variacoes_nome</li>
+        <li><span class="tag tag-table">restricoes</span> Ligação direta — empresa é pré-requisito para criar restrição</li>
+        <li><span class="tag tag-table">processos</span> Órgão restritivo define fluxo processual (ex: Boa Vista)</li>
+        <li>→ CRM: "Criar Restrição" puxa lista de empresas daqui</li>
+        <li>→ Auditoria: variações de nome fazem matching com comprovantes automaticamente</li>
+        <li>→ OlivIA: <strong>categoria da empresa</strong> alimenta geração de petições iniciais — campo crítico</li>
       </ul>
+    </div>
+  </details>
+
+  <details open>
+    <summary>⚠️ Campos Críticos</summary>
+    <div class="details-body">
+      <div class="section-title">Importância por campo</div>
+      <div class="bug-card crit">
+        <h4>categoria — 🔴 Crítica</h4>
+        <p>Alimenta OlivIA e geração de petições iniciais. Deve estar 100% preenchida em todas as empresas.</p>
+      </div>
+      <div class="bug-card crit">
+        <h4>variações_nome — 🔴 Alta</h4>
+        <p>Nomes alternativos que aparecem nos comprovantes de auditoria. Erros aqui quebram o matching automático.</p>
+      </div>
+      <div class="bug-card warn">
+        <h4>orgao_restritivo — 🟠 Alta</h4>
+        <p>Ex: Boa Vista — define de qual bureau vêm os processos. Ex: empresa Labz → órgão Boa Vista → gera processos Boa Vista.</p>
+      </div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🐛 Pendências</summary>
+    <div class="details-body">
+      <div class="section-title">Problemas de dados (backend antigo)</div>
+      <div class="bug-card crit">
+        <h4>🔴 Nomes duplicados / muito parecidos</h4>
+        <p>Backend antigo gerou cadastros inconsistentes. Muitas empresas com nomes iguais ou quase iguais. Revisão via relatório de similaridade (query SQL com <code>similarity()</code> ou <code>levenshtein()</code>).</p>
+      </div>
+      <div class="bug-card crit">
+        <h4>🔴 Nomes de clientes misturados com empresas</h4>
+        <p>Registros de pessoas físicas (CPF) aparecem na lista de empresas — limpeza necessária.</p>
+      </div>
+      <div class="bug-card crit">
+        <h4>🔴 CNPJ incorreto em alguns cadastros</h4>
+        <p>Exemplo: "Lojas Labz" duplicada com CNPJ começando em 90 (incorreto). Correto: CNPJ 11.271... com variações <code>Drabz Financeira S.A.</code> e <code>Labz Financeira S.A.</code></p>
+      </div>
+      <div class="section-title">Revisões necessárias</div>
+      <div class="bug-card warn">
+        <h4>🟡 Gerar relatório de duplicatas + validar categorias</h4>
+        <p>Query SQL com <code>similarity()</code> para listar nomes parecidos. Validar que todas as empresas têm <code>categoria</code> e <code>orgao_restritivo</code> preenchidos.</p>
+      </div>
     </div>
   </details>
 </section>

@@ -1,6 +1,6 @@
 # Jarbas 2.0 → Claude Code — Contexto Completo
-> Gerado em: 30/03/2026, 23:50:06 (America/Sao_Paulo)
-> **Projeto sendo migrado:** Cecília 2.0 — Worker EPROC
+> Gerado em: 30/03/2026, 23:52:42 (America/Sao_Paulo)
+> **Projeto sendo migrado:** Cecília 2.0 Worker EPROC
 
 ---
 
@@ -12,7 +12,6 @@
 - **Porta OpenClaw:** 18790
 - **Modelo:** claude-sonnet-4-6
 - **Papel:** CTO e Master Bot de Christian Paz. Supervisor de toda a rede (OlivIA, Cecília, Beto, Jarbinhas, JANA).
-- **Substitui:** JANA (legado) e JARBAS antigo.
 
 ---
 
@@ -35,14 +34,13 @@ ssh mac-mini-tail "sudo cmd"    # Admin no Mac Mini (senha: 010597)
 
 ### Playwright no Mac Mini (como cecilia)
 ```bash
-# Único padrão que funciona:
 ssh mac-mini-tail 'echo "010597" | sudo -S launchctl asuser 506 /bin/bash -c \
   "export PATH=/opt/homebrew/bin:\$PATH; \
    export HOME=/Users/cecilia; \
    export PLAYWRIGHT_BROWSERS_PATH=/Users/cecilia/.playwright-browsers; \
    nohup node /Users/cecilia/cecilia-skills/src/skills/script.mjs \
    > /tmp/script.log 2>&1 &"'
-# Aguardar ~70s e ler: ssh mac-mini-tail 'cat /tmp/script.log'
+sleep 80 && ssh mac-mini-tail 'cat /tmp/script.log'
 # IMPORTANTE: stdout não propaga via launchctl — usar appendFileSync para logs
 ```
 
@@ -59,7 +57,6 @@ ssh mac-mini-tail 'sudo cp /tmp/script.mjs /Users/cecilia/cecilia-skills/src/ski
 ### Supabase
 ```bash
 source ~/.env
-# Query via Management API:
 curl -s -X POST \
   "https://api.supabase.com/v1/projects/qdivfairxhdihaqqypgb/database/query" \
   -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
@@ -72,8 +69,7 @@ curl -s -X POST \
 ### n8n
 ```bash
 source ~/.env
-# Listar workflows:
-curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_BASE_URL/api/v1/workflows" | jq '.data[] | {id, name, active}'
+curl -s -H "X-N8N-API-KEY: $N8N_API_KEY" "$N8N_BASE_URL/api/v1/workflows" | jq '.data[] | {id,name,active}'
 ```
 - **URL:** https://primary-production-e209.up.railway.app
 
@@ -90,30 +86,24 @@ git push
 
 ## 3. Credenciais (paths — não valores)
 
-Arquivo principal: `~/.env` no MacBook Air (`/Users/christian/.env`)
-Arquivo Cecília: `/Users/cecilia/.env` no Mac Mini
+Arquivo: `~/.env` (`/Users/christian/.env`)
+No Mac Mini: `/Users/cecilia/.env`
 
 ```bash
 # Variáveis disponíveis:
-SUPABASE_URL                # URL do projeto Supabase
-SUPABASE_KEY                # service_role key
-SUPABASE_ACCESS_TOKEN       # Management API token
-ANTHROPIC_API_KEY           # Claude API
-OPENAI_API_KEY              # Whisper / GPT
-GEMINI_API_KEY              # Gemini
-N8N_API_KEY                 # n8n REST API
-N8N_BASE_URL                # https://primary-production-e209.up.railway.app
-TELEGRAM_BOT_TOKEN          # Bot Jarbas 2.0
-MDFLOW_TEST_EMAIL           # mdlab.equipe@gmail.com
-MDFLOW_TEST_PASSWORD        # senha teste MdFlow
-ORG_ID                      # 55a0c7ba-1a23-4ae1-b69b-a13811324735 (Midas)
+SUPABASE_URL / SUPABASE_KEY / SUPABASE_ACCESS_TOKEN
+ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY
+N8N_API_KEY / N8N_BASE_URL
+TELEGRAM_BOT_TOKEN
+MDFLOW_TEST_EMAIL / MDFLOW_TEST_PASSWORD
+ORG_ID  # 55a0c7ba-1a23-4ae1-b69b-a13811324735 (Midas)
 ```
 
-Carregar no script:
+Carregar em Node.js:
 ```javascript
 import { readFileSync } from 'fs';
 const env = Object.fromEntries(
-  readFileSync('/Users/christian/.env', 'utf8')   // ou /Users/cecilia/.env no Mac Mini
+  readFileSync('/Users/christian/.env', 'utf8') // ou /Users/cecilia/.env no Mac Mini
     .split('\n').filter(l => l.includes('='))
     .map(l => l.split('=').map(s => s.trim()))
 );
@@ -199,68 +189,195 @@ _Atualizar sempre que um projeto muda de status._
 
 ---
 
-## 6. Regras P0 e Anti-patterns
+## 6. Vault Obsidian — Arquivos do Projeto
+
+### 📄 ~/mdlab-vault/00_jarbas2/CONTEXTO-CHRISTIAN.md
+```
+---
+tags: [jarbas2, christian, contexto, empresas]
+atualizado: 2026-03-26
+---
+
+# Contexto Profundo — Christian Paz
+
+> Este é o arquivo mais importante do vault para o Jarbas 2.0.
+> Ler sempre no início de sessões pessoais com Christian.
+
+## Quem é Christian
+
+**Christian Paz** — CTO, Fundador, Arquiteto, Desenvolvedor principal.
+Localização: Canoas, Rio Grande do Sul, Brasil.
+Casado. Escritório de advocacia com a esposa.
+
+### Como ele pensa
+- **Pragmático e objetivo.** Odeia rodeios, disclaimers óbvios e respostas genéricas.
+- **Cada decisão deve ter justificativa clara e rastreável.**
+- Quando pede análise → quer profundidade real.
+- Quando pede algo rápido → quer concisão extrema.
+- **Prefere honestidade brutalmente direta** a concordância automática.
+- Não gosta que repitam o que ele acabou de dizer como se fosse insight novo.
+- Metodologia dev: "Planeja tudo, implementa uma vez."
+- Filosofia: pair programming com IA como metodologia principal.
+
+### Stack que domina (nível avançado em tudo)
+- Backend: Supabase (PostgreSQL, RLS, Edge Functions, RPCs, pg_cron)
+- Frontend: React + TypeScript + shadcn/ui + Tailwind CSS + Vite
+- Automações: n8n (motor principal)
+- IA: Claude (arquitetura/análise), GPT (redação jurídica), Gemini (processamento)
+- Prototipagem rápida: Lovable
+- Integrações: Google Drive, WhatsApp Business API (MDZap), EPROC, bureaus de crédito
+- Infra: Railway, Supabase Cloud, Mac Mini M4, MacBook Air M4, Cloudflare Tunnel, Tailscale
+
+---
+
+## As Empresas
+
+### 🏛️ 
+... (truncado)
+```
+
+### 📄 ~/jarbas-vault/PROJETOS-ATIVOS.md
+```
+---
+tags: [jarbas2, projetos, ativo]
+atualizado: 2026-03-26
+---
+
+# Projetos Ativos — Jarbas 2.0
+
+> Atualizar após cada sessão de trabalho.
+
+## 🔴 Bloqueado / Pendente
+
+| Projeto | Etapa atual | Próxima ação |
+|---|---|---|
+| **Setup Jarbas 2.0** | Passo 5/12 | Instalar OpenClaw porta 18790 |
+
+## 🟡 Em Andamento
+
+| Projeto | Última atividade | Status |
+|---|---|---|
+| **MdFlow CRM** | 2026-03-26 | Em evolução contínua |
+| **OlivIA v3** | 2026-03-26 | Geração de relatórios HTML implementada |
+| **Cecília Controller** | 2026-03-26 | Online, pipeline automático ativo |
+
+## 🟢 Operacional (monitorar)
+
+| Sistema | Status | Onde |
+|---|---|---|
+| n8n workflows | Rodando | Mac Mini |
+| OlivIA server | Rodando | Mac Mini (porta 19100) |
+| Cecília controller | Rodando | Mac Mini (launchd) |
+| JARBAS legado | Ativo | Mac Mini (porta 18789) |
+
+---
+
+_Atualizar sempre que um projeto muda de status._
+
+```
+
+### 📄 ~/jarbas-vault/CONTEXTO.md
+```
+---
+tags: [jarbas2, contexto, sessao]
+atualizado: 2026-03-26
+---
+
+# CONTEXTO — Sessão Atual
+
+> Ler este arquivo PRIMEIRO em cada sessão.
+
+## Estado Atual (2026-03-26)
+
+Jarbas 2.0 acabou de ser configurado. Este é o primeiro CONTEXTO.md.
+
+**Última missão:** Setup completo do agente — usuário christian criado, workspace configurado, identidade instalada.
+
+**Próximas prioridades:**
+1. Instalar OpenClaw no usuário `christian` (porta 18790)
+2. Criar bot Telegram novo via @BotFather
+3. Instalar skills do ClawhHub (steipete/obsidian primeiro)
+4. Migrar skills do JARBAS Mac Mini (14 exclusivas)
+5. Configurar crons (7 crons definidos no HEARTBEAT.md)
+
+## Projetos Ativos
+
+Ver `PROJETOS-ATIVOS.md`
+
+## O que estava em andamento antes de dormir
+
+Setup do Jarbas 2.0. Continuar do passo 5 em diante.
+
+```
+
+---
+
+## 7. Últimos HTMLs Gerados (Relatórios / Planos)
+
+- [cecilia2-projeto-definitivo-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia2-projeto-definitivo-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia2-plano-final-v2-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia2-plano-final-v2-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia2-masterplan-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia2-masterplan-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia2-superbrainstorm-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia2-superbrainstorm-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia-brainstorm-reconstrucao-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia-brainstorm-reconstrucao-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia-plano-reconstrucao-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia-plano-reconstrucao-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia-hibrido-analise-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia-hibrido-analise-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia-deepreview-20260330.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia-deepreview-20260330.html) _(projeto)_ — 30/03/2026
+- [cecilia-brief-validacao-20260327.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia-brief-validacao-20260327.html) _(projeto)_ — 27/03/2026
+- [cecilia-status-review-20260327.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/cecilia-status-review-20260327.html) _(projeto)_ — 27/03/2026
+- [status-final-advbox-20260328.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/status-final-advbox-20260328.html) _(recente)_ — 28/03/2026
+- [relatorio-execucao-advbox-20260328.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/relatorio-execucao-advbox-20260328.html) _(recente)_ — 28/03/2026
+- [plano-execucao-definitivo-advbox-20260328.html](https://mdlab-christian.github.io/jarbas-reports/jarbas2/plano-execucao-definitivo-advbox-20260328.html) _(recente)_ — 28/03/2026
+
+---
+
+## 8. Regras P0 e Anti-patterns
 
 ### Confirmar SEMPRE (P0)
 - DELETE em produção
 - `git push --force`
 - Migrations irreversíveis
 - Ações que afetam clientes do Midas (~5.800 processos)
-- Matar agentes em produção
 
-### Executar direto (não-P0)
-- Bug fix óbvio, edições de config, tarefas sem ambiguidade
-
-### Anti-patterns (NUNCA fazer)
+### Anti-patterns (NUNCA)
 - Hardcodar credenciais — tudo via .env com chmod 600
-- Usar `keyboard.type()` para senhas com caracteres especiais no Keycloak (usar native setter)
-- Fazer 2 sessões Playwright simultâneas para mesma OAB EPROC
-- Construir URLs EPROC manualmente sem hash de sessão
-- Fire and forget em processos críticos — sempre aguardar resultado
-- `sudo tee` para criar arquivos (cria vazio) — usar `sudo python3 -c "open(...).write(...)"`
+- `keyboard.type()` para senha Keycloak com @ — usar native setter
+- 2 sessões Playwright simultâneas para mesma OAB
+- Construir URLs EPROC sem hash de sessão
+- `sudo tee` para criar arquivos (cria vazio)
+- Fire and forget sem aguardar resultado
 
 ### Delays anti-bot
-- Entre processos EPROC: 800–2500ms (`humanDelay`)
-- Entre OABs: 5 minutos (`longDelay`)
+- Entre processos EPROC: 800–2500ms
+- Entre OABs: 5 minutos
 
 ---
 
-## 7. Comandos Prontos
+## 9. Comandos Prontos
 
-### Rodar skill no Mac Mini como cecilia
 ```bash
+# Rodar script como cecilia no Mac Mini
 ssh mac-mini-tail 'echo "010597" | sudo -S launchctl asuser 506 /bin/bash -c \
   "export PATH=/opt/homebrew/bin:\$PATH HOME=/Users/cecilia \
    PLAYWRIGHT_BROWSERS_PATH=/Users/cecilia/.playwright-browsers; \
    nohup node /Users/cecilia/cecilia-skills/src/skills/SCRIPT.mjs > /tmp/SCRIPT.log 2>&1 &"'
-sleep 80 && ssh mac-mini-tail 'cat /tmp/SCRIPT.log'
-```
 
-### Query Supabase via curl
-```bash
+# Query Supabase
 source ~/.env && curl -s -X POST \
   "https://api.supabase.com/v1/projects/qdivfairxhdihaqqypgb/database/query" \
   -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query":"QUERY_AQUI"}' | jq
-```
 
-### Publicar HTML no GitHub Pages
-```bash
+# Publicar HTML no GitHub Pages
 cd ~/jarbas-reports && git add jarbas2/ && git commit -m "msg" && git push
-```
 
-### Reiniciar agente no Mac Mini
-```bash
-# Cecília (UID 506):
+# Reiniciar Cecília
 ssh mac-mini-tail 'echo "010597" | sudo -S launchctl kickstart -k gui/506/ai.cecilia.skills'
-# OlivIA:
-ssh mac-mini-tail 'echo "010597" | sudo -S -u olivia launchctl kickstart -k gui/$(id -u olivia)/ai.olivia.gateway'
 ```
 
 ---
 
-## 8. Contexto Atual
+## 10. Contexto Atual / Estado da Sessão
 
 ### Memória recente
 ### 2026-03-30.md
@@ -332,12 +449,10 @@ coding launchctl)
 
 ---
 
-## 9. Formato de Relatório (ao finalizar)
-
-Após completar qualquer tarefa, reportar:
+## 11. Formato de Relatório Final (obrigatório)
 
 ### ✅ O que foi feito
-- [arquivo/ação]: [o que mudou e por quê]
+- [arquivo/ação]: [o que mudou]
 
 ### 📁 Arquivos criados/modificados
 - [paths completos]
@@ -345,11 +460,11 @@ Após completar qualquer tarefa, reportar:
 ### 🧪 Como testar
 - [passos exatos]
 
-### ⚠️ O que precisa revisão manual
+### ⚠️ Revisão manual necessária
 - [lista]
 
 ### ❌ O que não foi feito (e por quê)
 - [se algo ficou de fora]
 
-### ⏭️ Próximo passo sugerido
+### ⏭️ Próximo passo
 - [o que fazer depois]

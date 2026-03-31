@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Execution Plan — /homepage v1</title>
+<style>
+  :root {
+    --bg: #12100e; --surface: #1a1815; --surface2: #221f1c;
+    --border: #2d2925; --primary: #20c997; --primary-dim: rgba(32,201,151,0.15);
+    --text: #e8e0d8; --text-muted: #8a7f78;
+    --red: #ef4444; --red-dim: rgba(239,68,68,0.15);
+    --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.15);
+    --blue: #3b82f6; --blue-dim: rgba(59,130,246,0.15);
+    --green: #22c55e; --green-dim: rgba(34,197,94,0.15);
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; margin: 0; padding: 24px; max-width: 1200px; margin: 0 auto; font-size: 14px; line-height: 1.6; }
+  h1 { font-family: Manrope, sans-serif; font-size: 1.75rem; color: var(--primary); margin-bottom: 0.25rem; }
+  h2 { font-family: Manrope, sans-serif; font-size: 1.2rem; color: var(--text); margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  .meta { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 2rem; }
+  .meta span { margin-right: 1.5rem; }
+
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin: 1.5rem 0 2.5rem; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; text-align: center; }
+  .kpi-card .num { font-family: Manrope, sans-serif; font-size: 2rem; font-weight: 700; display: block; }
+  .kpi-card .label { color: var(--text-muted); font-size: 0.8rem; }
+  .kpi-card.red .num { color: var(--red); }
+  .kpi-card.yellow .num { color: var(--yellow); }
+  .kpi-card.blue .num { color: var(--blue); }
+
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+  .badge-red { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-yellow { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-blue { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  .badge-green { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+
+  .toc { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; margin: 1.5rem 0; }
+  .toc a { color: var(--primary); text-decoration: none; display: block; padding: 0.25rem 0; font-size: 0.9rem; }
+  .toc a:hover { text-decoration: underline; }
+
+  .bug-block { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.5rem; margin: 1.5rem 0; }
+  .bug-block.p0 { border-left: 4px solid var(--red); }
+  .bug-block.p1 { border-left: 4px solid var(--yellow); }
+  .bug-block.p2 { border-left: 4px solid var(--blue); }
+  .bug-block .bug-header { font-family: Manrope, sans-serif; font-weight: 700; font-size: 1rem; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .bug-block .context { margin-bottom: 1rem; }
+  .bug-block .context p { margin-bottom: 0.3rem; font-size: 0.9rem; }
+  .bug-block .context strong { color: var(--text-muted); font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
+
+  .prompt-box { position: relative; background: #0d0c0a; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-top: 0.75rem; }
+  .prompt-box pre { font-family: var(--mono); font-size: 0.78rem; line-height: 1.5; color: var(--text); white-space: pre-wrap; word-break: break-word; margin: 0; }
+  .copy-btn { position: absolute; top: 8px; right: 8px; background: var(--primary); color: #000; border: none; border-radius: 6px; padding: 4px 12px; font-size: 0.72rem; font-weight: 600; cursor: pointer; z-index: 2; }
+  .copy-btn:hover { opacity: 0.85; }
+
+  .section-divider { display: flex; align-items: center; gap: 1rem; margin: 2.5rem 0 1.5rem; }
+  .section-divider::before, .section-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .section-divider span { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.1em; white-space: nowrap; }
+
+  .dep-tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; font-size: 0.72rem; color: var(--text-muted); margin-left: 0.5rem; }
+
+  code { font-family: var(--mono); font-size: 0.8rem; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; color: var(--primary); }
+
+  .footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.85rem; text-align: center; }
+</style>
+<script>
+function copyPrompt(id) {
+  const el = document.getElementById(id);
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const btn = el.closest('.prompt-box').querySelector('.copy-btn');
+    btn.textContent = 'Copiado!';
+    setTimeout(() => btn.textContent = 'Copiar', 2000);
+  });
+}
+</script>
+</head>
+<body>
+
+<h1>Execution Plan — /homepage v1</h1>
+<div class="meta">
+  <span>Data: 2026-03-31</span>
+  <span>QA Source: qa-report-R1</span>
+  <span>Total: 8 prompts</span>
+  <span>Agente: Beto (Claude Code)</span>
+</div>
+
+<!-- ============================== SUMMARY ============================== -->
+<div class="summary-grid">
+  <div class="kpi-card red"><span class="num">2</span><span class="label">Prompts P0</span></div>
+  <div class="kpi-card yellow"><span class="num">3</span><span class="label">Prompts P1</span></div>
+  <div class="kpi-card blue"><span class="num">3</span><span class="label">Prompts P2</span></div>
+</div>
+
+<!-- ============================== INDEX ============================== -->
+<h2>Indice de Execucao</h2>
+<div class="toc">
+  <a href="#hp01"><span class="badge badge-red">P0</span> HP-01: Corrigir RPC get_homepage_ranking — coluna p.responsavel_id inexistente</a>
+  <a href="#hp02"><span class="badge badge-red">P0</span> HP-02: Isolar erros no useHomepageGestor — evitar cascata</a>
+  <a href="#hp03"><span class="badge badge-yellow">P1</span> HP-03: staleTime 30_000 nos 3 hooks da homepage</a>
+  <a href="#hp04"><span class="badge badge-yellow">P1</span> HP-04: Corrigir RPC taxa_conversao &gt; 100%</a>
+  <a href="#hp05"><span class="badge badge-yellow">P1</span> HP-05: Perfil operacional — mapear para ViewJuridico</a>
+  <a href="#hp06"><span class="badge badge-blue">P2</span> HP-06: Audiencias do dia — filtrar por user_id</a>
+  <a href="#hp07"><span class="badge badge-blue">P2</span> HP-07: KpiGrid — adicionar colunas 6 e 7</a>
+  <a href="#hp08"><span class="badge badge-blue">P2</span> HP-08: KpiCardData.value — restringir a number</a>
+</div>
+
+<p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 1rem;">
+  <strong>Ordem de execucao:</strong> HP-01 primeiro (RPC no banco), HP-02 segundo (depende de HP-01 para testar),
+  depois HP-03 a HP-08 sao independentes entre si.
+</p>
+
+<!-- ============================== P0 BUGS ============================== -->
+<div class="section-divider"><span>P0 — Criticos</span></div>
+
+<!-- HP-01 -->
+<div class="bug-block p0" id="hp01">
+  <div class="bug-header">
+    <span class="badge badge-red">P0</span>
+    HP-01: Corrigir RPC get_homepage_ranking — coluna p.responsavel_id inexistente
+    <span class="dep-tag">Independente</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivo:</strong> <code>~/beta-mdflow/supabase/migrations/20260306_C5_rpcs_p1.sql</code> (linhas 865-921)</p>
+    <p><strong>Causa raiz:</strong> Linha 911 usa <code>p.responsavel_id</code> mas a tabela <code>processos</code> tem <code>advogado_id</code>, nao <code>responsavel_id</code>. PostgreSQL erro 42703.</p>
+    <p><strong>Impacto:</strong> RPC retorna HTTP 400. Como useHomepageGestor faz Promise.all e throw no primeiro erro, derruba todos os dados do dashboard gestor/admin (cascata via HP-02).</p>
+    <p><strong>Solucao:</strong> Criar nova migration que recria a funcao trocando <code>p.responsavel_id</code> por <code>p.advogado_id</code>.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp01')">Copiar</button>
+<pre id="prompt-hp01">Corrigir a RPC `get_homepage_ranking` no Supabase do MdFlow.
+
+## Problema
+A RPC `get_homepage_ranking` (definida em `~/beta-mdflow/supabase/migrations/20260306_C5_rpcs_p1.sql` linhas 865-921) referencia `p.responsavel_id` na tabela `processos`, mas essa coluna nao existe. A coluna correta eh `advogado_id`.
+
+Erro PostgreSQL: 42703 — "column p.responsavel_id does not exist"
+
+## Codigo atual (linha 911)
+```sql
+LEFT JOIN processos p ON p.responsavel_id = u.id
+```
+
+## Correcao
+Criar nova migration em `~/beta-mdflow/supabase/migrations/20260331100001_fix_homepage_ranking_advogado_id.sql`:
+
+```sql
+-- Fix HP-01: get_homepage_ranking referencia p.responsavel_id que nao existe
+-- Coluna correta em processos eh advogado_id
+CREATE OR REPLACE FUNCTION get_homepage_ranking(
+  p_user_id UUID,
+  p_org_id  UUID
+)
+RETURNS TABLE(
+  user_id    UUID,
+  user_nome  TEXT,
+  avatar_url TEXT,
+  perfil     TEXT,
+  score      NUMERIC
+)
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_acesso_gestor BOOLEAN;
+BEGIN
+  SELECT acesso_gestor INTO v_acesso_gestor
+  FROM users WHERE id = p_user_id;
+
+  IF NOT COALESCE(v_acesso_gestor, false) THEN
+    RAISE EXCEPTION 'P0001: acesso_gestor negado' USING HINT = 'ACCESS_DENIED';
+  END IF;
+
+  RETURN QUERY
+  SELECT
+    u.id,
+    u.nome,
+    u.avatar_url,
+    u.perfil,
+    COALESCE(
+      (COUNT(a.id) FILTER (
+        WHERE a.status = 'concluida'
+          AND a.concluida_em >= DATE_TRUNC('month', now())
+      ) * 2
+      + COUNT(DISTINCT p.id) FILTER (WHERE p.status = 'ativo'))::NUMERIC,
+      0
+    ) AS score
+  FROM users u
+  LEFT JOIN atividades a ON a.responsavel_id = u.id
+    AND a.organizacao_id = p_org_id
+    AND a.deleted_at IS NULL
+  LEFT JOIN processos p ON p.advogado_id = u.id
+    AND p.organizacao_id = p_org_id
+    AND p.deleted_at IS NULL
+  WHERE u.organizacao_id = p_org_id
+    AND u.ativo = true
+  GROUP BY u.id, u.nome, u.avatar_url, u.perfil
+  ORDER BY score DESC
+  LIMIT 10;
+END;
+$$;
+```
+
+## Aplicar migration
+```bash
+cd ~/beta-mdflow && npx supabase db push --linked
+```
+
+## Confirmar fix
+```bash
+source ~/.env
+curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/rpc/get_homepage_ranking" \
+  -X POST \
+  -H "apikey: $SUPABASE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"p_user_id":"a1000001-0000-4000-8000-000000000001","p_org_id":"55a0c7ba-1a23-4ae1-b69b-a13811324735"}'
+```
+Deve retornar array de objetos com user_id, user_nome, score (nao mais erro 42703).</pre>
+  </div>
+</div>
+
+<!-- HP-02 -->
+<div class="bug-block p0" id="hp02">
+  <div class="bug-header">
+    <span class="badge badge-red">P0</span>
+    HP-02: Isolar erros no useHomepageGestor — evitar cascata
+    <span class="dep-tag">Rodar DEPOIS de HP-01</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivo:</strong> <code>~/beta-mdflow/src/hooks/useHomepageGestor.ts</code> (linhas 32-42)</p>
+    <p><strong>Causa raiz:</strong> O loop <code>for (const err of errors) { if (err) throw err; }</code> faz com que 1 RPC falhando descarte os dados validos das outras 2. Isso eh especialmente grave porque comercial e juridico retornaram com sucesso.</p>
+    <p><strong>Impacto:</strong> Dashboard Admin/Gestor mostra TUDO vazio ("Sem dados disponiveis") quando qualquer uma das 3 RPCs falha.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp02')">Copiar</button>
+<pre id="prompt-hp02">Corrigir o hook `useHomepageGestor` para tratar erros de cada RPC independentemente.
+
+## Arquivo
+`~/beta-mdflow/src/hooks/useHomepageGestor.ts`
+
+## Problema
+Linhas 32-42: quando qualquer das 3 RPCs falha, o codigo faz `throw err` e descarta dados validos das outras.
+
+## Codigo atual (linhas 31-42)
+```typescript
+const errors = [comercialRes.error, juridicoRes.error, rankingRes.error];
+const forbidden = errors.some(e => e && e.code === 'P0001');
+if (forbidden) return null;
+
+for (const err of errors) {
+  if (err) throw err;
+}
+
+return {
+  comercial: (comercialRes.data as unknown as Record<string, number>) ?? {},
+  juridico: (juridicoRes.data as unknown as Record<string, number>) ?? {},
+  ranking: (rankingRes.data as unknown as HomepageGestorData['ranking']) ?? [],
+};
+```
+
+## Substituir por (linhas 31-42)
+```typescript
+const errors = [comercialRes.error, juridicoRes.error, rankingRes.error];
+const forbidden = errors.some(e => e && e.code === 'P0001');
+if (forbidden) return null;
+
+// Tratar cada RPC independentemente — se uma falha, as outras ainda retornam dados
+if (comercialRes.error) console.warn('[homepage] gestor_comercial error:', comercialRes.error.message);
+if (juridicoRes.error) console.warn('[homepage] gestor_juridico error:', juridicoRes.error.message);
+if (rankingRes.error) console.warn('[homepage] ranking error:', rankingRes.error.message);
+
+return {
+  comercial: comercialRes.error ? {} : ((comercialRes.data as unknown as Record<string, number>) ?? {}),
+  juridico: juridicoRes.error ? {} : ((juridicoRes.data as unknown as Record<string, number>) ?? {}),
+  ranking: rankingRes.error ? [] : ((rankingRes.data as unknown as HomepageGestorData['ranking']) ?? []),
+};
+```
+
+Isso garante que mesmo que ranking falhe, os blocos Comercial e Juridico ainda mostram dados.</pre>
+  </div>
+</div>
+
+<!-- ============================== P1 BUGS ============================== -->
+<div class="section-divider"><span>P1 — Importantes</span></div>
+
+<!-- HP-03 -->
+<div class="bug-block p1" id="hp03">
+  <div class="bug-header">
+    <span class="badge badge-yellow">P1</span>
+    HP-03: staleTime 30_000 nos 3 hooks da homepage
+    <span class="dep-tag">Independente</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivos:</strong></p>
+    <p>- <code>~/beta-mdflow/src/hooks/useHomepagePessoal.ts</code> (linha 25)</p>
+    <p>- <code>~/beta-mdflow/src/hooks/useHomepageGestor.ts</code> (linha 46)</p>
+    <p>- <code>~/beta-mdflow/src/hooks/useHomepageAvisos.ts</code> (linha 55)</p>
+    <p><strong>Causa raiz:</strong> staleTime eh 5 * 60 * 1000 (300.000ms = 5min). CLAUDE.md secao 10 define staleTime: 30_000 como padrao obrigatorio.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp03')">Copiar</button>
+<pre id="prompt-hp03">Alterar o staleTime de 5 minutos para 30 segundos nos 3 hooks da homepage.
+
+## Arquivos e alteracoes
+
+### 1. ~/beta-mdflow/src/hooks/useHomepagePessoal.ts (linha 25)
+Trocar:
+```typescript
+staleTime: 5 * 60 * 1000,
+```
+Por:
+```typescript
+staleTime: 30_000,
+```
+
+### 2. ~/beta-mdflow/src/hooks/useHomepageGestor.ts (linha 46)
+Trocar:
+```typescript
+staleTime: 5 * 60 * 1000,
+```
+Por:
+```typescript
+staleTime: 30_000,
+```
+
+### 3. ~/beta-mdflow/src/hooks/useHomepageAvisos.ts (linha 55)
+Trocar:
+```typescript
+staleTime: 5 * 60 * 1000,
+```
+Por:
+```typescript
+staleTime: 30_000,
+```
+
+Manter gcTime como esta (30 * 60 * 1000) — gcTime nao tem restricao no CLAUDE.md.</pre>
+  </div>
+</div>
+
+<!-- HP-04 -->
+<div class="bug-block p1" id="hp04">
+  <div class="bug-header">
+    <span class="badge badge-yellow">P1</span>
+    HP-04: Corrigir RPC taxa_conversao > 100%
+    <span class="dep-tag">Independente</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivo:</strong> <code>~/beta-mdflow/supabase/migrations/20260306_C5_rpcs_p1.sql</code> (linhas 767-777)</p>
+    <p><strong>Causa raiz:</strong> A formula calcula <code>COUNT(DISTINCT p.id) / NULLIF(COUNT(DISTINCT c.id), 0) * 100</code>. O LEFT JOIN de clientes para processos pode gerar multiplos processos por cliente, fazendo o numerador ser maior que o denominador. Resultado: 185.7% (impossivel).</p>
+    <p><strong>Solucao:</strong> A taxa deve ser: clientes COM pelo menos 1 processo / total de clientes * 100. Usar subquery ou CASE para cap em 100%.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp04')">Copiar</button>
+<pre id="prompt-hp04">Corrigir o calculo de taxa_conversao na RPC `get_homepage_gestor_comercial`.
+
+## Problema
+A RPC em `~/beta-mdflow/supabase/migrations/20260306_C5_rpcs_p1.sql` (linhas 767-777) calcula taxa_conversao como:
+```sql
+COUNT(DISTINCT p.id) / NULLIF(COUNT(DISTINCT c.id), 0) * 100
+```
+Isso retorna 185.7% porque conta TODOS os processos (varios por cliente), nao clientes com processo.
+
+## Correcao
+Criar migration `~/beta-mdflow/supabase/migrations/20260331100002_fix_homepage_taxa_conversao.sql`:
+
+```sql
+-- Fix HP-04: taxa_conversao retornava > 100%
+-- A formula contava processos em vez de clientes com processo
+CREATE OR REPLACE FUNCTION get_homepage_gestor_comercial(
+  p_user_id UUID,
+  p_org_id  UUID,
+  p_periodo TEXT DEFAULT '30d'
+)
+RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $$
+DECLARE
+  v_inicio TIMESTAMPTZ;
+  v_acesso_gestor BOOLEAN;
+BEGIN
+  SELECT acesso_gestor INTO v_acesso_gestor
+  FROM users WHERE id = p_user_id;
+
+  IF NOT COALESCE(v_acesso_gestor, false) THEN
+    RAISE EXCEPTION 'P0001: acesso_gestor negado' USING HINT = 'ACCESS_DENIED';
+  END IF;
+
+  v_inicio := CASE p_periodo
+    WHEN 'hoje' THEN CURRENT_DATE::TIMESTAMPTZ
+    WHEN '7d'   THEN now() - INTERVAL '7 days'
+    ELSE              now() - INTERVAL '30 days'
+  END;
+
+  RETURN jsonb_build_object(
+    'leads_novos', (
+      SELECT COUNT(*) FROM leads
+      WHERE organizacao_id = p_org_id
+        AND created_at >= v_inicio
+        AND deleted_at IS NULL
+    ),
+    'leads_em_atendimento', (
+      SELECT COUNT(*) FROM leads
+      WHERE organizacao_id = p_org_id
+        AND coluna_crm = 'em_atendimento'
+        AND deleted_at IS NULL
+    ),
+    'conversoes', (
+      SELECT COUNT(*) FROM processos
+      WHERE organizacao_id = p_org_id
+        AND created_at >= v_inicio
+        AND deleted_at IS NULL
+    ),
+    'taxa_conversao', (
+      SELECT COALESCE(ROUND(
+        COUNT(DISTINCT c.id) FILTER (WHERE EXISTS (
+          SELECT 1 FROM processos p
+          WHERE p.cliente_id = c.id
+            AND p.created_at >= v_inicio
+            AND p.deleted_at IS NULL
+        ))::NUMERIC
+        / NULLIF(COUNT(DISTINCT c.id), 0) * 100
+      , 1), 0)
+      FROM clientes c
+      WHERE c.organizacao_id = p_org_id
+        AND c.created_at >= v_inicio
+        AND c.deleted_at IS NULL
+    ),
+    'indicacoes', (
+      SELECT COUNT(*) FROM indicacoes
+      WHERE organizacao_id = p_org_id
+        AND created_at >= v_inicio
+    ),
+    'indicacoes_convertidas', (
+      SELECT COUNT(*) FROM indicacoes
+      WHERE organizacao_id = p_org_id
+        AND status IN ('convertida','paga')
+        AND created_at >= v_inicio
+    )
+  );
+END;
+$$;
+```
+
+## Aplicar e confirmar
+```bash
+cd ~/beta-mdflow && npx supabase db push --linked
+```
+
+Confirmar:
+```bash
+source ~/.env
+curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/rpc/get_homepage_gestor_comercial" \
+  -X POST \
+  -H "apikey: $SUPABASE_KEY" \
+  -H "Authorization: Bearer $SUPABASE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"p_user_id":"a1000001-0000-4000-8000-000000000001","p_org_id":"55a0c7ba-1a23-4ae1-b69b-a13811324735","p_periodo":"7d"}'
+```
+taxa_conversao deve ser <= 100.</pre>
+  </div>
+</div>
+
+<!-- HP-05 -->
+<div class="bug-block p1" id="hp05">
+  <div class="bug-header">
+    <span class="badge badge-yellow">P1</span>
+    HP-05: Perfil operacional — mapear para ViewJuridico
+    <span class="dep-tag">Independente</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivo:</strong> <code>~/beta-mdflow/src/pages/homepage/index.tsx</code> (linhas 223-227)</p>
+    <p><strong>Causa raiz:</strong> O gate logic nao trata o perfil <code>operacional</code>. O usuario "Mateus (MDZap Teste)" ve apenas a tela de fallback.</p>
+    <p><strong>Impacto:</strong> Baixo agora (1 usuario), mas qualquer perfil futuro nao-previsto fica sem homepage.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp05')">Copiar</button>
+<pre id="prompt-hp05">Adicionar tratamento para perfil `operacional` no gate logic da homepage.
+
+## Arquivo
+`~/beta-mdflow/src/pages/homepage/index.tsx`
+
+## Codigo atual (linhas 223-227)
+```typescript
+if (user.acesso_gestor && user.perfil === 'admin') return <ViewAdmin />;
+if (user.acesso_gestor) return <ViewGestor />;
+if (user.perfil === 'juridico') return <ViewJuridico />;
+if (user.perfil === 'comercial') return <ViewComercial />;
+return <HomepagePerfilFallback />;
+```
+
+## Substituir por
+```typescript
+if (user.acesso_gestor && user.perfil === 'admin') return <ViewAdmin />;
+if (user.acesso_gestor) return <ViewGestor />;
+if (user.perfil === 'juridico' || user.perfil === 'operacional') return <ViewJuridico />;
+if (user.perfil === 'comercial') return <ViewComercial />;
+return <HomepagePerfilFallback />;
+```
+
+Operacional usa a view juridica como default — atividades, processos e prazos sao relevantes.</pre>
+  </div>
+</div>
+
+<!-- ============================== P2 BUGS ============================== -->
+<div class="section-divider"><span>P2 — Melhorias</span></div>
+
+<!-- HP-06 -->
+<div class="bug-block p2" id="hp06">
+  <div class="bug-header">
+    <span class="badge badge-blue">P2</span>
+    HP-06: Audiencias do dia — filtrar por user_id
+    <span class="dep-tag">Independente</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivo:</strong> <code>~/beta-mdflow/src/components/homepage/homepage_audiencias_dia.tsx</code> (linhas 41-49)</p>
+    <p><strong>Causa raiz:</strong> A query filtra por organizacao_id mas nao por usuario. Mostra audiencias de toda a org na homepage pessoal.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp06')">Copiar</button>
+<pre id="prompt-hp06">Filtrar audiencias do dia por usuario na homepage.
+
+## Arquivo
+`~/beta-mdflow/src/components/homepage/homepage_audiencias_dia.tsx`
+
+## Problema
+A query nas linhas 41-49 filtra por organizacao_id mas nao pelo usuario logado. Na homepage pessoal, cada usuario deveria ver apenas SUAS audiencias.
+
+## Codigo atual (linhas 41-49)
+```typescript
+const { data, error } = await supabase
+  .from('audiencias')
+  .select('id, tipo, modalidade, data_audiencia, local, status, processo_id, processos(numero_cnj)')
+  .eq('organizacao_id', user!.organizacao_id)
+  .eq('status', 'agendada')
+  .gte('data_audiencia', hoje)
+  .lt('data_audiencia', amanha)
+  .is('deleted_at', null)
+  .order('data_audiencia', { ascending: true })
+  .limit(5);
+```
+
+## Correcao
+A tabela `audiencias` tem relacao com `processos` via `processo_id`. Processos tem `advogado_id`.
+Filtrar via join: adicionar `processos!inner(numero_cnj, advogado_id)` e filtrar pelo advogado_id do usuario.
+
+Substituir a query por:
+```typescript
+const { data, error } = await supabase
+  .from('audiencias')
+  .select('id, tipo, modalidade, data_audiencia, local, status, processo_id, processos!inner(numero_cnj, advogado_id)')
+  .eq('organizacao_id', user!.organizacao_id)
+  .eq('processos.advogado_id', user!.user_id)
+  .eq('status', 'agendada')
+  .gte('data_audiencia', hoje)
+  .lt('data_audiencia', amanha)
+  .is('deleted_at', null)
+  .order('data_audiencia', { ascending: true })
+  .limit(5);
+```
+
+Nota: se o componente for usado em ViewGestor, considerar NAO filtrar por user_id nesse contexto. Como ele eh usado apenas em ViewJuridico (linha 88 do index.tsx), filtrar por usuario eh correto.</pre>
+  </div>
+</div>
+
+<!-- HP-07 -->
+<div class="bug-block p2" id="hp07">
+  <div class="bug-header">
+    <span class="badge badge-blue">P2</span>
+    HP-07: KpiGrid — adicionar colunas 6 e 7 ao mapa
+    <span class="dep-tag">Independente</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivo:</strong> <code>~/beta-mdflow/src/components/homepage/homepage_kpi_grid.tsx</code> (linhas 14-19)</p>
+    <p><strong>Causa raiz:</strong> lgColsMap vai ate 5. buildKpisJuridico retorna 6 cards, buildKpisComercial retorna 7.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp07')">Copiar</button>
+<pre id="prompt-hp07">Adicionar suporte a 6 e 7 colunas no KpiGrid da homepage.
+
+## Arquivo
+`~/beta-mdflow/src/components/homepage/homepage_kpi_grid.tsx`
+
+## Codigo atual (linhas 14-19)
+```typescript
+const lgColsMap: Record<number, string> = {
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+  5: 'lg:grid-cols-5',
+};
+```
+
+## Substituir por
+```typescript
+const lgColsMap: Record<number, string> = {
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-3',
+  4: 'lg:grid-cols-4',
+  5: 'lg:grid-cols-5',
+  6: 'lg:grid-cols-3',
+  7: 'lg:grid-cols-4',
+};
+```
+
+6 cards em 3 colunas = 2 linhas perfeitas de 3.
+7 cards em 4 colunas = linha de 4 + linha de 3 (melhor que o fallback atual de 4+2+1).</pre>
+  </div>
+</div>
+
+<!-- HP-08 -->
+<div class="bug-block p2" id="hp08">
+  <div class="bug-header">
+    <span class="badge badge-blue">P2</span>
+    HP-08: KpiCardData.value — restringir tipo a number
+    <span class="dep-tag">Independente</span>
+  </div>
+  <div class="context">
+    <p><strong>Arquivo:</strong> <code>~/beta-mdflow/src/types/homepage.ts</code> (linha 4)</p>
+    <p><strong>Causa raiz:</strong> <code>value: number | string</code> mas AnimatedNumber so anima numbers. Strings nao-numericas viram 0 silenciosamente.</p>
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-hp08')">Copiar</button>
+<pre id="prompt-hp08">Restringir KpiCardData.value para apenas number.
+
+## Arquivo 1: ~/beta-mdflow/src/types/homepage.ts
+Linha 4 — trocar:
+```typescript
+value: number | string;
+```
+Por:
+```typescript
+value: number;
+```
+
+## Arquivo 2: ~/beta-mdflow/src/components/homepage/homepage_kpi_card.tsx
+Linha 10 — trocar:
+```typescript
+value: number | string;
+```
+Por:
+```typescript
+value: number;
+```
+
+Linha 55 — remover a conversao que ja nao eh necessaria. Trocar:
+```typescript
+const numericValue = typeof value === 'number' ? value : parseFloat(value) || 0;
+```
+Por:
+```typescript
+const numericValue = value;
+```
+
+Todos os builders (buildKpisJuridico, buildKpisComercial) ja passam numeros, entao nao ha quebra.</pre>
+  </div>
+</div>
+
+<!-- ============================== MEGA PROMPT ============================== -->
+<div class="section-divider"><span>Mega Prompt de Revisao</span></div>
+
+<div class="bug-block" style="border-left: 4px solid var(--primary);">
+  <div class="bug-header">
+    <span class="badge badge-green">FINAL</span>
+    Mega Prompt de Revisao — rodar DEPOIS de todos os 8 prompts acima
+  </div>
+  <div class="prompt-box">
+    <button class="copy-btn" onclick="copyPrompt('prompt-mega')">Copiar</button>
+<pre id="prompt-mega">Revisao final dos 8 fixes da homepage. Verificar CADA um e gerar relatorio.
+
+## Checklist de verificacao
+
+### HP-01: RPC get_homepage_ranking
+- [ ] Migration existe em ~/beta-mdflow/supabase/migrations/20260331100001_fix_homepage_ranking_advogado_id.sql
+- [ ] Aplicar migration: `cd ~/beta-mdflow && npx supabase db push --linked`
+- [ ] Confirmar via curl:
+```bash
+source ~/.env
+curl -s "https://qdivfairxhdihaqqypgb.supabase.co/rest/v1/rpc/get_homepage_ranking" \
+  -X POST -H "apikey: $SUPABASE_KEY" -H "Authorization: Bearer $SUPABASE_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"p_user_id":"a1000001-0000-4000-8000-000000000001","p_org_id":"55a0c7ba-1a23-4ae1-b69b-a13811324735"}'
+```
+Esperado: array com objetos {user_id, user_nome, score} (nao erro 42703)
+
+### HP-02: useHomepageGestor isolamento de erros
+- [ ] ~/beta-mdflow/src/hooks/useHomepageGestor.ts nao tem mais `throw err` no loop
+- [ ] Retorna dados parciais quando 1 RPC falha
+
+### HP-03: staleTime 30_000
+- [ ] useHomepagePessoal.ts tem `staleTime: 30_000`
+- [ ] useHomepageGestor.ts tem `staleTime: 30_000`
+- [ ] useHomepageAvisos.ts tem `staleTime: 30_000`
+
+### HP-04: RPC taxa_conversao
+- [ ] Migration existe em ~/beta-mdflow/supabase/migrations/20260331100002_fix_homepage_taxa_conversao.sql
+- [ ] Aplicar migration (junto com HP-01 se ainda nao foi)
+- [ ] Confirmar via curl que taxa_conversao <= 100
+
+### HP-05: Perfil operacional
+- [ ] Gate logic em pages/homepage/index.tsx inclui 'operacional' -> ViewJuridico
+
+### HP-06: Audiencias filtro user_id
+- [ ] homepage_audiencias_dia.tsx filtra por advogado_id do usuario
+
+### HP-07: KpiGrid colunas
+- [ ] lgColsMap tem entradas para 6 e 7
+
+### HP-08: KpiCardData.value number
+- [ ] types/homepage.ts: value eh `number` (sem `| string`)
+- [ ] homepage_kpi_card.tsx: value eh `number`, sem parseFloat
+
+## Apos verificar tudo
+
+### Git commit + push (OBRIGATORIO)
+```bash
+cd ~/beta-mdflow
+git add -A
+git commit -m "fix(homepage): execution-v1 — HP-01 a HP-08 corrigidos
+
+- HP-01: RPC ranking corrigida (advogado_id em vez de responsavel_id)
+- HP-02: useHomepageGestor isola erros por RPC
+- HP-03: staleTime 30_000 nos 3 hooks
+- HP-04: taxa_conversao formula corrigida (<= 100%)
+- HP-05: perfil operacional mapeia para ViewJuridico
+- HP-06: audiencias filtradas por advogado_id
+- HP-07: KpiGrid suporta 6-7 colunas
+- HP-08: KpiCardData.value restrito a number"
+git push origin main
+```
+
+### Gerar HTML de resultado
+Salvar em `~/jarbas-reports/beto/homepage/execution-result-v1-2026-03-31.html` com:
+- Tabela: BUG | Status (check/x/warning) | Evidencia | Observacao
+- Hash do commit
+- Migrations aplicadas + confirmacao
+- O que ainda precisa ser feito (se houver)
+
+Depois:
+```bash
+cd ~/jarbas-reports && git add beto/ && git commit -m "beto: execution-result homepage v1" && git push
+```</pre>
+  </div>
+</div>
+
+<!-- ============================== FOOTER ============================== -->
+<div class="footer">
+  <p><strong>8 prompts</strong> &bull; Sequencia: HP-01 primeiro, HP-02 segundo, depois HP-03~HP-08 em qualquer ordem &bull; Mega prompt por ultimo</p>
+  <p style="margin-top: 0.5rem;">Apos todos os prompts executados, mande o HTML de resultado aqui para continuar o loop.</p>
+  <p style="margin-top: 1rem; font-size: 0.75rem;">Execution Plan gerado por JARBAS/Beto &bull; 2026-03-31</p>
+</div>
+
+</body>
+</html>

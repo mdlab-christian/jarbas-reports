@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Execution Plan — documentos-pendentes v1</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --bg: #12100e; --surface: #1a1815; --surface2: #221f1c;
+  --border: #2d2925; --primary: #20c997; --primary-dim: rgba(32,201,151,0.15);
+  --text: #e8e0d8; --text-muted: #8a7f78;
+  --red: #ef4444; --red-dim: rgba(239,68,68,0.15);
+  --yellow: #f59e0b; --yellow-dim: rgba(245,158,11,0.15);
+  --blue: #3b82f6; --blue-dim: rgba(59,130,246,0.15);
+  --green: #22c55e; --green-dim: rgba(34,197,94,0.12);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; margin: 0; padding: 24px; max-width: 960px; margin: 0 auto; line-height: 1.6; }
+h1 { font-family: 'Manrope', sans-serif; font-size: 1.9rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+h2 { font-family: 'Manrope', sans-serif; font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 32px 0 12px; }
+.subtitle { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px; }
+.meta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 28px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.78rem; font-weight: 600; border: 1px solid; }
+.chip-p0 { background: var(--red-dim); color: var(--red); border-color: rgba(239,68,68,0.3); }
+.chip-p1 { background: var(--yellow-dim); color: var(--yellow); border-color: rgba(245,158,11,0.3); }
+.chip-p2 { background: var(--blue-dim); color: var(--blue); border-color: rgba(59,130,246,0.3); }
+.chip-total { background: var(--primary-dim); color: var(--primary); border-color: rgba(32,201,151,0.3); }
+/* Index */
+.index { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 22px; margin-bottom: 32px; }
+.index h3 { font-family: 'Manrope', sans-serif; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); margin-bottom: 12px; }
+.index-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.index-list li a { color: var(--text); text-decoration: none; font-size: 0.83rem; display: flex; align-items: center; gap: 8px; }
+.index-list li a:hover { color: var(--primary); }
+.idx-badge { font-size: 0.68rem; font-weight: 700; padding: 1px 7px; border-radius: 10px; flex-shrink: 0; }
+.idx-p0 { background: var(--red-dim); color: var(--red); }
+.idx-p1 { background: var(--yellow-dim); color: var(--yellow); }
+.idx-p2 { background: var(--blue-dim); color: var(--blue); }
+/* Bug blocks */
+.bug-block { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 20px; overflow: hidden; }
+.bug-block.p0 { border-left: 4px solid var(--red); }
+.bug-block.p1 { border-left: 4px solid var(--yellow); }
+.bug-block.p2 { border-left: 4px solid var(--blue); }
+.bug-header { padding: 16px 20px 12px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 10px; flex-wrap: wrap; }
+.bug-id { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); padding-top: 3px; flex-shrink: 0; }
+.bug-title { font-size: 0.95rem; font-weight: 600; flex: 1; min-width: 200px; }
+.bug-file { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--blue); background: var(--blue-dim); padding: 2px 8px; border-radius: 4px; }
+.bug-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; }
+.section-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-muted); font-weight: 600; margin-bottom: 5px; }
+.code { font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; background: #0d0b09; border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; overflow-x: auto; white-space: pre; line-height: 1.55; color: #a8d8a8; }
+.cause-text { font-size: 0.84rem; color: var(--text); line-height: 1.55; }
+/* Prompt box */
+.prompt-wrap { background: #0d0b09; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.prompt-top { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+.prompt-label { font-size: 0.72rem; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.06em; }
+.copy-btn { background: var(--primary-dim); color: var(--primary); border: 1px solid rgba(32,201,151,0.3); padding: 4px 12px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+.copy-btn:hover { background: rgba(32,201,151,0.25); }
+.prompt-content { padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; line-height: 1.6; color: #e8e0d8; white-space: pre-wrap; max-height: 420px; overflow-y: auto; }
+.dep-note { display: flex; align-items: center; gap: 8px; background: var(--yellow-dim); border: 1px solid rgba(245,158,11,0.25); border-radius: 6px; padding: 7px 12px; font-size: 0.78rem; color: var(--yellow); }
+/* Mega prompt */
+.mega-block { background: var(--surface); border: 2px solid var(--primary); border-radius: 12px; margin-top: 32px; overflow: hidden; }
+.mega-header { background: var(--primary-dim); padding: 14px 20px; display: flex; align-items: center; gap: 10px; }
+.mega-header h2 { color: var(--primary); margin: 0; font-size: 1rem; }
+/* Footer */
+.footer-note { margin-top: 36px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; font-size: 0.82rem; color: var(--text-muted); text-align: center; }
+hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+</style>
+</head>
+<body>
+
+<h1>Execution Plan — /documentos-pendentes v1</h1>
+<p class="subtitle">2026-03-31 · 12 bugs · gerado por page-executor</p>
+
+<div class="meta-row">
+  <span class="chip chip-total">12 prompts</span>
+  <span class="chip chip-p0">2 P0 — Bloqueantes</span>
+  <span class="chip chip-p1">5 P1 — Alto</span>
+  <span class="chip chip-p2">5 P2 — Médio</span>
+</div>
+
+<!-- INDEX -->
+<div class="index">
+  <h3>Índice de execução</h3>
+  <ul class="index-list">
+    <li><a href="#p0-001"><span class="idx-badge idx-p0">P0</span> BUG-P0-001 — n8n COBRAR: workflow espera pendencia_id mas frontend envia modo bulk</a></li>
+    <li><a href="#p0-002"><span class="idx-badge idx-p0">P0</span> BUG-P0-002 — Exportar: response action=download_file com content (texto) mas frontend espera result_url</a></li>
+    <li><a href="#p1-001"><span class="idx-badge idx-p1">P1</span> BUG-P1-001 — NovoDocumentoModal: import duplicado diferenceInCalendarDays/parseISO linha 34</a></li>
+    <li><a href="#p1-002"><span class="idx-badge idx-p1">P1</span> BUG-P1-002 — ModoSequencialSheet: if/if sobrescreve arquivo_url com link_url (linha 227)</a></li>
+    <li><a href="#p1-005"><span class="idx-badge idx-p1">P1</span> BUG-P1-005 — ReabrirPendenciaModal: UI diz "Opcional" mas webhook exige mínimo 10 chars</a></li>
+    <li><a href="#p1-004"><span class="idx-badge idx-p1">P1</span> BUG-P1-004 — PendenciaAccordion: botão "Cobrar" chama openCockpit em vez de ação de cobrança</a></li>
+    <li><a href="#p1-003"><span class="idx-badge idx-p1">P1</span> BUG-P1-003 — ModoSequencial: atualiza Supabase direto bypassando n8n (viola P-11) [após P1-002]</a></li>
+    <li><a href="#p2-002"><span class="idx-badge idx-p2">P2</span> BUG-P2-002 — ProcessoGroup.numero_cnj tipado string mas banco permite NULL</a></li>
+    <li><a href="#p2-003"><span class="idx-badge idx-p2">P2</span> BUG-P2-003 — DocPendentesBulkBar: emoji 📱 hardcoded no JSX</a></li>
+    <li><a href="#p2-004"><span class="idx-badge idx-p2">P2</span> BUG-P2-004 — ClienteCockpitSheet: link WhatsApp sem validação de comprimento mínimo</a></li>
+    <li><a href="#p2-001"><span class="idx-badge idx-p2">P2</span> BUG-P2-001 — DRY: isCritico/isVencido duplicadas em 4 arquivos</a></li>
+    <li><a href="#p2-005"><span class="idx-badge idx-p2">P2</span> BUG-P2-005 — ConfirmarResolverModal: update direto arquivo_url antes do webhook — estado parcial</a></li>
+  </ul>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- BUG-P0-001 -->
+<!-- ============================================================ -->
+<div class="bug-block p0" id="p0-001">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P0-001</div>
+    <div class="bug-title">n8n COBRAR: workflow espera <code>pendencia_id</code> mas frontend envia modo bulk (<code>modo: "todos"</code> / <code>modo: "selecionados"</code>)</div>
+    <span class="chip chip-p0" style="font-size:0.7rem;padding:3px 10px">P0</span>
+    <span class="bug-file">n8n · N8N-DOCPEND-COBRAR (ID: DPXxQIQsOpR4c9so)</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Causa raiz confirmada</div>
+      <p class="cause-text">O nó "Validate + Extract" do workflow N8N-DOCPEND-COBRAR espera <code>data.pendencia_id || data.id</code> (para cobrar UMA pendência). O frontend envia dois payloads distintos:<br>
+      • "Cobrar Todos": <code>{ data: { modo: "todos", filtros_ativos: {...} } }</code><br>
+      • "Bulk Cobrar selecionados": <code>{ data: { modo: "selecionados", ids: ["uuid1","uuid2",...] } }</code><br>
+      Como nenhum tem <code>pendencia_id</code>, o throw na validação ativa o Error Trigger → responde <code>{"message": "Workflow execution failed"}</code>.</p>
+    </div>
+    <div>
+      <div class="section-label">Solução — refatorar Validate + Extract para modo bulk</div>
+      <div class="code">// Validate + Extract — NOVO código (substituir completamente):
+const body = $input.first().json.body || $input.first().json;
+const data = body.data || {};
+const orgId = body.organizacao_id;
+const userId = body.user_id || body.actor_user_id;
+const requestId = body.request_id;
+const modo = data.modo || 'single';
+
+if (!orgId) throw new Error('organizacao_id obrigatorio');
+
+// Normaliza IDs a cobrar
+let ids = [];
+if (modo === 'todos') {
+  ids = null; // sinal: buscar TODOS os pendentes da org no próximo nó
+} else if (modo === 'selecionados') {
+  if (!Array.isArray(data.ids) || data.ids.length === 0)
+    throw new Error('modo selecionados requer data.ids (array)');
+  ids = data.ids;
+} else {
+  // modo single (backward compat)
+  const pid = data.pendencia_id || data.id;
+  if (!pid) throw new Error('pendencia_id obrigatorio para modo single');
+  ids = [pid];
+}
+
+return [{ json: { organizacao_id: orgId, user_id: userId, request_id: requestId, modo, ids, filtros_ativos: data.filtros_ativos || {} } }];</div>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p0-001">Corrigir BUG-P0-001: workflow n8n N8N-DOCPEND-COBRAR não aceita modo bulk.
+
+CONTEXTO:
+O workflow n8n "N8N-DOCPEND-COBRAR" (ID: DPXxQIQsOpR4c9so) tem o nó "Validate + Extract" que exige
+data.pendencia_id ou data.id. Porém, o frontend envia:
+  - "Cobrar Todos": { data: { modo: "todos", filtros_ativos: {...} } }
+  - "Bulk Cobrar": { data: { modo: "selecionados", ids: ["uuid1","uuid2"] } }
+Resultado: throw → Error Trigger → {"message": "Workflow execution failed"}.
+
+TAREFA:
+Usar o n8n API para atualizar o nó "Validate + Extract" do workflow N8N-DOCPEND-COBRAR.
+
+ACESSO N8N:
+  source ~/.env
+  # GET workflow:
+  curl -s "https://primary-production-e209.up.railway.app/api/v1/workflows/DPXxQIQsOpR4c9so" \
+    -H "X-N8N-API-KEY: $N8N_API_KEY" | jq
+
+NOVO CÓDIGO para o nó "Validate + Extract" (jsCode):
+
+const body = $input.first().json.body || $input.first().json;
+const data = body.data || {};
+const orgId = body.organizacao_id;
+const userId = body.user_id || body.actor_user_id;
+const requestId = body.request_id;
+const modo = data.modo || 'single';
+
+if (!orgId) throw new Error('organizacao_id obrigatorio');
+
+let ids;
+if (modo === 'todos') {
+  ids = null; // sinal: buscar TODOS os pendentes ativos da org
+} else if (modo === 'selecionados') {
+  if (!Array.isArray(data.ids) || data.ids.length === 0)
+    throw new Error('modo selecionados requer data.ids (array nao vazio)');
+  ids = data.ids;
+} else {
+  const pid = data.pendencia_id || data.id;
+  if (!pid) throw new Error('pendencia_id obrigatorio para modo single');
+  ids = [pid];
+}
+
+return [{ json: {
+  organizacao_id: orgId, user_id: userId, request_id: requestId,
+  modo, ids, filtros_ativos: data.filtros_ativos || {}
+} }];
+
+TAMBÉM verificar o nó "Buscar Pendencia" (singular) — ele busca UMA pendência pelo ID.
+Para modo "todos"/"selecionados" precisa buscar múltiplas. Renomear para "Buscar Pendencias" e usar:
+
+var https = require('https');
+var SUPABASE_HOST = 'qdivfairxhdihaqqypgb.supabase.co';
+var SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY';
+
+function httpsGet(path) {
+  return new Promise(function(resolve, reject) {
+    var opts = { hostname: SUPABASE_HOST, path, method: 'GET',
+      headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } };
+    var req = require('https').request(opts, function(res) {
+      var b = ''; res.on('data', d => b += d);
+      res.on('end', () => resolve(JSON.parse(b)));
+    }); req.on('error', reject); req.end();
+  });
+}
+
+var d = $input.first().json;
+var orgId = d.organizacao_id;
+var modo = d.modo;
+var ids = d.ids;
+
+var basePath = '/rest/v1/documentos_pendentes?organizacao_id=eq.' + encodeURIComponent(orgId) +
+  '&deleted_at=is.null&status=in.(sugerido,solicitado)' +
+  '&select=id,titulo,status,prazo_limite,wa_followup_count,clientes(id,nome,telefone,whatsapp)' +
+  '&order=urgente.desc,prazo_limite.asc.nullslast&limit=200';
+
+var queryPath = basePath;
+if (modo === 'selecionados' && ids && ids.length > 0) {
+  queryPath += '&id=in.(' + ids.map(encodeURIComponent).join(',') + ')';
+}
+
+var rows = await httpsGet(queryPath);
+if (!Array.isArray(rows)) throw new Error('Supabase error: ' + JSON.stringify(rows).slice(0, 200));
+if (!rows.length) return [{ json: { _empty: true, modo, organizacao_id: orgId } }];
+
+// Retorna 1 item por pendência para o nó de geração de mensagem processar em loop
+return rows.map(r => ({ json: { ...r, _meta: { organizacao_id: orgId, user_id: d.user_id, request_id: d.request_id } } }));
+
+ATENÇÃO: O nó "OlivIA Gerar Mensagem" e "Registrar + Inserir" já iteram sobre items individuais do
+$input, então processarão cada pendência do array automaticamente. Manter esses dois nós sem alteração.
+
+VERIFICAR após mudança:
+  # Teste modo todos:
+  curl -s -X POST https://primary-production-e209.up.railway.app/webhook/mdflow/documentos_pendentes/cobrar \
+    -H "Content-Type: application/json" -H "mdflow: MdL1501@" \
+    -d '{"organizacao_id":"55a0c7ba-1a23-4ae1-b69b-a13811324735","user_id":"test","request_id":"test-001","data":{"modo":"todos"}}' | jq
+
+  # Resultado esperado: success: true, action: toast_refresh ou similar (não "Workflow execution failed")
+
+NÃO alterar arquivos .tsx — apenas n8n.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P0-002 -->
+<!-- ============================================================ -->
+<div class="bug-block p0" id="p0-002">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P0-002</div>
+    <div class="bug-title">Exportar: n8n retorna <code>data.content</code> (texto CSV) mas frontend tenta <code>window.open(data.result_url)</code> — nada acontece</div>
+    <span class="chip chip-p0" style="font-size:0.7rem;padding:3px 10px">P0</span>
+    <span class="bug-file">hooks/useDocPendentesBulkActions.ts:108 + n8n N8N-DOCPEND-EXPORTAR</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Causa raiz confirmada</div>
+      <p class="cause-text">O n8n N8N-DOCPEND-EXPORTAR (ID: 6a0a9XTVT67PkTjQ) retorna:<br>
+      <code>{ success: true, action: "download_file", data: { content: "col1;col2\n...", filename: "xxx.csv", mime_type: "text/csv", total: N } }</code><br>
+      O frontend em <code>useDocPendentesBulkActions.ts:108</code> tenta:<br>
+      <code>if (result.action === 'download_file' &amp;&amp; result.data?.result_url) window.open(result.data.result_url)</code><br>
+      Como <code>result_url</code> não existe (campo é <code>content</code>), a condição é falsa e cai no else genérico de toast. Nenhum arquivo é baixado.</p>
+    </div>
+    <div>
+      <div class="section-label">Fix — frontend handleExportar (linha 108)</div>
+      <div class="code">// ATUAL (linha 108):
+if (result.action === 'download_file' && (result.data as Record&lt;string, unknown&gt;)?.result_url) {
+  window.open(String((result.data as Record&lt;string, unknown&gt;).result_url), '_blank');
+}
+
+// CORRIGIDO — suporta content (Blob) e result_url:
+if (result.action === 'download_file') {
+  const d = result.data as Record&lt;string, unknown&gt;;
+  if (d?.result_url) {
+    window.open(String(d.result_url), '_blank');
+  } else if (d?.content != null) {
+    const blob = new Blob([String(d.content)], { type: String(d.mime_type ?? 'text/csv') });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = String(d.filename ?? 'exportacao.csv');
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+  }
+}</div>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p0-002">Corrigir BUG-P0-002: botão "Exportar" em /documentos-pendentes não baixa arquivo.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/hooks/useDocPendentesBulkActions.ts
+
+CAUSA:
+O n8n retorna action="download_file" com data.content (texto CSV), data.filename e data.mime_type.
+O frontend espera data.result_url (uma URL), então a condição linha 108 é sempre false.
+
+CORREÇÃO na função handleExportar (linhas 108-114):
+
+Substituir:
+      if (result.action === 'download_file' && (result.data as Record<string, unknown>)?.result_url) {
+        window.open(String((result.data as Record<string, unknown>).result_url), '_blank');
+      } else if (result.action === 'toast_error') {
+
+Por:
+      if (result.action === 'download_file') {
+        const d = result.data as Record<string, unknown>;
+        if (d?.result_url) {
+          window.open(String(d.result_url), '_blank');
+        } else if (d?.content != null) {
+          const blob = new Blob([String(d.content)], { type: String(d.mime_type ?? 'text/csv') });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = String(d.filename ?? 'exportacao.csv');
+          document.body.appendChild(a);
+          a.click();
+          setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 500);
+        }
+      } else if (result.action === 'toast_error') {
+
+VERIFICAR após fix:
+Clicar em "Exportar" na página /documentos-pendentes deve baixar o arquivo CSV.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- BUG-P1-001 -->
+<!-- ============================================================ -->
+<div class="bug-block p1" id="p1-001">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P1-001</div>
+    <div class="bug-title">Import duplicado de <code>differenceInCalendarDays</code> e <code>parseISO</code> em NovoDocumentoModal.tsx:34</div>
+    <span class="chip chip-p1" style="font-size:0.7rem;padding:3px 10px">P1</span>
+    <span class="bug-file">modals/NovoDocumentoModal.tsx:34</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Snippet do bug</div>
+      <div class="code">// linha 7 — correto (mantém):
+import { format, addDays, differenceInCalendarDays, parseISO } from 'date-fns';
+// ...
+// linha 34 — DUPLICATA (remover):
+import { differenceInCalendarDays, parseISO } from 'date-fns';</div>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p1-001">Corrigir BUG-P1-001: import duplicado em NovoDocumentoModal.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/modals/NovoDocumentoModal.tsx
+
+PROBLEMA: Linha 34 duplica imports já presentes na linha 7.
+
+Remover a linha 34 inteira:
+  import { differenceInCalendarDays, parseISO } from 'date-fns';
+
+A linha 7 já contém todos os símbolos necessários:
+  import { format, addDays, differenceInCalendarDays, parseISO } from 'date-fns';
+
+Independente. Não tem dependência de outros bugs.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P1-002 -->
+<!-- ============================================================ -->
+<div class="bug-block p1" id="p1-002">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P1-002</div>
+    <div class="bug-title">ModoSequencialSheet: <code>if/if</code> na linha 227 sobrescreve <code>arquivo_url</code> com <code>link_url</code></div>
+    <span class="chip chip-p1" style="font-size:0.7rem;padding:3px 10px">P1</span>
+    <span class="bug-file">sheets/ModoSequencialSheet.tsx:226–227</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Snippet do bug</div>
+      <div class="code">// ATUAL (bug):
+if (ri.arquivo_url) updatePayload.arquivo_url = ri.arquivo_url;  // linha 226
+if (ri.link_url) updatePayload.arquivo_url = ri.link_url;        // linha 227 ← SOBRESCREVE!
+
+// CORRETO:
+if (ri.arquivo_url) updatePayload.arquivo_url = ri.arquivo_url;
+else if (ri.link_url) updatePayload.arquivo_url = ri.link_url;</div>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p1-002">Corrigir BUG-P1-002: if/if sobrescreve arquivo_url com link_url em ModoSequencialSheet.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/sheets/ModoSequencialSheet.tsx
+
+LOCALIZAR as linhas 226-227 (dentro do loop `for (const ri of resolvedItems)`):
+  if (ri.arquivo_url) updatePayload.arquivo_url = ri.arquivo_url;
+  if (ri.link_url) updatePayload.arquivo_url = ri.link_url;
+
+SUBSTITUIR por:
+  if (ri.arquivo_url) updatePayload.arquivo_url = ri.arquivo_url;
+  else if (ri.link_url) updatePayload.arquivo_url = ri.link_url;
+
+Independente. Não tem dependência de outros bugs.
+BUG-P1-003 depende deste bug (será executado depois).
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P1-005 -->
+<!-- ============================================================ -->
+<div class="bug-block p1" id="p1-005">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P1-005</div>
+    <div class="bug-title">ReabrirPendenciaModal: UI diz "Opcional" mas webhook exige motivo mínimo 10 chars</div>
+    <span class="chip chip-p1" style="font-size:0.7rem;padding:3px 10px">P1</span>
+    <span class="bug-file">modals/ReabrirPendenciaModal.tsx:92</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Evidência do webhook</div>
+      <div class="code">// Teste: POST /webhook/mdflow/documentos_pendentes/reabrir sem motivo
+Response: {
+  "success": false,
+  "message": "Payload invalido: data.motivo obrigatorio (min 10 chars)",
+  "error_code": "VALIDATION_ERROR"
+}</div>
+    </div>
+    <div>
+      <div class="section-label">Fixes necessários</div>
+      <div class="code">// 1. Linha 92 — mudar hint "Opcional" para informar a obrigatoriedade:
+// ATUAL:
+&lt;p className="text-[11px] text-muted-foreground"&gt;Opcional. Fica registrado no histórico.&lt;/p&gt;
+// CORRETO:
+&lt;p className="text-[11px] text-muted-foreground"&gt;Obrigatório (mín. 10 caracteres). Fica registrado no histórico.&lt;/p&gt;
+
+// 2. Adicionar validação frontend antes de chamar handleConfirm:
+// No botão "Reabrir Pendência", desabilitar se motivo.trim().length &lt; 10:
+disabled={submitting || motivo.trim().length &lt; 10}
+
+// 3. Mostrar contador de caracteres:
+&lt;p className="text-[11px] text-muted-foreground"&gt;
+  {motivo.trim().length &lt; 10
+    ? `Obrigatório — faltam ${10 - motivo.trim().length} caracteres`
+    : 'Fica registrado no histórico.'}
+&lt;/p&gt;</div>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p1-005">Corrigir BUG-P1-005: ReabrirPendenciaModal diz "Opcional" mas webhook exige min 10 chars no motivo.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/modals/ReabrirPendenciaModal.tsx
+
+PROBLEMA:
+- Linha 92: texto "Opcional. Fica registrado no histórico." está errado
+- Webhook /documentos_pendentes/reabrir retorna VALIDATION_ERROR se motivo.trim().length < 10
+- Botão não tem validação frontend — usuário submete e recebe erro genérico de comunicação
+
+CORREÇÕES:
+
+1. Botão "Reabrir Pendência" (linha ~99): adicionar disabled quando motivo insuficiente:
+ANTES:  disabled={submitting}
+DEPOIS: disabled={submitting || motivo.trim().length < 10}
+
+2. Substituir linha 92 (hint do campo):
+ANTES:  <p className="text-[11px] text-muted-foreground">Opcional. Fica registrado no histórico.</p>
+DEPOIS:
+<p className="text-[11px] text-muted-foreground">
+  {motivo.trim().length < 10
+    ? `Obrigatório — ${10 - motivo.trim().length} caractere(s) restante(s)`
+    : 'Fica registrado no histórico.'}
+</p>
+
+Independente. Não tem dependência de outros bugs.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P1-004 -->
+<!-- ============================================================ -->
+<div class="bug-block p1" id="p1-004">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P1-004</div>
+    <div class="bug-title">PendenciaAccordion: botão "Cobrar" (MessageCircle) chama <code>openCockpit</code> em vez de iniciar cobrança</div>
+    <span class="chip chip-p1" style="font-size:0.7rem;padding:3px 10px">P1</span>
+    <span class="bug-file">components/PendenciaAccordion.tsx:179</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Snippet do bug</div>
+      <div class="code">// Ambos os botões chamam o mesmo handler — botão "Cobrar" é redundante:
+// Botão MessageCircle tooltip="Cobrar" (linha 179):
+onClick={() => onOpenCockpit?.(g.cliente_id, g.cliente_nome)}
+
+// Botão LayoutDashboard tooltip="Ver Cockpit" (linha 187):
+onClick={() => onOpenCockpit?.(g.cliente_id, g.cliente_nome)}  // IDÊNTICO</div>
+    </div>
+    <div>
+      <div class="section-label">Solução recomendada — remover botão redundante</div>
+      <p class="cause-text">O cockpit já tem a funcionalidade de cobrança internamente. Remover o botão MessageCircle duplicado e manter apenas o LayoutDashboard "Ver Cockpit". Alternativamente: adicionar prop <code>onCobrarCliente</code> no accordion e abrir o ClienteCockpitSheet já na aba de cobrança. A solução mais simples e segura é remover o botão duplicado.</p>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p1-004">Corrigir BUG-P1-004: botão "Cobrar" no accordion header é redundante (mesmo comportamento que "Ver Cockpit").
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/PendenciaAccordion.tsx
+
+PROBLEMA: Linhas 177-184 (botão MessageCircle com tooltip "Cobrar") e linhas 185-193 (botão LayoutDashboard com tooltip "Ver Cockpit") chamam exatamente a mesma função onOpenCockpit. Dois botões com comportamento idêntico.
+
+SOLUÇÃO: Remover o bloco do botão MessageCircle (linhas 177-184 aproximadamente):
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onOpenCockpit?.(g.cliente_id, g.cliente_nome)}>
+        <MessageCircle className="h-4 w-4" />
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>Cobrar</TooltipContent>
+  </Tooltip>
+
+Manter apenas o botão LayoutDashboard "Ver Cockpit".
+
+VERIFICAR: Importações de MessageCircle — se não usado mais em nenhum lugar do arquivo, remover do import.
+
+Independente. Não tem dependência de outros bugs.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P1-003 -->
+<!-- ============================================================ -->
+<div class="bug-block p1" id="p1-003">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P1-003</div>
+    <div class="bug-title">ModoSequencialSheet: atualiza Supabase diretamente bypassando n8n (viola P-11) — fire-and-forget no webhook</div>
+    <span class="chip chip-p1" style="font-size:0.7rem;padding:3px 10px">P1</span>
+    <span class="bug-file">sheets/ModoSequencialSheet.tsx:220–250</span>
+  </div>
+  <div class="bug-body">
+    <div class="dep-note">⚠️ Dependência: executar APÓS BUG-P1-002 (que corrige o if/else-if na linha 227 do mesmo arquivo)</div>
+    <div>
+      <div class="section-label">Causa raiz</div>
+      <p class="cause-text">O ModoSequencialSheet faz UPDATE direto no Supabase (status='recebido', arquivo_url) para cada item do lote, depois dispara o webhook <code>documentos_pendentes/resolver_lote</code> com <code>.catch(() => {})</code> (fire-and-forget sem await). Violações:<br>
+      • P-11: lógica de negócio no frontend em vez do n8n<br>
+      • Auditoria incompleta (side-effects de notificação pulados)<br>
+      • Status alterado mesmo se n8n falhar silenciosamente</p>
+    </div>
+    <div>
+      <div class="section-label">Solução — passar arquivo_url no payload do webhook e aguardar resposta</div>
+      <div class="code">// REMOVER o loop de update direto (linhas 220-236)
+// SUBSTITUIR o fire-and-forget do callWebhook por versão com await:
+
+// NOVO — enviar arquivos + links no payload do webhook (n8n resolve tudo):
+const result = await callWebhook('documentos_pendentes/resolver_lote', {
+  organizacao_id,
+  user_id: user?.user_id,
+  request_id: crypto.randomUUID(),
+  timestamp: new Date().toISOString(),
+  origem_rota: '/documentos_pendentes',
+  contexto: 'documentos_pendentes.resolver_sequencial',
+  data: {
+    items: resolvedItems.map(ri => ({
+      pendencia_id: ri.pendencia_id,
+      arquivo_url: ri.arquivo_url ?? null,
+      link_url: ri.link_url || null,
+      observacao: ri.observacao || null,
+    })),
+    total: resolvedItems.length,
+  },
+}, { timeout: 60_000 });
+
+if (result.action === 'toast_error') {
+  throw new Error(result.message ?? 'Erro ao resolver lote no servidor');
+}</div>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p1-003">Corrigir BUG-P1-003: ModoSequencialSheet bypassa n8n com update direto no Supabase (viola P-11).
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/sheets/ModoSequencialSheet.tsx
+
+CONTEXTO:
+O bloco nas linhas 220-250 (dentro da função handleSubmit/commitBatch):
+1. Faz loop for (const ri of resolvedItems) e UPDATE direto no Supabase — bypassando n8n
+2. Dispara callWebhook fire-and-forget (.catch(() => {})) — sem aguardar resultado
+
+CORREÇÃO: Remover o loop de update direto. Passar os dados no payload do webhook e aguardar resposta.
+
+LOCALIZAR este bloco (linhas ~220-250):
+  // 2. Update each pendência in Supabase
+  for (const ri of resolvedItems) {
+    const updatePayload: Record<string, unknown> = {
+      status: 'recebido',
+      updated_at: new Date().toISOString(),
+    };
+    if (ri.arquivo_url) updatePayload.arquivo_url = ri.arquivo_url;
+    else if (ri.link_url) updatePayload.arquivo_url = ri.link_url;   // (já corrigido pelo P1-002)
+    if (ri.observacao) updatePayload.observacoes = ri.observacao;
+    const { error } = await supabase
+      .from('documentos_pendentes')
+      .update(updatePayload)
+      .eq('id', ri.pendencia_id)
+      .eq('organizacao_id', organizacao_id!);
+    if (error) throw error;
+  }
+
+  // 3. Fire-and-forget webhook for n8n side effects
+  callWebhook('documentos_pendentes/resolver_lote', {
+    ...
+  }).catch(() => {});
+
+SUBSTITUIR TODO esse bloco (etapas 2 e 3) por:
+  // 2. Delegar ao n8n (único ponto de verdade — P-11)
+  const result = await callWebhook('documentos_pendentes/resolver_lote', {
+    organizacao_id,
+    user_id: user?.user_id,
+    request_id: crypto.randomUUID(),
+    timestamp: new Date().toISOString(),
+    origem_rota: '/documentos_pendentes',
+    contexto: 'documentos_pendentes.resolver_sequencial',
+    data: {
+      items: resolvedItems.map(ri => ({
+        pendencia_id: ri.pendencia_id,
+        arquivo_url: ri.arquivo_url ?? null,
+        link_url: ri.link_url || null,
+        observacao: ri.observacao || null,
+      })),
+      total: resolvedItems.length,
+    },
+  }, { timeout: 60_000 });
+
+  if (result.action === 'toast_error') {
+    throw new Error(result.message ?? 'Erro ao resolver lote no servidor');
+  }
+
+REMOVER import { supabase } if not used elsewhere no arquivo — verificar primeiro.
+
+Executar APÓS BUG-P1-002.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- BUG-P2-002 -->
+<!-- ============================================================ -->
+<div class="bug-block p2" id="p2-002">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P2-002</div>
+    <div class="bug-title"><code>ProcessoGroup.numero_cnj</code> tipado como <code>string</code> mas banco permite NULL (3 processos com NULL confirmados)</div>
+    <span class="chip chip-p2" style="font-size:0.7rem;padding:3px 10px">P2</span>
+    <span class="bug-file">types/documentos-pendentes.types.ts:30</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p2-002">Corrigir BUG-P2-002: ProcessoGroup.numero_cnj tipado como string mas banco permite NULL.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/types/documentos-pendentes.types.ts
+
+LOCALIZAR linha 30 (interface ProcessoGroup):
+  numero_cnj: string;
+
+SUBSTITUIR por:
+  numero_cnj: string | null;
+
+VERIFICAR se algum arquivo consome numero_cnj sem null check — buscar usos:
+  grep -n "numero_cnj" ~/beta-mdflow/src/pages/documentos-pendentes/components/PendenciaAccordion.tsx
+
+NOTA: PendenciaAccordion.tsx já tem guard: {proc.numero_cnj ? <CopyableCNJ .../> : <span>Processo sem CNJ</span>}
+Então não deve quebrar nenhum consumidor.
+
+Independente. Não tem dependência de outros bugs.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P2-003 -->
+<!-- ============================================================ -->
+<div class="bug-block p2" id="p2-003">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P2-003</div>
+    <div class="bug-title">Emoji 📱 hardcoded no JSX (<code>DocPendentesBulkBar.tsx:76</code>)</div>
+    <span class="chip chip-p2" style="font-size:0.7rem;padding:3px 10px">P2</span>
+    <span class="bug-file">components/DocPendentesBulkBar.tsx:76</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p2-003">Corrigir BUG-P2-003: emoji 📱 hardcoded no JSX em DocPendentesBulkBar.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/DocPendentesBulkBar.tsx
+
+LOCALIZAR linha 76 (botão "📱 WA"):
+  📱 WA
+
+SUBSTITUIR por somente o texto (remover emoji):
+  WA
+
+VERIFICAR se Smartphone icon do lucide-react já está sendo usado no arquivo ou se faz sentido adicionar:
+  import { ..., Smartphone } from 'lucide-react';
+  // e substituir por: <Smartphone className="h-3.5 w-3.5" /> WA
+
+Se Smartphone icon não estiver importado no arquivo, apenas remover o emoji e manter "WA".
+
+Independente. Não tem dependência de outros bugs.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P2-004 -->
+<!-- ============================================================ -->
+<div class="bug-block p2" id="p2-004">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P2-004</div>
+    <div class="bug-title">ClienteCockpitSheet: link WhatsApp gerado sem validação de número mínimo (11 dígitos)</div>
+    <span class="chip chip-p2" style="font-size:0.7rem;padding:3px 10px">P2</span>
+    <span class="bug-file">sheets/ClienteCockpitSheet.tsx:106–107</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Snippet do bug</div>
+      <div class="code">// linha 106-107:
+const whatsappPhone = (clienteContato?.whatsapp || clienteContato?.telefone || '')
+  .replace(/\D/g, '');
+// Se resultar em &lt; 10 dígitos, window.open(`https://wa.me/${whatsappPhone}`) falha silenciosamente</div>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p2-004">Corrigir BUG-P2-004: ClienteCockpitSheet gera link WhatsApp sem validar número mínimo.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/sheets/ClienteCockpitSheet.tsx
+
+LOCALIZAR após linha 106 (whatsappPhone):
+  const whatsappPhone = (clienteContato?.whatsapp || clienteContato?.telefone || '')
+    .replace(/\D/g, '');
+
+Buscar onde whatsappPhone é usado para abrir link wa.me (provavelmente um botão com window.open ou href).
+
+ADICIONAR validação: número precisa ter pelo menos 10 dígitos para ser válido.
+O botão WhatsApp deve ser:
+  disabled={whatsappPhone.length < 10}
+  title={whatsappPhone.length < 10 ? 'Número de telefone não cadastrado' : ''}
+
+E ao clicar, adicionar número do Brasil se não tiver DDI:
+  const waNumber = whatsappPhone.startsWith('55') ? whatsappPhone : '55' + whatsappPhone;
+  window.open('https://wa.me/' + waNumber, '_blank');
+
+Independente. Não tem dependência de outros bugs.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P2-001 -->
+<!-- ============================================================ -->
+<div class="bug-block p2" id="p2-001">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P2-001</div>
+    <div class="bug-title">DRY: <code>isCritico</code> e <code>isVencido</code> duplicadas em 4 arquivos — extrair para <code>utils/helpers.ts</code></div>
+    <span class="chip chip-p2" style="font-size:0.7rem;padding:3px 10px">P2</span>
+    <span class="bug-file">PendenciaAccordion.tsx · PendenciaItem.tsx · ClienteCockpitSheet.tsx · ModoSequencialSheet.tsx</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p2-001">Corrigir BUG-P2-001: isCritico/isVencido duplicadas em 4 arquivos — extrair para utils/helpers.ts.
+
+CONTEXTO: Funções isCritico e isVencido estão copiadas em:
+  - PendenciaAccordion.tsx (linhas 24-32)
+  - PendenciaItem.tsx (linhas ~35-40)
+  - ClienteCockpitSheet.tsx (linha ~26)
+  - ModoSequencialSheet.tsx (linha ~30)
+
+ARQUIVO ALVO: ~/beta-mdflow/src/pages/documentos-pendentes/utils/helpers.ts
+(arquivo já existe — conteúdo atual: PERIODO_OPTIONS, MAX_SELECTION, getClienteDocIds)
+
+PASSO 1: Adicionar as funções em helpers.ts:
+import { addDays, startOfDay, format } from 'date-fns';
+
+export function isCritico(prazo_limite: string | null): boolean {
+  if (!prazo_limite) return false;
+  const limite = format(addDays(startOfDay(new Date()), 2), 'yyyy-MM-dd');
+  return prazo_limite <= limite;
+}
+
+export function isVencido(prazo_limite: string | null): boolean {
+  if (!prazo_limite) return false;
+  const hoje = format(startOfDay(new Date()), 'yyyy-MM-dd');
+  return prazo_limite < hoje;
+}
+
+PASSO 2: Para cada um dos 4 arquivos acima:
+  a. Remover a definição local de isCritico e isVencido
+  b. Adicionar import: import { isCritico, isVencido } from '../utils/helpers';
+     (ou ajustar path relativo conforme localização do arquivo — sheets/ e components/ têm paths diferentes)
+  c. Verificar que os usos permanecem idênticos
+
+PATHS relativos:
+  - components/*.tsx → import from '../utils/helpers'
+  - components/sheets/*.tsx → import from '../../utils/helpers'
+  - components/modals/*.tsx → import from '../../utils/helpers'
+
+Não alterar comportamento — apenas consolidar as definições.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- BUG-P2-005 -->
+<!-- ============================================================ -->
+<div class="bug-block p2" id="p2-005">
+  <div class="bug-header">
+    <div class="bug-id">BUG-P2-005</div>
+    <div class="bug-title">ConfirmarResolverModal: update direto <code>arquivo_url</code> no Supabase antes do webhook — estado parcial se webhook falhar</div>
+    <span class="chip chip-p2" style="font-size:0.7rem;padding:3px 10px">P2</span>
+    <span class="bug-file">modals/ConfirmarResolverModal.tsx:106–127</span>
+  </div>
+  <div class="bug-body">
+    <div>
+      <div class="section-label">Problema</div>
+      <p class="cause-text">Quando há arquivo ou link: primeiro faz UPDATE de arquivo_url direto no Supabase + insere interação (linhas 106-127), depois chama o webhook de resolver (linha 130). Se o webhook retornar erro HTTP 404 ou toast_error, o documento fica com <code>arquivo_url</code> preenchido mas status = "solicitado" (inconsistência parcial).</p>
+    </div>
+    <div>
+      <div class="section-label">Prompt para Claude Code</div>
+      <div class="prompt-wrap">
+        <div class="prompt-top">
+          <span class="prompt-label">Copiar e colar no Claude Code</span>
+          <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        </div>
+        <div class="prompt-content" id="prompt-p2-005">Corrigir BUG-P2-005: ConfirmarResolverModal — update direto arquivo_url antes do webhook causa estado parcial.
+
+ARQUIVO: ~/beta-mdflow/src/pages/documentos-pendentes/components/modals/ConfirmarResolverModal.tsx
+
+CONTEXTO: Linhas 106-127 fazem upload do arquivo no Storage e então UPDATE direto de arquivo_url no Supabase
+(+ insert em documentos_pendentes_interacoes) ANTES de chamar o webhook de resolver (linha ~130).
+Se o webhook falhar: arquivo está salvo mas status não mudou para "resolvido".
+
+SOLUÇÃO: Passar arquivo_url no payload do webhook e deixar o n8n fazer o update atômico.
+Remover o UPDATE direto de arquivo_url e o INSERT em documentos_pendentes_interacoes do frontend.
+
+LOCALIZAR o bloco:
+  // Se houver arquivo/link, atualiza diretamente no banco e registra interação
+  if (arquivo_url) {
+    const { error: updateError } = await supabase
+      .from('documentos_pendentes')
+      .update({ arquivo_url, updated_at: new Date().toISOString() })
+      ...
+    await supabase.from('documentos_pendentes_interacoes').insert({ ... });
+  }
+
+  // Chama webhook de resolver
+  const result = await callWebhook('documentos_pendentes/resolver', {
+    ...
+    data: {
+      id: pendenciaId,
+      observacao_final: observacao || null,
+      arquivo_url: arquivo_url || null,
+
+O campo arquivo_url JÁ É passado no payload do webhook (verificado no código). Portanto:
+1. Manter o upload do arquivo no Storage (precisa do path para passar ao webhook)
+2. REMOVER o bloco de update direto no Supabase (supabase.from('documentos_pendentes').update)
+3. REMOVER o insert em documentos_pendentes_interacoes do frontend (n8n já faz isso)
+4. O webhook já recebe arquivo_url e o n8n é responsável por salvar tudo atomicamente
+
+ATENÇÃO: Verificar se o import de supabase ainda é necessário no arquivo após remoção.
+Se usado apenas para o upload do Storage (supabase.storage.from('documentos').upload), manter.
+Se não mais usado, remover.
+</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr />
+
+<!-- ============================================================ -->
+<!-- MEGA PROMPT DE REVISÃO -->
+<!-- ============================================================ -->
+<div class="mega-block" id="mega">
+  <div class="mega-header">
+    <h2>⚡ Mega Prompt de Revisão — Executar por último</h2>
+  </div>
+  <div class="bug-body">
+    <p class="cause-text" style="margin-bottom:12px">Após executar todos os 12 prompts acima, rodar este mega prompt para verificar cada correção, fazer commit e gerar o HTML de resultado.</p>
+    <div class="prompt-wrap">
+      <div class="prompt-top">
+        <span class="prompt-label">Mega Prompt de Revisão</span>
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+      </div>
+      <div class="prompt-content" id="prompt-mega">Verificação final de todos os bugs corrigidos em /documentos-pendentes — gerar HTML de resultado.
+
+VERIFICAR cada arquivo alterado e registrar status real:
+
+1. BUG-P0-001 — n8n COBRAR:
+   source ~/.env
+   curl -s -X POST https://primary-production-e209.up.railway.app/webhook/mdflow/documentos_pendentes/cobrar \
+     -H "Content-Type: application/json" -H "mdflow: MdL1501@" \
+     -d '{"organizacao_id":"55a0c7ba-1a23-4ae1-b69b-a13811324735","user_id":"test","request_id":"test-v1","data":{"modo":"todos"}}' | jq
+   ✅ = resposta com success:true (não "Workflow execution failed")
+
+2. BUG-P0-002 — Exportar frontend:
+   grep -n "result_url\|content.*Blob\|createObjectURL" \
+     ~/beta-mdflow/src/pages/documentos-pendentes/hooks/useDocPendentesBulkActions.ts
+   ✅ = createObjectURL presente + handle para data.content
+
+3. BUG-P1-001 — Import duplicado:
+   grep -n "differenceInCalendarDays\|parseISO" \
+     ~/beta-mdflow/src/pages/documentos-pendentes/components/modals/NovoDocumentoModal.tsx
+   ✅ = apenas 1 linha com esses imports (linha 7)
+
+4. BUG-P1-002 — if/else-if:
+   grep -n "link_url\|arquivo_url" \
+     ~/beta-mdflow/src/pages/documentos-pendentes/components/sheets/ModoSequencialSheet.tsx | head -10
+   ✅ = "else if" presente na sequência
+
+5. BUG-P1-005 — ReabrirPendenciaModal validação:
+   grep -n "trim().length\|10 -\|restante" \
+     ~/beta-mdflow/src/pages/documentos-pendentes/components/modals/ReabrirPendenciaModal.tsx
+   ✅ = validação presente + hint dinâmico
+
+6. BUG-P1-004 — Accordion botão duplicado:
+   grep -n "MessageCircle\|openCockpit" \
+     ~/beta-mdflow/src/pages/documentos-pendentes/components/PendenciaAccordion.tsx
+   ✅ = apenas 1 ocorrência de openCockpit por cliente (LayoutDashboard apenas)
+
+7. BUG-P1-003 — ModoSequencial sem bypass:
+   grep -n "supabase.from\|fire-and-forget\|resolver_lote" \
+     ~/beta-mdflow/src/pages/documentos-pendentes/components/sheets/ModoSequencialSheet.tsx
+   ✅ = sem update direto de status/arquivo_url, callWebhook com await
+
+8. BUG-P2-002 — Tipo null:
+   grep -n "numero_cnj" \
+     ~/beta-mdflow/src/pages/documentos-pendentes/types/documentos-pendentes.types.ts
+   ✅ = string | null
+
+9. BUG-P2-003 — Emoji:
+   grep -n "📱" ~/beta-mdflow/src/pages/documentos-pendentes/components/DocPendentesBulkBar.tsx
+   ✅ = sem resultado (emoji removido)
+
+10. BUG-P2-004 — WA validação:
+    grep -n "whatsappPhone.length\|wa.me\|disabled" \
+      ~/beta-mdflow/src/pages/documentos-pendentes/components/sheets/ClienteCockpitSheet.tsx
+    ✅ = disabled com length check presente
+
+11. BUG-P2-001 — DRY helpers:
+    grep -n "isCritico\|isVencido" ~/beta-mdflow/src/pages/documentos-pendentes/utils/helpers.ts
+    ✅ = funções exportadas em helpers.ts
+
+12. BUG-P2-005 — ConfirmarResolverModal sem update direto:
+    grep -n "supabase.from('documentos_pendentes').update\|documentos_pendentes_interacoes" \
+      ~/beta-mdflow/src/pages/documentos-pendentes/components/modals/ConfirmarResolverModal.tsx
+    ✅ = sem update direto de arquivo_url (apenas Storage upload pode permanecer)
+
+COMMIT obrigatório após todas as verificações:
+  cd ~/beta-mdflow
+  git add -A
+  git commit -m "fix(documentos-pendentes): execution-v1 — 12 bugs corrigidos (P0 cobrar/exportar, P1 imports/sequencial/reabertura/accordion, P2 dry/types)"
+  git push origin main
+
+GERAR HTML de resultado:
+Arquivo: ~/jarbas-reports/beto/documentos-pendentes/execution-result-v1-2026-03-31.html
+
+Estrutura obrigatória:
+  - Tabela: BUG | Prioridade | Status (✅/❌/⚠️) | Evidência | Observação
+  - Hash do commit
+  - Lista de arquivos alterados
+  - Bugs pendentes (se houver)
+
+CSS: usar o mesmo padrão do QA report (--bg:#12100e, --primary:#20c997, etc.)
+
+Salvar e publicar:
+  cd ~/jarbas-reports && git add beto/ && git commit -m "beto: execution-result documentos-pendentes v1" && git push
+</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  Após executar todos os 12 prompts e o mega prompt de revisão, mande o caminho do HTML de resultado aqui para fechar o loop.
+  <br><code>~/jarbas-reports/beto/documentos-pendentes/execution-result-v1-2026-03-31.html</code>
+</div>
+
+<script>
+function copyPrompt(btn) {
+  const wrap = btn.closest('.prompt-wrap');
+  const content = wrap.querySelector('.prompt-content');
+  navigator.clipboard.writeText(content.textContent).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = 'Copiado!';
+    btn.style.background = 'rgba(32,201,151,0.3)';
+    setTimeout(() => { btn.textContent = orig; btn.style.background = ''; }, 1800);
+  });
+}
+</script>
+</body>
+</html>

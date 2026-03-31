@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Execution Plan — Processos v1 | MdFlow</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --surface: #1a1815;
+    --surface2: #221f1c;
+    --border: #2d2925;
+    --primary: #20c997;
+    --primary-dim: rgba(32,201,151,0.15);
+    --primary-border: rgba(32,201,151,0.25);
+    --text: #e8e0d8;
+    --text-muted: #8a7f78;
+    --red: #ef4444;
+    --red-dim: rgba(239,68,68,0.15);
+    --yellow: #f59e0b;
+    --yellow-dim: rgba(245,158,11,0.15);
+    --blue: #3b82f6;
+    --blue-dim: rgba(59,130,246,0.15);
+    --green: #22c55e;
+    --green-dim: rgba(34,197,94,0.15);
+    --mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 240px;
+    min-width: 240px;
+    background: #0d0b09;
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+
+  .sidebar-logo-text {
+    font-family: 'Manrope', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .sidebar-logo-sub {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 2px;
+  }
+
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    padding: 0 20px 6px;
+    margin-top: 12px;
+  }
+
+  .sidebar nav a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 13px;
+    transition: all 0.15s;
+    border-left: 2px solid transparent;
+  }
+
+  .sidebar nav a:hover,
+  .sidebar nav a.active {
+    color: var(--text);
+    background: var(--primary-dim);
+    border-left-color: var(--primary);
+  }
+
+  .sidebar-stats {
+    margin: 16px 12px 0;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .sidebar-stat {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .sidebar-stat-label { color: var(--text-muted); }
+  .sidebar-stat-value { font-weight: 600; font-family: var(--mono); }
+  .sidebar-stat-value.red    { color: var(--red); }
+  .sidebar-stat-value.yellow { color: var(--yellow); }
+  .sidebar-stat-value.green  { color: var(--green); }
+  .sidebar-stat-value.muted  { color: var(--text-muted); }
+
+  /* ── Main ── */
+  .main {
+    flex: 1;
+    padding: 32px 40px;
+    max-width: 1000px;
+  }
+
+  /* ── Page header ── */
+  .page-header {
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .page-header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+
+  .page-header-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-dim);
+    border: 1px solid var(--primary-border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+  }
+
+  .page-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 26px;
+    font-weight: 800;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  .page-subtitle {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
+
+  .chip-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    border: 1px solid;
+  }
+  .chip.red    { background: var(--red-dim);    color: var(--red);    border-color: rgba(239,68,68,0.3); }
+  .chip.yellow { background: var(--yellow-dim); color: var(--yellow); border-color: rgba(245,158,11,0.3); }
+  .chip.green  { background: var(--green-dim);  color: var(--green);  border-color: rgba(34,197,94,0.3); }
+  .chip.primary{ background: var(--primary-dim); color: var(--primary); border-color: var(--primary-border); }
+  .chip.muted  { background: rgba(255,255,255,0.05); color: var(--text-muted); border-color: var(--border); }
+
+  /* ── KPIs ── */
+  .kpi-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .kpi-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    text-align: center;
+  }
+
+  .kpi-value {
+    font-family: 'Manrope', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .kpi-label { font-size: 11px; color: var(--text-muted); }
+  .kpi-card.red    .kpi-value { color: var(--red); }
+  .kpi-card.yellow .kpi-value { color: var(--yellow); }
+  .kpi-card.green  .kpi-value { color: var(--green); }
+  .kpi-card.primary .kpi-value { color: var(--primary); }
+
+  /* ── Section ── */
+  .section {
+    margin-bottom: 44px;
+    scroll-margin-top: 20px;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .section-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+  }
+  .section-icon.red    { background: var(--red-dim); }
+  .section-icon.yellow { background: var(--yellow-dim); }
+  .section-icon.primary { background: var(--primary-dim); }
+
+  .section-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  /* ── Prompt card ── */
+  .prompt-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+
+  .prompt-card.p0 { border-left: 3px solid var(--red); }
+  .prompt-card.p1 { border-left: 3px solid var(--yellow); }
+  .prompt-card.p2 { border-left: 3px solid var(--text-muted); }
+
+  .prompt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface2);
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .prompt-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .prompt-id {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .prompt-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .badge.p0     { background: rgba(239,68,68,0.2);    color: var(--red); }
+  .badge.p1     { background: rgba(245,158,11,0.2);   color: var(--yellow); }
+  .badge.p2     { background: rgba(255,255,255,0.08); color: var(--text-muted); }
+  .badge.indep  { background: var(--primary-dim);     color: var(--primary); }
+  .badge.dep    { background: var(--yellow-dim);      color: var(--yellow); }
+
+  .prompt-meta {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .prompt-file {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--primary);
+    background: var(--primary-dim);
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--primary-border);
+  }
+
+  /* ── Prompt body ── */
+  .prompt-body { padding: 16px 20px; }
+
+  .info-strip {
+    background: var(--primary-dim);
+    border: 1px solid var(--primary-border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--primary);
+    margin-bottom: 14px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .warn-strip {
+    background: var(--yellow-dim);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--yellow);
+    margin-bottom: 14px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .context-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 14px;
+    font-size: 13px;
+  }
+
+  .context-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--primary);
+    margin-bottom: 8px;
+  }
+
+  .context-block ul {
+    list-style: none;
+    color: var(--text-muted);
+  }
+
+  .context-block ul li {
+    padding: 3px 0;
+    display: flex;
+    gap: 8px;
+  }
+
+  .context-block ul li::before {
+    content: "→";
+    color: var(--primary);
+    flex-shrink: 0;
+  }
+
+  /* ── Prompt textarea ── */
+  .prompt-copy-section {
+    margin-top: 14px;
+  }
+
+  .prompt-copy-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .copy-btn {
+    background: var(--primary-dim);
+    border: 1px solid var(--primary-border);
+    color: var(--primary);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'Inter', sans-serif;
+  }
+
+  .copy-btn:hover {
+    background: rgba(32,201,151,0.25);
+  }
+
+  .copy-btn.copied {
+    background: var(--green-dim);
+    border-color: rgba(34,197,94,0.3);
+    color: var(--green);
+  }
+
+  .prompt-text {
+    background: #0d0b09;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.7;
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 420px;
+    overflow-y: auto;
+    user-select: text;
+  }
+
+  /* ── Mega prompt ── */
+  .mega-card {
+    background: var(--surface);
+    border: 2px solid var(--primary-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .mega-header {
+    background: var(--primary-dim);
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--primary-border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .mega-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--primary);
+  }
+
+  .mega-body { padding: 20px; }
+
+  /* ── Index / TOC ── */
+  .toc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 32px;
+  }
+
+  .toc-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+  }
+
+  .toc-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .toc-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+  }
+
+  .toc-list li a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+
+  .toc-list li a:hover { color: var(--primary); }
+
+  .toc-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    width: 24px;
+    color: var(--text-muted);
+  }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+  /* ── Footer ── */
+  footer {
+    margin-top: 48px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  footer .footer-brand {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 700;
+    color: var(--primary);
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-text">MdFlow</div>
+    <div class="sidebar-logo-sub">Execution Plan · Processos v1</div>
+  </div>
+
+  <div class="sidebar-label">Navegação</div>
+  <nav>
+    <a href="#sumario">📊 Sumário</a>
+    <a href="#p0">🔴 P0 — Críticos</a>
+    <a href="#p1">🟡 P1 — Importantes</a>
+    <a href="#mega">🚀 Mega Prompt (Revisão)</a>
+  </nav>
+
+  <div class="sidebar-stats">
+    <div class="sidebar-stat">
+      <span class="sidebar-stat-label">Total prompts</span>
+      <span class="sidebar-stat-value primary">5</span>
+    </div>
+    <div class="sidebar-stat">
+      <span class="sidebar-stat-label">P0 Crítico</span>
+      <span class="sidebar-stat-value red">2</span>
+    </div>
+    <div class="sidebar-stat">
+      <span class="sidebar-stat-label">P1 Importante</span>
+      <span class="sidebar-stat-value yellow">3</span>
+    </div>
+    <div class="sidebar-stat">
+      <span class="sidebar-stat-label">Terminais</span>
+      <span class="sidebar-stat-value muted">1–2</span>
+    </div>
+    <div class="sidebar-stat">
+      <span class="sidebar-stat-label">Versão</span>
+      <span class="sidebar-stat-value muted">v1 · 2026-03-30</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ── -->
+<main class="main">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div class="page-header-top">
+      <div class="page-header-icon">⚙️</div>
+      <h1 class="page-title">Execution Plan — Processos</h1>
+    </div>
+    <div class="page-subtitle">
+      Gerado por Beto · 2026-03-30 · Baseado em QA Report R1 · 5 prompts individuais
+    </div>
+    <div class="chip-row">
+      <span class="chip red">🔴 2 P0 Crítico</span>
+      <span class="chip yellow">🟡 3 P1 Importante</span>
+      <span class="chip primary">5 prompts no total</span>
+      <span class="chip muted">Sequência obrigatória: BUG-001 → BUG-002 → demais</span>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi-card red">
+      <div class="kpi-value">2</div>
+      <div class="kpi-label">P0 Crítico</div>
+    </div>
+    <div class="kpi-card yellow">
+      <div class="kpi-value">3</div>
+      <div class="kpi-label">P1 Importante</div>
+    </div>
+    <div class="kpi-card primary">
+      <div class="kpi-value">5</div>
+      <div class="kpi-label">Prompts</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-value" style="color:var(--text-muted)">1–2</div>
+      <div class="kpi-label">Terminais Claude Code</div>
+    </div>
+  </div>
+
+  <!-- TOC -->
+  <div class="toc" id="sumario">
+    <div class="toc-title">📋 Sequência de Execução</div>
+    <ul class="toc-list">
+      <li>
+        <span class="toc-num">01</span>
+        <span class="badge p0">P0</span>
+        <a href="#bug001">BUG-001 — Aba Restrição ausente no ProcessoDrawer</a>
+      </li>
+      <li>
+        <span class="toc-num">02</span>
+        <span class="badge p0">P0</span>
+        <a href="#bug002">BUG-002 — Cliente não encontrado (sem fallback para cliente_nome)</a>
+      </li>
+      <li>
+        <span class="toc-num">03</span>
+        <span class="badge p1">P1</span>
+        <a href="#bug003">BUG-003 — Advogado exibe OAB em vez do nome</a>
+      </li>
+      <li>
+        <span class="toc-num">04</span>
+        <span class="badge p1">P1</span>
+        <a href="#bug004">BUG-004 — CNJ aparece 3× no drawer (deveria ser 1× normal + 1× copiável)</a>
+      </li>
+      <li>
+        <span class="toc-num">05</span>
+        <span class="badge p1">P1</span>
+        <a href="#bug005">BUG-005 — Campos do cliente ausentes no select (whatsapp, data_nascimento, sexo)</a>
+      </li>
+      <li>
+        <span class="toc-num">06</span>
+        <span class="badge indep">MEGA</span>
+        <a href="#mega">Mega Prompt — Revisão + Geração do HTML de resultado</a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ─────────── P0 ─────────── -->
+  <div class="section" id="p0">
+    <div class="section-header">
+      <div class="section-icon red">🔴</div>
+      <h2 class="section-title">P0 — Críticos (rodar primeiro)</h2>
+    </div>
+
+    <!-- BUG-001 -->
+    <div class="prompt-card p0" id="bug001">
+      <div class="prompt-header">
+        <div class="prompt-header-left">
+          <span class="prompt-id">BUG-001</span>
+          <span class="badge p0">P0</span>
+          <span class="prompt-title">Aba "Restrição" ausente no ProcessoDrawer</span>
+        </div>
+        <div class="prompt-meta">
+          <span class="badge indep">Independente</span>
+          <span class="prompt-file">ProcessoDrawer.tsx</span>
+          <span class="prompt-file">ProcessoDrawerTabRestricao.tsx</span>
+        </div>
+      </div>
+      <div class="prompt-body">
+        <div class="context-block">
+          <div class="context-label">Contexto técnico</div>
+          <ul>
+            <li>O componente <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">ProcessoDrawerTabRestricao</code> existe e está correto em <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">src/components/shared/processo_drawer/tabs/ProcessoDrawerTabRestricao.tsx</code></li>
+            <li>Porém nunca foi importado nem adicionado ao <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">ProcessoDrawer.tsx</code></li>
+            <li><code style="font-family:var(--mono);font-size:11px;color:var(--primary)">processoData.restricao</code> já está disponível no ProcessoDrawer com todos os campos necessários (empresa_nome, orgao_nome, codigo_contrato, data_restricao, valor, tipo, processavel)</li>
+            <li>Deve aparecer como 2ª aba (após "Dados", antes de "Movimentações")</li>
+          </ul>
+        </div>
+        <div class="prompt-copy-section">
+          <div class="prompt-copy-label">
+            <span>PROMPT PARA CLAUDE CODE</span>
+            <button class="copy-btn" onclick="copyPrompt('p001', this)">📋 Copiar</button>
+          </div>
+          <div class="prompt-text" id="p001">Arquivo alvo: ~/beta-mdflow/src/components/shared/processo_drawer/ProcessoDrawer.tsx
+
+CONTEXTO:
+Projeto MdFlow (~/beta-mdflow/). Stack: React + TypeScript + shadcn/ui + Tailwind.
+O componente ProcessoDrawerTabRestricao existe em:
+  src/components/shared/processo_drawer/tabs/ProcessoDrawerTabRestricao.tsx
+Mas NÃO está sendo usado no ProcessoDrawer. A aba simplesmente não existe no drawer.
+
+O QUE FAZER:
+1. Adicionar o import no topo de ProcessoDrawer.tsx:
+   import { ProcessoDrawerTabRestricao } from './tabs/ProcessoDrawerTabRestricao'
+
+2. Na <TabsList>, adicionar trigger após "dados" e antes de "movimentacoes":
+   <TabsTrigger value="restricao">Restrição</TabsTrigger>
+
+3. No bloco de conteúdo das tabs, adicionar após o TabsContent de "dados":
+   <TabsContent value="restricao" className="mt-0">
+     <ProcessoDrawerTabRestricao
+       restricao={processoData?.restricao ?? null}
+       organizacaoId={organizacaoId}
+       clienteId={processo?.cliente_id}
+       readOnly={false}
+     />
+   </TabsContent>
+
+REGRAS:
+- Não alterar nenhum outro arquivo além de ProcessoDrawer.tsx
+- Não alterar o componente ProcessoDrawerTabRestricao.tsx
+- Manter a ordem das tabs: Dados → Restrição → Movimentações → Documentos → Outros
+- Tipagem TypeScript estrita, sem `any`
+
+CRITÉRIO DE ACEITE:
+- Aba "Restrição" aparece no drawer após abrir qualquer processo
+- Ao clicar na aba, exibe empresa/credor, órgão, contrato, data da restrição e valor
+- npx tsc --noEmit sem erros
+
+RELATÓRIO FINAL (obrigatório):
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🧪 Como testar
+### ⚠️ Precisa revisão manual
+### 🚫 O que ficou de fora</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-002 -->
+    <div class="prompt-card p0" id="bug002">
+      <div class="prompt-header">
+        <div class="prompt-header-left">
+          <span class="prompt-id">BUG-002</span>
+          <span class="badge p0">P0</span>
+          <span class="prompt-title">Cliente "não encontrado" na aba Dados — sem fallback para cliente_nome</span>
+        </div>
+        <div class="prompt-meta">
+          <span class="badge indep">Independente</span>
+          <span class="prompt-file">ProcessoDrawer.tsx</span>
+        </div>
+      </div>
+      <div class="prompt-body">
+        <div class="context-block">
+          <div class="context-label">Contexto técnico</div>
+          <ul>
+            <li>O header do drawer exibe <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">clienteNome={processoData?.cliente?.nome}</code> — nome aparece no topo</li>
+            <li>Mas a aba Dados mostra "não encontrado" quando <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">processo.cliente_id</code> é null (processos migrados)</li>
+            <li>O campo <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">empresa_nome</code> existe em <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">processos</code> como fallback (campo denormalizado)</li>
+            <li>A query no <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">useProcessoDetail</code> já busca o join de <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">cliente:cliente_id(...)</code></li>
+          </ul>
+        </div>
+        <div class="warn-strip">⚠️ Rodar DEPOIS de BUG-001 (mesmos arquivos, evitar conflito de merge)</div>
+        <div class="prompt-copy-section">
+          <div class="prompt-copy-label">
+            <span>PROMPT PARA CLAUDE CODE</span>
+            <button class="copy-btn" onclick="copyPrompt('p002', this)">📋 Copiar</button>
+          </div>
+          <div class="prompt-text" id="p002">Arquivo alvo: ~/beta-mdflow/src/components/shared/processo_drawer/ProcessoDrawer.tsx
+
+CONTEXTO:
+Projeto MdFlow (~/beta-mdflow/). Stack: React + TypeScript + shadcn/ui + Tailwind.
+O drawer exibe o nome do cliente no header (empresaNome / clienteNome), mas na aba Dados
+o campo "cliente" mostra "não encontrado" quando o join cliente:cliente_id retorna null.
+Isso ocorre em processos migrados que têm empresa_nome mas não têm cliente_id.
+
+O QUE FAZER:
+No ProcessoDrawer.tsx, verificar a montagem do objeto `processoData`.
+Atualmente:
+  cliente: cliente ? { id: cliente.id, nome: cliente.nome, ... } : null
+
+Manter como está (null quando não há FK), mas garantir que na linha onde passa
+clienteNome para o ProcessoDrawerHeader, use o fallback:
+  clienteNome={processoData?.cliente?.nome ?? processo?.empresa_nome ?? null}
+
+Isso garante que quando não há cliente vinculado via FK, o nome da empresa
+(campo denormalizado em processos.empresa_nome) apareça no header do drawer.
+
+REGRAS:
+- Não alterar nenhum outro arquivo além de ProcessoDrawer.tsx
+- Não alterar ProcessoDrawerTabDados.tsx
+- Tipagem TypeScript estrita, sem `any`
+
+CRITÉRIO DE ACEITE:
+- Para processos sem cliente_id (migrados), o header mostra empresa_nome como fallback
+- Para processos com cliente_id, continua mostrando cliente.nome normalmente
+- npx tsc --noEmit sem erros
+
+RELATÓRIO FINAL (obrigatório):
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🧪 Como testar
+### ⚠️ Precisa revisão manual
+### 🚫 O que ficou de fora</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─────────── P1 ─────────── -->
+  <div class="section" id="p1">
+    <div class="section-header">
+      <div class="section-icon yellow">🟡</div>
+      <h2 class="section-title">P1 — Importantes</h2>
+    </div>
+
+    <!-- BUG-003 -->
+    <div class="prompt-card p1" id="bug003">
+      <div class="prompt-header">
+        <div class="prompt-header-left">
+          <span class="prompt-id">BUG-003</span>
+          <span class="badge p1">P1</span>
+          <span class="prompt-title">Campo "Advogado" exibe número OAB em vez do nome</span>
+        </div>
+        <div class="prompt-meta">
+          <span class="badge indep">Independente</span>
+          <span class="prompt-file">ProcessoDrawerTabDados.tsx</span>
+        </div>
+      </div>
+      <div class="prompt-body">
+        <div class="context-block">
+          <div class="context-label">Contexto técnico</div>
+          <ul>
+            <li>Em <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">ProcessoDrawerTabDados.tsx</code>, o InfoRow "Advogado" chama <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">formatOAB(advogado.oab_uf, advogado.oab)</code></li>
+            <li><code style="font-family:var(--mono);font-size:11px;color:var(--primary)">formatOAB()</code> retorna apenas o número OAB formatado (ex: "SP 12345"), não o nome</li>
+            <li>O campo <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">advogado.nome</code> já existe no objeto e chega corretamente</li>
+            <li>Solução: nome em um InfoRow, OAB em InfoRow separado abaixo</li>
+          </ul>
+        </div>
+        <div class="prompt-copy-section">
+          <div class="prompt-copy-label">
+            <span>PROMPT PARA CLAUDE CODE</span>
+            <button class="copy-btn" onclick="copyPrompt('p003', this)">📋 Copiar</button>
+          </div>
+          <div class="prompt-text" id="p003">Arquivo alvo: ~/beta-mdflow/src/components/shared/processo_drawer/tabs/ProcessoDrawerTabDados.tsx
+
+CONTEXTO:
+Projeto MdFlow (~/beta-mdflow/). Stack: React + TypeScript + shadcn/ui + Tailwind.
+O campo "Advogado" na aba Dados está exibindo o número OAB em vez do nome do advogado.
+Causa: o InfoRow usa formatOAB() que retorna "SP 12345" em vez de advogado.nome.
+
+O QUE FAZER:
+Localizar este bloco (seção "Dados do Processo"):
+  <InfoRow label="Advogado" value={
+    advogado?.nome
+      ? formatOAB(advogado.oab_uf, advogado.oab)
+      : null
+  } />
+
+Substituir por dois InfoRows:
+  <InfoRow label="Advogado" value={advogado?.nome ?? null} />
+  <InfoRow label="OAB" value={advogado?.oab ? formatOAB(advogado.oab_uf, advogado.oab) : null} />
+
+REGRAS:
+- Não alterar nenhum outro arquivo além de ProcessoDrawerTabDados.tsx
+- Não remover o import de formatOAB (ainda é usado no segundo InfoRow)
+- Tipagem TypeScript estrita, sem `any`
+
+CRITÉRIO DE ACEITE:
+- Campo "Advogado" exibe o nome (ex: "João Silva")
+- Campo "OAB" exibe o número formatado abaixo (ex: "SP 12345")
+- Quando não há advogado, ambas as linhas ficam ocultas (InfoRow retorna null)
+- npx tsc --noEmit sem erros
+
+RELATÓRIO FINAL (obrigatório):
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🧪 Como testar
+### ⚠️ Precisa revisão manual
+### 🚫 O que ficou de fora</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-004 -->
+    <div class="prompt-card p1" id="bug004">
+      <div class="prompt-header">
+        <div class="prompt-header-left">
+          <span class="prompt-id">BUG-004</span>
+          <span class="badge p1">P1</span>
+          <span class="prompt-title">CNJ aparece 3× no drawer (SheetTitle + 2× no header)</span>
+        </div>
+        <div class="prompt-meta">
+          <span class="badge indep">Independente</span>
+          <span class="prompt-file">ProcessoDrawer.tsx</span>
+        </div>
+      </div>
+      <div class="prompt-body">
+        <div class="context-block">
+          <div class="context-label">Contexto técnico</div>
+          <ul>
+            <li>O <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">ProcessoDrawerHeader</code> já exibe o CNJ via <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">CopyableCNJ</code> + badge de status — correto</li>
+            <li>O <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">SheetTitle</code> (acessibilidade) não precisa exibir o CNJ visualmente pois o header já faz isso</li>
+            <li>Verificar se no código atual há algum lugar renderizando o número_cnj diretamente além do header</li>
+          </ul>
+        </div>
+        <div class="prompt-copy-section">
+          <div class="prompt-copy-label">
+            <span>PROMPT PARA CLAUDE CODE</span>
+            <button class="copy-btn" onclick="copyPrompt('p004', this)">📋 Copiar</button>
+          </div>
+          <div class="prompt-text" id="p004">Arquivo alvo: ~/beta-mdflow/src/components/shared/processo_drawer/ProcessoDrawer.tsx
+Ler também: ~/beta-mdflow/src/components/shared/processo_drawer/ProcessoDrawerHeader.tsx
+
+CONTEXTO:
+Projeto MdFlow (~/beta-mdflow/). Stack: React + TypeScript + shadcn/ui + Tailwind.
+O número CNJ do processo está aparecendo mais de uma vez no drawer (reportado como 3×).
+O ProcessoDrawerHeader já exibe o CNJ corretamente (1× texto normal + 1× CopyableCNJ com botão copiar).
+Não deve aparecer em mais nenhum lugar.
+
+O QUE FAZER:
+1. Ler o ProcessoDrawer.tsx inteiro e o ProcessoDrawerHeader.tsx
+2. Identificar TODOS os locais onde numero_cnj ou CopyableCNJ é renderizado
+3. Garantir que o CNJ apareça APENAS no ProcessoDrawerHeader:
+   - 1× como texto (breadcrumb/subtítulo)
+   - 1× como CopyableCNJ (com botão copiar)
+4. Remover qualquer renderização duplicada fora do ProcessoDrawerHeader
+5. O SheetTitle pode conter texto genérico como "Detalhes do Processo" para acessibilidade
+
+REGRAS:
+- Alterar apenas ProcessoDrawer.tsx (e ProcessoDrawerHeader.tsx se necessário)
+- Não alterar outros componentes
+- Preservar acessibilidade: SheetTitle deve existir mas não precisa exibir o CNJ
+- Tipagem TypeScript estrita, sem `any`
+
+CRITÉRIO DE ACEITE:
+- CNJ aparece exatamente 2× no visual: 1× texto + 1× copiável (ambos no header)
+- Não há CNJ repetido no corpo do drawer
+- npx tsc --noEmit sem erros
+
+RELATÓRIO FINAL (obrigatório):
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🧪 Como testar
+### ⚠️ Precisa revisão manual
+### 🚫 O que ficou de fora</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-005 -->
+    <div class="prompt-card p1" id="bug005">
+      <div class="prompt-header">
+        <div class="prompt-header-left">
+          <span class="prompt-id">BUG-005</span>
+          <span class="badge p1">P1</span>
+          <span class="prompt-title">Campos do cliente ausentes no select do drawer (whatsapp, data_nascimento, sexo)</span>
+        </div>
+        <div class="prompt-meta">
+          <span class="badge indep">Independente</span>
+          <span class="prompt-file">ProcessoDrawer.tsx</span>
+        </div>
+      </div>
+      <div class="prompt-body">
+        <div class="context-block">
+          <div class="context-label">Contexto técnico</div>
+          <ul>
+            <li>A query <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">useProcessoDetail</code> dentro de <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">ProcessoDrawer.tsx</code> faz select explícito dos campos do cliente</li>
+            <li>Campos selecionados atualmente: <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">id, nome, cpf_cnpj, data_nascimento, email, telefone, endereco_uf</code></li>
+            <li>O QA identificou que <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">whatsapp</code> e <code style="font-family:var(--mono);font-size:11px;color:var(--primary)">sexo</code> também existem na tabela clientes mas não são buscados</li>
+            <li>Após adicionar ao select, exibir no ProcessoDrawerTabDados na seção "Dados do Cliente"</li>
+          </ul>
+        </div>
+        <div class="prompt-copy-section">
+          <div class="prompt-copy-label">
+            <span>PROMPT PARA CLAUDE CODE</span>
+            <button class="copy-btn" onclick="copyPrompt('p005', this)">📋 Copiar</button>
+          </div>
+          <div class="prompt-text" id="p005">Arquivos alvo:
+- ~/beta-mdflow/src/components/shared/processo_drawer/ProcessoDrawer.tsx
+- ~/beta-mdflow/src/components/shared/processo_drawer/tabs/ProcessoDrawerTabDados.tsx
+
+CONTEXTO:
+Projeto MdFlow (~/beta-mdflow/). Stack: React + TypeScript + shadcn/ui + Tailwind.
+O drawer de processo não exibe WhatsApp nem sexo do cliente porque esses campos
+não estão sendo selecionados na query Supabase.
+
+O QUE FAZER:
+1. Em ProcessoDrawer.tsx, na função useProcessoDetail, localizar o select do cliente:
+   cliente:cliente_id(
+     id, nome, cpf_cnpj, data_nascimento, email, telefone, endereco_uf
+   )
+   Adicionar: whatsapp, sexo
+   Resultado:
+   cliente:cliente_id(
+     id, nome, cpf_cnpj, data_nascimento, email, telefone, whatsapp, sexo, endereco_uf
+   )
+
+2. Na montagem do objeto processoData.cliente, adicionar os novos campos:
+   whatsapp: cliente.whatsapp ?? null,
+   sexo: cliente.sexo ?? null,
+
+3. Em ProcessoDrawerTabDados.tsx, na interface ClienteResumido, adicionar:
+   whatsapp?: string | null
+   sexo?: string | null
+
+4. Na seção "Dados do Cliente" do ProcessoDrawerTabDados.tsx, adicionar InfoRows:
+   <InfoRow label="WhatsApp" value={cliente.whatsapp && (
+     <span className="font-mono">{cliente.whatsapp}</span>
+   )} />
+   <InfoRow label="Sexo" value={cliente.sexo && (
+     <span className="capitalize">{cliente.sexo}</span>
+   )} />
+   (Inserir após o campo "Telefone")
+
+REGRAS:
+- Alterar apenas ProcessoDrawer.tsx e ProcessoDrawerTabDados.tsx
+- Não alterar outros arquivos
+- Tipagem TypeScript estrita, sem `any`
+- RLS já está configurado na tabela clientes — não alterar policies
+
+CRITÉRIO DE ACEITE:
+- Aba Dados exibe WhatsApp e Sexo do cliente (quando preenchidos no banco)
+- Quando campos são null, as linhas ficam ocultas (InfoRow retorna null para falsy)
+- npx tsc --noEmit sem erros
+
+RELATÓRIO FINAL (obrigatório):
+### ✅ O que foi feito
+### 📁 Arquivos modificados
+### 🧪 Como testar
+### ⚠️ Precisa revisão manual
+### 🚫 O que ficou de fora</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ─────────── MEGA PROMPT ─────────── -->
+  <div class="section" id="mega">
+    <div class="section-header">
+      <div class="section-icon primary">🚀</div>
+      <h2 class="section-title">Mega Prompt — Revisão Final + HTML de Resultado</h2>
+    </div>
+
+    <div class="mega-card">
+      <div class="mega-header">
+        <span style="font-size:20px">🚀</span>
+        <div>
+          <div class="mega-title">Rodar APÓS todos os 5 prompts acima</div>
+          <div style="font-size:12px;color:var(--primary);opacity:0.7;margin-top:2px">Gera o HTML de resultado para análise do Beto</div>
+        </div>
+      </div>
+      <div class="mega-body">
+        <div class="info-strip">
+          ℹ️ Este prompt instrui o Claude Code a verificar cada correção e gerar um HTML de resultado que o Gustavo envia de volta ao Beto para análise.
+        </div>
+        <div class="prompt-copy-section">
+          <div class="prompt-copy-label">
+            <span>MEGA PROMPT — COPIAR E RODAR POR ÚLTIMO</span>
+            <button class="copy-btn" onclick="copyPrompt('pmega', this)">📋 Copiar</button>
+          </div>
+          <div class="prompt-text" id="pmega">Projeto: ~/beta-mdflow/
+Tarefa: Revisão pós-execução dos bugs do drawer de Processos
+
+CONTEXTO:
+Foram aplicadas correções nos seguintes arquivos do ProcessoDrawer:
+- src/components/shared/processo_drawer/ProcessoDrawer.tsx
+- src/components/shared/processo_drawer/ProcessoDrawerHeader.tsx (se alterado)
+- src/components/shared/processo_drawer/tabs/ProcessoDrawerTabDados.tsx
+- src/components/shared/processo_drawer/tabs/ProcessoDrawerTabRestricao.tsx (não deve ter sido alterado)
+
+BUGS CORRIGIDOS (verificar cada um):
+- BUG-001: Aba "Restrição" adicionada ao drawer
+- BUG-002: Fallback de clienteNome quando cliente_id é null
+- BUG-003: Campo Advogado exibe nome + OAB separados
+- BUG-004: CNJ aparece apenas 2× (1× texto + 1× copiável no header)
+- BUG-005: Campos whatsapp e sexo do cliente adicionados
+
+O QUE FAZER:
+1. Rodar: cd ~/beta-mdflow && npx tsc --noEmit 2>&1
+   - Registrar resultado (erros ou "sem erros")
+
+2. Para cada bug, verificar no código se a correção foi aplicada corretamente:
+   - BUG-001: ProcessoDrawer.tsx tem import + TabsTrigger "restricao" + TabsContent com ProcessoDrawerTabRestricao?
+   - BUG-002: ProcessoDrawerHeader recebe fallback empresa_nome quando cliente é null?
+   - BUG-003: ProcessoDrawerTabDados.tsx tem 2 InfoRows separados (Advogado + OAB)?
+   - BUG-004: numero_cnj/CopyableCNJ aparece apenas no ProcessoDrawerHeader?
+   - BUG-005: Select do cliente inclui whatsapp e sexo? Interface ClienteResumido atualizada?
+
+3. Gerar relatório HTML e salvar em:
+   ~/jarbas-reports/beto/processos/execution-result-v1-2026-03-30.html
+
+ESTRUTURA DO HTML DE RESULTADO (obrigatória):
+- Fundo: #12100e, primário: #20c997 (Design System MdFlow)
+- Tabela resumo no topo:
+  BUG | Título | Status (✅ Resolvido / ❌ Falhou / ⚠️ Parcial) | Evidência (trecho de código) | Observação
+- Seção de TypeScript: resultado do npx tsc --noEmit
+- Detalhes por bug: o que foi encontrado no código
+- Seção "O que ainda precisa ser feito" (bugs não resolvidos ou novos problemas)
+- Footer com data e "Gerado por Claude Code"
+
+IMPORTANTE:
+- Se algum bug não foi aplicado corretamente, registrar ❌ com explicação
+- Se encontrar novos problemas não listados, registrar na seção de observações
+- O HTML deve ser completo e auto-contido (CSS inline ou no <style>)
+
+Após salvar o HTML, exibir o caminho completo do arquivo.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Footer -->
+  <footer>
+    <div>
+      <span class="footer-brand">Beto</span> · Mac Mini M4 · Execução gerada em 2026-03-30
+    </div>
+    <div>
+      Baseado em QA Report R1 · 5 bugs · Após rodar todos os prompts, mande o HTML de resultado
+    </div>
+  </footer>
+
+</main>
+
+<script>
+function copyPrompt(id, btn) {
+  const el = document.getElementById(id);
+  const text = el.innerText || el.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✅ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 Copiar';
+      btn.classList.remove('copied');
+    }, 2000);
+  }).catch(() => {
+    // fallback
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    btn.textContent = '✅ Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = '📋 Copiar';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

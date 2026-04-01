@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cecilia v2.3 — Analise Arquitetural: Monolitico vs Split vs Hibrido</title>
+<style>
+:root {
+  --bg: #0d0f18; --surface: #161926; --surface2: #1e2235;
+  --border: #2a2f4a;
+  --accent: #7c6dff; --accent2: #ff6b6b; --accent3: #4fffb0;
+  --accent4: #ffd166; --accent5: #5bc4f5;
+  --text: #e8eaf6; --text-muted: #7a82a8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'SF Mono','Fira Code','Cascadia Code',monospace;line-height:1.6;padding:0 16px}
+.container{max-width:1200px;margin:0 auto}
+.hero{text-align:center;padding:48px 0 32px}
+.hero-icon{font-size:48px;margin-bottom:12px}
+.hero h1{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent5));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px}
+.hero-sub{color:var(--text-muted);font-size:0.95rem;max-width:700px;margin:0 auto}
+.hero-badges{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.badge{padding:4px 12px;border-radius:20px;font-size:0.75rem;font-weight:600}
+.badge-red{background:rgba(255,68,68,.15);color:var(--accent2);border:1px solid rgba(255,68,68,.3)}
+.badge-yellow{background:rgba(255,209,102,.15);color:var(--accent4);border:1px solid rgba(255,209,102,.3)}
+.badge-blue{background:rgba(91,196,245,.15);color:var(--accent5);border:1px solid rgba(91,196,245,.3)}
+.badge-green{background:rgba(79,255,176,.15);color:var(--accent3);border:1px solid rgba(79,255,176,.3)}
+.badge-purple{background:rgba(124,109,255,.15);color:var(--accent);border:1px solid rgba(124,109,255,.3)}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:32px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;text-align:center}
+.stat-value{font-size:1.8rem;font-weight:800}
+.stat-label{font-size:0.75rem;color:var(--text-muted);margin-top:4px}
+.stat-red .stat-value{color:var(--accent2)}
+.stat-yellow .stat-value{color:var(--accent4)}
+.stat-blue .stat-value{color:var(--accent5)}
+.stat-green .stat-value{color:var(--accent3)}
+.stat-purple .stat-value{color:var(--accent)}
+.section{margin-bottom:32px}
+.section-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+.section-header h2{font-size:1.3rem;font-weight:700}
+.section-icon{font-size:1.3rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card-title{font-size:1rem;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.card p,.card li{font-size:0.88rem;color:var(--text);margin-bottom:6px}
+.card ul,.card ol{padding-left:20px}
+table{width:100%;border-collapse:collapse;font-size:0.82rem;margin:12px 0}
+th{background:var(--surface2);color:var(--accent5);padding:10px 12px;text-align:left;font-weight:600;border-bottom:2px solid var(--border)}
+td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+tr:hover{background:rgba(124,109,255,.05)}
+.code-block{background:#0a0c14;border:1px solid var(--border);border-radius:8px;padding:14px;margin:12px 0;overflow-x:auto;font-size:0.8rem;line-height:1.5;white-space:pre-wrap}
+.alert{padding:14px 18px;border-radius:10px;margin:12px 0;font-size:0.85rem;display:flex;gap:10px;align-items:flex-start}
+.alert-red{background:rgba(255,68,68,.1);border:1px solid rgba(255,68,68,.25);color:var(--accent2)}
+.alert-yellow{background:rgba(255,209,102,.1);border:1px solid rgba(255,209,102,.25);color:var(--accent4)}
+.alert-green{background:rgba(79,255,176,.1);border:1px solid rgba(79,255,176,.25);color:var(--accent3)}
+.alert-blue{background:rgba(91,196,245,.1);border:1px solid rgba(91,196,245,.25);color:var(--accent5)}
+.alert-purple{background:rgba(124,109,255,.1);border:1px solid rgba(124,109,255,.25);color:var(--accent)}
+.pipeline{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:16px 0;justify-content:center}
+.pipe-step{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:0.78rem;text-align:center;min-width:100px}
+.pipe-arrow{color:var(--text-muted);font-size:1.2rem}
+.pipe-step.browser{border-color:var(--accent4);background:rgba(255,209,102,.08)}
+.pipe-step.ia{border-color:var(--accent);background:rgba(124,109,255,.08)}
+.pipe-step.db{border-color:var(--accent3);background:rgba(79,255,176,.08)}
+.pipe-divider{width:4px;height:60px;background:var(--accent2);border-radius:2px;margin:0 8px;position:relative}
+.pipe-divider::after{content:'SPLIT';position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-size:0.6rem;color:var(--accent2);font-weight:800;white-space:nowrap}
+.opt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+.opt-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:20px;position:relative}
+.opt-card.recommended{border-color:var(--accent3)}
+.opt-card.recommended::after{content:'RECOMENDADA';position:absolute;top:-10px;right:16px;background:var(--accent3);color:#0d0f18;font-size:0.65rem;font-weight:800;padding:2px 10px;border-radius:4px}
+.opt-header{font-size:1.1rem;font-weight:800;margin-bottom:8px}
+.opt-header .letter{display:inline-block;width:28px;height:28px;border-radius:6px;text-align:center;line-height:28px;font-size:0.85rem;margin-right:8px}
+.letter-a{background:rgba(91,196,245,.2);color:var(--accent5)}
+.letter-b{background:rgba(124,109,255,.2);color:var(--accent)}
+.letter-c{background:rgba(79,255,176,.2);color:var(--accent3)}
+.score-bar{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:6px 0}
+.score-fill{height:100%;border-radius:4px}
+.score-green{background:var(--accent3)}
+.score-yellow{background:var(--accent4)}
+.score-blue{background:var(--accent5)}
+.score-purple{background:var(--accent)}
+.winner{color:var(--accent3);font-weight:700}
+.loser{color:var(--text-muted)}
+.neutral{color:var(--accent4)}
+.tag{display:inline-block;padding:2px 8px;border-radius:4px;font-size:0.72rem;font-weight:600}
+.tag-yes{background:rgba(79,255,176,.15);color:var(--accent3)}
+.tag-no{background:rgba(255,68,68,.15);color:var(--accent2)}
+.tag-partial{background:rgba(255,209,102,.15);color:var(--accent4)}
+.tag-key{background:rgba(124,109,255,.15);color:var(--accent)}
+.diverge{border-left:3px solid var(--accent2);padding-left:12px;margin:12px 0}
+.diverge-title{color:var(--accent2);font-weight:700;font-size:0.88rem}
+.footer{text-align:center;padding:32px 0;color:var(--text-muted);font-size:0.8rem;border-top:1px solid var(--border);margin-top:48px}
+details{margin:8px 0}
+summary{cursor:pointer;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:0.85rem;font-weight:600;color:var(--accent5);user-select:none}
+summary:hover{background:rgba(124,109,255,.1)}
+details[open] summary{border-radius:8px 8px 0 0;border-bottom:none}
+details .details-content{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:16px}
+@media(max-width:768px){.opt-grid{grid-template-columns:1fr}.pipeline{flex-direction:column}.pipe-divider{width:60px;height:4px;margin:8px 0}.pipe-divider::after{top:-16px}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-icon">&#x1F52C;</div>
+  <h1>Analise Arquitetural: Cecilia v2.3</h1>
+  <div class="hero-sub">Monolitico vs Split vs Hibrido — Segunda opiniao tecnica independente sobre a proposta de separar captura e analise IA</div>
+  <div class="hero-badges">
+    <span class="badge badge-green">Separacao ja existe no codigo</span>
+    <span class="badge badge-yellow">10/12 bugs nao resolvidos pela split</span>
+    <span class="badge badge-purple">Opcao C: Hibrido recomendado</span>
+    <span class="badge badge-blue">CC (Opus 4.6) &middot; 2026-03-31</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats-grid">
+  <div class="stat-card stat-blue"><div class="stat-value">6</div><div class="stat-label">Stages no Pipeline</div></div>
+  <div class="stat-card stat-yellow"><div class="stat-value">5+1</div><div class="stat-label">Browser + IA (desacoplados)</div></div>
+  <div class="stat-card stat-red"><div class="stat-value">10/12</div><div class="stat-label">Bugs nao resolvidos pela split</div></div>
+  <div class="stat-card stat-green"><div class="stat-value">C</div><div class="stat-label">Opcao recomendada</div></div>
+  <div class="stat-card stat-purple"><div class="stat-value">~400</div><div class="stat-label">Intimacoes/dia</div></div>
+</div>
+
+<!-- DESCOBERTA CHAVE -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4A1;</span>
+    <h2>Descoberta Chave — A Separacao Ja Existe no Codigo</h2>
+  </div>
+
+  <div class="alert alert-green">
+    <span>&#x2705;</span>
+    <div>O browser <strong>FECHA na linha 303</strong> do skill_orquestrador.mjs. A analise IA comeca na <strong>linha 223</strong> e recebe um array JSON puro <code>[{ cnj, evento, texto }]</code>. <strong>Zero dependencia do Playwright.</strong> A "split" nao e uma reescrita — e uma extracao de um modulo que ja esta desacoplado.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Pipeline Atual — Boundary Natural entre Captura e Analise</div>
+    <div class="pipeline">
+      <div class="pipe-step browser">&#x1F512;<br>Login<br><small>Playwright</small></div>
+      <span class="pipe-arrow">&#x2192;</span>
+      <div class="pipe-step browser">&#x1F4CA;<br>Gerar XLS<br><small>Playwright</small></div>
+      <span class="pipe-arrow">&#x2192;</span>
+      <div class="pipe-step db">&#x1F4C4;<br>Parse XLS<br><small>Node.js</small></div>
+      <span class="pipe-arrow">&#x2192;</span>
+      <div class="pipe-step browser">&#x1F50D;<br>Acessar Proc<br><small>Playwright</small></div>
+      <span class="pipe-arrow">&#x2192;</span>
+      <div class="pipe-step browser">&#x1F4D6;<br>Ler Docs<br><small>Playwright</small></div>
+      <span class="pipe-arrow" style="font-size:1.5rem;color:var(--accent2)">&#x2759;</span>
+      <div class="pipe-step ia">&#x1F9E0;<br>Analise IA<br><small>Claude API</small></div>
+      <span class="pipe-arrow">&#x2192;</span>
+      <div class="pipe-step db">&#x1F4BE;<br>Persist<br><small>Supabase</small></div>
+    </div>
+    <p style="text-align:center;font-size:0.78rem;color:var(--accent2);margin-top:8px">
+      &#x2191; A barra vermelha e o ponto de corte natural. Browser ja esta fechado quando IA comeca.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Implicacao pratica</div>
+    <ul>
+      <li>A analise IA <strong>nunca precisou</strong> do browser aberto — ja funciona como modulo independente</li>
+      <li>Para "splittar", basta: (1) persistir dados brutos antes da IA, (2) rodar IA em outro momento</li>
+      <li>Custo da migracao e <strong>muito menor</strong> do que parece — nao e reescrita, e roteamento</li>
+      <li>Mas isso tambem significa que o <strong>ganho e menor</strong>: nao estamos "desacoplando" algo acoplado</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 3 OPCOES -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F3D7;</span>
+    <h2>Tres Opcoes Arquiteturais</h2>
+  </div>
+
+  <div class="opt-grid">
+    <!-- OPCAO A -->
+    <div class="opt-card">
+      <div class="opt-header"><span class="letter letter-a">A</span> Monolitico (Atual)</div>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px">Node.js faz tudo: captura + analise + persist. Fix os 12 bugs, estabilizar, seguir em frente.</p>
+      <ul>
+        <li><span class="tag tag-yes">PRO</span> Zero custo de migracao</li>
+        <li><span class="tag tag-yes">PRO</span> Infra mais simples (1 processo)</li>
+        <li><span class="tag tag-yes">PRO</span> CC ja esta executando os 12 fixes</li>
+        <li><span class="tag tag-no">CON</span> parseJsonArray contamina batches</li>
+        <li><span class="tag tag-no">CON</span> Sem retry granular por item</li>
+        <li><span class="tag tag-no">CON</span> Training loop dificil de implementar</li>
+      </ul>
+      <div style="margin-top:12px">
+        <div style="font-size:0.75rem;color:var(--text-muted)">Score geral: 6.5/10</div>
+        <div class="score-bar"><div class="score-fill score-blue" style="width:65%"></div></div>
+      </div>
+    </div>
+
+    <!-- OPCAO B -->
+    <div class="opt-card">
+      <div class="opt-header"><span class="letter letter-b">B</span> Split Completo (n8n)</div>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px">Node.js = coletor puro. n8n = motor IA. Frontend = treinamento. Cada camada com responsabilidade unica.</p>
+      <ul>
+        <li><span class="tag tag-yes">PRO</span> Retry nativo por item (n8n)</li>
+        <li><span class="tag tag-yes">PRO</span> Dashboard de execucoes</li>
+        <li><span class="tag tag-yes">PRO</span> Training loop via frontend</li>
+        <li><span class="tag tag-yes">PRO</span> Escala independente</li>
+        <li><span class="tag tag-no">CON</span> 2-3 semanas de migracao</li>
+        <li><span class="tag tag-no">CON</span> n8n Railway = + ponto de falha</li>
+        <li><span class="tag tag-no">CON</span> Playwright continua para enrichment</li>
+      </ul>
+      <div style="margin-top:12px">
+        <div style="font-size:0.75rem;color:var(--text-muted)">Score geral: 7.5/10 (mas so no longo prazo)</div>
+        <div class="score-bar"><div class="score-fill score-purple" style="width:75%"></div></div>
+      </div>
+    </div>
+
+    <!-- OPCAO C -->
+    <div class="opt-card recommended">
+      <div class="opt-header"><span class="letter letter-c">C</span> Hibrido (Prep + Extensao)</div>
+      <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:12px">Manter monolitico. Adicionar status_analise. Criar ponto de extensao para re-analise. Migrar para split quando volume justificar.</p>
+      <ul>
+        <li><span class="tag tag-yes">PRO</span> Zero interrupcao — 12 fixes continuam</li>
+        <li><span class="tag tag-yes">PRO</span> Prep para split futuro (custo: 1 migration)</li>
+        <li><span class="tag tag-yes">PRO</span> Frontend pode re-analisar via edge fn</li>
+        <li><span class="tag tag-yes">PRO</span> Training loop viavel via Supabase</li>
+        <li><span class="tag tag-yes">PRO</span> Decisao de split adiada com dados reais</li>
+        <li><span class="tag tag-partial">MEH</span> Nao tem dashboard n8n (ainda)</li>
+        <li><span class="tag tag-partial">MEH</span> Retry por item exige codigo extra</li>
+      </ul>
+      <div style="margin-top:12px">
+        <div style="font-size:0.75rem;color:var(--text-muted)">Score geral: 8.5/10</div>
+        <div class="score-bar"><div class="score-fill score-green" style="width:85%"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MATRIZ COMPARATIVA -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4CA;</span>
+    <h2>Matriz Comparativa — 15 Criterios</h2>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr><th>Criterio</th><th>A: Monolitico</th><th>B: Split (n8n)</th><th>C: Hibrido</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Custo de migracao</strong></td>
+          <td class="winner">Zero</td>
+          <td class="loser">2-3 semanas</td>
+          <td class="winner">1 migration SQL</td>
+        </tr>
+        <tr>
+          <td><strong>Risco de quebra</strong></td>
+          <td class="winner">Zero</td>
+          <td class="loser">Alto (schema + codigo + crons)</td>
+          <td class="winner">Minimo</td>
+        </tr>
+        <tr>
+          <td><strong>Resolve 12 bugs?</strong></td>
+          <td class="neutral">Sim (CC executando)</td>
+          <td class="loser">Apenas 2-3 de 12</td>
+          <td class="neutral">Sim (CC executando)</td>
+        </tr>
+        <tr>
+          <td><strong>Retry granular</strong></td>
+          <td class="loser">Batch ou nada</td>
+          <td class="winner">n8n nativo</td>
+          <td class="neutral">Implementavel (20 linhas)</td>
+        </tr>
+        <tr>
+          <td><strong>Dashboard/observabilidade</strong></td>
+          <td class="loser">Logs manuais</td>
+          <td class="winner">n8n nativo</td>
+          <td class="neutral">Supabase dashboard</td>
+        </tr>
+        <tr>
+          <td><strong>Velocidade ciclo EPROC</strong></td>
+          <td class="neutral">~90min (Playwright + IA)</td>
+          <td class="winner">~20-30min (so Playwright)</td>
+          <td class="neutral">~90min (mas IA nao trava browser)</td>
+        </tr>
+        <tr>
+          <td><strong>Training loop</strong></td>
+          <td class="loser">Dificil (editar vault SSH)</td>
+          <td class="winner">Frontend nativo</td>
+          <td class="winner">Frontend via edge fn + Supabase</td>
+        </tr>
+        <tr>
+          <td><strong>Troca de modelo IA</strong></td>
+          <td class="loser">Editar codigo + deploy</td>
+          <td class="winner">Trocar no n8n</td>
+          <td class="neutral">Editar codigo (mas modular)</td>
+        </tr>
+        <tr>
+          <td><strong>Infra complexity</strong></td>
+          <td class="winner">1 processo</td>
+          <td class="loser">3 componentes</td>
+          <td class="winner">1 processo + 1 edge fn</td>
+        </tr>
+        <tr>
+          <td><strong>Enrichment compativel?</strong></td>
+          <td class="winner">Sim (mesmo pipeline)</td>
+          <td class="neutral">Sim (mas Playwright continua)</td>
+          <td class="winner">Sim (mesmo pipeline)</td>
+        </tr>
+        <tr>
+          <td><strong>Escalabilidade</strong></td>
+          <td class="loser">Sequencial</td>
+          <td class="winner">n8n paralelo</td>
+          <td class="neutral">Sequencial (ok para volume atual)</td>
+        </tr>
+        <tr>
+          <td><strong>Independencia da Cecilia</strong></td>
+          <td class="loser">IA acoplada</td>
+          <td class="winner">IA independente</td>
+          <td class="neutral">IA acoplada mas com extensao</td>
+        </tr>
+        <tr>
+          <td><strong>Custo IA mensal</strong></td>
+          <td class="neutral">~$40</td>
+          <td class="neutral">~$40 (mesmo volume)</td>
+          <td class="neutral">~$40 (mesmo volume)</td>
+        </tr>
+        <tr>
+          <td><strong>Timing ideal</strong></td>
+          <td class="winner">Agora</td>
+          <td class="loser">Apos v2.3 estavel (4-6 sem)</td>
+          <td class="winner">Agora (prep) + futuro (split)</td>
+        </tr>
+        <tr>
+          <td><strong>Sobrevive se IA muda?</strong></td>
+          <td class="loser">Nao</td>
+          <td class="winner">Sim (provider-agnostic)</td>
+          <td class="neutral">Parcial (modular mas in-process)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div style="display:flex;gap:24px;justify-content:center;margin-top:16px;flex-wrap:wrap">
+      <div style="text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--accent5)">5</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">Opcao A vence</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--accent)">6</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">Opcao B vence</div>
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--accent3)">7</div>
+        <div style="font-size:0.72rem;color:var(--text-muted)">Opcao C vence</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BUGS vs SPLIT -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F41B;</span>
+    <h2>O Que a Split Resolve vs Nao Resolve</h2>
+  </div>
+
+  <div class="alert alert-red">
+    <span>&#x26A0;</span>
+    <div><strong>Fato critico que Jarbas minimizou:</strong> 10 dos 12 bugs sao problemas de CAPTURA (XLS parsing, DOM scraping, regex, CNJ lookup). Mover a IA para n8n nao melhora input quality. Os mesmos dados sujos vao chegar ao n8n.</div>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr><th>Bug</th><th>Camada</th><th>Problema</th><th>Split resolve?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>BUG-01</td><td>XLS Parse</td><td>Assunto como tipo_evento</td><td><span class="tag tag-no">NAO</span> Mesmo XLS, mesmo bug</td></tr>
+        <tr><td>BUG-02</td><td>Pipeline</td><td>Classe A persiste</td><td><span class="tag tag-no">NAO</span> Filtro necessario em qualquer opcao</td></tr>
+        <tr><td>BUG-03</td><td>IA Parse</td><td>parseJsonArray contamina batch</td><td><span class="tag tag-yes">SIM</span> n8n processa 1 a 1</td></tr>
+        <tr><td>BUG-04</td><td>Regex</td><td>"Conclusos" nao matched</td><td><span class="tag tag-no">NAO</span> Regex roda na captura</td></tr>
+        <tr><td>BUG-05</td><td>XLS Gen</td><td>TJSC CSS selector falha</td><td><span class="tag tag-no">NAO</span> Playwright na captura</td></tr>
+        <tr><td>BUG-06</td><td>DOM</td><td>JavaScript como tipo_evento</td><td><span class="tag tag-no">NAO</span> DOM scraping na captura</td></tr>
+        <tr><td>BUG-07</td><td>Browser</td><td>139 race conditions</td><td><span class="tag tag-partial">PARCIAL</span> Playwright mais rapido sem IA, mas erros continuam</td></tr>
+        <tr><td>BUG-08</td><td>Lookup</td><td>62 sem processo_id</td><td><span class="tag tag-no">NAO</span> Lookup na captura</td></tr>
+        <tr><td>BUG-09</td><td>Metrica</td><td>Conta eventos nao CNJs</td><td><span class="tag tag-no">NAO</span> Contagem na captura</td></tr>
+        <tr><td>BUG-10</td><td>DOM</td><td>Juiz como tipo_evento</td><td><span class="tag tag-no">NAO</span> DOM scraping na captura</td></tr>
+        <tr><td>BUG-11</td><td>Frontend</td><td>Sem filtro classe A</td><td><span class="tag tag-no">NAO</span> Frontend independente</td></tr>
+        <tr><td>BUG-12</td><td>Regex</td><td>Juizo 100% Digital</td><td><span class="tag tag-no">NAO</span> Regex na captura</td></tr>
+      </tbody>
+    </table>
+
+    <div style="text-align:center;margin-top:12px">
+      <span style="font-size:2rem;font-weight:800;color:var(--accent2)">1.5</span>
+      <span style="font-size:0.85rem;color:var(--text-muted)"> de 12 bugs resolvidos pela split</span>
+    </div>
+  </div>
+</div>
+
+<!-- ANALISE DE VOLUME -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4C8;</span>
+    <h2>Analise de Volume — O Split Faz Sentido Hoje?</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Volume atual vs threshold para split</div>
+    <table>
+      <thead>
+        <tr><th>Metrica</th><th>Valor atual</th><th>Threshold para split</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Intimacoes/dia</td><td>300-600</td><td>&gt;1.000/dia</td><td><span class="tag tag-partial">Abaixo do threshold</span></td></tr>
+        <tr><td>OABs monitoradas</td><td>5</td><td>&gt;15</td><td><span class="tag tag-partial">Abaixo</span></td></tr>
+        <tr><td>Tempo ciclo IA</td><td>~30-40min</td><td>&gt;60min</td><td><span class="tag tag-partial">Aceitavel</span></td></tr>
+        <tr><td>Falhas IA/ciclo</td><td>~5% (parseJson)</td><td>&gt;15%</td><td><span class="tag tag-partial">Aceitavel apos fix BUG-03</span></td></tr>
+        <tr><td>Processos MdFlow</td><td>~14.600</td><td>&gt;50.000</td><td><span class="tag tag-partial">Abaixo</span></td></tr>
+      </tbody>
+    </table>
+
+    <div class="alert alert-yellow" style="margin-top:12px">
+      <span>&#x1F4CA;</span>
+      <div>O volume atual <strong>nao justifica</strong> a complexidade da split. O sistema monolitico com os 12 bugs corrigidos vai processar 300-600 intimacoes/dia sem problemas. A split vira necessidade quando Midas escalar para 15+ OABs ou 1.000+ intimacoes/dia.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Timing por stage (medido no E2E)</div>
+    <table>
+      <thead>
+        <tr><th>Stage</th><th>Tempo medio</th><th>% do ciclo</th><th>Depende de?</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>1. Login</td><td>5-8s</td><td>~1%</td><td>Playwright + EPROC</td></tr>
+        <tr><td>2. Gerar XLS</td><td>10-30s</td><td>~3%</td><td>Playwright + EPROC</td></tr>
+        <tr><td>3. Parse XLS</td><td>1-2s</td><td>&lt;1%</td><td>Node.js local</td></tr>
+        <tr><td>4. Acessar processos</td><td>30-50min</td><td>~55%</td><td>Playwright + EPROC (delay anti-bot)</td></tr>
+        <tr><td>5. Ler documentos</td><td>5-15min</td><td>~12%</td><td>Playwright + EPROC</td></tr>
+        <tr><td style="border-left:3px solid var(--accent2)"><strong>6. Analise IA</strong></td><td><strong>20-35min</strong></td><td><strong>~29%</strong></td><td><strong>Claude API (rede)</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:0.82rem;margin-top:8px;color:var(--text-muted)">
+      A IA consome ~29% do ciclo. Remover a IA do loop economiza esse tempo no Playwright (browser fecha mais cedo), mas o ciclo de captura pura ainda levaria ~65min por causa dos delays anti-bot. O ganho real e ~25min, nao os "60-70min" que uma estimativa ingenua sugeriria.
+    </p>
+  </div>
+</div>
+
+<!-- TRAINING LOOP -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F9EA;</span>
+    <h2>Training Loop — O Argumento Killer</h2>
+  </div>
+
+  <div class="alert alert-purple">
+    <span>&#x1F3AF;</span>
+    <div>O melhor argumento para a split <strong>nao e performance</strong> — e o <strong>training loop</strong>. Joao classifica, IA aprende, sistema melhora. Mas este argumento vale para as 3 opcoes.</div>
+  </div>
+
+  <div class="card" style="overflow-x:auto">
+    <table>
+      <thead>
+        <tr><th>Aspecto</th><th>A: Monolitico</th><th>B: Split (n8n)</th><th>C: Hibrido</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Joao da feedback</strong></td>
+          <td>Frontend INSERT feedback_ia<br>&#x2192; Supabase table</td>
+          <td>Frontend INSERT feedback_ia<br>&#x2192; Supabase table</td>
+          <td>Frontend INSERT feedback_ia<br>&#x2192; Supabase table</td>
+        </tr>
+        <tr>
+          <td><strong>IA le feedback</strong></td>
+          <td>Node.js SELECT feedback<br>antes de analisar</td>
+          <td>n8n node le feedback<br>como few-shot examples</td>
+          <td>Node.js SELECT feedback<br>+ edge fn para re-analise</td>
+        </tr>
+        <tr>
+          <td><strong>Editar playbooks</strong></td>
+          <td>Obsidian &#x2192; SSH sync<br><span class="tag tag-no">RUIM</span></td>
+          <td>Frontend &#x2192; Supabase<br><span class="tag tag-yes">BOM</span></td>
+          <td>Frontend &#x2192; Supabase<br><span class="tag tag-yes">BOM</span></td>
+        </tr>
+        <tr>
+          <td><strong>Re-analisar intimacao</strong></td>
+          <td>Nao disponivel<br><span class="tag tag-no">RUIM</span></td>
+          <td>Re-trigger n8n workflow<br><span class="tag tag-yes">BOM</span></td>
+          <td>Botao &#x2192; edge function<br><span class="tag tag-yes">BOM</span></td>
+        </tr>
+        <tr>
+          <td><strong>Complexidade</strong></td>
+          <td>~30 linhas de codigo</td>
+          <td>Novo workflow n8n completo</td>
+          <td>~50 linhas + 1 edge function</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p style="font-size:0.82rem;margin-top:12px">
+      <strong>Insight:</strong> O training loop funciona em QUALQUER opcao — a diferenca e onde a IA roda, nao como o feedback chega. A tabela <code>feedback_ia</code> no Supabase e o mesmo pattern nas 3 opcoes. A opcao C consegue o mesmo resultado da B sem migrar a IA para n8n.
+    </p>
+  </div>
+</div>
+
+<!-- ENRICHMENT IMPACT -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4E6;</span>
+    <h2>Impacto no Enrichment — Playwright Continua Necessario</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title">A promessa vs a realidade</div>
+
+    <div class="diverge">
+      <div class="diverge-title">Promessa da Split: "Node.js vira coletor puro, muito mais simples"</div>
+      <p style="font-size:0.85rem;margin-top:6px">Realidade: O Node.js CONTINUA precisando do Playwright para:</p>
+      <ul style="margin-top:6px">
+        <li>Login no EPROC (Keycloak)</li>
+        <li>Gerar planilha XLS (navegar no EPROC)</li>
+        <li>Acessar pagina do processo (enrichment: juiz, vara, advogado_reu)</li>
+        <li>Ler documentos PDF (conteudo para analise)</li>
+        <li>AI Vision fallback (screenshots de telas travadas)</li>
+      </ul>
+    </div>
+
+    <p style="font-size:0.85rem;margin-top:12px">
+      O PRD v5 adiciona <code>extractProcessMetadata()</code> que extrai juiz, vara, advogado_reu, AJG da pagina EPROC. Isso EXIGE browser. Se o Node.js "vira coletor puro", ele ainda faz 5 das 6 stages com Playwright. A unica coisa que sai e a chamada <code>fetch()</code> para a API do Claude — que e a parte mais simples de todo o pipeline.
+    </p>
+
+    <div class="alert alert-yellow" style="margin-top:12px">
+      <span>&#x1F914;</span>
+      <div>A <strong>complexidade real</strong> do sistema esta no Playwright (login, anti-bot, DOM scraping, race conditions), nao na chamada de API do Claude. Mover a IA para n8n remove a parte simples e mantem a parte complexa.</div>
+    </div>
+  </div>
+</div>
+
+<!-- DIVERGENCIAS COM JARBAS -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x2694;</span>
+    <h2>Onde Divirjo do Jarbas</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--accent2)">6 Divergencias Tecnicas</div>
+
+    <div class="diverge" style="margin-bottom:16px">
+      <div class="diverge-title">1. "Ciclo EPROC cai de 90min para 15-20min" (Jarbas)</div>
+      <p style="font-size:0.85rem;margin-top:4px"><strong>Minha analise:</strong> Errado. O delay anti-bot entre processos (800-2500ms) domina o tempo. Stages 1-5 levam ~65min mesmo sem IA. O ganho real e ~25min, nao 70min. E o ciclo de captura pura AINDA precisa do Playwright aberto esse tempo todo.</p>
+    </div>
+
+    <div class="diverge" style="margin-bottom:16px">
+      <div class="diverge-title">2. "4 responsabilidades eliminadas do Node.js" (Jarbas)</div>
+      <p style="font-size:0.85rem;margin-top:4px"><strong>Minha analise:</strong> So 1 responsabilidade sai: a chamada Claude API. As outras 3 que Jarbas lista (busca Supabase, retry, circuit breaker) continuam necessarias na captura. E com enrichment, MAIS responsabilidades entram no Node.js.</p>
+    </div>
+
+    <div class="diverge" style="margin-bottom:16px">
+      <div class="diverge-title">3. "n8n tem retry automatico, exponential backoff nativo" (Jarbas)</div>
+      <p style="font-size:0.85rem;margin-top:4px"><strong>Minha analise:</strong> Verdade, mas <code>parseJsonArrayRobusto()</code> (ja no PRD) resolve o mesmo problema com ~20 linhas. E o retry do n8n so ajuda se o erro e transiente — para input sujo (10 dos 12 bugs), retry nao ajuda.</p>
+    </div>
+
+    <div class="diverge" style="margin-bottom:16px">
+      <div class="diverge-title">4. "Estimativa: 2-3 semanas de CC para migracao limpa" (Jarbas)</div>
+      <p style="font-size:0.85rem;margin-top:4px"><strong>Minha analise:</strong> Subestimado. Precisa: novo schema (intimacoes_raw ou status_analise), novo workflow n8n completo, redesenhar notificacoes Telegram, testar E2E do zero, documentar. Realista: 3-5 semanas, com risco de regredir bugs ja corrigidos.</p>
+    </div>
+
+    <div class="diverge" style="margin-bottom:16px">
+      <div class="diverge-title">5. Jarbas nao explorou Opcao C (Hibrido)</div>
+      <p style="font-size:0.85rem;margin-top:4px"><strong>Minha analise:</strong> Jarbas apresentou binario: manter ou splittar. A opcao hibrida — manter monolitico mas com pontos de extensao (status_analise + edge function para re-analise) — captura 80% do beneficio com 10% do custo.</p>
+    </div>
+
+    <div class="diverge">
+      <div class="diverge-title">6. "Plano B valido — e o Plano Definitivo para escala" (Jarbas)</div>
+      <p style="font-size:0.85rem;margin-top:4px"><strong>Minha analise:</strong> Concordo que e o plano para escala, mas <strong>nao para o volume atual</strong>. Com 5 OABs e ~400 intimacoes/dia, o monolitico com bugs corrigidos e suficiente. A split vira necessidade com 15+ OABs — e esse dia pode nunca chegar, ou chegar em 6 meses. A Opcao C preserva a opcionalidade sem pagar o custo agora.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--accent3)">3 Concordancias com Jarbas</div>
+    <ul>
+      <li><strong>Arquitetura split e superior no longo prazo</strong> — sim, se o volume crescer 3x+</li>
+      <li><strong>Training loop via frontend e o argumento killer</strong> — sim, implementavel em qualquer opcao</li>
+      <li><strong>Nao fazer agora</strong> — sim, CC deve terminar os 12 fixes primeiro</li>
+    </ul>
+  </div>
+</div>
+
+<!-- RECOMENDACAO -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F3AF;</span>
+    <h2>Recomendacao — Opcao C com Roadmap para B</h2>
+  </div>
+
+  <div class="alert alert-green">
+    <span>&#x1F4A1;</span>
+    <div><strong>Opcao C: Hibrido.</strong> Manter o monolitico, corrigir os 12 bugs, adicionar <code>status_analise</code> como prep, criar edge function para re-analise/feedback. Migrar para split (Opcao B) quando o volume justificar — com dados reais, nao projecoes.</div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Roadmap em 3 fases</div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-weight:700;color:var(--accent3)">AGORA (Semana 1-2): Opcao C — Prep</div>
+      <ul>
+        <li>CC termina os 12 fixes do PRD v5 (ja em execucao)</li>
+        <li>Migration: <code>ALTER TABLE intimacoes ADD COLUMN status_analise text DEFAULT 'concluida'</code></li>
+        <li>Migration: <code>CREATE TABLE feedback_ia (intimacao_id, classe_original, classe_corrigida, motivo, created_at)</code></li>
+        <li>No orquestrador: persistir intimacao com <code>status_analise = 'pendente'</code> antes da IA, atualizar para <code>'concluida'</code> apos</li>
+        <li>No frontend: badge "Analisando..." para <code>status_analise = 'pendente'</code></li>
+      </ul>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div style="font-weight:700;color:var(--accent4)">MES 2: Training Loop</div>
+      <ul>
+        <li>Frontend: botao "Discordar" no controller → INSERT feedback_ia</li>
+        <li>Frontend: aba "Playbooks" para editar taxonomia → Supabase table</li>
+        <li>Node.js: SELECT feedback_ia como few-shot examples antes de analisar</li>
+        <li>Supabase Edge Function: <code>reanalisar_intimacao(id)</code> para re-classificar</li>
+        <li>Metricas: dashboard de acuracia IA vs correcoes do Joao</li>
+      </ul>
+    </div>
+
+    <div>
+      <div style="font-weight:700;color:var(--accent)">MES 3+ (SE necessario): Opcao B — Split</div>
+      <ul>
+        <li><strong>Trigger:</strong> Volume > 1.000/dia OU > 15 OABs OU acuracia IA < 80%</li>
+        <li>Migrar analise IA para n8n workflow</li>
+        <li>Node.js vira coletor puro (mas MANTEM Playwright para enrichment)</li>
+        <li>n8n: SELECT intimacoes WHERE status_analise = 'pendente' → analisar → UPDATE</li>
+        <li>Dashboard n8n como monitoramento principal</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- PREP HOJE -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F6E0;</span>
+    <h2>Decisao de Prep — O Que o CC Pode Fazer AGORA</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Migration SQL (adicionar ao PRD v5)</div>
+    <div class="code-block"><span style="color:#6a7199">-- Prep para split futura: status_analise permite pipeline assincrono</span>
+ALTER TABLE intimacoes
+ADD COLUMN IF NOT EXISTS status_analise text DEFAULT 'concluida'
+  CHECK (status_analise IN ('pendente', 'processando', 'concluida', 'erro'));
+
+<span style="color:#6a7199">-- Indice para query rapida de pendentes (n8n ou edge fn)</span>
+CREATE INDEX IF NOT EXISTS idx_intimacoes_status_analise
+  ON intimacoes(status_analise) WHERE status_analise = 'pendente';
+
+<span style="color:#6a7199">-- Tabela de feedback para training loop</span>
+CREATE TABLE IF NOT EXISTS feedback_ia (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  intimacao_id uuid REFERENCES intimacoes(id) ON DELETE CASCADE,
+  classe_original text,
+  classe_corrigida text,
+  motivo text,
+  usuario_id uuid REFERENCES auth.users(id),
+  organizacao_id uuid,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_feedback_ia_org
+  ON feedback_ia(organizacao_id, created_at DESC);</div>
+
+    <p style="font-size:0.82rem;color:var(--text-muted);margin-top:8px">
+      Custo: 1 migration. Risco: zero (default='concluida' = comportamento atual inalterado). Beneficio: pipeline pronta para split quando necessario.
+    </p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Mudanca minima no orquestrador</div>
+    <div class="code-block"><span style="color:#6a7199">// Em persistirIntimacao() — ANTES da analise IA:</span>
+<span style="color:var(--accent3)">status_analise: 'pendente'</span>  <span style="color:#6a7199">// novo campo</span>
+
+<span style="color:#6a7199">// APOS analise IA bem-sucedida:</span>
+await supabase.from('intimacoes')
+  .update({
+    classe_cecilia: r.classe,
+    confianca_ia: r.confianca,
+    analise_ia: r.analise,
+    <span style="color:var(--accent3)">status_analise: 'concluida'</span>  <span style="color:#6a7199">// novo</span>
+  })
+  .eq('id', intimacaoId);
+
+<span style="color:#6a7199">// Se analise IA falhar:</span>
+await supabase.from('intimacoes')
+  .update({ <span style="color:var(--accent3)">status_analise: 'erro'</span> })
+  .eq('id', intimacaoId);</div>
+  </div>
+</div>
+
+<!-- GO/NO-GO -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F6A6;</span>
+    <h2>Quando Migrar para Split Completo (Go/No-Go)</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Criterios de decisao</div>
+    <table>
+      <thead>
+        <tr><th>Criterio</th><th>Threshold</th><th>Status Atual</th><th>Acao</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Volume intimacoes/dia</td>
+          <td>&gt; 1.000</td>
+          <td style="color:var(--accent3)">~400 (OK)</td>
+          <td>Monitorar</td>
+        </tr>
+        <tr>
+          <td>OABs monitoradas</td>
+          <td>&gt; 15</td>
+          <td style="color:var(--accent3)">5 (OK)</td>
+          <td>Monitorar</td>
+        </tr>
+        <tr>
+          <td>Tempo ciclo total</td>
+          <td>&gt; 3 horas</td>
+          <td style="color:var(--accent3)">~90min (OK)</td>
+          <td>Monitorar</td>
+        </tr>
+        <tr>
+          <td>Falhas IA por ciclo</td>
+          <td>&gt; 15%</td>
+          <td style="color:var(--accent4)">~5% (apos fix BUG-03)</td>
+          <td>Monitorar</td>
+        </tr>
+        <tr>
+          <td>Acuracia IA (feedback Joao)</td>
+          <td>&lt; 80%</td>
+          <td style="color:var(--text-muted)">Sem dados ainda</td>
+          <td>Coletar com feedback_ia</td>
+        </tr>
+        <tr>
+          <td>Cecilia v2.3 estavel</td>
+          <td>2 semanas E2E limpo</td>
+          <td style="color:var(--accent2)">Em correcao</td>
+          <td><strong>Pre-requisito obrigatorio</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="alert alert-blue" style="margin-top:12px">
+      <span>&#x1F4CB;</span>
+      <div><strong>Regra:</strong> So migrar para split quando <strong>2+ criterios</strong> ultrapassarem o threshold E Cecilia v2.3 estiver estavel por 2+ semanas. Ate la, Opcao C e suficiente.</div>
+    </div>
+  </div>
+</div>
+
+<!-- RESUMO EXECUTIVO -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4DD;</span>
+    <h2>Resumo Executivo</h2>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr><th>Pergunta</th><th>Minha Resposta</th><th>Jarbas disse</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><strong>A ideia e valida?</strong></td><td>Sim — para escala futura</td><td>Sim (concordo)</td></tr>
+        <tr><td><strong>Resolve os 12 bugs?</strong></td><td style="color:var(--accent2)"><strong>Nao — apenas 1.5 de 12</strong></td><td>Nao mencionou</td></tr>
+        <tr><td><strong>Simplifica o Node.js?</strong></td><td style="color:var(--accent4)"><strong>Menos do que parece</strong> (Playwright continua)</td><td>Sim, muito</td></tr>
+        <tr><td><strong>Ganho de tempo no ciclo?</strong></td><td style="color:var(--accent4)"><strong>~25min</strong> (nao 70min)</td><td>60-70min</td></tr>
+        <tr><td><strong>Melhor opcao agora?</strong></td><td style="color:var(--accent3)"><strong>Opcao C (Hibrido)</strong></td><td>Opcao A (manter) com prep</td></tr>
+        <tr><td><strong>Quando split?</strong></td><td>Quando volume &gt; 1.000/dia (dados reais)</td><td>2-4 semanas pos v2.3</td></tr>
+        <tr><td><strong>Training loop?</strong></td><td style="color:var(--accent3)"><strong>Implementavel em qualquer opcao</strong></td><td>Melhor com n8n</td></tr>
+        <tr><td><strong>Nota da proposta split</strong></td><td><strong>7/10</strong> (long-term), <strong>4/10</strong> (agora)</td><td>7/10</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alert alert-green">
+    <span>&#x2705;</span>
+    <div><strong>Veredicto final:</strong> A ideia do Christian e estrategicamente correta — separar captura de analise e o caminho para escala. Mas tacticamente, o momento e errado e o beneficio imediato e superestimado. Opcao C captura 80% do valor com 10% do custo: prep o banco, crie o training loop, colete dados reais de volume e acuracia, e migre para split quando (e se) os numeros justificarem.</div>
+  </div>
+
+  <div class="alert alert-blue">
+    <span>&#x1F4A1;</span>
+    <div><strong>A frase que resume:</strong> "Nao troque os pneus enquanto o motor esta em chamas. Mas deixe os pneus novos no porta-malas."</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  &#x1F419; Jarbas 2.0 (CC) — MdLab LegalTech &middot; 2026-03-31<br>
+  <span style="font-size:0.72rem">Analise Arquitetural Independente &middot; Claude Code (Opus 4.6) &middot; Segunda opiniao tecnica sobre Split Captura vs Analise IA &middot; Self-contained, zero CDN</span>
+</div>
+
+</div>
+</body>
+</html>

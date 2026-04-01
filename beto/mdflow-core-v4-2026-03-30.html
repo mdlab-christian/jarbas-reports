@@ -2519,41 +2519,47 @@
   </details>
 
   <details>
-    <summary>📋 Banco + RPCs</summary>
+    <summary>📋 Banco + RPCs (Backend Test v1: 9.0/10)</summary>
     <div class="details-body">
       <div class="section-title">Tabelas (6)</div>
       <ul class="ilist">
         <li><span class="tag tag-table">audiencias</span> Principal — 23 colunas, RLS modelo A, soft delete, trigger updated_at</li>
         <li><span class="tag tag-table">audiencias_vw</span> View materializada para listagem (joins processo + advogado)</li>
-        <li><span class="tag tag-table">advogados_correspondentes</span> Correspondentes (nome, OAB, valor, PIX, UF)</li>
-        <li><span class="tag tag-table">audiencias_ia_resultados</span> Resultados de análise IA de atas</li>
+        <li><span class="tag tag-table">advogados_correspondentes</span> Correspondentes — soft delete adicionado (BT-002)</li>
+        <li><span class="tag tag-table">audiencias_ia_resultados</span> Resultados IA — updated_at NOT NULL (BT-007)</li>
         <li><span class="tag tag-table">audiencias_arquivos</span> Arquivos de ata uploadados</li>
-        <li><span class="tag tag-table">audiencias_participantes</span> Participantes (advogado, cliente, juiz)</li>
+        <li><span class="tag tag-table">audiencias_participantes</span> Participantes — updated_at + deleted_at + trigger (BT-003)</li>
       </ul>
       <div class="section-title">RPCs (5)</div>
       <ul class="ilist">
-        <li><span class="tag tag-rpc">get_audiencias_semana</span> KPI semana atual</li>
+        <li><span class="tag tag-rpc">get_audiencias_semana</span> KPI semana — STABLE, overload limpo (BT-001)</li>
         <li><span class="tag tag-rpc">get_proxima_audiencia</span> Próxima audiência agendada</li>
         <li><span class="tag tag-rpc">check_conflito_audiencia</span> Verifica conflito de horário</li>
         <li><span class="tag tag-rpc">registrar_pagamento_audiencia</span> Registrar pagamento (valida existência)</li>
-        <li><span class="tag tag-rpc">reverter_pagamento_audiencia</span> Reverter pagamento (valida existência — fix 2026-03-31)</li>
+        <li><span class="tag tag-rpc">reverter_pagamento_audiencia</span> Reverter pagamento + cleanup financeiro (BT-008)</li>
       </ul>
-      <div class="section-title">Índices</div>
+      <div class="section-title">Índices (5 — limpos)</div>
       <ul class="ilist">
         <li><code>idx_audiencias_org_id</code> — organizacao_id</li>
         <li><code>idx_audiencias_org_id_active</code> — parcial WHERE deleted_at IS NULL</li>
+        <li><code>idx_audiencias_org_data</code> — org + data</li>
+        <li><code>idx_audiencias_org_status</code> — org + status</li>
+        <li><code>idx_correspondentes_org_active</code> — parcial (BT-002)</li>
       </ul>
+      <div class="section-title">RLS — 5/5 tabelas ✅</div>
+      <p style="font-size:12px;color:#9e978a;">Todas usando get_org_id() / org_id(). Isolamento confirmado via org fictícia.</p>
     </div>
   </details>
 
   <details>
-    <summary>🔗 Webhooks n8n (5)</summary>
+    <summary>🔗 Webhooks n8n (6)</summary>
     <div class="details-body">
       <ul class="ilist">
         <li><span class="tag tag-webhook">audiencias/crud</span> ATIVO — agendar, registrar_resultado, cancelar</li>
         <li><span class="tag tag-webhook">audiencias/sync_financeiro</span> ATIVO — registrar/reverter pagamento</li>
-        <li><span class="tag tag-webhook">audiencias/processar_ata</span> ATIVO — Whisper+Claude para análise de ata (stub)</li>
-        <li><span class="tag tag-webhook">audiencias/chat</span> ATIVO — Chat OlivIA (stub)</li>
+        <li><span class="tag tag-webhook">audiencias/exportar</span> ATIVO — CSV export com signed URL (confirmado BT v1)</li>
+        <li><span class="tag tag-webhook">audiencias/processar_ata</span> STUB — Whisper+Claude para análise de ata</li>
+        <li><span class="tag tag-webhook">audiencias/chat</span> STUB — Chat OlivIA (404)</li>
         <li><span class="tag tag-webhook">audiencias/calendar</span> DESABILITADO — Google Calendar (aguarda OAuth2)</li>
       </ul>
     </div>
@@ -2602,22 +2608,37 @@
   </details>
 
   <details>
+    <summary>🗄️ Backend Test v1 + Exec v1 (2026-04-01) — 6 migrations, nota 9.0</summary>
+    <div class="details-body">
+      <div class="section-title">Saúde backend: 82% → 9.0/10</div>
+      <p style="font-size:12px;color:#9e978a;margin-bottom:8px;">Schema 10 | RPCs 9 | RLS 9 | Webhooks 8 | Performance 9 | Spec Drift 9</p>
+      <ul class="ilist">
+        <li><strong>BT-001+BT-006 (RPC):</strong> Drop overload ambíguo get_audiencias_semana + VOLATILE→STABLE</li>
+        <li><strong>BT-002 (SCHEMA):</strong> Soft delete (deleted_at) em advogados_correspondentes + índice parcial</li>
+        <li><strong>BT-003 (SCHEMA):</strong> updated_at + deleted_at + trigger em audiencias_participantes</li>
+        <li><strong>BT-005 (INDEX):</strong> Remove índice duplicado idx_audiencias_org</li>
+        <li><strong>BT-007 (SCHEMA):</strong> ia_resultados.updated_at NOT NULL + DEFAULT now()</li>
+        <li><strong>BT-008 (RPC):</strong> reverter_pagamento agora desfaz lançamento financeiro + refs</li>
+      </ul>
+      <p style="margin-top:8px;color:#9e978a;">6 migrations | 6 commits | Skipped: BT-004 NUMERIC→BIGINT (sprint dedicado)</p>
+      <p style="font-size:11px;color:#9e978a;margin-top:4px;">Nota: trigger function é <code>update_updated_at()</code>, não <code>update_updated_at_column()</code></p>
+    </div>
+  </details>
+
+  <details>
     <summary>⚠️ Pendências conhecidas</summary>
     <div class="details-body">
       <ul class="ilist">
         <li>Mobile 375px: sidebar não colapsa — overflow horizontal (layout global, afeta todas as páginas)</li>
-        <li>audiencias/exportar workflow INACTIVE com ghost route (requer ativação no n8n)</li>
+        <li>BT-004: NUMERIC→BIGINT para valores monetários (sprint dedicado — front+RPCs afetados)</li>
         <li>Criar/cancelar/importar sem fallback RPC (dependem do n8n estar up)</li>
         <li>ModalAudiencia.tsx em 497 linhas (próximo do limite 500 — monitorar/refatorar)</li>
         <li>2x <code>as any</code> em ModalAudiencia.tsx (dívida técnica de tipagem)</li>
         <li>WH-AUD-01: Análise IA de ata (webhook stub — sem Whisper+Claude)</li>
-        <li>WH-AUD-02: Chat OlivIA (webhook stub)</li>
+        <li>WH-AUD-02: Chat OlivIA (webhook stub — retorna 404)</li>
         <li>WH-AUD-05: Google Calendar sync (aguarda OAuth2)</li>
-        <li>webhook_requests não rastreia ações de audiências (cenário n8n)</li>
         <li>FRONT-002: Botão Sync Calendar disabled (resolvido quando feature reativar)</li>
         <li>FRONT-004: Filtros em sheet mobile (esforço alto, requer Sheet component)</li>
-        <li>FRONT-011: Scroll indicator no modal (CSS complexo, baixo impacto)</li>
-        <li>FRONT-014: Tablet botão Sync Calendar cortado (resolvido com FRONT-001)</li>
       </ul>
     </div>
   </details>

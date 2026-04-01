@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.50 (2026-04-01)</title>
+<title>MdFlow Core — Referência Técnica v4.51 (2026-04-02)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -3785,7 +3785,7 @@
       <span class="badge badge-route">/mdzap/app</span>
       <span class="badge badge-info">Mobile fullscreen</span>
       <span class="badge badge-ok">✅ Operacional</span>
-      <span class="badge badge-info">Rev. 2026-04-01</span>
+      <span class="badge badge-info">Rev. 2026-04-02</span>
     </div>
   </div>
 
@@ -3829,9 +3829,14 @@
     <summary>🗄️ SQL / Migrations</summary>
     <div class="details-body">
       <ul class="ilist">
-        <li><span class="tag tag-table">fn_mdzap_conversas(p_org_id, p_numero_id)</span> — RPC principal. <code>COALESCE(l.awaiting_human, (wc.metadata->>'awaiting_human')::boolean, false)</code> para lead_awaiting_human correto mesmo sem lead_id</li>
-        <li><span class="tag tag-table">whatsapp_conversas</span> — trigger <code>trg_zera_nao_lidas_arquivada</code> zera nao_lidas ao mudar status → 'arquivada'</li>
-        <li><span class="tag tag-table">whatsapp_mensagens</span> — soft delete obrigatório. Mensagens com conversa_id IS NULL devem ter deleted_at</li>
+        <li><span class="tag tag-table">fn_mdzap_conversas(p_org_id, p_status, p_search, p_page, p_per_page)</span> — RPC paginada. <code>COALESCE(l.aguardando_humano, false)</code> usa campo real da tabela leads</li>
+        <li><span class="tag tag-table">fn_mdzap_stats(p_org_id)</span> — KPIs dashboard. Single-scan com FILTER clauses. ~180ms warm (era 494ms)</li>
+        <li><span class="tag tag-table">fn_mdzap_listar_membros(p_org_id)</span> — filtra <code>AND u.deleted_at IS NULL</code></li>
+        <li><span class="tag tag-table">leads.aguardando_humano</span> — campo BOOLEAN adicionado (era hardcode <code>false</code>)</li>
+        <li><span class="tag tag-table">whatsapp_conversas</span> — soft delete (<code>deleted_at</code>) + trigger <code>trg_zera_nao_lidas_arquivada</code></li>
+        <li><span class="tag tag-table">whatsapp_mensagens</span> — <code>updated_at</code> + trigger <code>set_updated_at</code> adicionados</li>
+        <li><span class="tag tag-table">mdzap_lead_memory</span> — <code>deleted_at</code> + <code>updated_at</code> + trigger <code>set_updated_at</code></li>
+        <li><span class="tag tag-table">mdzap_ai_modules</span> — policy INSERT WITH CHECK <code>(organizacao_id = org_id())</code> corrigida</li>
       </ul>
     </div>
   </details>
@@ -3841,6 +3846,11 @@
     <div class="details-body">
       <ul class="ilist">
         <li><span class="tag tag-rpc">webhook</span> n8n: mdzap/enviar-mensagem (text, file, link)</li>
+        <li><span class="tag tag-rpc">webhook</span> n8n: MDZAP-ASSUMIR-CONVERSA — humano assume conversa do Julia</li>
+        <li><span class="tag tag-rpc">webhook</span> n8n: MDZAP-DEVOLVER-JULIA — devolve conversa para Julia</li>
+        <li><span class="tag tag-rpc">webhook</span> n8n: MDZAP-ENVIAR-AUDIO — envia áudio WhatsApp</li>
+        <li><span class="tag tag-rpc">webhook</span> n8n: MDZAP-RECONECTAR — reconecta instância WhatsApp</li>
+        <li><span class="tag tag-rpc">webhook</span> n8n: MDZAP-JULIA-LAB-REFINE — refinamento lab Julia</li>
         <li><span class="tag tag-table">leads</span> Vinculação de conversas com leads (LEFT JOIN — conversa pode existir sem lead)</li>
         <li>↔ ClienteDrawer aba "MDZap" — view inline da conversa do lead</li>
         <li><span class="tag tag-hook">hook</span> useMdzap — gerencia estado de conexão/instância</li>
@@ -3902,7 +3912,50 @@
       <ul class="ilist">
         <li>⏳ Fase 1 — Funcional (page-qa-tester + page-executor)</li>
         <li>⏳ Fase 2 — Deep (page-deep-explorer + page-polisher)</li>
-        <li>⏳ Fase 4 — Cobertura (page-front-tester + page-backend-tester)</li>
+        <li>⏳ Fase 4 Front — Cobertura (page-front-tester)</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>🔧 Fase 4 — Backend (page-backend-tester v1+v2 + executor) — 2026-04-02</summary>
+    <div class="details-body">
+      <table style="width:100%;font-size:0.82rem;margin-bottom:12px">
+        <tr><th>Ciclo</th><th>Nota</th><th>Saúde</th><th>Fixes</th></tr>
+        <tr><td>v1 (baseline)</td><td>6.7/10</td><td>67%</td><td>—</td></tr>
+        <tr><td>Ciclo 1 (executor)</td><td>8.6/10</td><td>86%</td><td>11 fixes</td></tr>
+        <tr><td>v2 (pós-executor)</td><td style="color:#20c997">8.75/10</td><td style="color:#20c997">88%</td><td>+2 fixes</td></tr>
+      </table>
+      <div class="section-title">Scores por área (v2)</div>
+      <ul class="ilist">
+        <li>Schema: 9.0/10 ✅</li>
+        <li>RPCs: 8.5/10 (p_org_id ≠ p_organizacao_id — P2 pendente)</li>
+        <li>RLS: 9.5/10 ✅ (isolamento multi-tenant validado)</li>
+        <li>Webhooks n8n: 9.0/10 — 5 workflows criados + 1 pré-existente ✅</li>
+        <li>Performance: 7.5/10 (cold-start &gt;300ms — pgBouncer recomendado)</li>
+        <li>Spec Drift: 9.0/10 ✅</li>
+      </ul>
+      <div class="section-title" style="margin-top:12px">Fixes aplicados (13)</div>
+      <ul class="ilist">
+        <li>P0: DB-001→005 — 5 workflows n8n criados (ASSUMIR, DEVOLVER, ENVIAR-AUDIO, RECONECTAR, JULIA-LAB-REFINE)</li>
+        <li>P1: DB-006 — leads.aguardando_humano + fn_mdzap_conversas + fn_mdzap_stats otimizado</li>
+        <li>P1: DB-007 — fn_mdzap_listar_membros filtra deleted_at IS NULL</li>
+        <li>P2: DB-008+010 — soft delete em mdzap_lead_memory e whatsapp_conversas</li>
+        <li>P2: DB-009 — fn_mdzap_stats performance (494ms → ~180ms, FILTER single-scan)</li>
+        <li>P2: DB-011 — mdzap_ai_modules INSERT policy WITH CHECK</li>
+        <li>Ciclo 2: updated_at + trigger set_updated_at em whatsapp_mensagens e mdzap_lead_memory</li>
+      </ul>
+      <div class="section-title" style="margin-top:12px">Pendências P2 (não bloqueiam produção)</div>
+      <ul class="ilist">
+        <li>⚠️ fn_mdzap_conversas/stats: p_org_id → p_organizacao_id (requer alterar hook useMdzapStats + MdzapDashboard)</li>
+        <li>⚠️ Cold-start latency &gt;300ms (pgBouncer connection pooler — infraestrutura)</li>
+      </ul>
+      <div class="section-title" style="margin-top:12px">Relatórios</div>
+      <ul class="ilist">
+        <li><a href="beto/mdzap/backend-test-v2-2026-04-02.html" style="color:var(--primary)">Backend Test v2 — 2026-04-02 (88%)</a></li>
+        <li><a href="beto/mdzap/backend-exec-log-v1-2026-04-02.html" style="color:var(--primary)">Backend Exec Log v1 — 2026-04-02 (13 fixes)</a></li>
+        <li><a href="beto/mdzap/front-audit-v2-2026-04-01.html" style="color:var(--primary)">Front Audit v2 — 2026-04-01 (8.4/10)</a></li>
+        <li><a href="beto/mdzap/front-exec-log-v1-2026-04-01.html" style="color:var(--primary)">Front Exec Log v1 — 2026-04-01 (11 fixes)</a></li>
       </ul>
     </div>
   </details>

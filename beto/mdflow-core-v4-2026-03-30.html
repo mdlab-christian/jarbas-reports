@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.36 (2026-04-01)</title>
+<title>MdFlow Core — Referência Técnica v4.37 (2026-04-01)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -3563,22 +3563,89 @@
 <!-- ═══ CALCULADORA ═══ -->
 <section id="page-calculadora" class="page-section">
   <div class="pg-header">
-    <h2>Calculadora</h2>
-    <p class="sub">Calculadora de honorários e valores processuais</p>
+    <h2>Calculadora Judicial</h2>
+    <p class="sub">Planilha de Débitos Judiciais — Correção Monetária + Juros</p>
     <div class="badge-row">
-      <span class="badge badge-route">/calculadora</span>
-      <span class="badge badge-route">/calculadora/:id</span>
+      <span class="badge badge-route">/calculo</span>
+      <span class="badge badge-route">/calculo/:id</span>
+      <span class="badge badge-ok">✅ Operacional</span>
     </div>
   </div>
 
   <details open>
     <summary>📋 Core + Ligações</summary>
     <div class="details-body">
-      <p>Calculadora de honorários advocatícios e valores processuais. Suporta deep link com ID de cálculo salvo (/calculadora/:id). Redirects de /calculo e /calculo/:id.</p>
+      <p><strong>O que é:</strong> Calculadora judicial de débitos com atualização monetária e juros. Layout two-pane: editor (60%, scroll vertical único) + resultado (40%, estilo DrCalc). Deep link com ID de cálculo salvo. Autosave a cada 30s para rascunhos.</p>
+      <p><strong>Última revisão:</strong> 2026-04-01 (v2.0 redesign completo)</p>
       <ul class="ilist" style="margin-top: 12px;">
-        <li><span class="tag tag-table">calculos</span> Leitura/escrita de cálculos salvos</li>
-        <li><span class="tag tag-hook">hook</span> hooks/calculos/ — lógica de cálculo</li>
+        <li><span class="tag tag-table">calculos</span> Estado principal do cálculo</li>
+        <li><span class="tag tag-table">calculo_periodos</span> Períodos correção/juros (12 índices, datas independentes)</li>
+        <li><span class="tag tag-table">calculo_parcelas</span> Parcelas do valor principal</li>
+        <li><span class="tag tag-table">calculo_eventos</span> Pagamentos/abatimentos</li>
+        <li><span class="tag tag-table">calculo_adicionais</span> Encargos (multa 523, honorários)</li>
+        <li><span class="tag tag-table">indice_valores</span> Séries BCB SGS (1615 registros, jan/2015 a mar/2026)</li>
+        <li><span class="tag tag-hook">hook</span> useIndiceSerie — carrega séries de índices</li>
+        <li><span class="tag tag-hook">hook</span> useCalculoEngine — motor de cálculo</li>
+        <li><span class="tag tag-hook">hook</span> useCalculoSave — persistência</li>
+        <li><span class="tag tag-hook">hook</span> useCalculoExport — exportação PDF</li>
       </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>🏗️ Estrutura — Arquivos e Componentes</summary>
+    <div class="details-body">
+      <div class="tree">
+<span class="c">src/pages/calculo/index.tsx</span>               <span class="m">— Entry point, two-pane layout</span>
+├── <span class="f">CalculoHeader.tsx</span>                      <span class="m">— CNJ (maskCNJ) + Data + ações (salvar/exportar)</span>
+├── <span class="f">CalculoParcelas.tsx</span>                    <span class="m">— Valor principal com CurrencyInput</span>
+├── <span class="f">CalculoPeriodos.tsx</span>                    <span class="m">— Correção (índice+datas) + Juros (tipo+datas independentes)</span>
+├── <span class="f">CalculoAdicionais.tsx</span>                  <span class="m">— Multa 523, Honorários execução/advocatícios</span>
+├── <span class="f">CalculoEventos.tsx</span>                     <span class="m">— Pagamentos/depósitos/abatimentos</span>
+├── <span class="f">CalculoResultadoPane.tsx</span>               <span class="m">— Resultado estilo DrCalc (parâmetros + tabela + consolidado)</span>
+└── <span class="c">src/components/pdf/CalculoPdfDocument.tsx</span> <span class="m">— PDF @react-pdf estilo planilha judicial</span>
+      </div>
+      <div class="section-title">Motor de Cálculo</div>
+      <div class="tree">
+<span class="c">src/lib/calculos/engine/</span>
+├── <span class="f">saldo_engine.ts</span>     <span class="m">— Motor principal (correção × juros × adicionais)</span>
+├── <span class="f">correcao_monetaria.ts</span> <span class="m">— Fator de correção por série BCB</span>
+├── <span class="f">juros.ts</span>            <span class="m">— Juros simples/composto/SELIC/taxa legal</span>
+└── <span class="f">checagem.ts</span>         <span class="m">— 12 validações de consistência (C-01 a C-12)</span>
+      </div>
+      <div class="section-title">Índices BCB SGS Suportados (12)</div>
+      <ul class="ilist">
+        <li>IPCA (433) · IPCA-E (10764) · IPCA-15 (7478) · INPC (188)</li>
+        <li>IGP-M (189) · IGP-DI (190) · IPC-DI (191)</li>
+        <li>INCC-DI (192) · IPA-DI (225) · TR (7811)</li>
+        <li>SELIC (4390) · CDI (4391)</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>✅ O que foi feito (v2.0 redesign — 2026-04-01)</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>Layout tabs eliminado → scroll vertical único (Parcelas → Períodos → Encargos → Eventos)</li>
+        <li>Header simplificado: CNJ com maskCNJ + Data base</li>
+        <li>CurrencyInput em todos os campos monetários</li>
+        <li>12 índices BCB SGS (era 4) + 1615 registros populados no banco</li>
+        <li>Datas de juros independentes da correção (juros_data_inicial/juros_data_final)</li>
+        <li>Motor atualizado para datas independentes</li>
+        <li>PDF reescrito estilo planilha judicial DrCalc</li>
+        <li>Resultado DrCalc-style com tabela Período/Nominal/Fator/Corrigido/Juros/Subtotal</li>
+        <li>Checagem C-08b: validação de datas de juros</li>
+        <li>Encargos filtrados: multa 523, honorários execução, honorários advocatícios</li>
+        <li>4 migrations: CHECK constraints expandidos + colunas juros dates</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>⚠️ Bugs abertos</summary>
+    <div class="details-body">
+      <p>Nenhum bug aberto. Página operacional.</p>
     </div>
   </details>
 </section>

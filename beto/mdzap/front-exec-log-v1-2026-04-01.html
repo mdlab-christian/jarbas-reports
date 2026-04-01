@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MdFlow — Front-Exec Log mdzap v1 — 2026-04-01</title>
+  <style>
+    :root {
+      --bg: #12100e;
+      --card: #1a1714;
+      --surface: #211e1a;
+      --border: #3a3530;
+      --foreground: #f2efe8;
+      --muted: #9e978a;
+      --primary: #20c997;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --destructive: #ef4444;
+      --info: #38bdf8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--foreground);
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 32px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    h1 { font-family: Manrope, Inter, sans-serif; font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    h2 { font-family: Manrope, Inter, sans-serif; font-size: 15px; font-weight: 600; color: var(--foreground); margin: 28px 0 12px; }
+    .meta { font-size: 12px; color: var(--muted); margin-bottom: 28px; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .summary-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .summary-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .summary-card .value { font-size: 28px; font-family: Manrope, sans-serif; font-weight: 700; }
+    .summary-card .value.green { color: var(--success); }
+    .summary-card .value.yellow { color: var(--warning); }
+    .summary-card .value.red { color: var(--destructive); }
+    .summary-card .value.primary { color: var(--primary); }
+
+    table { width: 100%; border-collapse: collapse; background: var(--card); border-radius: 10px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 24px; }
+    th { background: var(--surface); padding: 10px 14px; text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 14px; font-size: 13px; border-bottom: 1px solid var(--border)/40; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 2px 8px; border-radius: 20px; font-size: 11px; font-weight: 600; white-space: nowrap;
+    }
+    .badge.done   { background: rgba(34,197,94,0.15);  color: var(--success);    border: 1px solid rgba(34,197,94,0.3); }
+    .badge.skip   { background: rgba(245,158,11,0.15); color: var(--warning);    border: 1px solid rgba(245,158,11,0.3); }
+    .badge.pend   { background: rgba(239,68,68,0.15);  color: var(--destructive); border: 1px solid rgba(239,68,68,0.3); }
+    .badge.info   { background: rgba(56,189,248,0.12); color: var(--info);       border: 1px solid rgba(56,189,248,0.3); }
+
+    .id-badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--surface); padding: 2px 7px; border-radius: 5px; border: 1px solid var(--border); color: var(--muted); }
+    .commit-list { display: flex; flex-direction: column; gap: 6px; }
+    .commit-item { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; }
+    .commit-hash { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--primary); min-width: 76px; }
+    .commit-msg { font-size: 12px; color: var(--foreground); }
+    .tag { font-size: 10px; padding: 1px 6px; border-radius: 4px; font-weight: 600; }
+    .tag.css  { background: rgba(56,189,248,0.12); color: var(--info); }
+    .tag.jsx  { background: rgba(32,201,151,0.12); color: var(--primary); }
+
+    .pendencia-box { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    .pendencia-box .title { font-weight: 600; font-size: 13px; margin-bottom: 6px; }
+    .pendencia-box .desc { font-size: 12px; color: var(--muted); }
+    .pendencia-box.backend { border-color: rgba(239,68,68,0.4); }
+    .pendencia-box.warn    { border-color: rgba(245,158,11,0.4); }
+
+    .divider { height: 1px; background: var(--border); margin: 24px 0; }
+    footer { margin-top: 40px; font-size: 11px; color: var(--muted); text-align: center; }
+  </style>
+</head>
+<body>
+
+<h1>Front-Executor Log — /mdzap</h1>
+<p class="meta">Execução: 2026-04-01 &nbsp;|&nbsp; Auditor: front-exec-log-v1 &nbsp;|&nbsp; Branch: main &nbsp;|&nbsp; Projeto: beta-mdflow</p>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="label">Total Achados</div>
+    <div class="value primary">13</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Executados</div>
+    <div class="value green">11</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Pulados / Pendentes</div>
+    <div class="value yellow">2</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Backend Required</div>
+    <div class="value red">1</div>
+  </div>
+  <div class="summary-card">
+    <div class="label">Commits</div>
+    <div class="value primary">8</div>
+  </div>
+</div>
+
+<h2>Tabela de Achados</h2>
+<table>
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Título</th>
+      <th>Tipo</th>
+      <th>Prioridade</th>
+      <th>Status</th>
+      <th>Observação</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><span class="id-badge">FRONT-001</span></td>
+      <td>Emojis como strings em vez de ícones Lucide</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P1</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>10 arquivos: MdzapJuliaLab, MdzapMsgBubble, MdzapLeadPanel, MdzapDashboard, MdzapThreadHeader, MdzapLeadMemoryPanel, MdzapConversaFilters, MdzapConnectionIndicator, AlertDialogBulkNegotiations, AlertDialogBulkDocuments</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-002</span></td>
+      <td>text-[9px] em badges de status — abaixo do mínimo de acessibilidade</td>
+      <td><span class="tag css">CSS</span></td>
+      <td>P2</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>6 arquivos: MdzapMsgBubble, MdzapAdminIA, TemplatesManagerDialog, MdzapConversaFilters, MdzapSwipeableCard, MdzapConversaList → text-[10px]</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-003</span></td>
+      <td>MdzapLeadMemoryPanel usa inline styles em vez de Tailwind</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P1</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>Resolvido junto com FRONT-001 — refactor completo do componente removeu todos os inline styles + emoji icons substituídos por ícones Lucide</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-004</span></td>
+      <td>MdzapAdminIA usa textarea nativo com fontFamily inline</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P2</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>&lt;textarea style={{fontFamily}}&gt; → &lt;Textarea className="font-mono"&gt; (shadcn)</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-005</span></td>
+      <td>backdrop-blur em cards de dados — anti-padrão DS v5</td>
+      <td><span class="tag css">CSS</span></td>
+      <td>P2</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>MdzapContextCard e MdzapKpiWidget: backdrop-blur-sm removido, bg-card/60 → bg-card. MdzapSearchBar mantido (barra overlay transitória)</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-006</span></td>
+      <td>Empty state da thread sem CTA ou atalhos de teclado</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P2</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>MdzapMsgThread: adicionado empty state com MessageCircle icon + mensagens contextuais quando mensagens.length === 0 e !isLoading</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-007</span></td>
+      <td>Números de telefone sem font-[JetBrains_Mono] explícito</td>
+      <td><span class="tag css">CSS</span></td>
+      <td>P3</td>
+      <td><span class="badge info">— Nenhuma ação</span></td>
+      <td>Todos os locais de exibição já tinham font-mono: MdzapLeadPanel:272, MdzapDashboard:207, MdzapThreadHeader:41. Nenhuma alteração necessária.</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-008</span></td>
+      <td>Tablet (768-1023px) perde sidebar global do MdFlow</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P2</td>
+      <td><span class="badge skip">⚠ Pulado</span></td>
+      <td>Problema no AppLayout global — fora do escopo do componente /mdzap. Requer análise do componente raiz de layout. Não alterado para não quebrar outras páginas.</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-009</span></td>
+      <td>Botão 'Assumir' pouco proeminente quando lead aguarda humano</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P3</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>MdzapThreadHeader: variant condicional — variant="default" (primary) quando awaiting && !assignedUserName, ghost caso contrário</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-010</span></td>
+      <td>Avatar sempre inicial — sem suporte a foto do contato</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P3</td>
+      <td><span class="badge pend">✗ Pendência</span></td>
+      <td>Backend required — campo photo_url na tabela de contatos/leads necessário</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-011</span></td>
+      <td>Seletor de período no Dashboard invisível — deveria ser visible+disabled</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P2</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>MdzapDashboard: seletor &lt;Select disabled&gt; adicionado com Tooltip "Filtro por período em breve". Importados Select e Tooltip do shadcn.</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-012</span></td>
+      <td>Tab 'Tom' no LeadPanel usa emoji — inconsistente com outras tabs</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P3</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>MdzapLeadPanel: "💬 Tom" → "Tom" (emoji removido, consistente com tabs Lead, Memória, Histórico)</td>
+    </tr>
+    <tr>
+      <td><span class="id-badge">FRONT-013</span></td>
+      <td>style={{fontSize}} em emojis de sentimento do SentimentPanel</td>
+      <td><span class="tag jsx">JSX</span></td>
+      <td>P3</td>
+      <td><span class="badge done">✓ Executado</span></td>
+      <td>MdzapLeadPanel SentimentPanel: style={{fontSize:18}} → className="text-lg", style={{fontSize:13}} → className="text-sm"</td>
+    </tr>
+  </tbody>
+</table>
+
+<div class="divider"></div>
+
+<h2>Commits Realizados</h2>
+<div class="commit-list">
+  <div class="commit-item">
+    <span class="commit-hash">a2531ff8</span>
+    <span class="tag css">CSS</span>
+    <span class="commit-msg">front(mdzap): FRONT-002 — badge status text-[9px] para text-[10px] [CSS]</span>
+  </div>
+  <div class="commit-item">
+    <span class="commit-hash">0011b4f6</span>
+    <span class="tag css">CSS</span>
+    <span class="commit-msg">front(mdzap): FRONT-005 — remove backdrop-blur de cards de dados [CSS]</span>
+  </div>
+  <div class="commit-item">
+    <span class="commit-hash">8e8e9e74</span>
+    <span class="tag jsx">JSX</span>
+    <span class="commit-msg">front(mdzap): FRONT-001 — emojis → ícones Lucide em todos os componentes [JSX]</span>
+  </div>
+  <div class="commit-item">
+    <span class="commit-hash">b938bc4a</span>
+    <span class="tag jsx">JSX</span>
+    <span class="commit-msg">front(mdzap): FRONT-004 — textarea nativo → shadcn Textarea em MdzapAdminIA [JSX]</span>
+  </div>
+  <div class="commit-item">
+    <span class="commit-hash">28541e00</span>
+    <span class="tag jsx">JSX</span>
+    <span class="commit-msg">front(mdzap): FRONT-006 — empty state thread com CTA [JSX]</span>
+  </div>
+  <div class="commit-item">
+    <span class="commit-hash">ee2a375a</span>
+    <span class="tag jsx">JSX</span>
+    <span class="commit-msg">front(mdzap): FRONT-009 — botão Assumir variant default quando lead aguarda [JSX]</span>
+  </div>
+  <div class="commit-item">
+    <span class="commit-hash">ef5d1a9e</span>
+    <span class="tag jsx">JSX</span>
+    <span class="commit-msg">front(mdzap): FRONT-011 — seletor período visible+disabled no Dashboard [JSX]</span>
+  </div>
+  <div class="commit-item">
+    <span class="commit-hash">020294cf</span>
+    <span class="tag jsx">JSX</span>
+    <span class="commit-msg">front(mdzap): FRONT-013 — SentimentPanel fontSize inline → Tailwind [JSX]</span>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<h2>Pendências Detalhadas</h2>
+
+<div class="pendencia-box backend">
+  <div class="title">FRONT-010 — Backend Required: Avatar foto do contato</div>
+  <div class="desc">
+    <p>O avatar de contatos sempre exibe a inicial do nome. Para suportar foto, é necessário:</p>
+    <ul style="margin-top:8px; padding-left:16px; line-height:2;">
+      <li>Campo <code>photo_url TEXT</code> na tabela <code>whatsapp_conversas</code> ou na tabela de leads/clientes</li>
+      <li>Integração com Evolution API para sincronizar a foto do perfil WhatsApp</li>
+      <li>Componente Avatar com fallback para inicial quando photo_url for null</li>
+    </ul>
+    <p style="margin-top:8px;">Aprovação CTO necessária (adicionar campo em tabela de dados).</p>
+  </div>
+</div>
+
+<div class="pendencia-box warn">
+  <div class="title">FRONT-008 — Tablet Layout: Sidebar global do MdFlow</div>
+  <div class="desc">
+    <p>No range 768-1023px, o MdFlow usa o layout mobile (stack lista → thread). A sidebar global pode não aparecer.</p>
+    <p style="margin-top:6px;">Este problema reside no <code>AppLayout</code> ou componente de roteamento raiz — fora do escopo da página /mdzap. Alterar esse componente afeta todas as 33 páginas.</p>
+    <p style="margin-top:6px;"><strong>Recomendação:</strong> Abrir issue separado de "Tablet Layout Global" para análise específica.</p>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<h2>Arquivos Modificados</h2>
+<table>
+  <thead>
+    <tr>
+      <th>Arquivo</th>
+      <th>Fixes Aplicados</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><code>src/components/mdzap/MdzapMsgBubble.tsx</code></td>
+      <td>FRONT-001 (Bot/User icons), FRONT-002 (text-[10px])</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapAdminIA.tsx</code></td>
+      <td>FRONT-002 (text-[10px]), FRONT-004 (shadcn Textarea)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/TemplatesManagerDialog.tsx</code></td>
+      <td>FRONT-002 (text-[10px])</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapConversaFilters.tsx</code></td>
+      <td>FRONT-001 (Bot/User icons), FRONT-002 (text-[10px])</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapSwipeableCard.tsx</code></td>
+      <td>FRONT-002 (text-[10px])</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapConversaList.tsx</code></td>
+      <td>FRONT-002 (text-[10px])</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapContextCard.tsx</code></td>
+      <td>FRONT-005 (remove backdrop-blur, bg-card)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapKpiWidget.tsx</code></td>
+      <td>FRONT-005 (remove backdrop-blur, bg-card)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapJuliaLab.tsx</code></td>
+      <td>FRONT-001 (Bot icon)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapLeadPanel.tsx</code></td>
+      <td>FRONT-001 (tab Tom sem emoji), FRONT-013 (fontSize → Tailwind)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapDashboard.tsx</code></td>
+      <td>FRONT-001 (Circle icon), FRONT-011 (seletor período)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapThreadHeader.tsx</code></td>
+      <td>FRONT-001 (Circle icon), FRONT-009 (Assumir variant)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapLeadMemoryPanel.tsx</code></td>
+      <td>FRONT-001 (Lucide icons), FRONT-003 (inline styles → Tailwind)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapConnectionIndicator.tsx</code></td>
+      <td>FRONT-001 (Circle icons para status conectado/desconectado)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/AlertDialogBulkNegotiations.tsx</code></td>
+      <td>FRONT-001 (Smartphone icon)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/AlertDialogBulkDocuments.tsx</code></td>
+      <td>FRONT-001 (Smartphone icon)</td>
+    </tr>
+    <tr>
+      <td><code>src/components/mdzap/MdzapMsgThread.tsx</code></td>
+      <td>FRONT-006 (empty state)</td>
+    </tr>
+  </tbody>
+</table>
+
+<footer>
+  MdFlow Front-Exec Log v1 — /mdzap &nbsp;|&nbsp; 2026-04-01 &nbsp;|&nbsp; Gerado por page-front-executor &nbsp;|&nbsp; MDX LegalTech
+</footer>
+
+</body>
+</html>

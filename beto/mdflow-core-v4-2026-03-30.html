@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.51 (2026-04-02)</title>
+<title>MdFlow Core — Referência Técnica v4.52 (2026-04-01)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -987,6 +987,67 @@
         <h4>M2 🔵 INTENCIONAL — Modal "Descartar alterações?" ao clicar fora</h4>
         <p>Comportamento correto e intencional. Pode ser ajustado com <code>onInteractOutside={(e) => e.preventDefault()}</code> se necessário.</p>
       </div>
+    </div>
+  </details>
+
+  <details>
+    <summary>🗄️ Fase 4 — Backend (page-backend-tester v1 — 2026-04-01)</summary>
+    <div class="details-body">
+      <div class="grid-3">
+        <div class="card">
+          <h3>Saúde Geral</h3>
+          <p style="font-size:2rem;font-weight:800;color:#f59e0b;font-family:Manrope,sans-serif;">76%</p>
+          <p style="font-size:12px;color:var(--text-muted);">Schema 8.5 | RPCs 6 | RLS 9 | Webhooks 9 | Perf 7.5 | Drift 6</p>
+        </div>
+        <div class="card">
+          <h3>P0 Corrigido na Sessão</h3>
+          <p style="color:#22c55e;font-weight:600;">✅ fn_restricoes_listar</p>
+          <p style="font-size:12px;color:var(--text-muted);">JOIN com orgaos_restritivos tinha <code>AND o.deleted_at IS NULL</code> em tabela sem essa coluna → erro silencioso em todas as restrições dos drawers. Corrigido direto no Supabase.</p>
+        </div>
+        <div class="card">
+          <h3>P1 Abertos</h3>
+          <ul style="font-size:12px;padding-left:14px;">
+            <li><strong>fn_crm_kanban</strong> — schema drift (l.empresa inexistente). Frontend não usa, mas quebra se chamada.</li>
+            <li><strong>auditorias INSERT RLS</strong> — sem USING clause. Adicionar SELECT policy.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section-title">Inventário Backend CRM</div>
+      <p style="font-size:13px;color:var(--text-muted);">8 tabelas, 3 views, 40+ RPCs, 6 triggers em leads, 30+ índices. Tabelas principais: <code>leads</code> (632kB), <code>restricoes</code> (3.6MB), <code>auditorias</code> (392kB), <code>webhook_requests</code> (21MB).</p>
+
+      <div class="section-title">RPCs Testadas</div>
+      <div class="bug-card ok">
+        <h4>✅ rpc_crm_dashboard_kpis — 155ms — envelope canônico correto</h4>
+        <p>RLS funcionando: org_ficticia retorna zeros. SECURITY DEFINER. Parâmetros com prefixo p_.</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>✅ fn_restricoes_listar — 147–234ms — CORRIGIDA</h4>
+        <p>Fix P0: removido <code>AND o.deleted_at IS NULL</code> do JOIN com orgaos_restritivos. Agora retorna 9.919 restrições. RLS isolamento: org_ficticia → 0 rows.</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>✅ fn_restricao_salvar, rpc_disparar_auditoria, distribuir_lead_completo — funcionais</h4>
+        <p>Assinaturas corretas, envelope canônico, validações de negócio funcionando.</p>
+      </div>
+      <div class="bug-card warn">
+        <h4>❌ fn_crm_kanban — QUEBRADA (P1)</h4>
+        <p>Referencia <code>l.empresa</code> e <code>l.vendedor_id</code> inexistentes na tabela leads. Provavelmente legado abandonado. Frontend usa views diretas, não chama esta RPC. Fix: DROP ou reescrever.</p>
+      </div>
+
+      <div class="section-title">Tech Debt P2</div>
+      <ul class="ilist">
+        <li><code>restricoes.valor</code>: NUMERIC → deve ser BIGINT (centavos)</li>
+        <li><code>leads_atividades</code>: sem <code>deleted_at</code> → hard delete</li>
+        <li><code>fn_crm_stats</code>: parâmetro <code>p_org_id</code> → renomear para <code>p_organizacao_id</code></li>
+        <li><code>webhook_requests</code> 21MB: verificar pg_cron de limpeza (LGPD 90 dias)</li>
+      </ul>
+
+      <div class="section-title">Webhooks n8n CRM (14 ativos)</div>
+      <p style="font-size:13px;color:var(--text-muted);">WH-CRM-VINCULAR-ADVOGADO, WH-CRM-03 Aprovar Triagem, MDZAP-LEAD-SYNC, N8N-DIST-MANUAL, e mais. Auth header incorreto retorna 403. Envelope canônico correto.</p>
+
+      <ul class="ilist">
+        <li><a href="beto/crm/backend-test-v1-2026-04-01.html">Backend Test v1 — 2026-04-01 (saúde 76%)</a></li>
+      </ul>
     </div>
   </details>
 </section>

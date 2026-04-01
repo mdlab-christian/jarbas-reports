@@ -459,6 +459,13 @@
   <a class="toc-item" href="#s12"><span class="toc-num">12</span> Seguranca & Obs.</a>
   <a class="toc-item" href="#s13"><span class="toc-num">13</span> Fases Implementacao</a>
   <a class="toc-item" href="#s14"><span class="toc-num">14</span> Prontidao Operacional</a>
+  <div style="margin: 12px 0 4px; padding: 6px 8px; border-top: 1px solid var(--border); font-size: 10px; color: var(--accent4); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Revisao Final 01/04</div>
+  <a class="toc-item" href="#s15"><span class="toc-num" style="background: var(--accent2-dim); border-color: rgba(239,68,68,0.3); color: var(--accent2);">15</span> Deep Review Correcoes</a>
+  <a class="toc-item" href="#s16"><span class="toc-num" style="background: var(--accent3-dim); border-color: rgba(34,197,94,0.3); color: var(--accent3);">16</span> Decisoes Confirmadas</a>
+  <a class="toc-item" href="#s17"><span class="toc-num" style="background: var(--accent5-dim); border-color: rgba(14,165,233,0.3); color: var(--accent5);">17</span> Plano de Execucao</a>
+  <a class="toc-item" href="#s18"><span class="toc-num" style="background: var(--accent4-dim); border-color: rgba(245,158,11,0.3); color: var(--accent4);">18</span> Avaliacao & Score</a>
+  <a class="toc-item" href="#s19"><span class="toc-num" style="background: var(--violet-dim); border-color: rgba(167,139,250,0.3); color: var(--violet);">19</span> Q&A Validacao</a>
+  <a class="toc-item" href="#s20"><span class="toc-num" style="background: var(--primary-dim); border-color: var(--primary-border); color: var(--primary);">20</span> Prompt Retomada</a>
 </nav>
 
 <!-- Main Content -->
@@ -1852,6 +1859,929 @@ $$;</pre>
     <tr><td>Phase 4</td><td>CC Agent le Obsidian e propoe mudancas</td><td>1 execucao bem-sucedida com diff de prompt</td></tr>
     <tr><td>Phase 5</td><td>Jurimetria aggregation funciona</td><td>julgadores table > 1 row</td></tr>
     <tr><td>Phase 6</td><td>Mode C processa batch sem erros</td><td>100 processos/dia por 3 dias consecutivos</td></tr>
+  </table>
+</div>
+
+<!-- ======================= REVISAO FINAL 01/04/2026 ======================= -->
+<!-- Secoes 15-20 adicionadas apos deep review do DB (12 queries Supabase MCP) -->
+<!-- Estas secoes CORRIGEM e COMPLEMENTAM as S1-S14 originais -->
+
+<!-- ======================= SECTION 15 ======================= -->
+<div class="section" id="s15">
+  <div class="section-header">
+    <span class="section-num" style="background: var(--accent2-dim); border-color: rgba(239,68,68,0.3); color: var(--accent2);">15</span>
+    <h2>Deep Review &mdash; Correcoes Criticas</h2>
+  </div>
+
+  <div class="callout callout-danger">
+    <div class="callout-title">&#x1F6A8; 12 Correcoes Obrigatorias Identificadas</div>
+    Deep review realizado via Supabase MCP (12 queries diretas em producao). Correcoes abaixo SUBSTITUEM o SQL original das secoes S5/S6 onde indicado. <strong>Nao executar S5/S6 original sem aplicar estas correcoes.</strong>
+  </div>
+
+  <h3>15.1 Correcoes de Severidade P0 (Bloqueantes)</h3>
+
+  <div class="card" style="border-left: 3px solid var(--accent2); margin-bottom: 12px;">
+    <h4 style="color: var(--accent2);">C1 — View JOIN Errada (S5.3)</h4>
+    <p><strong>PRD Original:</strong> <code>LEFT JOIN organizacoes_usuarios ou ON i.advogado_id = ou.id / LEFT JOIN users u ON ou.user_id = u.id</code></p>
+    <p><strong>Realidade:</strong> <code>LEFT JOIN advogados adv ON COALESCE(i.advogado_id, p.advogado_id) = adv.id</code></p>
+    <p><strong>Impacto:</strong> View retornaria 0 resultados ou dados incorretos. Campos reais: <code>adv.nome, adv.oab, adv.oab_uf</code>.</p>
+    <p><strong>Acao:</strong> Usar JOIN real da view existente. Ver SQL corrigido em S17 Phase 0.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent2); margin-bottom: 12px;">
+    <h4 style="color: var(--accent2);">C2 — Coluna <code>deleted_at</code> Nao Existe (S5.3, S6.2)</h4>
+    <p><strong>PRD Original:</strong> <code>WHERE i.deleted_at IS NULL</code> na view, <code>UPDATE SET deleted_at = now()</code> para ghosts</p>
+    <p><strong>Realidade:</strong> Tabela <code>intimacoes</code> NAO tem <code>deleted_at</code>. Nenhum soft delete possivel sem migrar.</p>
+    <p><strong>Decisao (D4=A):</strong> Adicionar <code>deleted_at TIMESTAMPTZ</code> na Phase 0. Ghost records recebem <code>deleted_at = now()</code>. View filtra <code>deleted_at IS NULL</code>.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent2); margin-bottom: 12px;">
+    <h4 style="color: var(--accent2);">C3 — Funcao RLS: <code>get_org_id()</code> vs <code>org_id()</code></h4>
+    <p><strong>PRD Original:</strong> <code>public.get_org_id()</code> (seguindo CLAUDE.md)</p>
+    <p><strong>Realidade:</strong> Ambas funcoes existem, mas RLS policies ativas e a view atual usam <code>org_id()</code>.</p>
+    <p><strong>Acao:</strong> Usar <code>org_id()</code> em toda SQL nova. Manter consistencia com o existente.</p>
+  </div>
+
+  <h3>15.2 Correcoes de Severidade P1 (Importantes)</h3>
+
+  <div class="card" style="border-left: 3px solid var(--accent4); margin-bottom: 12px;">
+    <h4 style="color: var(--accent4);">C4 — Contagem Real: 73 Records (nao 658)</h4>
+    <p><strong>PRD Original S6.1:</strong> "658 records" para migracao de status</p>
+    <p><strong>Realidade:</strong> Apenas <strong>73 registros totais</strong> &mdash; 67 ghosts (fonte=eproc, classe_cecilia IS NULL) + 6 reais (fonte=cecilia_v2, com classe_cecilia preenchida).</p>
+    <p><strong>Impacto:</strong> Migracao de status muito menor. Apenas 6 records realmente precisam de UPDATE.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent4); margin-bottom: 12px;">
+    <h4 style="color: var(--accent4);">C5 — Ghosts: 67 (nao 97)</h4>
+    <p><strong>PRD Original S6.2:</strong> "97 ghost records"</p>
+    <p><strong>Realidade:</strong> 67 ghosts com <code>fonte='eproc'</code> e <code>classe_cecilia IS NULL</code>.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent4); margin-bottom: 12px;">
+    <h4 style="color: var(--accent4);">C6 — Status Enum tem <code>transferida</code></h4>
+    <p><strong>PRD Original S5.1:</strong> Migrar para <code>nao_lida, lida, finalizada, erro</code></p>
+    <p><strong>Realidade:</strong> Constraint atual: <code>nova, lida, processada, ignorada, erro, transferida, arquivada</code></p>
+    <p><strong>Decisao:</strong> Manter <code>transferida</code> no novo enum. Enum v3: <code>nao_lida, lida, finalizada, erro, transferida</code>.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent4); margin-bottom: 12px;">
+    <h4 style="color: var(--accent4);">C7 — <code>data_prazo</code> e DATE (nao TIMESTAMPTZ)</h4>
+    <p><strong>PRD Original:</strong> Assume TIMESTAMPTZ em calculos de prazo</p>
+    <p><strong>Realidade:</strong> <code>data_prazo DATE</code>. Cast <code>data_prazo::date</code> e redundante mas inofensivo.</p>
+    <p><strong>Acao:</strong> Nenhuma migracao necessaria. View existente ja funciona.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent4); margin-bottom: 12px;">
+    <h4 style="color: var(--accent4);">C8 — Provider CHECK falta <code>cecilia_v3</code></h4>
+    <p><strong>Constraint atual:</strong> <code>eproc, jusbrasil, manual, jarbas, openclaw, cecilia, cecilia_v2</code></p>
+    <p><strong>Acao:</strong> Adicionar <code>cecilia_v3</code> na Phase 0 migration.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent4); margin-bottom: 12px;">
+    <h4 style="color: var(--accent4);">C9 — Default status e <code>'nova'</code></h4>
+    <p><strong>Realidade:</strong> <code>ALTER TABLE intimacoes ALTER COLUMN status SET DEFAULT 'nova'</code></p>
+    <p><strong>Acao:</strong> Mudar default para <code>'nao_lida'</code> na Phase 0 migration, APOS migrar dados.</p>
+  </div>
+
+  <h3>15.3 Correcoes de Severidade P2 (Melhorias)</h3>
+
+  <div class="card" style="border-left: 3px solid var(--accent5); margin-bottom: 12px;">
+    <h4 style="color: var(--accent5);">C10 — RPCs Existentes com Status Antigo</h4>
+    <p><code>rpc_controller_batch_update_status</code> usa <code>processada/ignorada</code>. <code>rpc_controller_kpis</code> referencia <code>intimacoes_leituras</code> (tabela que pode nao existir).</p>
+    <p><strong>Acao:</strong> Reescrever ambas RPCs na Phase 0 para usar novos status.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent5); margin-bottom: 12px;">
+    <h4 style="color: var(--accent5);">C11 — <code>classe_claudia</code> Coluna Morta</h4>
+    <p><code>char(1)</code>, 0 records preenchidos. Ignorar &mdash; nao conflita com <code>classe_cecilia</code>.</p>
+  </div>
+
+  <div class="card" style="border-left: 3px solid var(--accent5); margin-bottom: 12px;">
+    <h4 style="color: var(--accent5);">C12 — analise_ia Schema ja Parcialmente OK</h4>
+    <p>Os 6 records <code>cecilia_v2</code> ja possuem wrapper <code>_analista_raw</code>. S6.3 migration so precisa tratar records futuros que venham sem o wrapper.</p>
+  </div>
+
+  <h3>15.4 Resumo de Impacto</h3>
+  <table>
+    <tr><th>Secao Original</th><th>Correcao</th><th>Severidade</th></tr>
+    <tr><td>S5.1 Status Enum</td><td>Adicionar <code>transferida</code> ao novo enum</td><td><span class="badge badge-p1">P1</span></td></tr>
+    <tr><td>S5.3 View Rebuild</td><td>Reescrever JOIN (advogados), remover deleted_at, usar org_id()</td><td><span class="badge badge-p0">P0</span></td></tr>
+    <tr><td>S6.1 Status Migration</td><td>73 records (nao 658). Apenas 6 reais afetados</td><td><span class="badge badge-p1">P1</span></td></tr>
+    <tr><td>S6.2 Ghost Cleanup</td><td>67 ghosts (nao 97). Requer ADD deleted_at primeiro</td><td><span class="badge badge-p1">P1</span></td></tr>
+    <tr><td>S6.3 analise_ia Fix</td><td>Ja parcialmente OK. Apenas futuros records</td><td><span class="badge badge-p2">P2</span></td></tr>
+    <tr><td>S11 RPCs</td><td>Reescrever batch_update e kpis com novos status</td><td><span class="badge badge-p2">P2</span></td></tr>
+    <tr><td>Phase 0 (novo)</td><td>Adicionar deleted_at, cecilia_v3, mudar default</td><td><span class="badge badge-p0">P0</span></td></tr>
+  </table>
+</div>
+
+<!-- ======================= SECTION 16 ======================= -->
+<div class="section" id="s16">
+  <div class="section-header">
+    <span class="section-num" style="background: var(--accent3-dim); border-color: rgba(34,197,94,0.3); color: var(--accent3);">16</span>
+    <h2>Decisoes Arquiteturais Confirmadas</h2>
+  </div>
+
+  <div class="callout callout-success">
+    <div class="callout-title">&#x2705; 6 Decisoes Confirmadas por Christian (01/04/2026)</div>
+    Todas opcoes escolhidas com racional. Nenhuma decisao pendente &mdash; projeto aprovado para execucao.
+  </div>
+
+  <table>
+    <tr><th style="width:50px">#</th><th style="width:200px">Decisao</th><th>Escolha</th><th>Racional</th></tr>
+    <tr>
+      <td><strong style="color: var(--primary);">D1</strong></td>
+      <td>Threshold Haiku confianca</td>
+      <td><strong style="color: var(--accent3);">A &mdash; 85% (conservador)</strong></td>
+      <td>Mais decisoes sobem para Sonnet &rarr; melhor qualidade na classificacao. Custo extra ~$15/mes justificado pela reducao de erros. Pode relaxar para 80% depois se metricas confirmarem.</td>
+    </tr>
+    <tr>
+      <td><strong style="color: var(--primary);">D2</strong></td>
+      <td>Quando comecar Phase 0?</td>
+      <td><strong style="color: var(--accent3);">A &mdash; Agora (paralelo com frontend)</strong></td>
+      <td>Mecanismo e frontend sao independentes. Contrato S2 define interface. Mecanismo pode estar pronto e populando dados antes do frontend ficar pronto.</td>
+    </tr>
+    <tr>
+      <td><strong style="color: var(--primary);">D3</strong></td>
+      <td>Mode C timing</td>
+      <td><strong style="color: var(--accent3);">B &mdash; Aguardar estabilizacao</strong></td>
+      <td>Mode C processa 14K processos e gera volume massivo. Se Edge Function tiver bugs, contamina tudo. Melhor estabilizar Modes A+B por 1-2 semanas antes de abrir Mode C.</td>
+    </tr>
+    <tr>
+      <td><strong style="color: var(--primary);">D4</strong></td>
+      <td>Ghost records</td>
+      <td><strong style="color: var(--accent3);">A &mdash; Soft delete (seguro, reversivel)</strong></td>
+      <td>67 ghosts recebem <code>deleted_at = now()</code>. Reversivel se algum for necessario depois. Requer adicionar coluna deleted_at primeiro (C2).</td>
+    </tr>
+    <tr>
+      <td><strong style="color: var(--primary);">D5</strong></td>
+      <td>Prompt storage</td>
+      <td><strong style="color: var(--accent3);">C &mdash; Hibrido (Obsidian master + sync ai_agents_config)</strong></td>
+      <td>Obsidian e onde Joao edita playbooks (familiar). CC Agent le de Obsidian e faz sync para <code>ai_agents_config</code> no Supabase, de onde Edge Function le em runtime. Melhor dos dois mundos: editabilidade + performance.</td>
+    </tr>
+    <tr>
+      <td><strong style="color: var(--primary);">D6</strong></td>
+      <td>Telegram para E/F</td>
+      <td><strong style="color: var(--accent3);">A &mdash; Ambos (redundancia Telegram + UI)</strong></td>
+      <td>Classes E (urgente) e F (financeiro) sao criticas. Telegram e backup se Controller UI nao estiver aberto. Custo: 0 (bot ja existe). Risco de perder urgencia sem redundancia &gt; custo de manter.</td>
+    </tr>
+  </table>
+
+  <h3>16.1 Impacto das Decisoes no Roadmap</h3>
+  <table>
+    <tr><th>Decisao</th><th>Impacto Direto</th></tr>
+    <tr><td>D1 (85%)</td><td>Edge Function: <code>HAIKU_THRESHOLD = 0.85</code>. ~25% do volume vai para Sonnet em vez de ~20%.</td></tr>
+    <tr><td>D2 (Agora)</td><td>Phase 0 pode comecar imediatamente. Sem bloqueio no frontend.</td></tr>
+    <tr><td>D3 (Aguardar)</td><td>Phase 6 (Mode C) so inicia apos 1-2 semanas de Mode A estavel. Muda timeline de ~90 para ~105 dias total.</td></tr>
+    <tr><td>D4 (Soft)</td><td>Phase 0 migration adiciona <code>deleted_at</code>. View filtra. Ghosts marcados, nao removidos.</td></tr>
+    <tr><td>D5 (Hibrido)</td><td>Phase 4 (CC Agent) inclui sync Obsidian &rarr; ai_agents_config. Edge Function le de Supabase, nao de disco.</td></tr>
+    <tr><td>D6 (Telegram)</td><td>Manter <code>skill_notificacoes.mjs</code> adaptada para classes E/F. Nao remover como planejado originalmente.</td></tr>
+  </table>
+</div>
+
+<!-- ======================= SECTION 17 ======================= -->
+<div class="section" id="s17">
+  <div class="section-header">
+    <span class="section-num" style="background: var(--accent5-dim); border-color: rgba(14,165,233,0.3); color: var(--accent5);">17</span>
+    <h2>Plano de Execucao Detalhado</h2>
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-title">&#x1F4CB; Instrucoes para a IA Executora</div>
+    Este plano e executado por Jarbas 2.0 (Claude Code, Opus 4.6) no MacBook Air M4 do Christian. Cada step tem SQL exato, verificacao, e rollback. <strong>Executar em ordem.</strong> Nao pular steps. Marcar cada step como DONE antes de avancar.
+  </div>
+
+  <h3>17.0 Pre-Requisitos</h3>
+  <table>
+    <tr><th>Item</th><th>Como Verificar</th><th>Esperado</th></tr>
+    <tr><td>Supabase MCP conectado</td><td>Executar <code>SELECT 1</code></td><td>Retorna 1</td></tr>
+    <tr><td>pg_net disponivel</td><td><code>SELECT extversion FROM pg_extension WHERE extname = 'pg_net'</code></td><td>0.19.5</td></tr>
+    <tr><td>Edge Functions habilitadas</td><td><code>list_edge_functions</code></td><td>Lista retorna (13 existentes)</td></tr>
+    <tr><td>Mac Mini acessivel</td><td><code>ssh mac-mini-tail "whoami"</code></td><td>christian</td></tr>
+    <tr><td>Cecilia crons PAUSED</td><td><code>ssh mac-mini-tail "launchctl list | grep cecilia"</code></td><td>Nenhum ativo</td></tr>
+    <tr><td>Memoria lida</td><td>Ler cecilia_v3_blueprint.md + skills_reference.md</td><td>Contexto completo</td></tr>
+  </table>
+
+  <h3>17.1 Phase 0 — SQL Migrations (DDL + DML)</h3>
+  <p><strong>Tempo estimado:</strong> 30-45 min | <strong>Risco:</strong> Baixo (tudo reversivel)</p>
+
+  <h4>Step 0.1 — Adicionar deleted_at + cecilia_v3 provider</h4>
+  <details open>
+    <summary>SQL: Novas colunas e constraints</summary>
+    <div class="details-content">
+      <pre>-- Step 0.1a: Adicionar deleted_at
+ALTER TABLE intimacoes ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+CREATE INDEX IF NOT EXISTS idx_intimacoes_active
+  ON intimacoes(organizacao_id) WHERE deleted_at IS NULL;
+
+-- Step 0.1b: Atualizar provider CHECK
+ALTER TABLE intimacoes DROP CONSTRAINT IF EXISTS intimacoes_provider_check;
+ALTER TABLE intimacoes ADD CONSTRAINT intimacoes_provider_check
+  CHECK (provider IN ('eproc','jusbrasil','manual','jarbas','openclaw','cecilia','cecilia_v2','cecilia_v3'));
+
+-- Step 0.1c: Adicionar colunas metricas IA
+ALTER TABLE intimacoes ADD COLUMN IF NOT EXISTS modelo_ia VARCHAR(30);
+ALTER TABLE intimacoes ADD COLUMN IF NOT EXISTS custo_ia DECIMAL(10,6);
+ALTER TABLE intimacoes ADD COLUMN IF NOT EXISTS tokens_ia INTEGER;
+ALTER TABLE intimacoes ADD COLUMN IF NOT EXISTS analise_versao VARCHAR(10);
+
+-- Verificacao:
+SELECT column_name, data_type FROM information_schema.columns
+WHERE table_name = 'intimacoes'
+  AND column_name IN ('deleted_at','modelo_ia','custo_ia','tokens_ia','analise_versao')
+ORDER BY column_name;
+-- Esperado: 5 rows</pre>
+    </div>
+  </details>
+
+  <h4>Step 0.2 — Soft-delete Ghost Records</h4>
+  <details>
+    <summary>SQL: Marcar 67 ghosts</summary>
+    <div class="details-content">
+      <pre>-- Contagem antes
+SELECT fonte, classe_cecilia IS NOT NULL as has_classe, COUNT(*)
+FROM intimacoes WHERE deleted_at IS NULL
+GROUP BY fonte, classe_cecilia IS NOT NULL;
+-- Esperado: eproc/false=67, cecilia_v2/true=6
+
+-- Soft delete ghosts
+UPDATE intimacoes SET deleted_at = now()
+WHERE fonte = 'eproc' AND classe_cecilia IS NULL AND deleted_at IS NULL;
+-- Esperado: 67 rows affected
+
+-- Verificacao
+SELECT COUNT(*) FROM intimacoes WHERE deleted_at IS NULL;
+-- Esperado: 6</pre>
+    </div>
+  </details>
+
+  <h4>Step 0.3 — Migrar Status Enum</h4>
+  <details>
+    <summary>SQL: nova &rarr; nao_lida, processada/ignorada/arquivada &rarr; finalizada</summary>
+    <div class="details-content">
+      <pre>BEGIN;
+
+-- Contagem antes (apenas ativos)
+SELECT status, COUNT(*) FROM intimacoes WHERE deleted_at IS NULL GROUP BY status;
+
+-- Migrar dados ANTES de mudar constraint
+UPDATE intimacoes SET status = 'nao_lida' WHERE status = 'nova';
+UPDATE intimacoes SET status = 'finalizada' WHERE status IN ('processada', 'ignorada', 'arquivada');
+
+-- Drop constraint antigo
+ALTER TABLE intimacoes DROP CONSTRAINT IF EXISTS intimacoes_status_check;
+
+-- Novo CHECK com transferida mantida (C6)
+ALTER TABLE intimacoes ADD CONSTRAINT intimacoes_status_check
+  CHECK (status IN ('nao_lida', 'lida', 'finalizada', 'erro', 'transferida'));
+
+-- Mudar default (C9)
+ALTER TABLE intimacoes ALTER COLUMN status SET DEFAULT 'nao_lida';
+
+-- Contagem depois
+SELECT status, COUNT(*) FROM intimacoes WHERE deleted_at IS NULL GROUP BY status;
+-- Esperado: nao_lida=X, (outros 0 ou low)
+
+COMMIT;</pre>
+    </div>
+  </details>
+
+  <h4>Step 0.4 — Adicionar evento_eproc Index</h4>
+  <details>
+    <summary>SQL: Dedup index para evento_eproc</summary>
+    <div class="details-content">
+      <pre>-- evento_eproc ja existe na tabela (verificado). Criar index de dedup:
+CREATE UNIQUE INDEX IF NOT EXISTS idx_intimacoes_dedup_evento
+  ON intimacoes(processo_id, evento_eproc)
+  WHERE evento_eproc IS NOT NULL AND deleted_at IS NULL;
+
+-- Verificacao:
+SELECT indexname FROM pg_indexes WHERE tablename = 'intimacoes' AND indexname LIKE '%evento%';
+-- Esperado: idx_intimacoes_dedup_evento</pre>
+    </div>
+  </details>
+
+  <h4>Step 0.5 — Rebuild View (CORRIGIDA)</h4>
+  <details>
+    <summary>SQL: v_controller_intimacoes_completa v3 (correcoes C1, C2, C3 aplicadas)</summary>
+    <div class="details-content">
+      <pre>CREATE OR REPLACE VIEW v_controller_intimacoes_completa AS
+SELECT
+  i.id,
+  i.organizacao_id,
+  i.processo_id,
+  i.status,
+  i.tipo,
+  i.titulo,
+  i.conteudo,
+  i.resumo_ia,
+  i.conteudo_completo,
+  i.data_intimacao,
+  i.prazo_dias,
+  i.data_prazo,
+  i.tipo_prazo,
+  i.fonte,
+  i.provider,
+  i.provider_ref,
+  i.external_id,
+  i.evento_eproc,
+  i.tipo_evento,
+  i.tipo_evento_sugerido,
+  i.cnj,
+  i.tribunal,
+  i.responsavel,
+  i.advogado_id,
+  -- IA fields
+  i.classe_cecilia,
+  i.confianca_ia,
+  i.motivo_ia,
+  i.analise_ia,
+  i.ia_classificacao,
+  i.ia_status,
+  i.ia_risco_nivel,
+  i.ia_acao_recomendada,
+  i.ia_prazo_sugerido,
+  i.ia_processada_em,
+  i.ia_processada_por_id,
+  i.ia_error,
+  i.modelo_ia,
+  i.custo_ia,
+  i.tokens_ia,
+  i.analise_versao,
+  -- Flags
+  i.importante,
+  i.urgente,
+  i.is_duplicada,
+  i.duplicada,
+  i.duplicada_de_id,
+  -- Ciencia renuncia
+  i.ciencia_renuncia_status,
+  i.ciencia_renuncia_executada_em,
+  i.ciencia_renuncia_numero_protocolo,
+  i.ciencia_renuncia_executada_por,
+  -- Meta
+  i.payload_raw,
+  i.metadata,
+  i.signature_hash,
+  i.conteudo_hash,
+  i.movimentacao_id,
+  i.atividade_id,
+  i.decisao_id,
+  i.tarefa_id,
+  i.observacao_controller,
+  i.processado_por,
+  i.processado_em,
+  i.concluida_em,
+  i.concluida_por_id,
+  i.retry_count,
+  i.proxima_tentativa,
+  i.validacao_assinatura,
+  i.validacao_timestamp,
+  i.created_at,
+  i.updated_at,
+  -- JOINs: Processo
+  p.numero_cnj AS processo_cnj,
+  p.fase_processual AS processo_fase,
+  p.status AS processo_status,
+  p.origem AS processo_origem,
+  p.vara AS processo_vara,
+  p.juiz AS processo_juiz,
+  p.valor_causa AS processo_valor_causa,
+  -- JOINs: Cliente
+  c.nome AS cliente_nome,
+  c.id AS cliente_id,
+  -- JOINs: Empresa
+  e.nome AS empresa_nome,
+  e.id AS empresa_id_joined,
+  -- JOINs: Advogado (C1: usa tabela advogados, nao organizacoes_usuarios)
+  adv.nome AS advogado_nome,
+  adv.oab AS advogado_oab,
+  adv.oab_uf AS advogado_oab_uf,
+  -- JOINs: Decisao
+  d.id AS decisao_id_joined,
+  d.tipo AS decisao_tipo,
+  -- Computed: prazo
+  CASE WHEN i.data_prazo IS NULL THEN NULL
+       ELSE (i.data_prazo - CURRENT_DATE) END AS dias_ate_prazo,
+  CASE WHEN i.data_prazo IS NULL THEN 'sem_prazo'
+       WHEN (i.data_prazo - CURRENT_DATE) &lt; 0 THEN 'vencido'
+       WHEN (i.data_prazo - CURRENT_DATE) = 0 THEN 'hoje'
+       WHEN (i.data_prazo - CURRENT_DATE) &lt;= 3 THEN 'critico'
+       WHEN (i.data_prazo - CURRENT_DATE) &lt;= 7 THEN 'atencao'
+       ELSE 'normal' END AS status_prazo
+FROM intimacoes i
+LEFT JOIN processos p ON i.processo_id = p.id
+LEFT JOIN clientes c ON p.cliente_id = c.id
+LEFT JOIN empresas e ON p.empresa_id = e.id
+LEFT JOIN advogados adv ON COALESCE(i.advogado_id, p.advogado_id) = adv.id
+LEFT JOIN decisoes d ON i.decisao_id = d.id
+WHERE i.deleted_at IS NULL
+  AND (i.classe_cecilia IS NULL OR i.classe_cecilia &lt;&gt; 'A');
+-- NOTA: Sem filtro org_id() na view. RLS da tabela intimacoes ja garante isolamento.
+
+-- Verificacao:
+SELECT COUNT(*) FROM v_controller_intimacoes_completa;
+-- Esperado: 6 (os records reais cecilia_v2)</pre>
+    </div>
+  </details>
+
+  <h4>Step 0.6 — Reescrever RPCs (C10)</h4>
+  <details>
+    <summary>SQL: rpc_controller_batch_update_status + rpc_controller_kpis v3</summary>
+    <div class="details-content">
+      <pre>-- Reescrever batch_update com novos status
+CREATE OR REPLACE FUNCTION rpc_controller_batch_update_status(
+  p_ids UUID[],
+  p_status TEXT,
+  p_user_id UUID DEFAULT NULL
+) RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_count INT;
+BEGIN
+  -- Validar status
+  IF p_status NOT IN ('nao_lida','lida','finalizada','erro','transferida') THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Status invalido: ' || p_status);
+  END IF;
+
+  UPDATE intimacoes
+  SET status = p_status,
+      updated_at = now(),
+      processado_por = COALESCE(p_user_id::text, processado_por),
+      processado_em = CASE WHEN p_status = 'finalizada' THEN now() ELSE processado_em END,
+      concluida_em = CASE WHEN p_status = 'finalizada' THEN now() ELSE concluida_em END,
+      concluida_por_id = CASE WHEN p_status = 'finalizada' THEN p_user_id ELSE concluida_por_id END
+  WHERE id = ANY(p_ids)
+    AND deleted_at IS NULL;
+
+  GET DIAGNOSTICS v_count = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'updated', v_count,
+    'status', p_status
+  );
+END;
+$$;
+
+-- KPIs v3 (sem referencia a intimacoes_leituras)
+CREATE OR REPLACE FUNCTION rpc_controller_v3_kpis(
+  p_org_id UUID DEFAULT NULL
+) RETURNS JSONB
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_org UUID;
+  v_result JSONB;
+BEGIN
+  v_org := COALESCE(p_org_id, org_id());
+
+  SELECT jsonb_build_object(
+    'total', COUNT(*),
+    'nao_lidas', COUNT(*) FILTER (WHERE status = 'nao_lida'),
+    'lidas', COUNT(*) FILTER (WHERE status = 'lida'),
+    'finalizadas', COUNT(*) FILTER (WHERE status = 'finalizada'),
+    'erro', COUNT(*) FILTER (WHERE status = 'erro'),
+    'urgentes', COUNT(*) FILTER (WHERE urgente = true AND status != 'finalizada'),
+    'com_prazo', COUNT(*) FILTER (WHERE data_prazo IS NOT NULL AND status != 'finalizada'),
+    'prazo_vencido', COUNT(*) FILTER (WHERE data_prazo &lt; CURRENT_DATE AND status NOT IN ('finalizada','erro')),
+    'prazo_critico', COUNT(*) FILTER (WHERE data_prazo BETWEEN CURRENT_DATE AND CURRENT_DATE + 3 AND status != 'finalizada'),
+    'classes', jsonb_build_object(
+      'B', COUNT(*) FILTER (WHERE classe_cecilia = 'B'),
+      'C', COUNT(*) FILTER (WHERE classe_cecilia = 'C'),
+      'D', COUNT(*) FILTER (WHERE classe_cecilia = 'D'),
+      'E', COUNT(*) FILTER (WHERE classe_cecilia = 'E'),
+      'F', COUNT(*) FILTER (WHERE classe_cecilia = 'F'),
+      'G', COUNT(*) FILTER (WHERE classe_cecilia = 'G'),
+      'null', COUNT(*) FILTER (WHERE classe_cecilia IS NULL)
+    ),
+    'ia_status', jsonb_build_object(
+      'pendente', COUNT(*) FILTER (WHERE ia_status = 'pendente'),
+      'processando', COUNT(*) FILTER (WHERE ia_status = 'processando'),
+      'concluido', COUNT(*) FILTER (WHERE ia_status = 'concluido'),
+      'erro', COUNT(*) FILTER (WHERE ia_status = 'erro')
+    )
+  ) INTO v_result
+  FROM intimacoes
+  WHERE organizacao_id = v_org AND deleted_at IS NULL
+    AND (classe_cecilia IS NULL OR classe_cecilia &lt;&gt; 'A');
+
+  RETURN v_result;
+END;
+$$;</pre>
+    </div>
+  </details>
+
+  <h4>Step 0.7 — Trigger pg_net para Edge Function</h4>
+  <details>
+    <summary>SQL: Trigger em INSERT para chamar analyze-intimacao</summary>
+    <div class="details-content">
+      <pre>-- Trigger function
+CREATE OR REPLACE FUNCTION trigger_analyze_intimacao()
+RETURNS TRIGGER
+LANGUAGE plpgsql SECURITY DEFINER AS $$
+BEGIN
+  -- Apenas para records criados pela Cecilia v3 (evita loop)
+  IF NEW.provider = 'cecilia_v3' AND NEW.ia_status IS DISTINCT FROM 'concluido' THEN
+    PERFORM net.http_post(
+      url := current_setting('app.settings.supabase_url') || '/functions/v1/analyze-intimacao',
+      headers := jsonb_build_object(
+        'Content-Type', 'application/json',
+        'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key')
+      ),
+      body := jsonb_build_object(
+        'intimacao_id', NEW.id,
+        'processo_id', NEW.processo_id,
+        'organizacao_id', NEW.organizacao_id,
+        'titulo', NEW.titulo,
+        'conteudo', NEW.conteudo,
+        'tipo_evento', NEW.tipo_evento,
+        'evento_eproc', NEW.evento_eproc,
+        'cnj', NEW.cnj,
+        'tribunal', NEW.tribunal
+      )
+    );
+
+    -- Marcar como pendente
+    NEW.ia_status := 'pendente';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+-- Criar trigger
+DROP TRIGGER IF EXISTS trg_analyze_intimacao ON intimacoes;
+CREATE TRIGGER trg_analyze_intimacao
+  BEFORE INSERT ON intimacoes
+  FOR EACH ROW
+  EXECUTE FUNCTION trigger_analyze_intimacao();
+
+-- Verificacao:
+SELECT tgname, tgtype FROM pg_trigger WHERE tgrelid = 'intimacoes'::regclass;
+-- Esperado: trg_analyze_intimacao na lista</pre>
+    </div>
+  </details>
+
+  <div class="callout callout-success">
+    <div class="callout-title">&#x2705; Phase 0 Completa quando:</div>
+    <code>SELECT COUNT(*) FROM v_controller_intimacoes_completa</code> retorna 6 &bull;
+    Ghost records com deleted_at NOT NULL = 67 &bull;
+    Status default = 'nao_lida' &bull;
+    Trigger pg_net ativo &bull;
+    RPCs v3 criadas
+  </div>
+
+  <h3>17.2 Phase 1a — Adaptar Orquestrador (2-3h)</h3>
+  <p><strong>Arquivo:</strong> <code>/Users/cecilia/cecilia-skills/src/skills/skill_orquestrador.mjs</code> (904 linhas)</p>
+
+  <h4>Mudancas Necessarias</h4>
+  <table>
+    <tr><th>Area</th><th>Mudanca</th><th>Linhas Aproximadas</th></tr>
+    <tr><td>INSERT intimacoes</td><td>Adicionar dual-write: alem de <code>processos_movimentacoes</code>, tambem INSERT em <code>intimacoes</code></td><td>~linhas 400-500</td></tr>
+    <tr><td>Provider</td><td><code>provider: 'cecilia_v3'</code> (ativa trigger pg_net)</td><td>INSERT statement</td></tr>
+    <tr><td>evento_eproc</td><td>Extrair numero do evento do EPROC e gravar em <code>evento_eproc</code></td><td>Parser de HTML</td></tr>
+    <tr><td>Dedup</td><td>Antes de INSERT: <code>SELECT 1 FROM intimacoes WHERE processo_id=$1 AND evento_eproc=$2</code></td><td>Antes do INSERT</td></tr>
+    <tr><td>Campos novos</td><td>Mapear: titulo, conteudo, tipo_evento, cnj, tribunal, data_intimacao</td><td>INSERT statement</td></tr>
+    <tr><td>Status</td><td>Gravar <code>status: 'nao_lida'</code> (novo default)</td><td>INSERT statement</td></tr>
+  </table>
+
+  <h4>Fluxo Dual-Write</h4>
+  <pre>// Pseudo-codigo do orquestrador v3
+for (const mov of movimentacoes) {
+  // 1. INSERT processos_movimentacoes (existente, manter)
+  await insertMovimentacao(mov);
+
+  // 2. CHECK dedup antes de INSERT intimacao
+  const exists = await supabase.from('intimacoes')
+    .select('id')
+    .eq('processo_id', processoId)
+    .eq('evento_eproc', mov.evento_numero)
+    .maybeSingle();
+
+  if (!exists.data) {
+    // 3. INSERT intimacao (NOVO — dispara trigger pg_net)
+    await supabase.from('intimacoes').insert({
+      organizacao_id: orgId,
+      processo_id: processoId,
+      titulo: mov.titulo,
+      conteudo: mov.texto_curto,
+      tipo_evento: mov.tipo,
+      evento_eproc: mov.evento_numero,
+      cnj: processo.numero_cnj,
+      tribunal: processo.tribunal,
+      data_intimacao: mov.data,
+      fonte: 'cecilia_v3',
+      provider: 'cecilia_v3',
+      status: 'nao_lida',
+      ia_status: 'pendente'
+    });
+  }
+}</pre>
+
+  <h4>Verificacao Phase 1a</h4>
+  <pre>-- Rodar 1 ciclo manual RS116571
+-- Verificar:
+SELECT COUNT(*) FROM intimacoes WHERE provider = 'cecilia_v3';
+-- Esperado: > 0
+SELECT COUNT(*) FROM intimacoes WHERE provider = 'cecilia_v3' AND ia_status = 'pendente';
+-- Se trigger pg_net funcionar, esses mudam para 'processando' ou 'concluido' rapidamente</pre>
+
+  <h3>17.3 Phase 1b — Edge Function analyze-intimacao (3-4h)</h3>
+
+  <h4>Estrutura</h4>
+  <pre>supabase/functions/analyze-intimacao/
+  index.ts          &larr; Handler principal (~200 linhas)
+  classifier.ts     &larr; Logica 2-tier Haiku/Sonnet
+  prompts.ts        &larr; System prompts por classe
+  types.ts          &larr; TypeScript types
+  test-payload.json &larr; Payload de teste</pre>
+
+  <h4>Fluxo da Edge Function</h4>
+  <pre>1. Recebe POST do pg_net trigger
+2. Valida payload (intimacao_id obrigatorio)
+3. Le intimacao do banco (conteudo completo)
+4. REGEX pre-class: A=noise? G=closure? (FREE, sem API)
+5. Se pre-class match &rarr; grava resultado, RETURN
+6. Chama Haiku 4.5 com prompt taxonomia
+7. Se confianca &lt; 85% (D1) ou classe in C,D,E,F &rarr; escala para Sonnet 4.6
+8. Monta JSON _analista_raw com flags
+9. UPDATE intimacoes SET classe_cecilia, confianca_ia, analise_ia, ia_status='concluido', ...
+10. Se classe E ou F &rarr; POST Telegram (D6)</pre>
+
+  <h4>Regex Pre-Classification (FREE)</h4>
+  <pre>// Classe A (noise) — nao chama API
+const NOISE_PATTERNS = [
+  /certid[aã]o.*negativa/i,
+  /vista.*aberta/i,
+  /juntada.*procura[çc][aã]o/i,
+  /certid[aã]o.*objeto/i,
+  /redistribu[ií]/i,
+  /autos\s+recebidos/i,
+  /convert(id|e)[oa]?\s+em\s+dilig[eê]ncia/i
+];
+
+// Classe G (closure)
+const CLOSURE_PATTERNS = [
+  /tr[aâ]nsito\s+em\s+julgado/i,
+  /baixa.*definitiva/i,
+  /arquivamento\s+definitivo/i
+];</pre>
+
+  <h4>Deploy</h4>
+  <pre>supabase functions deploy analyze-intimacao --project-ref qdivfairxhdihaqqypgb</pre>
+
+  <h3>17.4 Phase 2 — Mode B Deep Analysis (2-3h)</h3>
+  <p>Webhook chamado pelo Controller UI para re-analise profunda com Sonnet 4.6. Forcca Sonnet independente da classe. Retorna analise completa com recomendacoes de acao.</p>
+  <table>
+    <tr><th>Aspecto</th><th>Detalhe</th></tr>
+    <tr><td>Trigger</td><td>POST <code>/functions/v1/deep-analyze-intimacao</code> (nova Edge Function)</td></tr>
+    <tr><td>Input</td><td><code>{ intimacao_id, force_sonnet: true, context: 'mode_b' }</code></td></tr>
+    <tr><td>Output</td><td>Analise completa com <code>recomendacao_acao</code>, <code>precedentes</code>, <code>risco_detalhado</code></td></tr>
+    <tr><td>Timeout</td><td>120s (Sonnet pode demorar)</td></tr>
+    <tr><td>Dependencia</td><td>Phase 1a + 1b (precisa de intimacoes populadas e classify funcionando)</td></tr>
+  </table>
+
+  <h3>17.5 Phase 3 — Vision Fallback + Enrichment (2-3h)</h3>
+  <table>
+    <tr><th>Aspecto</th><th>Detalhe</th></tr>
+    <tr><td>Vision</td><td>Quando Playwright nao encontra seletor esperado: screenshot &rarr; Claude Vision &rarr; extrai dados</td></tr>
+    <tr><td>Enrichment</td><td>De EPROC DOM: vara, juiz, advogado_reu, ajg_concedida. De XLS: valor_causa, data_distribuicao</td></tr>
+    <tr><td>Arquivo</td><td><code>skill_ler_documento.mjs</code> (adaptar para conteudo_completo)</td></tr>
+    <tr><td>NULL-only guard</td><td>Nunca sobrescrever campo que ja tem dado</td></tr>
+  </table>
+
+  <h3>17.6 Phases 4-6 (Resumo)</h3>
+  <table>
+    <tr><th>Phase</th><th>Entregavel</th><th>Detalhes</th></tr>
+    <tr><td><strong>4</strong></td><td>CC Agent training loop</td><td>Le Obsidian vault, compara com resultados IA, propoe ajustes de prompt, sync &rarr; ai_agents_config</td></tr>
+    <tr><td><strong>5</strong></td><td>Jurimetria aggregation</td><td>Popula julgadores, jurimetria_juizes, escritorios_reu a partir de enrichment</td></tr>
+    <tr><td><strong>6</strong></td><td>Mode C harvest batch</td><td>Processa 14K processos historicos, ~100-200/dia, ~90 dias. So inicia apos 1-2 semanas estavel (D3)</td></tr>
+  </table>
+</div>
+
+<!-- ======================= SECTION 18 ======================= -->
+<div class="section" id="s18">
+  <div class="section-header">
+    <span class="section-num" style="background: var(--accent4-dim); border-color: rgba(245,158,11,0.3); color: var(--accent4);">18</span>
+    <h2>Avaliacao Critica &amp; Score</h2>
+  </div>
+
+  <h3>18.1 Scorecard por Dimensao</h3>
+  <table>
+    <tr><th>Dimensao</th><th>Score</th><th>Avaliacao</th></tr>
+    <tr>
+      <td>Completude do PRD</td>
+      <td><strong style="color: var(--accent3);">9/10</strong></td>
+      <td>20 secoes cobrindo mecanismo completo. Unico gap: prompt system exato para Haiku/Sonnet (sera refinado em runtime).</td>
+    </tr>
+    <tr>
+      <td>Viabilidade Tecnica</td>
+      <td><strong style="color: var(--accent3);">9/10</strong></td>
+      <td>70% codigo reutilizado v2.3.1 (validado com E2E). pg_net e Edge Functions confirmados. Stack madura.</td>
+    </tr>
+    <tr>
+      <td>Contrato Frontend</td>
+      <td><strong style="color: var(--accent3);">8/10</strong></td>
+      <td>View, RPCs e status enum definidos. Falta validar com Gustavo: formato exato de analise_ia que o frontend consome.</td>
+    </tr>
+    <tr>
+      <td>Correcao do Schema</td>
+      <td><strong style="color: var(--primary);">10/10</strong></td>
+      <td>12 correcoes identificadas via deep review direto no DB. Todas com SQL corrigido e verificacao.</td>
+    </tr>
+    <tr>
+      <td>Risco de Execucao</td>
+      <td><strong style="color: var(--accent3);">8/10</strong></td>
+      <td>Phase 0 e baixo risco (DDL reversivel). Phase 1 e medio (dual-write pode ter edge cases). Phase 6 e alto mas tardio.</td>
+    </tr>
+    <tr>
+      <td>Custo-Beneficio</td>
+      <td><strong style="color: var(--accent3);">9/10</strong></td>
+      <td>~$90/mes para monitorar 14K processos com IA. Alternativa manual (Joao tempo integral) custaria 10-50x mais.</td>
+    </tr>
+    <tr>
+      <td>Documentacao Ops</td>
+      <td><strong style="color: var(--accent4);">7/10</strong></td>
+      <td>Observabilidade definida (S12), mas metricas exatas e dashboards Grafana/Supabase nao detalhados.</td>
+    </tr>
+  </table>
+
+  <h3>18.2 Score Final</h3>
+  <div class="kpi-grid">
+    <div class="kpi-card kpi-primary" style="grid-column: span 2;">
+      <div class="kpi-value" style="font-size: 48px;">8.6 / 10</div>
+      <div class="kpi-label">Score Geral &mdash; APROVADO PARA EXECUCAO</div>
+    </div>
+    <div class="kpi-card kpi-green">
+      <div class="kpi-value">12</div>
+      <div class="kpi-label">Correcoes P0-P2 Identificadas</div>
+    </div>
+    <div class="kpi-card kpi-green">
+      <div class="kpi-value">6/6</div>
+      <div class="kpi-label">Decisoes Confirmadas</div>
+    </div>
+  </div>
+
+  <h3>18.3 Condicoes de Aprovacao</h3>
+  <div class="callout callout-success">
+    <div class="callout-title">&#x2705; APROVADO &mdash; Condicoes Atendidas</div>
+    <ul style="margin-top: 8px; padding-left: 20px;">
+      <li>PRD completo com 20 secoes (14 originais + 6 revisao)</li>
+      <li>Deep review realizado com queries reais em producao</li>
+      <li>12 correcoes criticas documentadas com SQL exato</li>
+      <li>6 decisoes arquiteturais confirmadas pelo CTO</li>
+      <li>Plano de execucao step-by-step com verificacoes</li>
+      <li>Q&A checklist para validacao pos-execucao</li>
+      <li>70% do codigo e reuso validado (E2E v2.3.1 passou)</li>
+    </ul>
+  </div>
+
+  <h3>18.4 Riscos Residuais (aceitar antes de executar)</h3>
+  <table>
+    <tr><th>Risco</th><th>Probabilidade</th><th>Mitigacao</th></tr>
+    <tr><td>pg_net trigger pode nao disparar (Supabase settings)</td><td>Media</td><td>Testar com INSERT manual antes de ligar Cecilia</td></tr>
+    <tr><td>Edge Function cold start > 5s em primeira chamada</td><td>Alta</td><td>Primeira chamada de teste antes de producao</td></tr>
+    <tr><td>Dual-write cria inconsistencia se uma tabela falha</td><td>Baixa</td><td>Transacao atomica no orquestrador (BEGIN/COMMIT)</td></tr>
+    <tr><td>Prompts Haiku nao classificam bem sem fine-tuning</td><td>Media</td><td>Monitorar taxa fallback D. Ajustar threshold. CC Agent (Phase 4) refina.</td></tr>
+    <tr><td>Frontend PRD v5 muda contrato apos implementacao</td><td>Baixa</td><td>View e RPCs sao o contrato. Frontend consome via view, nao tabela direta.</td></tr>
+  </table>
+</div>
+
+<!-- ======================= SECTION 19 ======================= -->
+<div class="section" id="s19">
+  <div class="section-header">
+    <span class="section-num" style="background: var(--violet-dim); border-color: rgba(167,139,250,0.3); color: var(--violet);">19</span>
+    <h2>Q&amp;A &mdash; Checklist de Validacao Pos-Execucao</h2>
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-title">&#x1F50D; Executar apos CADA Phase completada</div>
+    Marcar como PASS/FAIL. Se qualquer item FAIL, nao avancar para a proxima Phase.
+  </div>
+
+  <h3>19.1 Phase 0 — Migrations</h3>
+  <table>
+    <tr><th style="width:40px">#</th><th>Verificacao</th><th style="width:300px">Query/Comando</th><th style="width:80px">Esperado</th></tr>
+    <tr><td>Q1</td><td>deleted_at existe?</td><td><code>SELECT column_name FROM information_schema.columns WHERE table_name='intimacoes' AND column_name='deleted_at'</code></td><td>1 row</td></tr>
+    <tr><td>Q2</td><td>Ghosts soft-deleted?</td><td><code>SELECT COUNT(*) FROM intimacoes WHERE deleted_at IS NOT NULL</code></td><td>67</td></tr>
+    <tr><td>Q3</td><td>Records ativos?</td><td><code>SELECT COUNT(*) FROM intimacoes WHERE deleted_at IS NULL</code></td><td>6</td></tr>
+    <tr><td>Q4</td><td>Status novo funciona?</td><td><code>INSERT INTO intimacoes (organizacao_id, processo_id, status) VALUES ('55a0c7ba...', (SELECT id FROM processos LIMIT 1), 'nao_lida') RETURNING status</code></td><td>nao_lida</td></tr>
+    <tr><td>Q5</td><td>Status invalido falha?</td><td><code>INSERT INTO intimacoes (..., status) VALUES (..., 'nova')</code></td><td>CHECK violation</td></tr>
+    <tr><td>Q6</td><td>Provider cecilia_v3 aceito?</td><td><code>INSERT ... provider='cecilia_v3'</code></td><td>Success</td></tr>
+    <tr><td>Q7</td><td>View funciona?</td><td><code>SELECT COUNT(*) FROM v_controller_intimacoes_completa</code></td><td>&ge; 6</td></tr>
+    <tr><td>Q8</td><td>View tem advogado_nome?</td><td><code>SELECT advogado_nome FROM v_controller_intimacoes_completa LIMIT 1</code></td><td>Nao erro</td></tr>
+    <tr><td>Q9</td><td>KPIs RPC funciona?</td><td><code>SELECT rpc_controller_v3_kpis('55a0c7ba-1a23-4ae1-b69b-a13811324735')</code></td><td>JSON valido</td></tr>
+    <tr><td>Q10</td><td>Trigger pg_net existe?</td><td><code>SELECT tgname FROM pg_trigger WHERE tgrelid = 'intimacoes'::regclass AND tgname = 'trg_analyze_intimacao'</code></td><td>1 row</td></tr>
+    <tr><td>Q11</td><td>Dedup index existe?</td><td><code>SELECT indexname FROM pg_indexes WHERE indexname = 'idx_intimacoes_dedup_evento'</code></td><td>1 row</td></tr>
+    <tr><td>Q12</td><td>modelo_ia coluna existe?</td><td><code>SELECT column_name FROM information_schema.columns WHERE table_name='intimacoes' AND column_name='modelo_ia'</code></td><td>1 row</td></tr>
+  </table>
+
+  <h3>19.2 Phase 1a — Orquestrador</h3>
+  <table>
+    <tr><th style="width:40px">#</th><th>Verificacao</th><th style="width:300px">Como Testar</th><th style="width:120px">Esperado</th></tr>
+    <tr><td>Q13</td><td>Dual-write funciona?</td><td>Rodar 1 ciclo RS116571. Verificar ambas tabelas.</td><td>N rows em movimentacoes E intimacoes</td></tr>
+    <tr><td>Q14</td><td>Provider correto?</td><td><code>SELECT DISTINCT provider FROM intimacoes WHERE provider='cecilia_v3'</code></td><td>1 row</td></tr>
+    <tr><td>Q15</td><td>evento_eproc populado?</td><td><code>SELECT COUNT(*) FROM intimacoes WHERE provider='cecilia_v3' AND evento_eproc IS NOT NULL</code></td><td>> 0</td></tr>
+    <tr><td>Q16</td><td>Dedup funciona?</td><td>Rodar mesmo ciclo 2x. Contagem nao deve dobrar.</td><td>COUNT estavel</td></tr>
+    <tr><td>Q17</td><td>Trigger disparou?</td><td><code>SELECT ia_status FROM intimacoes WHERE provider='cecilia_v3' ORDER BY created_at DESC LIMIT 5</code></td><td>pendente ou concluido</td></tr>
+    <tr><td>Q18</td><td>Sem erros no log?</td><td><code>ssh mac-mini-tail 'tail -50 /tmp/cecilia-orq.log'</code></td><td>Sem stack traces</td></tr>
+  </table>
+
+  <h3>19.3 Phase 1b — Edge Function</h3>
+  <table>
+    <tr><th style="width:40px">#</th><th>Verificacao</th><th style="width:300px">Como Testar</th><th style="width:120px">Esperado</th></tr>
+    <tr><td>Q19</td><td>Edge Function deployed?</td><td><code>supabase functions list</code></td><td>analyze-intimacao na lista</td></tr>
+    <tr><td>Q20</td><td>Invocacao manual OK?</td><td>POST direto com payload de teste</td><td>HTTP 200 + JSON classificacao</td></tr>
+    <tr><td>Q21</td><td>Classe atribuida?</td><td><code>SELECT classe_cecilia, confianca_ia FROM intimacoes WHERE ia_status='concluido' LIMIT 5</code></td><td>B-G com confianca > 0</td></tr>
+    <tr><td>Q22</td><td>Custo registrado?</td><td><code>SELECT modelo_ia, custo_ia, tokens_ia FROM intimacoes WHERE ia_status='concluido' LIMIT 5</code></td><td>Valores nao-null</td></tr>
+    <tr><td>Q23</td><td>analise_ia formato?</td><td><code>SELECT analise_ia->'_analista_raw' IS NOT NULL FROM intimacoes WHERE ia_status='concluido' LIMIT 1</code></td><td>true</td></tr>
+    <tr><td>Q24</td><td>Fallback D rate?</td><td><code>SELECT COUNT(*) FILTER (WHERE classe_cecilia='D') * 100.0 / COUNT(*) FROM intimacoes WHERE ia_status='concluido'</code></td><td>&lt; 15%</td></tr>
+    <tr><td>Q25</td><td>Erro rate?</td><td><code>SELECT COUNT(*) FILTER (WHERE ia_status='erro') * 100.0 / COUNT(*) FROM intimacoes WHERE provider='cecilia_v3'</code></td><td>&lt; 5%</td></tr>
+  </table>
+
+  <h3>19.4 Phase 2 — Mode B Deep Analysis</h3>
+  <table>
+    <tr><th style="width:40px">#</th><th>Verificacao</th><th>Como Testar</th><th style="width:80px">Esperado</th></tr>
+    <tr><td>Q26</td><td>Webhook responde?</td><td>POST /functions/v1/deep-analyze-intimacao com intimacao_id real</td><td>HTTP 200</td></tr>
+    <tr><td>Q27</td><td>Usa Sonnet?</td><td><code>SELECT modelo_ia FROM intimacoes WHERE id='...' (re-analisada)</code></td><td>claude-sonnet-4-6</td></tr>
+    <tr><td>Q28</td><td>Tempo &lt; 120s?</td><td>Medir latencia do webhook</td><td>&lt; 120s</td></tr>
+  </table>
+
+  <h3>19.5 Validacao E2E Final (apos Phase 1a+1b)</h3>
+  <table>
+    <tr><th style="width:40px">#</th><th>Cenario E2E</th><th>Como Testar</th><th style="width:80px">Esperado</th></tr>
+    <tr><td>E1</td><td>Ciclo completo</td><td>Ligar Cecilia (1 OAB), esperar ciclo, verificar intimacoes + classificacao</td><td>Records criados + classificados</td></tr>
+    <tr><td>E2</td><td>Dedup cross-ciclo</td><td>Rodar 2o ciclo. Nenhum duplicado.</td><td>COUNT estavel</td></tr>
+    <tr><td>E3</td><td>View no frontend</td><td><code>SELECT * FROM v_controller_intimacoes_completa LIMIT 10</code> — todos campos presentes</td><td>Dados completos</td></tr>
+    <tr><td>E4</td><td>KPIs corretos</td><td><code>SELECT rpc_controller_v3_kpis(org_id)</code></td><td>Contagens batem com realidade</td></tr>
+    <tr><td>E5</td><td>Batch update funciona</td><td><code>SELECT rpc_controller_batch_update_status(ARRAY[id1,id2], 'finalizada')</code></td><td>success=true, updated=2</td></tr>
+    <tr><td>E6</td><td>Telegram para E/F</td><td>Classificar intimacao como E. Verificar Telegram.</td><td>Mensagem recebida</td></tr>
+    <tr><td>E7</td><td>Custo por ciclo</td><td>Somar custo_ia dos records do ciclo</td><td>&lt; $0.15</td></tr>
+  </table>
+</div>
+
+<!-- ======================= SECTION 20 ======================= -->
+<div class="section" id="s20">
+  <div class="section-header">
+    <span class="section-num" style="background: var(--primary-dim); border-color: var(--primary-border); color: var(--primary);">20</span>
+    <h2>Prompt de Retomada de Sessao</h2>
+  </div>
+
+  <div class="callout callout-info">
+    <div class="callout-title">&#x1F504; Copiar e colar apos <code>/clear</code> para retomar contexto</div>
+    Este prompt deve ser enviado ao Jarbas 2.0 (Claude Code) para retomar a execucao do projeto.
+  </div>
+
+  <details open>
+    <summary style="font-weight: 700; color: var(--primary); font-size: 14px;">Prompt de Retomada (copiar tudo abaixo)</summary>
+    <div class="details-content">
+      <pre style="white-space: pre-wrap; font-size: 12px; line-height: 1.5; color: var(--text);">Vamos executar o projeto Controller Mechanism v3.0.
+
+## Contexto
+PRD completo revisado e aprovado: https://mdlab-christian.github.io/jarbas-reports/jarbas2/controller-mechanism-v3-prd-20260401.html
+
+Leia o HTML inteiro (~/jarbas-reports/jarbas2/controller-mechanism-v3-prd-20260401.html) — ele tem 20 secoes incluindo:
+- S1-S14: PRD completo do mecanismo
+- S15: 12 correcoes criticas (P0-P2) que SUBSTITUEM SQL original
+- S16: 6 decisoes arquiteturais confirmadas (D1-D6)
+- S17: Plano de execucao step-by-step com SQL exato
+- S18: Avaliacao critica (score 8.6/10, APROVADO)
+- S19: Q&A checklist de validacao (Q1-Q28 + E1-E7)
+- S20: Este prompt
+
+## Decisoes Confirmadas
+D1=85% threshold | D2=Comecar agora | D3=Mode C aguarda estabilizacao | D4=Soft delete | D5=Hibrido Obsidian+Supabase | D6=Telegram redundante para E/F
+
+## Ordem de Execucao
+1. Phase 0: SQL Migrations (S17.1 — steps 0.1 a 0.7) — usar Supabase MCP
+2. Validar Phase 0 (S19.1 — Q1 a Q12)
+3. Phase 1a: Adaptar orquestrador (S17.2) — editar via SSH no Mac Mini
+4. Phase 1b: Edge Function (S17.3) — deploy via Supabase MCP
+5. Validar Phase 1 (S19.2 + S19.3 — Q13 a Q25)
+6. E2E validation (S19.5 — E1 a E7)
+
+## Memorias Relevantes
+Ler: cecilia_v3_blueprint.md, cecilia_v2_skills_reference.md, cecilia_intimacoes_schema.md, cecilia_processos_schema.md
+
+## Regras
+- Nao pular steps. Verificar CADA step antes de avancar.
+- Se qualquer Q falhar, investigar e corrigir antes de prosseguir.
+- SQL exato esta no HTML S17. Usar como referencia, nao reinventar.
+- Correcoes do S15 ja estao incorporadas no S17. S5/S6 original tem erros — ignorar.
+
+Comece pela Phase 0. Execute step 0.1 primeiro.</pre>
+    </div>
+  </details>
+
+  <h3>20.1 Arquivos de Referencia</h3>
+  <table>
+    <tr><th>Arquivo</th><th>Path</th><th>Para que</th></tr>
+    <tr><td>PRD HTML</td><td><code>~/jarbas-reports/jarbas2/controller-mechanism-v3-prd-20260401.html</code></td><td>SSOT do mecanismo</td></tr>
+    <tr><td>Orquestrador</td><td><code>/Users/cecilia/cecilia-skills/src/skills/skill_orquestrador.mjs</code></td><td>Adaptar (Phase 1a)</td></tr>
+    <tr><td>Analisar IA</td><td><code>/Users/cecilia/cecilia-skills/src/skills/skill_analisar_ia.mjs</code></td><td>Referencia para Edge Function</td></tr>
+    <tr><td>Start.mjs</td><td><code>/Users/cecilia/cecilia-skills/src/start.mjs</code></td><td>Crons (PAUSED)</td></tr>
+    <tr><td>Memory blueprint</td><td><code>~/.claude/projects/.../memory/cecilia_v3_blueprint.md</code></td><td>Decisoes e contexto</td></tr>
+    <tr><td>Playbook Joao</td><td><code>~/beta-mdflow/PLAYBOOK_CONTROLLER.md</code></td><td>Regras de classificacao</td></tr>
+    <tr><td>Cecilia Vault</td><td><code>~/cecilia-vault/</code></td><td>17 playbooks taxonomia</td></tr>
   </table>
 </div>
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>MdFlow Core — Referência Técnica v4.55 (2026-04-01)</title>
+<title>MdFlow Core — Referência Técnica v4.56 (2026-04-01)</title>
 <style>
   :root {
     --bg: #12100e;
@@ -707,6 +707,8 @@
       <span class="badge badge-route">/crm</span>
       <span class="badge badge-ok">✅ Totalmente operacional (2026-04-01)</span>
       <span class="badge badge-ok">15/15 front-audit fixes — DS v5 compliant</span>
+      <span class="badge badge-ok">6/6 DB fixes — backend executor completo</span>
+      <span class="badge badge-ok">restricoes.valor → BIGINT (centavos)</span>
       <span class="badge badge-info">@dnd-kit/core</span>
       <span class="badge badge-ok">useCrmModals hook</span>
       <span class="badge" style="background:#ef444420;color:#ef4444;border:1px solid #ef444440;">aba docs-pendentes removida</span>
@@ -991,30 +993,66 @@
   </details>
 
   <details>
-    <summary>🗄️ Fase 4 — Backend (page-backend-tester v1 — 2026-04-01)</summary>
+    <summary>🗄️ Fase 4 — Backend (page-backend-tester v1 + page-backend-executor v1+v2 — 2026-04-01)</summary>
     <div class="details-body">
       <div class="grid-3">
         <div class="card">
-          <h3>Saúde Geral</h3>
-          <p style="font-size:2rem;font-weight:800;color:#f59e0b;font-family:Manrope,sans-serif;">76%</p>
-          <p style="font-size:12px;color:var(--text-muted);">Schema 8.5 | RPCs 6 | RLS 9 | Webhooks 9 | Perf 7.5 | Drift 6</p>
+          <h3>Saúde Geral (pós-executor)</h3>
+          <p style="font-size:2rem;font-weight:800;color:#22c55e;font-family:Manrope,sans-serif;">~88–90%</p>
+          <p style="font-size:12px;color:var(--text-muted);">Estimativa pós execução completa. Todos os P0+P1+P2 resolvidos.<br>RPCs ~8.5 | Schema ~9 | Drift ~8.5 | Perf ~8 | RLS 9</p>
+          <p style="font-size:12px;color:var(--text-muted);margin-top:6px;">Anterior (tester): 76% — Schema 8.5 | RPCs 6 | RLS 9 | Perf 7.5 | Drift 6</p>
         </div>
         <div class="card">
-          <h3>P0 Corrigido na Sessão</h3>
-          <p style="color:#22c55e;font-weight:600;">✅ fn_restricoes_listar</p>
-          <p style="font-size:12px;color:var(--text-muted);">JOIN com orgaos_restritivos tinha <code>AND o.deleted_at IS NULL</code> em tabela sem essa coluna → erro silencioso em todas as restrições dos drawers. Corrigido direto no Supabase.</p>
-        </div>
-        <div class="card">
-          <h3>P1 Abertos</h3>
+          <h3>6/6 DB Fixes Aplicados</h3>
           <ul style="font-size:12px;padding-left:14px;">
-            <li><strong>fn_crm_kanban</strong> — schema drift (l.empresa inexistente). Frontend não usa, mas quebra se chamada.</li>
-            <li><strong>auditorias INSERT RLS</strong> — sem USING clause. Adicionar SELECT policy.</li>
+            <li>✅ DB-001 (P1/RPC) — DROP fn_crm_kanban quebrada</li>
+            <li>⏭ DB-002 (P1/RLS) — auditorias SELECT policy → SKIP (já existia)</li>
+            <li>✅ DB-003 (P2/TYPE) — restricoes.valor NUMERIC→BIGINT</li>
+            <li>✅ DB-004 (P2/SCHEMA) — leads_atividades: deleted_at + índice</li>
+            <li>✅ DB-005 (P2/NAMING) — fn_crm_stats: p_org_id→p_organizacao_id</li>
+            <li>✅ DB-006 (P2/PERF) — webhook_requests pg_cron cleanup LGPD</li>
           </ul>
+        </div>
+        <div class="card">
+          <h3>DB-003 — restricoes.valor BIGINT</h3>
+          <p style="font-size:12px;color:var(--text-muted);">94% dos 4.586 registros estavam em reais com centavos. Conversão: <code>ROUND(valor * 100)::BIGINT</code>.<br>Spot check: 60793 (R$607,93), 19395 (R$193,95).<br>13 arquivos frontend atualizados: /100 no display, ×100 no save/insert.</p>
         </div>
       </div>
 
+      <div class="section-title">P0 Corrigido Durante Tester</div>
+      <div class="bug-card ok">
+        <h4>✅ fn_restricoes_listar — CORRIGIDA (P0)</h4>
+        <p>JOIN com orgaos_restritivos tinha <code>AND o.deleted_at IS NULL</code> em tabela sem essa coluna → erro silencioso em todas as restrições dos drawers. Restaurou 9.919 restrições. Corrigido direto no Supabase.</p>
+      </div>
+
+      <div class="section-title">DB Fixes Aplicados — Backend Executor v1+v2 (2026-04-01)</div>
+      <div class="bug-card ok">
+        <h4>✅ DB-001 (P1/RPC) — DROP fn_crm_kanban — commit 5315a187</h4>
+        <p>Função legada referenciava <code>l.empresa</code> e <code>l.vendedor_id</code> inexistentes. Frontend usa views diretas. DROP aplicado via migration <code>20260401140001</code>.</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>⏭ DB-002 (P1/RLS) — auditorias SELECT policy → SKIP</h4>
+        <p>Verificado: policy <code>auditorias_select</code> com <code>USING (organizacao_id = org_id())</code> já existia corretamente. Tester gerou falso positivo.</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>✅ DB-003 (P2/TYPE) — restricoes.valor NUMERIC→BIGINT (centavos) — commit 79769afd</h4>
+        <p>Migration: <code>ALTER TABLE restricoes ALTER COLUMN valor TYPE BIGINT USING ROUND(valor * 100)::BIGINT</code>. 4.586 registros convertidos. 13 componentes frontend atualizados para usar centavos: <code>ClienteDrawerTabRestricoes</code>, <code>RestricaoPastaCard</code>, <code>DocumentosLeadPaineis</code>, <code>ClienteDrawerTabDados</code>, <code>DistribuicaoDrawerRestricao</code>, <code>ModalDistribuirLead</code>, <code>CrmAuditoriaPanel</code>, <code>ModalTriagem</code>, <code>ProcessoTabRestricoes</code>, <code>ProcessoRestricaoPrincipal</code>, <code>FormRestricao</code>, <code>ModalAdicionarRestricoes</code>. Nota: <code>processos.restricao_valor</code> não migrado (campo inline legado, mantido em reais — fallback normalizado com /100).</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>✅ DB-004 (P2/SCHEMA) — leads_atividades: deleted_at + índice — commit 14b4bff9</h4>
+        <p>Adicionado <code>deleted_at TIMESTAMPTZ</code> + índice parcial <code>WHERE deleted_at IS NULL</code> + trigger <code>set_updated_at</code>.</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>✅ DB-005 (P2/NAMING) — fn_crm_stats: p_org_id→p_organizacao_id — commit 436e8275</h4>
+        <p>Renomeado parâmetro para seguir convenção MdFlow. Frontend hook atualizado correspondentemente.</p>
+      </div>
+      <div class="bug-card ok">
+        <h4>✅ DB-006 (P2/PERF) — webhook_requests pg_cron cleanup LGPD — commit cc114c3f</h4>
+        <p>Job 31 criado: diário 03:00 UTC, deleta registros &gt; 90 dias. LGPD compliant. Tabela estava em 21MB.</p>
+      </div>
+
       <div class="section-title">Inventário Backend CRM</div>
-      <p style="font-size:13px;color:var(--text-muted);">8 tabelas, 3 views, 40+ RPCs, 6 triggers em leads, 30+ índices. Tabelas principais: <code>leads</code> (632kB), <code>restricoes</code> (3.6MB), <code>auditorias</code> (392kB), <code>webhook_requests</code> (21MB).</p>
+      <p style="font-size:13px;color:var(--text-muted);">8 tabelas, 3 views, 40+ RPCs, 6 triggers em leads, 30+ índices. Tabelas principais: <code>leads</code> (632kB), <code>restricoes</code> (3.6MB — agora BIGINT), <code>auditorias</code> (392kB), <code>webhook_requests</code> (21MB, cleanup ativo).</p>
 
       <div class="section-title">RPCs Testadas</div>
       <div class="bug-card ok">
@@ -1022,31 +1060,22 @@
         <p>RLS funcionando: org_ficticia retorna zeros. SECURITY DEFINER. Parâmetros com prefixo p_.</p>
       </div>
       <div class="bug-card ok">
-        <h4>✅ fn_restricoes_listar — 147–234ms — CORRIGIDA</h4>
-        <p>Fix P0: removido <code>AND o.deleted_at IS NULL</code> do JOIN com orgaos_restritivos. Agora retorna 9.919 restrições. RLS isolamento: org_ficticia → 0 rows.</p>
+        <h4>✅ fn_restricoes_listar — 147–234ms — corrigida</h4>
+        <p>Retorna 9.919 restrições. RLS isolamento: org_ficticia → 0 rows.</p>
       </div>
       <div class="bug-card ok">
         <h4>✅ fn_restricao_salvar, rpc_disparar_auditoria, distribuir_lead_completo — funcionais</h4>
         <p>Assinaturas corretas, envelope canônico, validações de negócio funcionando.</p>
       </div>
-      <div class="bug-card warn">
-        <h4>❌ fn_crm_kanban — QUEBRADA (P1)</h4>
-        <p>Referencia <code>l.empresa</code> e <code>l.vendedor_id</code> inexistentes na tabela leads. Provavelmente legado abandonado. Frontend usa views diretas, não chama esta RPC. Fix: DROP ou reescrever.</p>
-      </div>
-
-      <div class="section-title">Tech Debt P2</div>
-      <ul class="ilist">
-        <li><code>restricoes.valor</code>: NUMERIC → deve ser BIGINT (centavos)</li>
-        <li><code>leads_atividades</code>: sem <code>deleted_at</code> → hard delete</li>
-        <li><code>fn_crm_stats</code>: parâmetro <code>p_org_id</code> → renomear para <code>p_organizacao_id</code></li>
-        <li><code>webhook_requests</code> 21MB: verificar pg_cron de limpeza (LGPD 90 dias)</li>
-      </ul>
 
       <div class="section-title">Webhooks n8n CRM (14 ativos)</div>
       <p style="font-size:13px;color:var(--text-muted);">WH-CRM-VINCULAR-ADVOGADO, WH-CRM-03 Aprovar Triagem, MDZAP-LEAD-SYNC, N8N-DIST-MANUAL, e mais. Auth header incorreto retorna 403. Envelope canônico correto.</p>
 
+      <div class="section-title">Relatórios</div>
       <ul class="ilist">
         <li><a href="beto/crm/backend-test-v1-2026-04-01.html">Backend Test v1 — 2026-04-01 (saúde 76%)</a></li>
+        <li><a href="beto/crm/backend-exec-log-v1-2026-04-01.html">Backend Exec Log v1 — 2026-04-01 (DB-001..002)</a></li>
+        <li><a href="beto/crm/backend-exec-log-v2-2026-04-01.html">Backend Exec Log v2 — 2026-04-01 (DB-003..006 + 13 frontend files)</a></li>
       </ul>
     </div>
   </details>

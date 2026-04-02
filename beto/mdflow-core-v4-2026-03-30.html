@@ -664,7 +664,7 @@
           <tr><td><strong>1</strong></td><td>Lead</td><td><code>novo</code></td><td>CRM</td><td>ModalNovoLead ou WhatsApp/MDZap</td><td style="color:var(--green);">✅ OK</td></tr>
           <tr><td><strong>2</strong></td><td>Lead</td><td><code>atendimento</code></td><td>CRM</td><td>Follow-up, auditoria Serasa/ApiFull, painel inline</td><td style="color:var(--green);">✅ OK</td></tr>
           <tr><td><strong>3</strong></td><td>Lead</td><td><code>triagem</code></td><td>CRM</td><td>ModalDistribuicao (checklist) → move coluna</td><td style="color:var(--green);">✅ OK</td></tr>
-          <tr><td><strong>4</strong></td><td>Lead</td><td><code>distribuindo</code></td><td>CRM → Distribuição</td><td>ModalDistribuirLead → <code>rpc_criar_processo_rascunho</code> → etapa: <code>preparacao</code></td><td style="color:var(--green);">✅ OK</td></tr>
+          <tr><td><strong>4</strong></td><td>Lead</td><td><code>distribuindo</code></td><td>CRM → Distribuição</td><td>ModalDistribuirLead → RPC <code>distribuir_lead_completo</code> → cria 1 processo por restrição processável → lead arquivado → webhook n8n gerar_peticao (async)</td><td style="color:var(--green);">✅ OK</td></tr>
           <tr><td><strong>5</strong></td><td>Processo</td><td>etapa: <code>preparacao</code></td><td>Distribuição (Tab Preparação)</td><td>Documentação inicial, Google Drive folder</td><td style="color:var(--yellow);">⚠️ Drive manual</td></tr>
           <tr><td><strong>6</strong></td><td>Processo</td><td>etapa: <code>aguardando_distribuicao</code></td><td>Distribuição (Tab Aguardando)</td><td>Processo está pronto para distribuir no EPROC</td><td style="color:var(--green);">✅ OK</td></tr>
           <tr><td><strong>7</strong></td><td>Processo</td><td>etapa: <code>distribuido</code></td><td>Distribuição → Processos</td><td>Operador efetua distribuição manual no EPROC, informa CNJ, lead arquivado, cliente criado</td><td style="color:var(--yellow);">⚠️ Manual por enquanto</td></tr>
@@ -774,6 +774,168 @@
           <tr><td>Clientes</td><td>ClienteByIdPage</td><td><code>navigate('/pagina-cliente/id/:id')</code> ou <code>/clientes/:cpfSlug</code></td></tr>
           <tr><td>Controller</td><td>Doc. Pendentes</td><td><code>href="/documentos-pendentes?processo=ID"</code></td></tr>
           <tr><td>Marketing</td><td>OlivIA</td><td><code>window.dispatchEvent(new Event('olivia:open-drawer'))</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🔘 Botões e Ações do Fluxo — Frontend × Backend (mapa completo)</summary>
+    <div class="details-body">
+      <div class="note" style="margin-bottom:14px;">
+        Cada botão do fluxo principal mapeado: onde fica, o que chama, quais campos são obrigatórios, o que muda no banco.
+      </div>
+
+      <!-- CRM -->
+      <div class="section-title">CRM — Lead Pipeline</div>
+      <table class="tbl">
+        <thead><tr><th>Botão / Ação</th><th>Arquivo</th><th>RPC / Webhook</th><th>Campos obrigatórios</th><th>O que muda no banco</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Novo Lead</strong><br><small>Kanban → "+ Novo Lead"</small></td>
+            <td><code>ModalNovoLead.tsx</code></td>
+            <td>INSERT direto via <code>supabase.from('leads')</code> ou webhook</td>
+            <td>Nome, telefone</td>
+            <td><code>leads</code>: INSERT. Status: <code>novo</code></td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Distribuir Lead</strong><br><small>Checklist → "Distribuir"</small></td>
+            <td><code>ModalDistribuirLead.tsx</code></td>
+            <td>RPC: <code>distribuir_lead_completo(p_lead_id, p_organizacao_id)</code></td>
+            <td>Lead com ≥1 restrição processável sem processo</td>
+            <td>
+              <code>processos</code>: INSERT 1 por restrição (etapa=<code>preparacao</code>)<br>
+              <code>leads</code>: UPDATE arquivado=true<br>
+              <code>restricoes</code>: UPDATE processo_id=novo<br>
+              Webhook n8n: <code>gerar_peticao</code> (async, lotes de 5)
+            </td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Distribuição: Preparação -->
+      <div class="section-title" style="margin-top:18px;">Distribuição — Tab Preparação</div>
+      <table class="tbl">
+        <thead><tr><th>Botão / Ação</th><th>Arquivo</th><th>RPC / Webhook</th><th>Campos obrigatórios</th><th>O que muda no banco</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>Criar Processo Manual</strong><br><small>Header → "Novo Processo"</small></td>
+            <td><code>ModalCriarProcesso.tsx</code></td>
+            <td>RPC: <code>rpc_criar_processo_rascunho</code></td>
+            <td>cliente_id, empresa_id, tipo_id, idempotency_key</td>
+            <td><code>processos</code>: INSERT (etapa=<code>preparacao</code>, numero_cnj=NULL)</td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Gerar Petição</strong><br><small>Card → "Gerar Petição"</small></td>
+            <td><code>ModalGerarPeticao.tsx</code></td>
+            <td>INSERT <code>jarbas_tarefas</code> (tipo=gerar_doc) + UPDATE <code>processos.peticao_status='gerando'</code></td>
+            <td>processo_id</td>
+            <td><code>processos_documentos</code>: INSERT (status=processando)<br><code>jarbas_tarefas</code>: INSERT</td>
+            <td style="color:var(--yellow);">⚠️ Depende n8n</td>
+          </tr>
+          <tr>
+            <td><strong>Avançar para Aguardando</strong><br><small>Drawer → "Enviar para Aguardando Distribuição"</small></td>
+            <td><code>DistribuicaoDrawerPreparacao.tsx</code></td>
+            <td>UPDATE direto: <code>supabase.from('processos').update({etapa_distribuicao:'aguardando'})</code></td>
+            <td>advogado_id ≠ null + ≥3 docs OK</td>
+            <td><code>processos</code>: UPDATE etapa=<code>aguardando_distribuicao</code></td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Agendar Distribuição</strong><br><small>Card → "Agendar"</small></td>
+            <td><code>WizardAgendarDistribuicao.tsx</code></td>
+            <td>RPC: <code>rpc_agendar_distribuicao(p_processo_ids[], p_data_agendamento, ...)</code></td>
+            <td>data_agendamento (7–18h, 15min)</td>
+            <td><code>processos_agendamentos</code>: INSERT<br><code>processos</code>: UPDATE etapa=<code>agendado</code></td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Devolver ao CRM</strong><br><small>Card → "Devolver ao CRM"</small></td>
+            <td><code>ModalDevolverCRM.tsx</code></td>
+            <td>RPC: <code>rpc_devolver_crm(p_processo_id, p_motivo, p_descricao, p_criar_pendencia, p_prazo_retorno, ...)</code></td>
+            <td>motivo (select), descricao (text)</td>
+            <td><code>processos</code>: UPDATE etapa=<code>rascunho</code><br><code>documentos_pendentes</code>: INSERT (se criar_pendencia=true)</td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Excluir Processo</strong><br><small>Card → "Excluir"</small></td>
+            <td><code>ModalExcluirProcesso.tsx</code></td>
+            <td>DELETE ou UPDATE deleted_at</td>
+            <td>Confirmação</td>
+            <td><code>processos</code>: soft delete (deleted_at)</td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Distribuição: Aguardando -->
+      <div class="section-title" style="margin-top:18px;">Distribuição — Tab Aguardando (⚠️ crítico)</div>
+      <table class="tbl">
+        <thead><tr><th>Botão / Ação</th><th>Arquivo</th><th>RPC / Webhook</th><th>Campos obrigatórios</th><th>O que muda no banco</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr style="background:rgba(239,68,68,.05);">
+            <td><strong>Efetuar Distribuição</strong><br><small>Dropdown "Efetuar" ou Drawer → botão</small></td>
+            <td><code>ModalEfetuarDistribuicao.tsx</code><br>(611 linhas)</td>
+            <td>
+              RPC: <code>rpc_efetuar_distribuicao_manual</code><br>
+              Params: processo_id, numero_cnj, data_distribuicao, estado_id, cidade, vara, foro_regional, juiz_nome, advogado_id, usuario_id
+            </td>
+            <td>
+              <strong>CNJ</strong> (20 dígitos, validação async)<br>
+              <strong>Advogado</strong> (se não vinculado ao processo)
+            </td>
+            <td>
+              <code>processos</code>: UPDATE numero_cnj, data_distribuicao, estado_uf, cidade_distribuicao, vara_distribuicao, foro_regional, julgador_nome, advogado_id, etapa=<code>distribuido</code>, status_changed_at=NOW()<br>
+              <code>webhook_requests</code>: INSERT (LGPD log)
+            </td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Validar CNJ</strong><br><small>async, enquanto digita</small></td>
+            <td><code>ModalEfetuarDistribuicao.tsx</code></td>
+            <td>RPC: <code>rpc_validar_cnj_unico(p_numero_cnj, p_processo_id, p_organizacao_id)</code></td>
+            <td>CNJ formatado (20 dígitos)</td>
+            <td>Somente leitura — valida unicidade</td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Autocomplete Cidade/Vara</strong><br><small>Histórico de distribuições passadas</small></td>
+            <td><code>ModalEfetuarDistribuicao.tsx</code></td>
+            <td><code>SELECT DISTINCT cidade_distribuicao FROM processos WHERE organizacao_id=... AND cidade ILIKE...</code></td>
+            <td>—</td>
+            <td>Somente leitura</td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Distribuir Selecionados / Todos</strong><br><small>Bulk — barra inferior</small></td>
+            <td><code>ModalDistribuicaoLote.tsx</code></td>
+            <td>Webhook n8n: <code>distribuicao/distribuir_lote</code><br>Payload: {processo_ids[], items: [{processo_id, numero_cnj, advogado_id}]}</td>
+            <td>CNJ (cada processo) + advogado (cada processo)</td>
+            <td>Idem ModalEfetuarDistribuicao, para múltiplos via n8n</td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+          <tr>
+            <td><strong>Voltar para Preparação</strong><br><small>Dropdown → "Voltar para Preparação"</small></td>
+            <td><code>TabAguardando.tsx</code></td>
+            <td>UPDATE direto: <code>supabase.from('processos').update({etapa_distribuicao:'preparacao'})</code></td>
+            <td>—</td>
+            <td><code>processos</code>: UPDATE etapa=<code>preparacao</code></td>
+            <td style="color:var(--green);">✅</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <!-- Erros conhecidos ModalEfetuarDistribuicao -->
+      <div class="section-title" style="margin-top:18px;">Erros possíveis — ModalEfetuarDistribuicao</div>
+      <table class="tbl">
+        <thead><tr><th>Código de erro (RPC)</th><th>Mensagem exibida</th><th>Causa</th></tr></thead>
+        <tbody>
+          <tr><td><code>JARBAS_EM_ANDAMENTO</code></td><td>"Processo já está em distribuição — aguarde"</td><td>etapa_distribuicao = em_distribuicao (estado reservado futuro)</td></tr>
+          <tr><td><code>CNJ_DUPLICADO</code></td><td>"CNJ já cadastrado em outro processo"</td><td>numero_cnj já existe na org</td></tr>
+          <tr><td><code>JA_DISTRIBUIDO</code></td><td>"Este processo já foi distribuído"</td><td>etapa_distribuicao já é distribuido</td></tr>
         </tbody>
       </table>
     </div>
@@ -982,6 +1144,118 @@
       </table>
 
       <div class="note" style="margin-top:10px;"><strong>Webhook necessário (n8n):</strong> ao criar lead → POST para n8n → Google Drive API → cria pasta cliente + subpastas por restrição → salva IDs de volta no banco via <code>UPDATE leads SET google_drive_folder_id = ?</code> e <code>UPDATE restricoes SET google_drive_folder_id = ?</code>.</div>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🏗️ Arquitetura de Documentos — Componentes e Tabelas</summary>
+    <div class="details-body">
+      <div class="note" style="margin-bottom:14px;">
+        Mapa completo de quais componentes React gerenciam documentos, quais tabelas usam, quais buckets de storage e o que cada um faz.
+      </div>
+
+      <div class="section-title">Componentes de Documentos</div>
+      <table class="tbl">
+        <thead><tr><th>Componente</th><th>Arquivo</th><th>Tabela</th><th>Bucket</th><th>Contexto de uso</th><th>Funcionalidades</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>ClienteDrawerTabDocumentos</code></td>
+            <td><code>shared/cliente_drawer/tabs/</code></td>
+            <td><code>cliente_documentos</code></td>
+            <td><code>documentos</code></td>
+            <td>CRM drawer + Clientes drawer</td>
+            <td>Upload, visualizar (signed URL via RPC), download, editar status, badge drive</td>
+          </tr>
+          <tr>
+            <td><code>ClienteTabDocumentos</code> (legacy)</td>
+            <td><code>components/cliente/tabs/</code></td>
+            <td><code>cliente_documentos</code></td>
+            <td><code>documentos</code></td>
+            <td>Página cliente completa</td>
+            <td>Igual acima + painel de docs por processo</td>
+          </tr>
+          <tr>
+            <td><code>ClienteTabDocumentosUnificada</code></td>
+            <td><code>components/cliente/tabs/</code></td>
+            <td><code>cliente_documentos</code> + <code>processos_documentos</code></td>
+            <td><code>documentos</code></td>
+            <td>Página cliente E32 (nova)</td>
+            <td>3 seções: Drive + Pessoais + Por processo. Sync Drive. Multi-select bulk download.</td>
+          </tr>
+          <tr style="background:rgba(245,158,11,.05);">
+            <td><code>ProcessoDrawerTabDocumentos</code></td>
+            <td><code>shared/processo_drawer/tabs/</code></td>
+            <td><code>processos_documentos</code></td>
+            <td><code>leads-docs</code></td>
+            <td>Drawer de processo na Distribuição</td>
+            <td>Docs do processo — <strong>SEM sub-abas Inicial/Tramitação ainda</strong></td>
+          </tr>
+          <tr>
+            <td><code>ProcessoTabDocumentos</code></td>
+            <td><code>components/processo/tabs/</code></td>
+            <td><code>processos_documentos</code></td>
+            <td><code>leads-docs</code></td>
+            <td>Página /processos (aba Documentos)</td>
+            <td>Sub-aba Inicial (DnD, RestricaoPastaCard) + Sub-aba Tramitação (ProcessoTramitacaoTab)</td>
+          </tr>
+          <tr>
+            <td><code>ProcessoTramitacaoTab</code></td>
+            <td><code>components/processo/tabs/</code></td>
+            <td><code>processos_documentos</code></td>
+            <td><code>leads-docs</code></td>
+            <td>Sub-componente reutilizável</td>
+            <td>Tabela docs tramitação, upload, visualizar, deletar, multi-select, download lote. <strong>Sem DnD.</strong></td>
+          </tr>
+          <tr style="background:rgba(239,68,68,.05);">
+            <td><code>ControllerV3DrawerTabDocumentos</code></td>
+            <td><code>pages/controller/</code></td>
+            <td>❌ bucket próprio</td>
+            <td><code>controller-documentos</code> ❌</td>
+            <td>Drawer do Controller</td>
+            <td>Usa bucket ERRADO. Deveria usar ProcessoTramitacaoTab com processo_id correto.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-title" style="margin-top:18px;">Tabela processos_documentos — Schema</div>
+      <table class="tbl">
+        <thead><tr><th>Campo</th><th>Tipo</th><th>Descrição</th></tr></thead>
+        <tbody>
+          <tr><td><code>id</code></td><td>UUID PK</td><td>—</td></tr>
+          <tr><td><code>organizacao_id</code></td><td>UUID FK</td><td>RLS por org</td></tr>
+          <tr><td><code>processo_id</code></td><td>UUID FK nullable</td><td>NULL para docs iniciais da restrição</td></tr>
+          <tr><td><code>restricao_id</code></td><td>UUID FK nullable</td><td>Vínculo com restrição</td></tr>
+          <tr><td><code>lead_id</code></td><td>UUID FK nullable</td><td>Origem do lead</td></tr>
+          <tr><td><code>cliente_id</code></td><td>UUID FK nullable</td><td>Vínculo com cliente</td></tr>
+          <tr><td><code>categoria</code></td><td>TEXT</td><td>Define Inicial vs. Tramitação (via INICIAL_CATS)</td></tr>
+          <tr><td><code>tipo</code></td><td>TEXT</td><td>'upload' | 'gerado' | 'importado'</td></tr>
+          <tr><td><code>status</code></td><td>TEXT</td><td>'disponivel' | 'processando' | 'erro'</td></tr>
+          <tr><td><code>nome</code></td><td>TEXT</td><td>Nome do arquivo exibido</td></tr>
+          <tr><td><code>arquivo_url</code></td><td>TEXT</td><td>Path relativo no storage (bucket leads-docs)</td></tr>
+          <tr><td><code>entidade_tipo</code></td><td>TEXT</td><td>'processo' | 'restricao' | 'lead'</td></tr>
+          <tr><td><code>deleted_at</code></td><td>TIMESTAMPTZ</td><td>Soft delete</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title" style="margin-top:18px;">Buckets de Storage</div>
+      <table class="tbl">
+        <thead><tr><th>Bucket</th><th>Usado por</th><th>Path padrão</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td><code>documentos</code></td><td>ClienteTabDocumentos, ClienteDrawerTabDocumentos</td><td>{org_id}/clientes/{cliente_id}/...</td><td style="color:var(--green);">✅ Correto</td></tr>
+          <tr><td><code>leads-docs</code></td><td>ProcessoTabDocumentos, ProcessoTramitacaoTab</td><td>{org_id}/leads/{lead_id}/restricoes/{restricao_id}/{ts}_{nome}</td><td style="color:var(--green);">✅ Correto</td></tr>
+          <tr><td><code>controller-documentos</code></td><td>ControllerV3DrawerTabDocumentos</td><td>—</td><td style="color:var(--red);">❌ Bucket incorreto — deve ser leads-docs</td></tr>
+        </tbody>
+      </table>
+
+      <div class="section-title" style="margin-top:18px;">Signed URL e Acesso (LGPD)</div>
+      <div class="note">
+        <strong>RPC <code>get_documento_signed_url(p_documento_id, p_download)</code></strong><br>
+        1. Valida que documento pertence à org do usuário<br>
+        2. Loga acesso em tabela <code>documento_acessos</code> (LGPD)<br>
+        3. Retorna path no formato <code>"bucket:storage/path"</code><br>
+        4. Frontend parse: split em ":" → <code>supabase.storage.from(bucket).createSignedUrl(path, 900, {download})</code><br>
+        Expiração: 900 segundos (15 min)
+      </div>
     </div>
   </details>
 

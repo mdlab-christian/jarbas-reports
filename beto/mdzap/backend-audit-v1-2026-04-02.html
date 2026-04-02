@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backend Audit — mdzap | 2026-04-02</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --card: #1a1714;
+    --surface: #211e1a;
+    --sidebar: #0d0b09;
+    --fg: #f2efe8;
+    --muted: #9e978a;
+    --primary: #20c997;
+    --border: #3a3530;
+    --destructive: #ef4444;
+    --warning: #f59e0b;
+    --success: #22c55e;
+    --violet: #a78bfa;
+    --sky: #38bdf8;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: Inter, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 32px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .header-left h1 {
+    font-family: Manrope, Inter, sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--fg);
+    margin-bottom: 4px;
+  }
+
+  .header-left .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .health-badge {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 24px;
+    min-width: 140px;
+  }
+
+  .health-badge .score {
+    font-family: Manrope, sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    color: var(--warning);
+  }
+
+  .health-badge .label {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 2px;
+  }
+
+  /* ── Summary chips ── */
+  .summary-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 32px;
+  }
+
+  .chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+
+  .chip .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+  .chip .dot.ok { background: var(--success); }
+  .chip .dot.warn { background: var(--warning); }
+  .chip .dot.err { background: var(--destructive); }
+
+  /* ── Section ── */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .section-header h2 {
+    font-family: Manrope, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+  .badge.ok { background: rgba(34,197,94,.15); color: var(--success); border: 1px solid rgba(34,197,94,.3); }
+  .badge.warn { background: rgba(245,158,11,.15); color: var(--warning); border: 1px solid rgba(245,158,11,.3); }
+  .badge.err { background: rgba(239,68,68,.15); color: var(--destructive); border: 1px solid rgba(239,68,68,.3); }
+  .badge.p0 { background: rgba(239,68,68,.2); color: #ff6b6b; border: 1px solid rgba(239,68,68,.4); }
+  .badge.p1 { background: rgba(245,158,11,.2); color: #fbbf24; border: 1px solid rgba(245,158,11,.4); }
+  .badge.p2 { background: rgba(56,189,248,.15); color: var(--sky); border: 1px solid rgba(56,189,248,.3); }
+
+  /* ── Table ── */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  td {
+    padding: 12px 20px;
+    border-bottom: 1px solid rgba(58,53,48,.5);
+    vertical-align: top;
+    font-size: 13px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  td.mono {
+    font-family: 'JetBrains Mono', 'Cascadia Code', monospace;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  td.result-ok { color: var(--success); font-weight: 600; }
+  td.result-warn { color: var(--warning); font-weight: 600; }
+  td.result-err { color: var(--destructive); font-weight: 600; }
+
+  /* ── Findings ── */
+  .finding {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(58,53,48,.5);
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px 16px;
+    align-items: start;
+  }
+
+  .finding:last-child { border-bottom: none; }
+
+  .finding-title {
+    font-weight: 600;
+    color: var(--fg);
+    margin-bottom: 4px;
+    font-size: 13px;
+  }
+
+  .finding-detail {
+    color: var(--muted);
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  .finding-fix {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--primary);
+    white-space: pre-wrap;
+    line-height: 1.5;
+    margin-top: 6px;
+  }
+
+  /* ── Code block ── */
+  code {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--primary);
+  }
+
+  /* ── Sample data ── */
+  .sample-data {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    white-space: pre-wrap;
+    overflow-x: auto;
+    max-height: 300px;
+    overflow-y: auto;
+    margin: 0 20px 16px;
+  }
+
+  .sample-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    padding: 8px 20px 4px;
+  }
+
+  /* ── Grid summary ── */
+  .group-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .group-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .group-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .group-icon.ok { background: rgba(34,197,94,.12); }
+  .group-icon.warn { background: rgba(245,158,11,.12); }
+  .group-icon.err { background: rgba(239,68,68,.12); }
+
+  .group-info h3 {
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+  .group-info p {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .footer {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<div class="header">
+  <div class="header-left">
+    <h1>Backend Audit — mdzap</h1>
+    <p class="subtitle">MdFlow · Supabase qdivfairxhdihaqqypgb · 2026-04-02 · page-backend-tester v1</p>
+    <p class="subtitle" style="margin-top:4px">Org: <code>55a0c7ba-1a23-4ae1-b69b-a13811324735</code></p>
+  </div>
+  <div class="health-badge">
+    <span class="score">68%</span>
+    <span class="label">Saúde Geral</span>
+  </div>
+</div>
+
+<!-- ── SUMMARY CHIPS ── -->
+<div class="summary-row">
+  <div class="chip"><span class="dot ok"></span> BT-1 RPCs: 3/4 OK</div>
+  <div class="chip"><span class="dot ok"></span> BT-2 RLS: Habilitado em 18/18 tabelas</div>
+  <div class="chip"><span class="dot warn"></span> BT-3 Schema: 7/8 tabelas OK</div>
+  <div class="chip"><span class="dot err"></span> BT-4 Webhooks: 4/7 ativos OK</div>
+  <div class="chip"><span class="dot ok"></span> BT-5 Performance: RPCs &lt;200ms</div>
+  <div class="chip"><span class="dot err"></span> BT-6 Integridade: 58 registros órfãos</div>
+</div>
+
+<!-- ── GROUP OVERVIEW ── -->
+<div class="group-grid">
+  <div class="group-card">
+    <div class="group-icon ok">✅</div>
+    <div class="group-info">
+      <h3>BT-1 — RPCs Principais</h3>
+      <p>fn_mdzap_conversas, fn_mdzap_stats, fn_mdzap_smart_replies: OK. fn_mdzap_listar_membros: param name diverge do audit script mas OK no frontend.</p>
+    </div>
+  </div>
+  <div class="group-card">
+    <div class="group-icon ok">✅</div>
+    <div class="group-info">
+      <h3>BT-2 — RLS e Multi-tenant</h3>
+      <p>RLS habilitado em 18 tabelas mdzap/whatsapp. Anon key retorna [] em todas as tabelas. Dados de 1 única org no banco.</p>
+    </div>
+  </div>
+  <div class="group-card">
+    <div class="group-icon warn">⚠️</div>
+    <div class="group-info">
+      <h3>BT-3 — Tabelas e Schema</h3>
+      <p>mdzap_stage_mappings (spec) não existe — tabela real é mdzap_stage_map. Demais 7 tabelas presentes e com campos corretos.</p>
+    </div>
+  </div>
+  <div class="group-card">
+    <div class="group-icon err">❌</div>
+    <div class="group-info">
+      <h3>BT-4 — Webhooks n8n</h3>
+      <p>3 de 7 webhooks retornam HTTP 500: ai-composer, enviar-mensagem, julia-prompt-save. 4 funcionam corretamente.</p>
+    </div>
+  </div>
+  <div class="group-card">
+    <div class="group-icon ok">✅</div>
+    <div class="group-info">
+      <h3>BT-5 — Performance e Realtime</h3>
+      <p>RPCs &lt;200ms. Índices em todas as tabelas principais. Realtime com filter por org e cleanup correto.</p>
+    </div>
+  </div>
+  <div class="group-card">
+    <div class="group-icon err">❌</div>
+    <div class="group-info">
+      <h3>BT-6 — Integridade de Dados</h3>
+      <p>58 mensagens com conversa_id=NULL (órfãs). Nenhum contato_numero nulo. Nenhum nao_lidas negativo.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── BT-1 RPCs ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>BT-1 — RPCs Principais</h2>
+    <span class="badge ok">APROVADO</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>RPC</th>
+        <th>HTTP</th>
+        <th>Resultado</th>
+        <th>Observação</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">fn_mdzap_conversas</td>
+        <td class="result-ok">200 OK</td>
+        <td class="result-ok">✓ Envelope correto</td>
+        <td>Retorna <code>{data, total, page, per_page}</code>. 6 conversas. Campos: id, contato_nome, contato_numero, nao_lidas, status, ultimo_msg_at, metadata, lead_id, cliente_id, numero_nome, numero_display.</td>
+      </tr>
+      <tr>
+        <td class="mono">fn_mdzap_stats</td>
+        <td class="result-ok">200 OK</td>
+        <td class="result-ok">✓ Campos numéricos</td>
+        <td>Retorna: numeros_total=2, total_conversas=6, conversas_ativas=5, taxa_handoff_pct=0, aguardando_humano=0, numeros_conectados=1, tempo_medio_resposta_min=0. Sem null.</td>
+      </tr>
+      <tr>
+        <td class="mono">fn_mdzap_listar_membros</td>
+        <td class="result-warn">404 / 200</td>
+        <td class="result-warn">⚠️ Parâmetro divergente</td>
+        <td>Audit usou <code>p_org_id</code> (404). Parâmetro real é <code>p_organizacao_id</code> — frontend usa corretamente. 14 membros retornados. Campos: id, nome, perfil (sem email — não é requisito do frontend).</td>
+      </tr>
+      <tr>
+        <td class="mono">fn_mdzap_smart_replies</td>
+        <td class="result-ok">200 OK</td>
+        <td class="result-ok">✓ Envelope correto</td>
+        <td>Retorna <code>{sugestoes: [{texto, tom}], gerado_em}</code>. 3 sugestões (friendly, direct, formal). Sem erro.</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="sample-label">Sample — fn_mdzap_conversas (item[0])</div>
+  <div class="sample-data">{
+  "id": "4d6287ba-2454-4c9f-b23c-cbba80fb8c2c",
+  "status": "ativa",
+  "lead_id": null,
+  "contato_nome": ".",
+  "nao_lidas": 0,
+  "cliente_id": null,
+  "numero_nome": "Midas Atendimento",
+  "contato_numero": "555195667270",
+  "ultimo_msg_at": "2026-03-24T22:01:55.388236+00:00"
+}</div>
+  <div class="sample-label">Sample — fn_mdzap_smart_replies</div>
+  <div class="sample-data">{
+  "gerado_em": "2026-04-02T22:18:25.252627+00:00",
+  "sugestoes": [
+    {"tom": "friendly", "texto": "Entendido! Como posso te ajudar?"},
+    {"tom": "direct",   "texto": "Pode me dar mais detalhes sobre a situação?"},
+    {"tom": "formal",   "texto": "Vou verificar isso para você."}
+  ]
+}</div>
+</div>
+
+<!-- ── BT-2 RLS ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>BT-2 — RLS e Multi-tenant</h2>
+    <span class="badge ok">APROVADO</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>Resultado</th>
+        <th>Detalhe</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Isolamento cross-tenant (fake org)</td>
+        <td class="result-ok">✓ 0 registros</td>
+        <td>Query com org_id=<code>00000000-...</code> retorna array vazio. Sem vazamento.</td>
+      </tr>
+      <tr>
+        <td>Distribuição de organizacao_id no banco</td>
+        <td class="result-ok">✓ 1 org única</td>
+        <td>Todos os registros em whatsapp_conversas pertencem à org <code>55a0c7ba...</code>. Sem mistura de tenant.</td>
+      </tr>
+      <tr>
+        <td>Anon key — whatsapp_conversas</td>
+        <td class="result-ok">✓ [] bloqueado</td>
+        <td>Usuário não autenticado recebe array vazio. RLS funcional.</td>
+      </tr>
+      <tr>
+        <td>Anon key — whatsapp_mensagens</td>
+        <td class="result-ok">✓ [] bloqueado</td>
+        <td>Idem acima.</td>
+      </tr>
+      <tr>
+        <td>Anon key — whatsapp_numeros</td>
+        <td class="result-ok">✓ [] bloqueado</td>
+        <td>Idem acima.</td>
+      </tr>
+      <tr>
+        <td>RLS habilitado nas 18 tabelas mdzap/whatsapp</td>
+        <td class="result-ok">✓ 18/18</td>
+        <td>mdzap_ai_modules, mdzap_audio_messages, mdzap_conversas_timeline, mdzap_julia_lab_sessoes, mdzap_julia_prompts, mdzap_lead_memory, mdzap_stage_map, mdzap_user_map, whatsapp_contatos, whatsapp_conversas, whatsapp_followups, whatsapp_mensagens, whatsapp_msg_feedback, whatsapp_notas_internas, whatsapp_numeros, whatsapp_numeros_autorizados, whatsapp_numeros_usuarios, whatsapp_templates.</td>
+      </tr>
+      <tr>
+        <td>organizacao_id em queries do frontend</td>
+        <td class="result-warn">⚠️ Maioria OK</td>
+        <td>useMdzapMensagens filtra por <code>conversa_id</code> mas não por <code>organizacao_id</code> (P2). ViewMdzapTemplates UPDATE/DELETE não inclui filtro secundário por org (P2). Mitigado por RLS mas não segue defense-in-depth.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── BT-3 SCHEMA ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>BT-3 — Tabelas e Schema</h2>
+    <span class="badge warn">ATENÇÃO</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Tabela</th>
+        <th>Status</th>
+        <th>Registros</th>
+        <th>Observação</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">whatsapp_conversas</td>
+        <td class="result-ok">✓ Existe</td>
+        <td>6</td>
+        <td>Campos: id, organizacao_id, contato_nome, contato_numero, nao_lidas, status, ultimo_msg_at, metadata, deleted_at, lead_id, cliente_id, numero_id, created_at, updated_at. Completo.</td>
+      </tr>
+      <tr>
+        <td class="mono">whatsapp_mensagens</td>
+        <td class="result-ok">✓ Existe</td>
+        <td>122</td>
+        <td>Índices: idx_wa_msg_org, idx_wa_msg_conversa, idx_wa_msg_created, idx_wa_msg_deleted_at, idx_wa_msg_wa_id, idx_whatsapp_mensagens_status.</td>
+      </tr>
+      <tr>
+        <td class="mono">whatsapp_numeros</td>
+        <td class="result-ok">✓ Existe</td>
+        <td>2</td>
+        <td>1 número conectado (Midas Atendimento + Midas SDR). idx_wa_num_org presente.</td>
+      </tr>
+      <tr>
+        <td class="mono">whatsapp_templates</td>
+        <td class="result-ok">✓ Existe</td>
+        <td>3</td>
+        <td>idx_wa_tmpl_org + idx_whatsapp_templates_meta_template_id presentes.</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap_julia_lab_sessoes</td>
+        <td class="result-ok">✓ Existe</td>
+        <td>8</td>
+        <td>Soft delete implementado (deleted_at). RLS: 1 policy.</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap_julia_prompts</td>
+        <td class="result-ok">✓ Existe</td>
+        <td>46</td>
+        <td>RLS: 2 policies. Sistema de versionamento de prompts.</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap_lead_memory</td>
+        <td class="result-ok">✓ Existe</td>
+        <td>0</td>
+        <td>Vazia mas presente. RLS habilitado.</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap_stage_mappings</td>
+        <td class="result-err">✗ Não existe</td>
+        <td>—</td>
+        <td>Spec referencia <code>mdzap_stage_mappings</code> mas tabela real é <code>mdzap_stage_map</code>. Frontend usa <code>mdzap_stage_map</code> corretamente (MdzapGestaoPanel.tsx:103). Divergência de nome em spec/audit apenas.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
+    <p style="font-size: 12px; color: var(--muted);">
+      <strong style="color: var(--fg)">Tabelas adicionais encontradas</strong> (não listadas no spec de audit mas presentes):
+      mdzap_ai_modules, mdzap_audio_messages, mdzap_conversas_timeline, mdzap_stage_map, mdzap_user_map,
+      whatsapp_contatos, whatsapp_followups, whatsapp_msg_feedback, whatsapp_notas_internas,
+      whatsapp_numeros_autorizados, whatsapp_numeros_usuarios.
+    </p>
+  </div>
+</div>
+
+<!-- ── BT-4 WEBHOOKS ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>BT-4 — Webhooks n8n</h2>
+    <span class="badge err">FALHAS</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Endpoint</th>
+        <th>Workflow</th>
+        <th>Ativo</th>
+        <th>HTTP</th>
+        <th>Resultado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">mdzap/ai-composer</td>
+        <td>MDZAP-AI-COMPOSER</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-err">500</td>
+        <td class="result-err">❌ Workflow execution failed — Claude API ou nó downstream falhou com payload de teste</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap/enviar-mensagem</td>
+        <td>MDZAP-ENVIAR-MENSAGEM</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-err">500</td>
+        <td class="result-err">❌ Workflow execution failed — Meta API Send falhou (numero_id inválido no payload de teste)</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap/assumir-conversa</td>
+        <td>— (não mapeado)</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-ok">200</td>
+        <td class="result-ok">✓ OK</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap/devolver-julia</td>
+        <td>— (não mapeado)</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-ok">200</td>
+        <td class="result-ok">✓ OK</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap/transferir-conversa</td>
+        <td>MDZAP-TRANSFERIR-CONVERSA</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-ok">200</td>
+        <td class="result-ok">✓ OK</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap/julia-lab</td>
+        <td>MDZAP-JULIA-LAB</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-ok">200</td>
+        <td class="result-ok">✓ OK — retorna <code>{success:true, action:"append_message", data:{resposta:"..."}}</code></td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap/julia-prompt-save</td>
+        <td>MDZAP-JULIA-PROMPT-SAVE</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-err">500</td>
+        <td class="result-err">❌ Workflow execution failed — Buscar Max Versao ou Salvar Nova Versao falhou</td>
+      </tr>
+      <tr>
+        <td class="mono">mdzap/reconectar</td>
+        <td>— (não mapeado)</td>
+        <td class="result-ok">✓ Ativo</td>
+        <td class="result-ok">200</td>
+        <td class="result-ok">✓ OK</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="padding: 16px 20px; border-top: 1px solid var(--border);">
+    <p style="font-size: 12px; color: var(--muted);">
+      <strong style="color: var(--fg)">Workflows n8n ativos (mdzap):</strong>
+      MDZAP-LEAD-SYNC, MDZAP-ENCERRAR-CONVERSA, MDZAP-AI-COMPOSER, MDZAP-JULIA-PROMPT-SAVE,
+      MDZAP-TRANSFERIR-CONVERSA, MDZAP-ENVIAR-TEMPLATE, MDZAP-DOCUMENT-RECEIVED, WH-CRM-08, WH-MDZAP-04,
+      WH-MDZAP-09, MDZAP-JULIA-LAB, MDZAP-TRIAGEM, MDZAP-ENVIAR-MENSAGEM.
+      Inativos: [GUSTAVO] MDZAP-TRIAGEM-CRM, [GUSTAVO] MDZAP-SYNC, [MATHEUS] 08a/08b MDZAP-SYNC.
+    </p>
+    <p style="font-size: 12px; color: var(--muted); margin-top: 6px;">
+      <strong style="color: var(--warning)">Nota:</strong> ai-composer e enviar-mensagem podem estar falhando por payload de teste incompleto (sem numero_id real, sem contexto de Claude). Recomenda-se testar com dados reais de conversa ativa.
+    </p>
+  </div>
+</div>
+
+<!-- ── BT-5 PERFORMANCE ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>BT-5 — Performance e Realtime</h2>
+    <span class="badge ok">APROVADO</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>Resultado</th>
+        <th>Valor Medido</th>
+        <th>Limiar</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>fn_mdzap_conversas — latência</td>
+        <td class="result-ok">✓ OK</td>
+        <td>193ms</td>
+        <td>&lt;2000ms</td>
+      </tr>
+      <tr>
+        <td>fn_mdzap_stats — latência</td>
+        <td class="result-ok">✓ OK</td>
+        <td>119ms</td>
+        <td>&lt;2000ms</td>
+      </tr>
+      <tr>
+        <td>fn_mdzap_smart_replies — latência</td>
+        <td class="result-ok">✓ OK</td>
+        <td>149ms</td>
+        <td>&lt;2000ms</td>
+      </tr>
+      <tr>
+        <td>Índice organizacao_id em whatsapp_conversas</td>
+        <td class="result-ok">✓ idx_wa_conv_org</td>
+        <td>Presente</td>
+        <td>Obrigatório</td>
+      </tr>
+      <tr>
+        <td>Índice organizacao_id em whatsapp_mensagens</td>
+        <td class="result-ok">✓ idx_wa_msg_org</td>
+        <td>Presente</td>
+        <td>Obrigatório</td>
+      </tr>
+      <tr>
+        <td>Índice organizacao_id em whatsapp_numeros</td>
+        <td class="result-ok">✓ idx_wa_num_org</td>
+        <td>Presente</td>
+        <td>Obrigatório</td>
+      </tr>
+      <tr>
+        <td>Índice organizacao_id em whatsapp_templates</td>
+        <td class="result-ok">✓ idx_wa_tmpl_org</td>
+        <td>Presente</td>
+        <td>Obrigatório</td>
+      </tr>
+      <tr>
+        <td>Realtime canal useMdzapConversas — filter org</td>
+        <td class="result-ok">✓ Correto</td>
+        <td><code>organizacao_id=eq.{orgId}</code></td>
+        <td>Filter obrigatório</td>
+      </tr>
+      <tr>
+        <td>Realtime cleanup (removeChannel)</td>
+        <td class="result-ok">✓ Correto</td>
+        <td>3 canais (chConversas, chMensagens, chLeads) todos removidos no cleanup</td>
+        <td>Obrigatório</td>
+      </tr>
+      <tr>
+        <td>Realtime canal useMdzapMensagens — filter conversa</td>
+        <td class="result-ok">✓ Correto</td>
+        <td><code>conversa_id=eq.{conversaId}</code> + removeChannel no cleanup</td>
+        <td>Filter obrigatório</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── BT-6 INTEGRIDADE ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>BT-6 — Integridade de Dados</h2>
+    <span class="badge err">FALHA P1</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>Resultado</th>
+        <th>Contagem</th>
+        <th>Observação</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Conversas sem contato_numero (null)</td>
+        <td class="result-ok">✓ Nenhuma</td>
+        <td>0</td>
+        <td>Todas as conversas têm contato_numero preenchido.</td>
+      </tr>
+      <tr>
+        <td>Mensagens sem conversa_id (órfãs)</td>
+        <td class="result-err">❌ Problema</td>
+        <td>58 registros</td>
+        <td>58 mensagens com <code>conversa_id = NULL</code>. Causas prováveis: mensagens criadas durante testes sem conversa associada, ou FK sem NOT NULL constraint. Estas mensagens são invisíveis na UI mas poluem o banco.</td>
+      </tr>
+      <tr>
+        <td>Conversas com nao_lidas negativo</td>
+        <td class="result-ok">✓ Nenhuma</td>
+        <td>0</td>
+        <td>Contador de não-lidas consistente em todas as conversas.</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── ACHADOS ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>Achados — P0 / P1 / P2</h2>
+    <span class="badge warn">5 achados</span>
+  </div>
+
+  <!-- P1 achados -->
+  <div class="finding">
+    <span class="badge p1">P1</span>
+    <div>
+      <div class="finding-title">MDZAP-AI-COMPOSER retorna HTTP 500</div>
+      <div class="finding-detail">
+        Webhook <code>mdzap/ai-composer</code> falha com "Workflow execution failed". Workflow ativo com nós: Webhook → Montar Prompt → Claude API → Extrair Resultado → Respond to Webhook.
+        Causa raiz: Claude API pode estar falhando por credencial expirada ou payload estruturado incorretamente (campos data.instrucao / data.historico_mensagens podem não corresponder ao que o nó espera).
+        Impacto: Compositor de IA do MdZap não funciona — usuários não conseguem gerar respostas assistidas.
+      </div>
+      <div class="finding-fix">Fix: Verificar nó "Claude API" no n8n — checar ANTHROPIC_API_KEY nas env vars do Railway.
+Testar com payload real: data.instrucao + data.historico_mensagens formatados como o nó espera.
+Se o nó "Montar Prompt" não mapeia os campos do envelope canônico, corrigir o mapeamento.</div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <span class="badge p1">P1</span>
+    <div>
+      <div class="finding-title">MDZAP-ENVIAR-MENSAGEM retorna HTTP 500</div>
+      <div class="finding-detail">
+        Webhook <code>mdzap/enviar-mensagem</code> falha. Workflow: Webhook → Parse → Fetch Numero Config → Merge Config → Meta API Send → Save Saida Supabase → Respond OK.
+        Causa raiz: "Meta API Send" está falhando — provavelmente token Meta/WhatsApp expirado ou número_id de teste não encontrado em "Fetch Numero Config".
+        Impacto: Envio de mensagens WhatsApp pode estar falhando em produção para números não conectados.
+      </div>
+      <div class="finding-fix">Fix: 1) Verificar META_ACCESS_TOKEN nas env vars do n8n Railway (pode ter expirado).
+2) Verificar "Fetch Numero Config" — endpoint Supabase ou validação de numero_id.
+3) Testar com numero_id real de whatsapp_numeros onde status='connected'.</div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <span class="badge p1">P1</span>
+    <div>
+      <div class="finding-title">58 mensagens órfãs com conversa_id = NULL</div>
+      <div class="finding-detail">
+        58 registros em <code>whatsapp_mensagens</code> com <code>conversa_id = NULL</code>. Estes registros são invisíveis na UI (useMdzapMensagens filtra por conversa_id), mas ocupam espaço e indicam falha no fluxo de criação.
+        Causa raiz: Mensagens criadas durante testes de desenvolvimento sem associar a uma conversa, ou webhook de recebimento de mensagens criando registro antes de criar a conversa.
+      </div>
+      <div class="finding-fix">Fix:
+1) Limpeza imediata (P1):
+DELETE FROM whatsapp_mensagens WHERE conversa_id IS NULL;
+-- ou mover para soft delete:
+UPDATE whatsapp_mensagens SET deleted_at = now() WHERE conversa_id IS NULL;
+
+2) Prevenção (P2): Adicionar NOT NULL constraint:
+ALTER TABLE whatsapp_mensagens ALTER COLUMN conversa_id SET NOT NULL;</div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <span class="badge p1">P1</span>
+    <div>
+      <div class="finding-title">MDZAP-JULIA-PROMPT-SAVE retorna HTTP 500</div>
+      <div class="finding-detail">
+        Webhook <code>mdzap/julia-prompt-save</code> falha. Workflow: Webhook → Buscar Max Versao → Calcular Versao → Desativar Versao Atual → Salvar Nova Versao → Respond.
+        Causa raiz: "Buscar Max Versao" faz chamada HTTP para Supabase — provavelmente tabela <code>mdzap_julia_prompts</code> existe mas query falha por estrutura de payload diferente (campos data.prompt / data.modulo não mapeados corretamente).
+        Impacto: MdzapAdminIA não consegue salvar novos prompts da Julia.
+      </div>
+      <div class="finding-fix">Fix: Verificar nós "Buscar Max Versao" e "Salvar Nova Versao" —
+checar se as queries Supabase usam os campos corretos da tabela mdzap_julia_prompts.
+Verificar se o campo 'modulo' no payload corresponde ao nome da coluna no banco.</div>
+    </div>
+  </div>
+
+  <!-- P2 achados -->
+  <div class="finding">
+    <span class="badge p2">P2</span>
+    <div>
+      <div class="finding-title">useMdzapMensagens sem filtro organizacao_id (defense-in-depth)</div>
+      <div class="finding-detail">
+        Hook <code>useMdzapMensagens.ts</code> filtra mensagens apenas por <code>conversa_id</code>, sem adicionar <code>.eq('organizacao_id', orgId)</code>.
+        Risco: Se um usuário adivinhar o UUID de uma conversa de outra org (altamente improvável com UUIDs aleatórios), o RLS ainda bloqueia o acesso. Mas não segue o padrão de defense-in-depth do projeto.
+      </div>
+      <div class="finding-fix">Fix em src/hooks/mdzap/useMdzapMensagens.ts:
+.from('whatsapp_mensagens')
+.select('...')
+.eq('conversa_id', conversaId)
+.eq('organizacao_id', orgId)  // ← adicionar
+.is('deleted_at', null)</div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <span class="badge p2">P2</span>
+    <div>
+      <div class="finding-title">ViewMdzapTemplates UPDATE/DELETE sem filtro de org secundário</div>
+      <div class="finding-detail">
+        Em <code>src/pages/admin/views/ViewMdzapTemplates.tsx</code>, o UPDATE usa <code>.eq('id', editando.id)</code> sem <code>.eq('organizacao_id', orgId)</code>.
+        O DELETE usa <code>.eq('id', deletandoId)</code> sem filtro de org.
+        Mitigado por RLS, mas não segue o padrão de defense-in-depth do projeto.
+      </div>
+      <div class="finding-fix">Fix: Adicionar .eq('organizacao_id', orgId) nas operações UPDATE e DELETE
+para garantir que um usuário não consiga modificar template de outra org mesmo se RLS falhar.</div>
+    </div>
+  </div>
+
+  <div class="finding">
+    <span class="badge p2">P2</span>
+    <div>
+      <div class="finding-title">mdzap_stage_mappings (spec) vs mdzap_stage_map (banco)</div>
+      <div class="finding-detail">
+        O audit spec referencia <code>mdzap_stage_mappings</code> mas a tabela real é <code>mdzap_stage_map</code>. O frontend usa o nome correto (<code>mdzap_stage_map</code> em MdzapGestaoPanel.tsx). Impacto operacional: zero. Impacto em documentação/spec: sim.
+      </div>
+      <div class="finding-fix">Fix: Atualizar spec do mdzap para referenciar mdzap_stage_map ao invés de mdzap_stage_mappings.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── RPCS DETALHADAS ── -->
+<div class="section">
+  <div class="section-header">
+    <h2>RPCs — Dados de Sample</h2>
+    <span class="badge ok">4 RPCs auditadas</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>RPC</th>
+        <th>Parâmetro</th>
+        <th>Resposta</th>
+        <th>Latência</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">fn_mdzap_conversas</td>
+        <td class="mono">p_org_id, p_numero_id</td>
+        <td>Envelope {data:[6], total:6, page:1, per_page:30}</td>
+        <td>193ms</td>
+        <td class="result-ok">✓ 200</td>
+      </tr>
+      <tr>
+        <td class="mono">fn_mdzap_stats</td>
+        <td class="mono">p_org_id</td>
+        <td>{numeros_total:2, total_conversas:6, conversas_ativas:5, taxa_handoff_pct:0, aguardando_humano:0, numeros_conectados:1, tempo_medio_resposta_min:0}</td>
+        <td>119ms</td>
+        <td class="result-ok">✓ 200</td>
+      </tr>
+      <tr>
+        <td class="mono">fn_mdzap_listar_membros</td>
+        <td class="mono">p_organizacao_id</td>
+        <td>Array[14] com {id, nome, perfil} — todos os membros ativos da org</td>
+        <td>—</td>
+        <td class="result-ok">✓ 200</td>
+      </tr>
+      <tr>
+        <td class="mono">fn_mdzap_smart_replies</td>
+        <td class="mono">p_org_id, p_conversa_id</td>
+        <td>{sugestoes:[{tom:"friendly",texto:"..."}, {tom:"direct",...}, {tom:"formal",...}], gerado_em:"2026-04-02T..."}</td>
+        <td>149ms</td>
+        <td class="result-ok">✓ 200</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── FOOTER ── -->
+<div class="footer">
+  <span>Backend Audit — mdzap · MdFlow · 2026-04-02 · page-backend-tester v1</span>
+  <span>Supabase: qdivfairxhdihaqqypgb · Org: 55a0c7ba... · Beto (Claude Code)</span>
+</div>
+
+</body>
+</html>

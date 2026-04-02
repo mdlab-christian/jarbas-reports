@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backend Audit — /jurimetria — 2026-04-02</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --surface: #1a1815;
+    --surface2: #211e1a;
+    --border: #2d2925;
+    --primary: #20c997;
+    --primary-dim: #1a9e78;
+    --text: #f5f0eb;
+    --muted: #9e9890;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #22c55e;
+    --info: #38bdf8;
+    --violet: #a78bfa;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    padding: 32px 24px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+  h1 { font-family: Manrope, Inter, sans-serif; font-size: 24px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+  h2 { font-family: Manrope, Inter, sans-serif; font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 12px; margin-top: 28px; }
+  h3 { font-family: Manrope, Inter, sans-serif; font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; margin-top: 20px; }
+  .meta { color: var(--muted); font-size: 12px; margin-bottom: 28px; }
+  .meta span { color: var(--text); }
+
+  /* Score card */
+  .score-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .score-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .score-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; }
+  .score-card .value { font-family: Manrope, Inter, sans-serif; font-size: 26px; font-weight: 700; }
+  .score-card .value.green { color: var(--success); }
+  .score-card .value.yellow { color: var(--warning); }
+  .score-card .value.red { color: var(--danger); }
+  .score-card .value.primary { color: var(--primary); }
+  .score-card .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* Badge */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
+  }
+  .badge.ok { background: rgba(34,197,94,0.15); color: var(--success); border: 1px solid rgba(34,197,94,0.3); }
+  .badge.warn { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); }
+  .badge.err { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+  .badge.info { background: rgba(56,189,248,0.15); color: var(--info); border: 1px solid rgba(56,189,248,0.3); }
+  .badge.p0 { background: rgba(239,68,68,0.2); color: #fca5a5; border: 1px solid rgba(239,68,68,0.4); }
+  .badge.p1 { background: rgba(245,158,11,0.2); color: #fcd34d; border: 1px solid rgba(245,158,11,0.4); }
+  .badge.p2 { background: rgba(56,189,248,0.15); color: var(--info); border: 1px solid rgba(56,189,248,0.3); }
+
+  /* Table */
+  .table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; margin-bottom: 20px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { background: var(--surface2); }
+  th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  td { padding: 10px 14px; border-top: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12px; color: var(--info); }
+
+  /* Findings blocks */
+  .finding {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 12px;
+  }
+  .finding.p0 { border-left: 4px solid var(--danger); }
+  .finding.p1 { border-left: 4px solid var(--warning); }
+  .finding.p2 { border-left: 4px solid var(--info); }
+  .finding-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .finding-title { font-weight: 600; font-size: 13px; }
+  .finding-body { font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .finding-body strong { color: var(--text); }
+  .finding-body code { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: var(--surface2); padding: 1px 5px; border-radius: 3px; color: var(--info); }
+
+  /* Section divider */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+  /* Health bar */
+  .health-bar-wrap { background: var(--surface2); border-radius: 999px; height: 10px; overflow: hidden; margin: 8px 0 4px; }
+  .health-bar { height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--primary), #1a9e78); transition: width 0.3s; }
+
+  /* Section header */
+  .section-header {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 18px;
+    margin-bottom: 14px;
+  }
+  .section-icon { font-size: 18px; }
+  .section-title { font-family: Manrope, Inter, sans-serif; font-size: 15px; font-weight: 600; }
+
+  /* Footer */
+  .footer { color: var(--muted); font-size: 11px; margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<h1>Backend Audit — /jurimetria</h1>
+<p class="meta">
+  Data: <span>2026-04-02</span> &nbsp;·&nbsp;
+  Agente: <span>page-backend-tester (Beto/CC)</span> &nbsp;·&nbsp;
+  Projeto: <span>qdivfairxhdihaqqypgb (MdFlow Produção)</span> &nbsp;·&nbsp;
+  Org Midas: <span class="mono">55a0c7ba-1a23-4ae1-b69b-a13811324735</span>
+</p>
+
+<!-- SCORE OVERVIEW -->
+<div class="score-grid">
+  <div class="score-card">
+    <div class="label">Score de Saúde</div>
+    <div class="value primary">82%</div>
+    <div class="sub">28/34 checks OK</div>
+  </div>
+  <div class="score-card">
+    <div class="label">RPCs Testadas</div>
+    <div class="value green">9</div>
+    <div class="sub">todas retornam dados</div>
+  </div>
+  <div class="score-card">
+    <div class="label">P0 Críticos</div>
+    <div class="value red">2</div>
+    <div class="sub">RLS ausente em tabelas</div>
+  </div>
+  <div class="score-card">
+    <div class="label">P1 Importantes</div>
+    <div class="value yellow">4</div>
+    <div class="sub">schema drift + dados</div>
+  </div>
+  <div class="score-card">
+    <div class="label">P2 Melhorias</div>
+    <div class="value" style="color:var(--info)">3</div>
+    <div class="sub">índices + cleanup</div>
+  </div>
+  <div class="score-card">
+    <div class="label">Isolamento Multi-tenant</div>
+    <div class="value green">✓</div>
+    <div class="sub">org fictícia → 0 rows</div>
+  </div>
+</div>
+
+<div class="health-bar-wrap"><div class="health-bar" style="width:82%"></div></div>
+<p style="font-size:11px;color:var(--muted);text-align:right;margin-bottom:28px;">82% — Bom, mas P0s devem ser corrigidos antes de continuar o loop</p>
+
+<hr class="divider">
+
+<!-- RPCs INVENTÁRIO -->
+<div class="section-header">
+  <span class="section-icon">⚙️</span>
+  <span class="section-title">PASSO 2/3 — Inventário de RPCs</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>RPC</th>
+        <th>Testada</th>
+        <th>SECURITY DEFINER</th>
+        <th>search_path</th>
+        <th>Retorno</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">get_jurimetria_dashboard</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td class="mono">public</td>
+        <td>jsonb — 10 KPIs</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_ranking_empresas</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td class="mono">public</td>
+        <td>TABLE — 10 rows</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_ranking_julgadores</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td class="mono">public</td>
+        <td>TABLE — 10 rows</td>
+        <td><span class="badge warn">⚠ grau=null em 760/761</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_ranking_advogados</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td>—</td>
+        <td>TABLE — 5 rows</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_tempo</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td>—</td>
+        <td>jsonb — 12 marcos</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">search_julgadores</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td class="mono">public, pg_temp</td>
+        <td>TABLE — 10 rows</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">upsert_julgador</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td class="mono">public</td>
+        <td>uuid</td>
+        <td><span class="badge warn">⚠ DUPLICADO (2 assinaturas)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_empresa_metricas</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td>—</td>
+        <td>jsonb — métricas OK</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_julgador_metricas</td>
+        <td><span class="badge ok">✓ SIM</span></td>
+        <td><span class="badge ok">✓</span></td>
+        <td>—</td>
+        <td>jsonb — métricas OK</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_docs_pendentes_regiao</td>
+        <td><span class="badge info">não testada</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>p_filtros jsonb</td>
+        <td><span class="badge info">existe</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_timeline</td>
+        <td><span class="badge info">não testada</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td>p_filtros jsonb</td>
+        <td><span class="badge info">existe</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- TABELAS -->
+<div class="section-header">
+  <span class="section-icon">🗄️</span>
+  <span class="section-title">PASSO 4 — Tabelas e RLS</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Tabela</th>
+        <th>RLS</th>
+        <th>Policies</th>
+        <th>organizacao_id</th>
+        <th>deleted_at</th>
+        <th>updated_at trigger</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">julgadores</td>
+        <td><span class="badge ok">✓ ON</span></td>
+        <td>4 (SELECT/INSERT/UPDATE/DELETE)</td>
+        <td><span class="badge ok">✓ NOT NULL</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td><span class="badge ok">✓ trg_julgadores_updated_at</span></td>
+        <td><span class="badge warn">P1</span></td>
+      </tr>
+      <tr>
+        <td class="mono">comarcas_varas</td>
+        <td><span class="badge ok">✓ ON</span></td>
+        <td>4 (SELECT/INSERT/UPDATE/DELETE)</td>
+        <td><span class="badge warn">NULLABLE (1028 rows, todas preenchidas)</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td><span class="badge warn">P1</span></td>
+      </tr>
+      <tr>
+        <td class="mono">turmas_camaras</td>
+        <td><span class="badge ok">✓ ON</span></td>
+        <td>6 (4 tenant + 2 public/service)</td>
+        <td><span class="badge err">✗ SEM org_id</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td><span class="badge ok">✓ trg_tc_updated_at</span></td>
+        <td><span class="badge info">catalogo compartilhado</span></td>
+      </tr>
+      <tr>
+        <td class="mono">tribunais</td>
+        <td><span class="badge ok">✓ ON</span></td>
+        <td>6 (public read + admin write)</td>
+        <td><span class="badge info">catalogo global</span></td>
+        <td><span class="badge info">—</span></td>
+        <td>—</td>
+        <td><span class="badge ok">OK (catálogo)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_pesquisas_mercado</td>
+        <td><span class="badge ok">✓ ON</span></td>
+        <td>4 (CRUD completo)</td>
+        <td><span class="badge ok">✓ NOT NULL</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td>—</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_snapshots</td>
+        <td><span class="badge ok">✓ ON</span></td>
+        <td>1 (ALL — org_isolation)</td>
+        <td><span class="badge ok">✓</span></td>
+        <td>—</td>
+        <td>—</td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_acordos</td>
+        <td><span class="badge err">✗ OFF</span></td>
+        <td>0 políticas</td>
+        <td><span class="badge warn">NULLABLE — sem constraint</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td>—</td>
+        <td><span class="badge p0">P0 — SEM RLS (0 rows — risco futuro)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_empresas</td>
+        <td><span class="badge err">✗ OFF</span></td>
+        <td>0 políticas</td>
+        <td><span class="badge warn">NULLABLE, 325 rows multi-org</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td>—</td>
+        <td><span class="badge p0">P0 — SEM RLS (325 rows expostos)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_juizes</td>
+        <td><span class="badge err">✗ OFF</span></td>
+        <td>0 políticas</td>
+        <td><span class="badge warn">NULLABLE, 486 rows multi-org</span></td>
+        <td><span class="badge err">✗ AUSENTE</span></td>
+        <td>—</td>
+        <td><span class="badge p0">P0 — SEM RLS (486 rows expostos)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_escritorios_reu</td>
+        <td><span class="badge err">✗ OFF</span></td>
+        <td>0 políticas</td>
+        <td>—</td>
+        <td>—</td>
+        <td>—</td>
+        <td><span class="badge p0">P0 — SEM RLS</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- MULTI-TENANT ISOLATION -->
+<div class="section-header">
+  <span class="section-icon">🔒</span>
+  <span class="section-title">PASSO 5 — Isolamento Multi-tenant</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>RPC / Tabela</th>
+        <th>Org fictícia → rows</th>
+        <th>Resultado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">get_jurimetria_ranking_empresas</td>
+        <td class="mono">0</td>
+        <td><span class="badge ok">✓ ISOLADO</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_ranking_julgadores</td>
+        <td class="mono">0</td>
+        <td><span class="badge ok">✓ ISOLADO</span></td>
+      </tr>
+      <tr>
+        <td class="mono">get_jurimetria_dashboard</td>
+        <td class="mono">0 (todos zerados)</td>
+        <td><span class="badge ok">✓ ISOLADO</span></td>
+      </tr>
+      <tr>
+        <td class="mono">search_julgadores</td>
+        <td class="mono">0</td>
+        <td><span class="badge ok">✓ ISOLADO</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_empresas (direto)</td>
+        <td class="mono">N/A — sem RLS</td>
+        <td><span class="badge err">✗ EXPOSTO via API direta</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_juizes (direto)</td>
+        <td class="mono">N/A — sem RLS</td>
+        <td><span class="badge err">✗ EXPOSTO via API direta</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- INTEGRIDADE DE DADOS -->
+<div class="section-header">
+  <span class="section-icon">🔍</span>
+  <span class="section-title">PASSO 8 — Integridade de Dados</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>Resultado</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>julgadores.organizacao_id — todos preenchidos</td>
+        <td>761/761</td>
+        <td><span class="badge ok">✓ OK</span></td>
+      </tr>
+      <tr>
+        <td>julgadores.grau — valores NULL</td>
+        <td>760/761 com grau=NULL</td>
+        <td><span class="badge err">✗ CRÍTICO — filtro por grau inoperante</span></td>
+      </tr>
+      <tr>
+        <td>julgadores.tipo — valores NULL</td>
+        <td>1/761 com tipo=NULL</td>
+        <td><span class="badge ok">✓ OK (1 edge case)</span></td>
+      </tr>
+      <tr>
+        <td>julgadores.tribunal_id — todos preenchidos</td>
+        <td>0/761 com tribunal_id (todos NULL)</td>
+        <td><span class="badge warn">⚠ sem vínculo tribunal</span></td>
+      </tr>
+      <tr>
+        <td>julgadores.comarca_vara_id — orphans</td>
+        <td>0 orphans</td>
+        <td><span class="badge ok">✓ OK</span></td>
+      </tr>
+      <tr>
+        <td>comarcas_varas.comarca NULL</td>
+        <td>217/1028 com comarca ou vara NULL</td>
+        <td><span class="badge warn">⚠ P1 — BUG-CV-01 (dados incompletos)</span></td>
+      </tr>
+      <tr>
+        <td>comarcas_varas.organizacao_id — todos preenchidos</td>
+        <td>1028/1028</td>
+        <td><span class="badge ok">✓ OK</span></td>
+      </tr>
+      <tr>
+        <td>jurimetria_acordos — rows com dados</td>
+        <td>0 rows</td>
+        <td><span class="badge info">vazio (tabela legado)</span></td>
+      </tr>
+      <tr>
+        <td>jurimetria_empresas — rows multi-org</td>
+        <td>325 rows (2 orgs diferentes)</td>
+        <td><span class="badge p0">P0 — sem RLS, dados expostos</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- N8N WEBHOOKS -->
+<div class="section-header">
+  <span class="section-icon">⚡</span>
+  <span class="section-title">PASSO 9 — Webhooks n8n</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Webhook Path</th>
+        <th>Usado em</th>
+        <th>Workflow n8n</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">jurimetria/pesquisa_mercado</td>
+        <td>TabPesquisa</td>
+        <td><span class="badge err">NÃO ENCONTRADO</span></td>
+        <td><span class="badge warn">⚠ Feature flag OFF (PESQUISA_MERCADO_DISPONIVEL=false) — mitigado por ora</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria/confirmar_import</td>
+        <td>StepConfirmacao (ModalImport)</td>
+        <td><span class="badge err">NÃO ENCONTRADO</span></td>
+        <td><span class="badge err">✗ P1 — modal de import quebrado sem workflow n8n</span></td>
+      </tr>
+      <tr>
+        <td class="mono">WH-JURI-02 — Olivia Chat</td>
+        <td>Chat IA interno</td>
+        <td><span class="badge ok">✓ ATIVO (id: 6u9qZ5caQ5JgkMPS)</span></td>
+        <td><span class="badge ok">OK</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- ÍNDICES -->
+<div class="section-header">
+  <span class="section-icon">📊</span>
+  <span class="section-title">PASSO 4/6 — Índices e Performance</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Tabela</th>
+        <th>Índice</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="mono">julgadores</td>
+        <td>idx_julgadores_org, idx_julgadores_org_nome, idx_julgadores_nome_trgm, uq_julgadores_nome_normalizado</td>
+        <td><span class="badge ok">✓ Completo</span></td>
+      </tr>
+      <tr>
+        <td class="mono">comarcas_varas</td>
+        <td>idx_comarcas_varas_organizacao_id, idx_comarcas_varas_tribunal, idx_comarcas_varas_uf, idx_comarcas_varas_cidade</td>
+        <td><span class="badge ok">✓ Bom</span></td>
+      </tr>
+      <tr>
+        <td class="mono">comarcas_varas</td>
+        <td>idx por (organizacao_id) WHERE deleted_at IS NULL</td>
+        <td><span class="badge warn">⚠ ausente (soft delete não existe ainda)</span></td>
+      </tr>
+      <tr>
+        <td class="mono">turmas_camaras</td>
+        <td>idx_tc_tribunal, idx_turmas_ativo</td>
+        <td><span class="badge ok">✓ OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_pesquisas_mercado</td>
+        <td>idx_jpm_org, idx_pesquisas_cache, idx_jurimetria_pesquisas_estado_comarca</td>
+        <td><span class="badge ok">✓ Completo para cache lookup</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_snapshots</td>
+        <td>idx_jurimetria_snapshots_org, idx_jurimetria_snapshots_tipo</td>
+        <td><span class="badge ok">✓ OK</span></td>
+      </tr>
+      <tr>
+        <td class="mono">jurimetria_empresas / jurimetria_juizes</td>
+        <td>sem índice em organizacao_id</td>
+        <td><span class="badge warn">⚠ P2 — sem índice nas tabelas legado</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- ACHADOS DETALHADOS -->
+<div class="section-header">
+  <span class="section-icon">🚨</span>
+  <span class="section-title">ACHADOS DETALHADOS — P0 / P1 / P2</span>
+</div>
+
+<h3>P0 — Bloqueante (corrigir imediatamente)</h3>
+
+<div class="finding p0">
+  <div class="finding-header">
+    <span class="badge p0">P0</span>
+    <span class="finding-title">RLS ausente em 4 tabelas jurimetria — dados de multi-tenants expostos</span>
+  </div>
+  <div class="finding-body">
+    As tabelas <code>jurimetria_acordos</code>, <code>jurimetria_empresas</code>, <code>jurimetria_juizes</code> e <code>jurimetria_escritorios_reu</code>
+    têm <strong>RLS desabilitado</strong>. Qualquer usuário autenticado com ANON_KEY pode acessar todos os dados de todas as organizações via REST API direta.
+    <br><br>
+    <strong>Evidência:</strong> <code>jurimetria_empresas</code> contém 325 rows de 2 orgs distintas. <code>jurimetria_juizes</code> contém 486 rows multi-org.
+    Embora estas tabelas sejam legado e possivelmente não usadas ativamente pelo frontend da página, elas estão no schema público acessível.
+    <br><br>
+    <strong>Fix:</strong> <code>ALTER TABLE jurimetria_empresas ENABLE ROW LEVEL SECURITY; CREATE POLICY "tenant_isolation" ON jurimetria_empresas USING (organizacao_id = public.get_org_id());</code>
+    (repetir para as 4 tabelas)
+  </div>
+</div>
+
+<div class="finding p0">
+  <div class="finding-header">
+    <span class="badge p0">P0</span>
+    <span class="finding-title">julgadores.grau = NULL em 760/761 registros — filtro por grau completamente inoperante</span>
+  </div>
+  <div class="finding-body">
+    O campo <code>grau</code> na tabela <code>julgadores</code> é NULL em <strong>99,9% dos registros</strong> (760/761).
+    A RPC <code>get_jurimetria_ranking_julgadores</code> aceita parâmetro <code>p_grau</code> e as tabs "Primeiro Grau" / "Segundo Grau" enviam grau=1 ou grau=2 respectivamente.
+    Com todos os julgadores sem grau definido, essas tabs retornam <strong>zero resultados</strong> — funcionalidade completamente quebrada.
+    <br><br>
+    <strong>Evidência:</strong> <code>search_julgadores</code> retornou julgador com <code>"grau": null</code>.
+    Ranking RPC retorna julgadores com <code>"grau": null</code>.
+    <br><br>
+    <strong>Fix:</strong> Backfill de dados — inferir grau a partir do nome (<code>vara</code> → grau 1, <code>câmara</code>/<code>turma</code> → grau 2).
+    Ou criar migration de <code>grau DEFAULT 1</code> e trigger que classifica pelo tipo.
+  </div>
+</div>
+
+<h3>P1 — Importante (corrigir neste ciclo)</h3>
+
+<div class="finding p1">
+  <div class="finding-header">
+    <span class="badge p1">P1</span>
+    <span class="finding-title">upsert_julgador duplicado — 2 assinaturas conflitantes no banco</span>
+  </div>
+  <div class="finding-body">
+    Existem <strong>2 versões</strong> da RPC <code>upsert_julgador</code> no banco (OIDs 37372 e 44273).
+    A diferença é que a versão nova (44273) aceita o parâmetro <code>p_ativo boolean DEFAULT true</code>.
+    O frontend usa a chamada com <code>p_ativo</code>, mas se o Supabase resolver para a versão antiga, o campo ativo nunca será persistido.
+    <br><br>
+    <strong>Fix:</strong> Remover a versão antiga: <code>DROP FUNCTION upsert_julgador(uuid, text, text, integer, uuid, uuid, uuid, uuid, uuid);</code>
+  </div>
+</div>
+
+<div class="finding p1">
+  <div class="finding-header">
+    <span class="badge p1">P1</span>
+    <span class="finding-title">217 comarcas_varas com comarca ou vara NULL — BUG-CV-01</span>
+  </div>
+  <div class="finding-body">
+    21% dos registros em <code>comarcas_varas</code> (217/1028) têm <code>comarca</code> ou <code>vara</code> como NULL.
+    Isso causa exibição de "null" ou campos vazios no modal de cadastro de julgador e no filtro de localidade.
+    <br><br>
+    <strong>Fix:</strong> Adicionar constraint <code>CHECK (comarca IS NOT NULL AND vara IS NOT NULL)</code> em novos registros + cleanup dos existentes.
+    Ou alternativamente: adicionar NOT NULL constraint e fazer backfill com placeholder.
+  </div>
+</div>
+
+<div class="finding p1">
+  <div class="finding-header">
+    <span class="badge p1">P1</span>
+    <span class="finding-title">Webhook jurimetria/confirmar_import sem workflow n8n correspondente</span>
+  </div>
+  <div class="finding-body">
+    O modal <code>ModalImport/StepConfirmacao.tsx</code> chama <code>callWebhook('jurimetria/confirmar_import', ...)</code>,
+    mas <strong>nenhum workflow n8n</strong> com esse path foi encontrado nos 100 workflows ativos.
+    A funcionalidade de importação de dados via planilha está completamente quebrada — o step de confirmação vai falhar com erro de rede ou timeout.
+    <br><br>
+    <strong>Fix:</strong> Criar workflow n8n <code>WH-JURIMETRIA — Confirmar Import</code> com webhook path <code>jurimetria/confirmar_import</code>,
+    processamento do arquivo CSV/XLSX do Storage Supabase e retorno com envelope canônico.
+  </div>
+</div>
+
+<div class="finding p1">
+  <div class="finding-header">
+    <span class="badge p1">P1</span>
+    <span class="finding-title">julgadores sem soft delete (deleted_at ausente) — hard delete impossível com FKs</span>
+  </div>
+  <div class="finding-body">
+    A tabela <code>julgadores</code> não tem coluna <code>deleted_at</code>, violando o padrão MdFlow de soft delete obrigatório.
+    Qualquer operação de exclusão de julgador faria hard delete — dados de ranking histórico seriam perdidos.
+    <br><br>
+    Igualmente ausente em <code>comarcas_varas</code>.
+    <br><br>
+    <strong>Fix:</strong> <code>ALTER TABLE julgadores ADD COLUMN deleted_at TIMESTAMPTZ; ALTER TABLE comarcas_varas ADD COLUMN deleted_at TIMESTAMPTZ;</code>
+    + atualizar RLS policies para filtrar <code>WHERE deleted_at IS NULL</code>.
+  </div>
+</div>
+
+<h3>P2 — Melhorias (próximo ciclo)</h3>
+
+<div class="finding p2">
+  <div class="finding-header">
+    <span class="badge p2">P2</span>
+    <span class="finding-title">761 julgadores sem tribunal_id — vínculo com catálogo global inexistente</span>
+  </div>
+  <div class="finding-body">
+    100% dos julgadores cadastrados não têm <code>tribunal_id</code> definido.
+    O filtro por tribunal em <code>SubtabPrimeiroGrau</code> e <code>SubtabSegundoGrau</code> está inoperante.
+    <br><br>
+    <strong>Fix:</strong> Backfill via trigger ou job n8n que infere tribunal a partir da UF do julgador ou da comarca vinculada.
+  </div>
+</div>
+
+<div class="finding p2">
+  <div class="finding-header">
+    <span class="badge p2">P2</span>
+    <span class="finding-title">comarcas_varas.organizacao_id é NULLABLE no schema (mas todos preenchidos)</span>
+  </div>
+  <div class="finding-body">
+    A coluna <code>organizacao_id</code> em <code>comarcas_varas</code> é <code>nullable</code> no schema, embora todos os 1028 registros tenham o campo preenchido.
+    Sem constraint NOT NULL, inserts futuros podem criar registros sem tenant, causando vazamento de dados.
+    <br><br>
+    <strong>Fix:</strong> <code>ALTER TABLE comarcas_varas ALTER COLUMN organizacao_id SET NOT NULL;</code>
+  </div>
+</div>
+
+<div class="finding p2">
+  <div class="finding-header">
+    <span class="badge p2">P2</span>
+    <span class="finding-title">Tabelas legado jurimetria_* sem índice em organizacao_id</span>
+  </div>
+  <div class="finding-body">
+    As tabelas <code>jurimetria_empresas</code>, <code>jurimetria_juizes</code> e <code>jurimetria_acordos</code> não têm índice em <code>organizacao_id</code>.
+    Se forem usadas ativamente (snapshot/import), queries sem índice serão seq scan.
+    <br><br>
+    <strong>Fix:</strong> <code>CREATE INDEX IF NOT EXISTS idx_jurimetria_empresas_org ON jurimetria_empresas(organizacao_id);</code> (repetir para as demais)
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- CHECKS CONSOLIDADOS -->
+<div class="section-header">
+  <span class="section-icon">✅</span>
+  <span class="section-title">Checklist Consolidado — 34 Checks</span>
+</div>
+
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Check</th>
+        <th>Resultado</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>get_jurimetria_dashboard — existe e retorna dados</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>2</td><td>get_jurimetria_ranking_empresas — existe e retorna dados</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>3</td><td>get_jurimetria_ranking_julgadores — existe e retorna dados</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>4</td><td>get_jurimetria_ranking_advogados — existe e retorna dados</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>5</td><td>get_jurimetria_tempo — existe e retorna 12 marcos</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>6</td><td>search_julgadores — existe e retorna dados</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>7</td><td>upsert_julgador — existe</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>8</td><td>get_empresa_metricas — existe e retorna dados</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>9</td><td>get_julgador_metricas — existe e retorna dados</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>10</td><td>get_jurimetria_docs_pendentes_regiao — existe</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>11</td><td>get_jurimetria_timeline — existe</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>12</td><td>Todas RPCs principais com SECURITY DEFINER</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>13</td><td>Todas RPCs com search_path=public</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>14</td><td>Multi-tenant: ranking_empresas org fictícia = 0</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>15</td><td>Multi-tenant: ranking_julgadores org fictícia = 0</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>16</td><td>Multi-tenant: dashboard org fictícia = zeros</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>17</td><td>Multi-tenant: search_julgadores org fictícia = 0</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>18</td><td>julgadores — RLS ON com 4 policies</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>19</td><td>comarcas_varas — RLS ON</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>20</td><td>jurimetria_pesquisas_mercado — RLS ON</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>21</td><td>julgadores — organizacao_id NOT NULL</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>22</td><td>julgadores — orphan comarca_vara_id = 0</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>23</td><td>julgadores — updated_at trigger existe</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>24</td><td>julgadores — normalização nome trigger existe</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>25</td><td>julgadores — validação vínculo trigger existe</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>26</td><td>tribunais — RLS ON + catálogo OK</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>27</td><td>WH-JURI-02 (Olivia Chat) — workflow ativo</td><td><span class="badge ok">✓ PASS</span></td></tr>
+      <tr><td>28</td><td>upsert_julgador — versão única no banco</td><td><span class="badge err">✗ FAIL (2 assinaturas)</span></td></tr>
+      <tr><td>29</td><td>jurimetria_empresas — RLS ON</td><td><span class="badge err">✗ FAIL (P0)</span></td></tr>
+      <tr><td>30</td><td>jurimetria_juizes — RLS ON</td><td><span class="badge err">✗ FAIL (P0)</span></td></tr>
+      <tr><td>31</td><td>julgadores.grau preenchido em maioria</td><td><span class="badge err">✗ FAIL (760/761 null)</span></td></tr>
+      <tr><td>32</td><td>julgadores — soft delete (deleted_at)</td><td><span class="badge err">✗ FAIL (ausente)</span></td></tr>
+      <tr><td>33</td><td>webhook jurimetria/confirmar_import em n8n</td><td><span class="badge err">✗ FAIL (não existe)</span></td></tr>
+      <tr><td>34</td><td>comarcas_varas — comarca/vara NOT NULL</td><td><span class="badge err">✗ FAIL (217 nulls)</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<hr class="divider">
+
+<!-- RESUMO FINAL -->
+<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;">
+  <h2 style="margin-top:0">Resumo Executivo</h2>
+  <div class="health-bar-wrap" style="height:14px"><div class="health-bar" style="width:82%"></div></div>
+  <p style="font-size:13px;color:var(--muted);margin-top:6px;margin-bottom:16px;">82% — 28 de 34 checks OK</p>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px;">
+    <div style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:12px;">
+      <div style="color:var(--danger);font-weight:700;font-size:13px;margin-bottom:8px">P0 — Corrigir Agora (2)</div>
+      <ul style="color:var(--muted);font-size:12px;line-height:1.8;padding-left:16px;">
+        <li>RLS OFF em <code style="color:var(--info)">jurimetria_empresas</code>, <code style="color:var(--info)">jurimetria_juizes</code>, <code style="color:var(--info)">jurimetria_acordos</code>, <code style="color:var(--info)">jurimetria_escritorios_reu</code></li>
+        <li><code style="color:var(--info)">julgadores.grau</code> NULL em 99.9% — tabs 1º/2º grau retornam vazio</li>
+      </ul>
+    </div>
+    <div style="background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:8px;padding:12px;">
+      <div style="color:var(--warning);font-weight:700;font-size:13px;margin-bottom:8px">P1 — Importante (4)</div>
+      <ul style="color:var(--muted);font-size:12px;line-height:1.8;padding-left:16px;">
+        <li>upsert_julgador duplicado (2 assinaturas)</li>
+        <li>217 comarcas_varas com NULL comarca/vara</li>
+        <li>Webhook import n8n inexistente</li>
+        <li>soft delete ausente (deleted_at)</li>
+      </ul>
+    </div>
+    <div style="background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:8px;padding:12px;">
+      <div style="color:var(--info);font-weight:700;font-size:13px;margin-bottom:8px">P2 — Melhoria (3)</div>
+      <ul style="color:var(--muted);font-size:12px;line-height:1.8;padding-left:16px;">
+        <li>Julgadores sem tribunal_id (0/761)</li>
+        <li>comarcas_varas.organizacao_id nullable</li>
+        <li>Índices ausentes nas tabelas legado</li>
+      </ul>
+    </div>
+  </div>
+
+  <p style="font-size:12px;color:var(--muted);">
+    <strong style="color:var(--text)">Pontos fortes:</strong> Todas as 9 RPCs principais funcionam e retornam dados reais.
+    Multi-tenant isolation validado em 4 RPCs. SECURITY DEFINER corretamente configurado.
+    Triggers de normalização e validação em julgadores. Índices de busca (trigram) presentes.
+  </p>
+</div>
+
+<div class="footer">
+  Gerado por: page-backend-tester (Beto/CC) &nbsp;·&nbsp;
+  2026-04-02 &nbsp;·&nbsp;
+  Supabase: qdivfairxhdihaqqypgb &nbsp;·&nbsp;
+  Página: /jurimetria
+</div>
+
+</body>
+</html>

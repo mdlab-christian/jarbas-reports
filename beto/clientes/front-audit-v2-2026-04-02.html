@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Front Audit v2 — /clientes — 2026-04-02</title>
+<style>
+  :root {
+    --bg: #12100e; --surface: #1a1714; --card: #201d1a;
+    --border: #2e2b27; --primary: #20c997; --primary-dim: #20c99720;
+    --warn: #f59e0b; --danger: #ef4444; --success: #22c55e; --info: #60a5fa;
+    --text: #f5f0eb; --muted: #9e9890;
+    --mono: 'JetBrains Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    line-height: 1.6; padding: 0;
+  }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(135deg, var(--surface) 0%, var(--card) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px;
+    text-align: center;
+  }
+  .header h1 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 2rem; font-weight: 800;
+    margin-bottom: 8px;
+  }
+  .header .subtitle { color: var(--muted); font-size: 0.9rem; }
+  .header .score-badge {
+    display: inline-flex; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 16px 32px; margin-top: 24px;
+  }
+  .header .score-value {
+    font-family: var(--mono); font-size: 3rem; font-weight: 700;
+    color: var(--primary);
+  }
+  .header .score-label { font-size: 0.85rem; color: var(--muted); text-align: left; }
+  .header .score-label strong { color: var(--text); display: block; font-size: 1rem; }
+
+  /* Meta row */
+  .meta-row {
+    display: flex; gap: 16px; flex-wrap: wrap;
+    justify-content: center; margin-top: 20px;
+  }
+  .meta-pill {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 6px 14px;
+    font-size: 0.8rem; color: var(--muted);
+  }
+  .meta-pill strong { color: var(--text); }
+
+  /* Section titles */
+  .section-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.4rem; font-weight: 700;
+    margin: 40px 0 20px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-title .badge {
+    font-size: 0.75rem; font-weight: 600;
+    background: var(--primary-dim); color: var(--primary);
+    padding: 3px 10px; border-radius: 99px;
+    margin-left: 10px; vertical-align: middle;
+  }
+
+  /* Score cards grid */
+  .scores-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px; margin-bottom: 32px;
+  }
+  .score-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; position: relative;
+    overflow: hidden;
+  }
+  .score-card .cat-label {
+    font-size: 0.75rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    margin-bottom: 4px;
+  }
+  .score-card .cat-name {
+    font-weight: 600; font-size: 1rem; margin-bottom: 12px;
+  }
+  .score-card .cat-score {
+    font-family: var(--mono); font-size: 1.8rem; font-weight: 700;
+  }
+  .score-card .cat-weight {
+    font-size: 0.7rem; color: var(--muted); margin-left: 4px;
+  }
+  .progress-bar {
+    height: 6px; border-radius: 3px; background: var(--surface);
+    margin-top: 12px; overflow: hidden;
+  }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+
+  .score-green { color: var(--success); }
+  .score-yellow { color: var(--warn); }
+  .score-red { color: var(--danger); }
+  .fill-green { background: var(--success); }
+  .fill-yellow { background: var(--warn); }
+  .fill-red { background: var(--danger); }
+
+  /* Code audit table */
+  .audit-table {
+    width: 100%; border-collapse: collapse;
+    background: var(--card); border-radius: 12px;
+    overflow: hidden; margin-bottom: 32px;
+  }
+  .audit-table th {
+    text-align: left; padding: 12px 16px;
+    background: var(--surface); font-size: 0.8rem;
+    color: var(--muted); text-transform: uppercase;
+    letter-spacing: 0.04em; border-bottom: 1px solid var(--border);
+  }
+  .audit-table td {
+    padding: 12px 16px; border-bottom: 1px solid var(--border);
+    font-size: 0.88rem;
+  }
+  .audit-table tr:last-child td { border-bottom: none; }
+  .audit-table .status-pass { color: var(--success); font-weight: 600; }
+  .audit-table .status-warn { color: var(--warn); font-weight: 600; }
+  .audit-table .status-fail { color: var(--danger); font-weight: 600; }
+  .audit-table .detail { color: var(--muted); font-size: 0.8rem; }
+
+  /* Findings */
+  .finding {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+    border-left: 4px solid var(--border);
+  }
+  .finding.sev-high { border-left-color: var(--danger); }
+  .finding.sev-med { border-left-color: var(--warn); }
+  .finding.sev-low { border-left-color: var(--info); }
+  .finding .finding-header {
+    display: flex; justify-content: space-between;
+    align-items: flex-start; margin-bottom: 10px; gap: 12px;
+  }
+  .finding .finding-id {
+    font-family: var(--mono); font-size: 0.75rem;
+    color: var(--muted); background: var(--surface);
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .finding .finding-title {
+    font-weight: 600; font-size: 1rem; flex: 1;
+  }
+  .finding .finding-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 0.7rem; font-weight: 600;
+    padding: 2px 8px; border-radius: 99px;
+  }
+  .tag-cat { background: var(--primary-dim); color: var(--primary); }
+  .tag-sev-high { background: #ef444420; color: var(--danger); }
+  .tag-sev-med { background: #f59e0b20; color: var(--warn); }
+  .tag-sev-low { background: #60a5fa20; color: var(--info); }
+  .tag-type { background: var(--surface); color: var(--muted); }
+
+  .finding .finding-body { color: var(--muted); font-size: 0.88rem; line-height: 1.7; }
+  .finding .finding-body strong { color: var(--text); }
+
+  .code-block {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 16px;
+    font-family: var(--mono); font-size: 0.78rem;
+    overflow-x: auto; margin: 10px 0; line-height: 1.5;
+    color: var(--muted);
+  }
+  .code-block .line-bad { color: var(--danger); }
+  .code-block .line-good { color: var(--success); }
+
+  /* Summary */
+  .summary-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px; margin: 20px 0;
+  }
+  .summary-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px; text-align: center;
+  }
+  .summary-card .num {
+    font-family: var(--mono); font-size: 2rem; font-weight: 700;
+  }
+  .summary-card .lbl { font-size: 0.8rem; color: var(--muted); margin-top: 4px; }
+
+  /* Footer */
+  .footer {
+    text-align: center; padding: 32px 0;
+    color: var(--muted); font-size: 0.8rem;
+    border-top: 1px solid var(--border); margin-top: 40px;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .container { padding: 16px 12px; }
+    .header { padding: 32px 16px; }
+    .header h1 { font-size: 1.4rem; }
+    .header .score-value { font-size: 2rem; }
+    .scores-grid { grid-template-columns: 1fr; }
+    .finding .finding-header { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- HEADER                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div class="header">
+  <h1>Front Audit v2 -- /clientes</h1>
+  <p class="subtitle">Auditoria completa de UI/UX: codigo + visual, 9 categorias, 6 breakpoints</p>
+  <div class="score-badge">
+    <span class="score-value">8.2</span>
+    <span class="score-label"><strong>Nota Geral</strong>Ponderada por peso</span>
+  </div>
+  <div class="meta-row">
+    <span class="meta-pill"><strong>Data:</strong> 2026-04-02</span>
+    <span class="meta-pill"><strong>Ciclo:</strong> v2 (pos-correcoes v1)</span>
+    <span class="meta-pill"><strong>Achados:</strong> 12</span>
+    <span class="meta-pill"><strong>Arquivos:</strong> 10 (.tsx) + 2 hooks</span>
+    <span class="meta-pill"><strong>Linhas:</strong> ~2.309</span>
+    <span class="meta-pill"><strong>Breakpoints:</strong> 375 640 768 1024 1280 1440</span>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- SCORES POR CATEGORIA                                           -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 class="section-title">Scores por Categoria <span class="badge">9 categorias</span></h2>
+
+<div class="scores-grid">
+
+  <!-- CAT-A -->
+  <div class="score-card">
+    <div class="cat-label">CAT-A (peso 1.5x)</div>
+    <div class="cat-name">Hierarquia Visual</div>
+    <span class="cat-score score-green">8.5</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:85%"></div></div>
+  </div>
+
+  <!-- CAT-B -->
+  <div class="score-card">
+    <div class="cat-label">CAT-B (peso 1.5x)</div>
+    <div class="cat-name">Design System v5</div>
+    <span class="cat-score score-green">8.0</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:80%"></div></div>
+  </div>
+
+  <!-- CAT-C -->
+  <div class="score-card">
+    <div class="cat-label">CAT-C</div>
+    <div class="cat-name">Cards e Listas</div>
+    <span class="cat-score score-green">8.5</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:85%"></div></div>
+  </div>
+
+  <!-- CAT-D -->
+  <div class="score-card">
+    <div class="cat-label">CAT-D</div>
+    <div class="cat-name">Drawers e Modais</div>
+    <span class="cat-score score-green">8.5</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:85%"></div></div>
+  </div>
+
+  <!-- CAT-E -->
+  <div class="score-card">
+    <div class="cat-label">CAT-E (peso 1.2x)</div>
+    <div class="cat-name">Botoes e Acoes</div>
+    <span class="cat-score score-green">8.5</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:85%"></div></div>
+  </div>
+
+  <!-- CAT-F -->
+  <div class="score-card">
+    <div class="cat-label">CAT-F</div>
+    <div class="cat-name">Tipografia e Espacamento</div>
+    <span class="cat-score score-green">8.0</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:80%"></div></div>
+  </div>
+
+  <!-- CAT-G -->
+  <div class="score-card">
+    <div class="cat-label">CAT-G</div>
+    <div class="cat-name">Estados Visuais</div>
+    <span class="cat-score score-green">8.5</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:85%"></div></div>
+  </div>
+
+  <!-- CAT-H -->
+  <div class="score-card">
+    <div class="cat-label">CAT-H</div>
+    <div class="cat-name">Responsividade Visual</div>
+    <span class="cat-score score-yellow">7.5</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-yellow" style="width:75%"></div></div>
+  </div>
+
+  <!-- CAT-I -->
+  <div class="score-card">
+    <div class="cat-label">CAT-I</div>
+    <div class="cat-name">Formularios e Acessibilidade</div>
+    <span class="cat-score score-green">8.0</span>
+    <span class="cat-weight">/ 10</span>
+    <div class="progress-bar"><div class="progress-fill fill-green" style="width:80%"></div></div>
+  </div>
+
+</div>
+
+<p style="color:var(--muted); font-size:0.85rem; margin-bottom:32px;">
+  <strong style="color:var(--text)">Formula:</strong>
+  (A x 1.5 + B x 1.5 + C + D + E x 1.2 + F + G + H + I) / 11.2
+  = (12.75 + 12.0 + 8.5 + 8.5 + 10.2 + 8.0 + 8.5 + 7.5 + 8.0) / 11.2
+  = 91.95 / 11.2 = <strong style="color:var(--primary)">8.21 ~ 8.2</strong>
+</p>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- AUDITORIA DE CODIGO (12 checks)                                -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 class="section-title">Auditoria de Codigo <span class="badge">12 checks</span></h2>
+
+<table class="audit-table">
+  <thead>
+    <tr>
+      <th style="width:40px">#</th>
+      <th>Check</th>
+      <th style="width:80px">Status</th>
+      <th>Detalhes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>Cores hardcoded (bg-[#], text-[#], border-[#])</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">0 ocorrencias. Nenhum hex hardcoded em className.</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>Icones nao-Lucide (@heroicons, react-icons, phosphor)</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">0 imports. Todos icones sao lucide-react.</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>Fontes: H1 com font-display (Manrope), CNJ/CPF com font-mono</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">Titulos de modal usam font-display. CPF usa font-mono. KPI usa font-display. Correto.</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>Z-index arbitrario (z-[...])</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">0 ocorrencias.</td>
+    </tr>
+    <tr>
+      <td>5</td>
+      <td>Glassmorphism em lugares errados (backdrop-blur)</td>
+      <td class="status-warn">WARN</td>
+      <td class="detail">backdrop-blur-sm nos KPI cards (ClienteKPIDashboard.tsx:24,40). Cards KPI sao aceitaveis, mas e borderline vs tabela. Aceito com ressalva.</td>
+    </tr>
+    <tr>
+      <td>6</td>
+      <td>Tooltips em icon buttons</td>
+      <td class="status-warn">WARN</td>
+      <td class="detail">0 Tooltips usados. 3 icon buttons com aria-label mas sem Tooltip visual (MoreHorizontal, Novo Cliente mobile, Mais acoes). Usuarios precisam de tooltip on hover.</td>
+    </tr>
+    <tr>
+      <td>7</td>
+      <td>Hover states em rows clicaveis</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">TableRow tem hover:bg-muted/30 transition-colors + cursor-pointer. KPI cards tem hover:border-primary/30 hover:shadow-glow.</td>
+    </tr>
+    <tr>
+      <td>8</td>
+      <td>Toasts apos CRUD/webhook</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">Criar cliente: toast.success. Excluir: toast.success/error. Importar: toast por resultado. Exportar: toast.success/warning/error. Cobertura completa.</td>
+    </tr>
+    <tr>
+      <td>9</td>
+      <td>Dirty state em modais</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">NovoClienteModal: isDirty + ConfirmDialog "Descartar alteracoes?". ImportacaoModal: resets on open + protecao durante processing.</td>
+    </tr>
+    <tr>
+      <td>10</td>
+      <td>Empty states qualidade</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">3 empty states: sem clientes (icon+CTA), busca vazia (icon+limpar filtros), erro (retry). Todos com EmptyState component, acoes claras.</td>
+    </tr>
+    <tr>
+      <td>11</td>
+      <td>staleTime nos hooks (deve ser 30_000)</td>
+      <td class="status-warn">WARN</td>
+      <td class="detail">useClientes: 30_000 OK. useClienteKPIs: 30_000 OK. Porem: ClienteFilters advogados: 5*60*1000 (300s). NovoClienteModal origens: 5*60*1000, captadores: 60_000, advogados: 60_000. Dados de lookup estaticos justificam staleTime maior, mas desviam do padrao 30_000.</td>
+    </tr>
+    <tr>
+      <td>12</td>
+      <td>Arquivos &gt;500 linhas + aria-labels + TS</td>
+      <td class="status-pass">PASS</td>
+      <td class="detail">Nenhum arquivo >500 linhas (max: ImportacaoModal 493). 3 aria-labels presentes. Import XCircle nao utilizado em ClienteFilters (dead import). Sem erros TS estruturais.</td>
+    </tr>
+  </tbody>
+</table>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- ACHADOS DETALHADOS                                             -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 class="section-title">Achados Detalhados <span class="badge">12 achados</span></h2>
+
+<!-- ── F01 ── -->
+<div class="finding sev-med">
+  <div class="finding-header">
+    <span class="finding-id">F01</span>
+    <span class="finding-title">text-[hsl(var(--success))] verboso -- usar text-success</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-B</span>
+      <span class="tag tag-sev-med">P1</span>
+      <span class="tag tag-type">CSS only</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>O token <strong>success</strong> esta configurado no Tailwind como <code>hsl(var(--success))</code>, portanto <code>text-success</code> funciona nativamente. O padrao <code>text-[hsl(var(--success))]</code> e redundante e quebra a consistencia com outros usos de <code>text-destructive</code>.</p>
+    <p><strong>Ocorrencias:</strong> ClienteList.tsx:231, ClienteKPIDashboard.tsx:47, ImportacaoModal.tsx:421,482</p>
+    <div class="code-block">
+      <span class="line-bad">-- className="text-[hsl(var(--success))]"</span><br>
+      <span class="line-good">++ className="text-success"</span><br><br>
+      <span class="line-bad">-- className="text-[hsl(var(--chart-5))]"</span><br>
+      <span class="line-good">++ className="text-chart-5" (se token existe) ou manter hsl var</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── F02 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F02</span>
+    <span class="finding-title">Zero Tooltips em icon buttons (3 botoes sem tooltip)</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-I</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">JSX</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>Tres botoes icon-only possuem <code>aria-label</code> mas nenhum <code>&lt;Tooltip&gt;</code> visual: o botao "Mais acoes" (MoreHorizontal, mobile), "Novo Cliente" (mobile, icon-only), e "Acoes do cliente" (MoreVertical, cada row).</p>
+    <p>O aria-label e bom para leitores de tela, mas usuarios videntes precisam de tooltip on hover para descobrir a funcao.</p>
+    <div class="code-block">
+      <span class="line-bad">-- &lt;Button aria-label="Mais acoes"&gt;&lt;MoreHorizontal /&gt;&lt;/Button&gt;</span><br>
+      <span class="line-good">++ &lt;Tooltip&gt;&lt;TooltipTrigger asChild&gt;&lt;Button aria-label="Mais acoes"&gt;...&lt;/Button&gt;&lt;/TooltipTrigger&gt;&lt;TooltipContent&gt;Mais acoes&lt;/TooltipContent&gt;&lt;/Tooltip&gt;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── F03 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F03</span>
+    <span class="finding-title">Import morto: XCircle em ClienteFilters.tsx</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-B</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">JSX</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>O icone <strong>XCircle</strong> e importado de lucide-react na linha 2 de ClienteFilters.tsx mas nunca e utilizado no componente. Dead import aumenta bundle size marginalmente.</p>
+    <div class="code-block">
+      <span class="line-bad">-- import { Search, SlidersHorizontal, XCircle, X, ArrowUpDown } from 'lucide-react';</span><br>
+      <span class="line-good">++ import { Search, SlidersHorizontal, X, ArrowUpDown } from 'lucide-react';</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── F04 ── -->
+<div class="finding sev-med">
+  <div class="finding-header">
+    <span class="finding-id">F04</span>
+    <span class="finding-title">KPIs: apenas 3 cards -- falta KPI de processos ativos</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-A</span>
+      <span class="tag tag-sev-med">P1</span>
+      <span class="tag tag-type">Hook/Query</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>O dashboard KPI tem apenas 3 cards: Total de Clientes, Novos este Mes, Engajamento Alto. Para uma pagina de gestao de clientes, seria esperado um 4o KPI (ex: "Clientes com Processo Ativo" ou "Sem Contato &gt;30 dias") para alinhar com o grid <code>md:grid-cols-3</code> e dar mais valor analitico.</p>
+    <p>Em 1440px, o grid 3-cols funciona bem, mas em tablet (768px) 2-cols deixa 1 card orphan. Com 4 KPIs, o grid 2x2 ficaria simetrico.</p>
+  </div>
+</div>
+
+<!-- ── F05 ── -->
+<div class="finding sev-med">
+  <div class="finding-header">
+    <span class="finding-id">F05</span>
+    <span class="finding-title">Tabela com min-w-[1000px] causa scroll horizontal em mobile/tablet</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-H</span>
+      <span class="tag tag-sev-med">P1</span>
+      <span class="tag tag-type">CSS only</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>A tabela principal em ClienteList.tsx:175 tem <code>min-w-[1000px]</code> com <code>overflow-x-auto</code> no container. Isso garante que todas as colunas sejam visiveis, mas em 375px e 640px o usuario precisa fazer scroll horizontal extenso.</p>
+    <p><strong>Em 375px:</strong> a tabela inteira e scrollable, o que e funcional mas suboptimal. Uma alternativa seria trocar para cards em mobile ou esconder colunas menos importantes com <code>hidden md:table-cell</code>.</p>
+    <p><strong>Atenuante:</strong> "Cadastrado em" ja e hidden em &lt;xl. Porem colunas como "Advogado" e "Cidade/UF" poderiam ser hidden em &lt;md tambem.</p>
+    <div class="code-block">
+      <span class="line-bad">-- &lt;Table className="min-w-[1000px]"&gt;</span><br>
+      <span class="line-good">++ Considerar: ocultar colunas Advogado + Cidade em &lt;md, ou card layout mobile</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── F06 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F06</span>
+    <span class="finding-title">staleTime inconsistente: hooks de lookup usam 60s-300s em vez de 30s</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-B</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">Hook/Query</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>O padrao MdFlow define <code>staleTime: 30_000</code> para todos os hooks. Os hooks primarios (useClientes, useClienteKPIs) estao corretos. Porem 4 queries auxiliares usam staleTime maior:</p>
+    <ul style="margin:8px 0 8px 20px; color:var(--muted);">
+      <li>ClienteFilters advogados: 5 * 60 * 1000 = 300s</li>
+      <li>NovoClienteModal origens: 5 * 60 * 1000 = 300s</li>
+      <li>NovoClienteModal captadores: 60_000</li>
+      <li>NovoClienteModal advogados: 60_000</li>
+    </ul>
+    <p><strong>Justificativa:</strong> dados de lookup (advogados, origens) mudam raramente. staleTime maior e defensavel. Porem o padrao diz 30_000 sem excecao. Classificado como P2.</p>
+  </div>
+</div>
+
+<!-- ── F07 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F07</span>
+    <span class="finding-title">Paginacao sem indicacao de loading ao trocar pagina</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-G</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">JSX</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>Ao clicar em "Proxima" ou "Anterior", o React Query faz refetch e a tabela fica no estado anterior ate carregar. Nao ha indicador visual de loading na paginacao (ex: spinner nos botoes, ou opacity na tabela durante fetch). O usuario pode achar que o clique nao funcionou.</p>
+    <p>O hook useClientes retorna <code>isFetching</code> que poderia ser usado para mostrar transicao.</p>
+    <div class="code-block">
+      <span class="line-good">// Sugestao: usar isFetching para opacity ou skeleton overlay</span><br>
+      <span class="line-good">&lt;div className={isFetching ? 'opacity-60 pointer-events-none' : ''}&gt;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── F08 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F08</span>
+    <span class="finding-title">Filtro "Mais recentes" nao tem aria no Select -- acessibilidade</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-I</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">JSX</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>O Select de ordenacao em ClienteFilters nao tem <code>aria-label</code> descritivo. O SelectTrigger mostra apenas "Mais recentes" sem contexto. Leitores de tela nao sabem que este select controla a ordenacao.</p>
+    <div class="code-block">
+      <span class="line-bad">-- &lt;SelectTrigger className="w-[170px] gap-1.5 text-sm"&gt;</span><br>
+      <span class="line-good">++ &lt;SelectTrigger className="w-[170px] gap-1.5 text-sm" aria-label="Ordenar por"&gt;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── F09 ── -->
+<div class="finding sev-med">
+  <div class="finding-header">
+    <span class="finding-id">F09</span>
+    <span class="finding-title">Exportacao CSV client-side sem limite pratico (10.000 rows)</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-E</span>
+      <span class="tag tag-sev-med">P1</span>
+      <span class="tag tag-type">Hook/Query</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>A funcao handleExportar faz <code>.limit(10000)</code> no Supabase, mas para organizacoes grandes isso pode travar o browser. Nao ha confirmacao pre-export nem indicacao de quantos registros serao exportados.</p>
+    <p>Alem disso, a exportacao roda client-side com Papa.unparse, o que e mais lento que server-side para grandes volumes.</p>
+    <p><strong>Recomendacao:</strong> Para &lt;1000 registros, client-side e OK. Para &gt;1000, considerar webhook n8n com download via URL (WH-CLIENTES-005).</p>
+  </div>
+</div>
+
+<!-- ── F10 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F10</span>
+    <span class="finding-title">KPI "Engajamento Alto" sem delta (inconsistente com "Novos este Mes")</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-C</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">Hook/Query</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>O card "Novos este Mes" mostra delta vs mes anterior (+N ou -N). O card "Engajamento Alto" nao mostra delta, mesmo que a informacao seria valiosa (engajamento subiu ou caiu). O card "Total" tambem nao mostra delta.</p>
+    <p>Visualmente, a ausencia de delta nesses 2 cards cria assimetria: 1 card tem sub-texto, 2 nao tem. A altura visual fica inconsistente.</p>
+  </div>
+</div>
+
+<!-- ── F11 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F11</span>
+    <span class="finding-title">Popover de filtros sem scroll indicator em mobile</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-H</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">CSS only</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>O popover de filtros usa <code>w-[min(420px,95vw)]</code> e <code>max-h-[70vh]</code> com overflow-y-auto. Em 375px, o popover ocupa quase toda a tela e o usuario pode nao perceber que ha conteudo abaixo (especialmente a secao de Periodo).</p>
+    <p><strong>Sugestao:</strong> Considerar usar Sheet (bottom drawer) em mobile em vez de Popover, que e mais natural para toque.</p>
+  </div>
+</div>
+
+<!-- ── F12 ── -->
+<div class="finding sev-low">
+  <div class="finding-header">
+    <span class="finding-id">F12</span>
+    <span class="finding-title">Search/Sort/Filtros em linha unica -- overflow em 640px</span>
+    <div class="finding-tags">
+      <span class="tag tag-cat">CAT-H</span>
+      <span class="tag tag-sev-low">P2</span>
+      <span class="tag tag-type">CSS only</span>
+    </div>
+  </div>
+  <div class="finding-body">
+    <p>Em 640px, os 3 elementos (search input max-w-sm, sort select w-[170px], botao Filtros) competem por espaco horizontal. O layout <code>flex items-center gap-3</code> nao quebra em linhas. Em viewport estreito, o input de busca fica comprimido.</p>
+    <p><strong>Sugestao:</strong> Adicionar <code>flex-wrap</code> ao container ou mover Sort para dentro do popover de filtros em &lt;md.</p>
+    <div class="code-block">
+      <span class="line-bad">-- &lt;div className="flex items-center gap-3"&gt;</span><br>
+      <span class="line-good">++ &lt;div className="flex items-center gap-3 flex-wrap"&gt;</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!-- RESUMO                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<h2 class="section-title">Resumo Final</h2>
+
+<div class="summary-grid">
+  <div class="summary-card">
+    <div class="num" style="color:var(--primary)">8.2</div>
+    <div class="lbl">Nota Geral</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:var(--text)">12</div>
+    <div class="lbl">Achados Totais</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:var(--warn)">3</div>
+    <div class="lbl">P1 (media)</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:var(--info)">9</div>
+    <div class="lbl">P2 (baixa)</div>
+  </div>
+  <div class="summary-card">
+    <div class="num" style="color:var(--success)">9/12</div>
+    <div class="lbl">Code Checks OK</div>
+  </div>
+</div>
+
+<h3 style="font-family:'Manrope',sans-serif; margin:24px 0 12px; font-size:1.1rem;">Classificacao por tipo de fix</h3>
+<table class="audit-table">
+  <thead>
+    <tr>
+      <th>Tipo</th>
+      <th>Achados</th>
+      <th>IDs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>CSS only</td>
+      <td>4</td>
+      <td class="detail">F01, F05, F11, F12</td>
+    </tr>
+    <tr>
+      <td>JSX</td>
+      <td>4</td>
+      <td class="detail">F02, F03, F07, F08</td>
+    </tr>
+    <tr>
+      <td>Hook/Query</td>
+      <td>4</td>
+      <td class="detail">F04, F06, F09, F10</td>
+    </tr>
+    <tr>
+      <td>Backend required</td>
+      <td>0</td>
+      <td class="detail">--</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="font-family:'Manrope',sans-serif; margin:24px 0 12px; font-size:1.1rem;">Evolucao vs ciclo anterior (v1: 7.7/10)</h3>
+<table class="audit-table">
+  <thead>
+    <tr>
+      <th>Metrica</th>
+      <th>v1</th>
+      <th>v2</th>
+      <th>Delta</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Nota geral</td>
+      <td>7.7</td>
+      <td>8.2</td>
+      <td class="status-pass">+0.5</td>
+    </tr>
+    <tr>
+      <td>Achados totais</td>
+      <td>8</td>
+      <td>12</td>
+      <td class="detail">+4 (auditoria mais profunda)</td>
+    </tr>
+    <tr>
+      <td>Cores hardcoded</td>
+      <td class="status-warn">2</td>
+      <td class="status-pass">0</td>
+      <td class="status-pass">Corrigido</td>
+    </tr>
+    <tr>
+      <td>Dirty state</td>
+      <td class="status-warn">faltava</td>
+      <td class="status-pass">implementado</td>
+      <td class="status-pass">Corrigido</td>
+    </tr>
+    <tr>
+      <td>Empty states</td>
+      <td class="status-warn">parcial</td>
+      <td class="status-pass">completo</td>
+      <td class="status-pass">Corrigido</td>
+    </tr>
+    <tr>
+      <td>Responsividade</td>
+      <td class="status-warn">7.0</td>
+      <td class="status-pass">7.5</td>
+      <td class="status-pass">+0.5</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 style="font-family:'Manrope',sans-serif; margin:24px 0 12px; font-size:1.1rem;">Pontos fortes da pagina</h3>
+<ul style="color:var(--muted); margin-left:20px; line-height:2;">
+  <li><strong style="color:var(--success)">Zero cores hardcoded</strong> -- nenhum bg-[#], text-[#], border-[#]</li>
+  <li><strong style="color:var(--success)">Apenas Lucide icons</strong> -- nenhuma lib externa</li>
+  <li><strong style="color:var(--success)">Filtros via URL params</strong> -- compartilhaveis, back/forward funciona</li>
+  <li><strong style="color:var(--success)">Realtime subscription</strong> -- com cleanup, filtrado por organizacao_id</li>
+  <li><strong style="color:var(--success)">Dirty state + ConfirmDialog</strong> -- implementado no NovoClienteModal</li>
+  <li><strong style="color:var(--success)">ErrorBoundary por secao</strong> -- KPI, filtros e lista isolados</li>
+  <li><strong style="color:var(--success)">3 empty states distintos</strong> -- sem dados, busca vazia, erro</li>
+  <li><strong style="color:var(--success)">Importacao multi-step</strong> -- wizard completo com polling async</li>
+  <li><strong style="color:var(--success)">Nenhum arquivo &gt;500 linhas</strong> -- todos abaixo do limite</li>
+  <li><strong style="color:var(--success)">Action-Driven UI</strong> -- handleWebhookAction usado corretamente</li>
+</ul>
+
+<div class="footer">
+  Gerado automaticamente por Beto (Claude Code) -- MdFlow Front Audit v2<br>
+  Data: 2026-04-02 | Pagina: /clientes | Nota: 8.2/10
+</div>
+
+</div><!-- .container -->
+</body>
+</html>

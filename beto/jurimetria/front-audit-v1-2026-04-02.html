@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Front Audit — /jurimetria — 2026-04-02</title>
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1714;
+  --card: #201d1a;
+  --border: #2e2b27;
+  --primary: #20c997;
+  --primary-dim: rgba(32,201,151,0.12);
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --info: #60a5fa;
+  --text: #f2efe8;
+  --muted: #9e9890;
+  --mono: 'JetBrains Mono', 'Fira Mono', monospace;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+  padding: 24px 16px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+
+/* Header */
+.report-header {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 28px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.report-header h1 {
+  font-family: Manrope, Inter, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 4px 0;
+  color: var(--text);
+}
+.report-header p { margin: 0; color: var(--muted); font-size: 13px; }
+.nota-geral {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--primary-dim);
+  border: 1px solid var(--primary);
+  border-radius: 10px;
+  padding: 12px 20px;
+  min-width: 120px;
+}
+.nota-geral .score {
+  font-family: Manrope, Inter, sans-serif;
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--primary);
+  line-height: 1;
+}
+.nota-geral .score-label { font-size: 11px; color: var(--muted); letter-spacing: 0.05em; text-transform: uppercase; }
+
+/* Bug banner */
+.bug-banner {
+  background: rgba(239,68,68,0.1);
+  border: 1px solid var(--danger);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.bug-banner .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.bug-banner h3 { margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: var(--danger); }
+.bug-banner p { margin: 0; font-size: 13px; color: var(--text); }
+.bug-banner code { font-family: var(--mono); font-size: 12px; background: rgba(239,68,68,0.15); padding: 1px 5px; border-radius: 3px; color: var(--danger); }
+
+/* KPI Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+@media (max-width: 768px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 480px) { .kpi-grid { grid-template-columns: 1fr; } }
+.kpi-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.kpi-card .cat-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.kpi-card .cat-score {
+  font-family: Manrope, Inter, sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1;
+}
+.kpi-card .cat-name { font-size: 12px; color: var(--muted); }
+.score-9, .score-10 { color: var(--success); }
+.score-7, .score-8 { color: var(--primary); }
+.score-5, .score-6 { color: var(--warn); }
+.score-0, .score-1, .score-2, .score-3, .score-4 { color: var(--danger); }
+
+/* Bar */
+.score-bar-wrap { background: var(--border); border-radius: 4px; height: 4px; margin-top: 6px; overflow: hidden; }
+.score-bar { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+
+/* Section */
+.section { margin-bottom: 28px; }
+.section-title {
+  font-family: Manrope, Inter, sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 12px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Findings Table */
+.findings-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.findings-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.findings-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(46,43,39,0.6);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.findings-table tr:last-child td { border-bottom: none; }
+.findings-table tr:hover td { background: rgba(32,201,151,0.03); }
+
+/* Priority badges */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.badge-p0 { background: rgba(239,68,68,0.15); color: var(--danger); border: 1px solid rgba(239,68,68,0.3); }
+.badge-p1 { background: rgba(245,158,11,0.15); color: var(--warn); border: 1px solid rgba(245,158,11,0.3); }
+.badge-p2 { background: rgba(32,201,151,0.1); color: var(--primary); border: 1px solid rgba(32,201,151,0.25); }
+.badge-ok { background: rgba(34,197,94,0.1); color: var(--success); border: 1px solid rgba(34,197,94,0.25); }
+.badge-cat { background: rgba(96,165,250,0.12); color: var(--info); border: 1px solid rgba(96,165,250,0.25); }
+
+/* Fix box */
+.fix-box {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+}
+.fix-box .fix-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 6px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fix-box p { margin: 0 0 6px 0; color: var(--muted); font-size: 13px; }
+.fix-box code {
+  font-family: var(--mono);
+  font-size: 12px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 6px;
+  display: block;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--primary);
+  margin-top: 6px;
+}
+
+/* Conclusion */
+.conclusion {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px 22px;
+  margin-top: 28px;
+}
+.conclusion h3 {
+  font-family: Manrope, Inter, sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+}
+.conclusion p { margin: 0 0 8px 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+.conclusion p:last-child { margin-bottom: 0; }
+
+/* Category row */
+.cat-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px; }
+.filepath { font-family: var(--mono); font-size: 11px; color: var(--primary); background: var(--primary-dim); padding: 1px 6px; border-radius: 3px; word-break: break-all; }
+
+/* Status indicator */
+.status-fixed { color: var(--success); font-weight: 600; }
+.status-open { color: var(--warn); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Header -->
+  <div class="report-header">
+    <div>
+      <h1>Auditoria Front-end — /jurimetria</h1>
+      <p>MdFlow · Design System v5 Warm Charcoal · 2026-04-02</p>
+      <p style="margin-top:6px">Arquivos analisados: 44 TSX/TS · 4.908 linhas totais</p>
+    </div>
+    <div class="nota-geral">
+      <span class="score">7.5</span>
+      <span class="score-label">Nota Geral</span>
+    </div>
+  </div>
+
+  <!-- Bug Banner — P0 resolvido durante auditoria -->
+  <div class="bug-banner">
+    <div class="icon">🔴</div>
+    <div>
+      <h3>Bug P0 encontrado e corrigido durante a auditoria</h3>
+      <p><strong>ModalRankingCompleto.tsx:</strong> JSX orphan fora do <code>return()</code> causava erro de compilação SWC
+      (<em>"Expected ',', got '{'"</em>), tornando a página /jurimetria inacessível com erro de boundary.
+      A correção envolveu encapsular <code>&lt;Dialog&gt;</code> e o <code>ModalDetalhes</code> adjacente em um
+      <code>&lt;&gt;...&lt;/&gt;</code> Fragment.</p>
+      <p style="margin-top:6px">Arquivo: <span class="filepath">/src/pages/Jurimetria/modals/ModalRankingCompleto.tsx</span> — linhas 122 e 257–258</p>
+    </div>
+  </div>
+
+  <!-- KPI cards por categoria -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="cat-label">CAT-A</div>
+      <div class="cat-score score-9">9</div>
+      <div class="cat-name">Tipografia & Hierarquia</div>
+      <div class="score-bar-wrap"><div class="score-bar score-9" style="width:90%;background:var(--success)"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="cat-label">CAT-B</div>
+      <div class="cat-score score-9">9</div>
+      <div class="cat-name">Cores & Tokens CSS</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:90%;background:var(--success)"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="cat-label">CAT-C</div>
+      <div class="cat-score score-8">8</div>
+      <div class="cat-name">Espaçamento & Layout</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:80%;background:var(--primary)"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="cat-label">CAT-D</div>
+      <div class="cat-score score-8">8</div>
+      <div class="cat-name">Interatividade & Estados</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:80%;background:var(--primary)"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="cat-label">CAT-E</div>
+      <div class="cat-score score-7">7</div>
+      <div class="cat-name">Responsividade</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:70%;background:var(--primary)"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="cat-label">CAT-F</div>
+      <div class="cat-score score-9">9</div>
+      <div class="cat-name">Componentes & Consistência</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:90%;background:var(--success)"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="cat-label">CAT-G</div>
+      <div class="cat-score score-5">5</div>
+      <div class="cat-name">Acessibilidade</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:50%;background:var(--warn)"></div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="cat-label">CAT-H</div>
+      <div class="cat-score score-9">9</div>
+      <div class="cat-name">Glassmorphism & Polish</div>
+      <div class="score-bar-wrap"><div class="score-bar" style="width:90%;background:var(--success)"></div></div>
+    </div>
+  </div>
+
+  <!-- Tabela de achados -->
+  <div class="section">
+    <h2 class="section-title">Achados Detalhados</h2>
+    <div style="overflow-x:auto">
+    <table class="findings-table">
+      <thead>
+        <tr>
+          <th style="width:70px">Prio</th>
+          <th style="width:65px">Cat</th>
+          <th>Item / Achado</th>
+          <th style="width:180px">Arquivo</th>
+          <th>Fix Sugerido</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <!-- P0 — já corrigido -->
+        <tr>
+          <td><span class="badge badge-ok">FIXED</span></td>
+          <td><span class="badge badge-cat">CAT-F</span></td>
+          <td>
+            <strong class="status-fixed">JSX orphan fora do return() — crash de compilação SWC</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              <code>ModalDetalhes</code> renderizado após <code>&lt;/Dialog&gt;</code> mas antes de <code>)</code> do return.
+              O SWC rejeita com "Expected ',', got '{'". Toda a rota /jurimetria retornava Error Boundary.
+            </span>
+          </td>
+          <td><span class="filepath">modals/ModalRankingCompleto.tsx:250</span></td>
+          <td class="status-fixed">Corrigido: Fragment <code>&lt;&gt;...&lt;/&gt;</code> envolvendo Dialog + ModalDetalhes</td>
+        </tr>
+
+        <!-- P1 -->
+        <tr>
+          <td><span class="badge badge-p1">P1</span></td>
+          <td><span class="badge badge-cat">CAT-G</span></td>
+          <td>
+            <strong>Botões de paginação sem aria-label</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              ChevronLeft / ChevronRight em <code>RankingEmpresasCompleto</code>: <code>Button variant="ghost" size="icon"</code>
+              sem <code>aria-label</code>. Leitores de tela anunciam apenas "botão" sem contexto.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/resultados/RankingEmpresasCompleto.tsx:148-153</span></td>
+          <td>Adicionar <code>aria-label="Página anterior"</code> e <code>aria-label="Próxima página"</code></td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p1">P1</span></td>
+          <td><span class="badge badge-cat">CAT-G</span></td>
+          <td>
+            <strong>Botão X de remover arquivo sem aria-label</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Em StepUpload, o botão de remover arquivo selecionado contém apenas <code>&lt;X className="h-4 w-4"/&gt;</code>
+              sem texto ou aria-label.
+            </span>
+          </td>
+          <td><span class="filepath">modals/ModalImport/StepUpload.tsx:103</span></td>
+          <td>Adicionar <code>aria-label="Remover arquivo"</code> no Button</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p1">P1</span></td>
+          <td><span class="badge badge-cat">CAT-D</span></td>
+          <td>
+            <strong>staleTime inconsistente — a maioria usa 5 min em vez de 30s (padrão CLAUDE.md)</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Regra definida: <code>staleTime: 30_000</code> em todos os hooks React Query.
+              18 hooks usam <code>5 * 60 * 1000</code> (5 min), 1 usa <code>10 * 60 * 1000</code> (10 min),
+              2 usam <code>60 * 1000</code> e <code>2 * 60 * 1000</code> — somente 2 estão corretos em <code>30_000</code>.
+            </span>
+          </td>
+          <td><span class="filepath">Todos os hooks de query da página</span></td>
+          <td>Padronizar para <code>staleTime: 30_000</code> em todos os useQuery da pasta</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p1">P1</span></td>
+          <td><span class="badge badge-cat">CAT-G</span></td>
+          <td>
+            <strong>TabPesquisa e seus componentes (4 arquivos) são código morto — não integrado na nav</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              A aba "Pesquisa de Mercado Jurídico" existe em <code>tabs/pesquisa/</code> (TabPesquisa, PesquisaForm,
+              PesquisaResultado + hook) mas não está registrada em <code>JurimetriaTabs.tsx</code> nem em
+              <code>JurimetriaPage.tsx</code>. Feature invisível ao usuário.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/pesquisa/ (4 arquivos)</span></td>
+          <td>Decidir: adicionar aba "Pesquisa" na nav ou remover o dead code</td>
+        </tr>
+
+        <!-- P2 -->
+        <tr>
+          <td><span class="badge badge-p2">P2</span></td>
+          <td><span class="badge badge-cat">CAT-E</span></td>
+          <td>
+            <strong>Filtros em mobile cortam o último filtro "Advogado" — overflow horizontal sem scroll visible</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Em 375px os filtros globais ficam em duas linhas (<code>flex-wrap</code>) mas o chip "Localidade" e "Tipo"
+              ficam fora da área visível na linha de cima. O usuário precisa intuir o scroll horizontal.
+            </span>
+          </td>
+          <td><span class="filepath">components/JurimetriaFiltrosGlobais.tsx:308</span></td>
+          <td>Considerar scroll horizontal com scrollbar-thin ou dois chips por linha em mobile via grid</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p2">P2</span></td>
+          <td><span class="badge badge-cat">CAT-E</span></td>
+          <td>
+            <strong>KPIsGrid mobile: grid-cols-2 trunca cards na tela de 375px</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Com 2 colunas em 375px, cada card tem ~172px. O valor "14.456" em font-display tracking-tight ocupa bem
+              o espaço, mas no card "GANHOU A CADA" o sufixo "processos" força quebra de linha. Visualmente aceitável
+              mas pode melhorar com grid-cols-1 sm:grid-cols-2.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/dashboard/KPIsGrid.tsx:91</span></td>
+          <td>Considerar <code>grid-cols-1 sm:grid-cols-2 lg:grid-cols-3</code> para evitar quebra de sufixo</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p2">P2</span></td>
+          <td><span class="badge badge-cat">CAT-G</span></td>
+          <td>
+            <strong>BlindedValue button sem aria-label contextual</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              O button toggle de visibilidade da Receita Total em KPIsGrid não possui aria-label descrevendo a ação
+              ("Exibir receita" / "Ocultar receita"). O leitor de tela não consegue descrever a função.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/dashboard/KPIsGrid.tsx:25-41</span></td>
+          <td>Adicionar <code>aria-label={visible ? "Ocultar receita total" : "Exibir receita total"}</code></td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p2">P2</span></td>
+          <td><span class="badge badge-cat">CAT-C</span></td>
+          <td>
+            <strong>Tabs de sub-navegação em TabJulgadores usam border-b manual ao invés do componente Tabs do shadcn</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              O componente usa <code>Button variant="ghost"</code> com <code>border-b-2</code> manual para simular
+              sub-tabs. Falta <code>role="tablist"</code> / <code>role="tab"</code> semântico.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/julgadores/TabJulgadores.tsx:49-65</span></td>
+          <td>Migrar para <code>&lt;Tabs&gt;</code> do shadcn ou adicionar <code>role="tablist"</code> e <code>role="tab"</code> nos botões</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p2">P2</span></td>
+          <td><span class="badge badge-cat">CAT-D</span></td>
+          <td>
+            <strong>Empty states sem ícone contextual em vários sub-componentes</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              RankingAdvogados, RankingEmpresasCompleto, SubtabPrimeiroGrau/SegundoGrau e SubtabComparativo exibem
+              apenas <code>&lt;p className="text-sm"&gt;Nenhum...&lt;/p&gt;</code> sem ícone. Comparado com
+              DocsPendentesRegiao e PainelChanceGanho que já têm ícone + mensagem — inconsistência.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/resultados/RankingAdvogados.tsx:29, tabs/resultados/RankingEmpresasCompleto.tsx:78</span></td>
+          <td>Adicionar ícone Lucide contextual + muted-foreground antes da mensagem de empty</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-p2">P2</span></td>
+          <td><span class="badge badge-cat">CAT-C</span></td>
+          <td>
+            <strong>RankingEmpresasCompleto: colunas de dados somem em tablet (768px) por usar grid auto</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              A grid usa <code>lg:grid-cols-[2rem_1fr_5rem_5rem_5rem_5rem_6rem_7rem]</code> que só ativa em 1024px+.
+              Em tablet (768px) cai para <code>grid-cols-[2rem_1fr_auto]</code> — colunas Taxa, Tempo Médio etc. somem,
+              mas o cabeçalho ainda as exibe, criando desalinhamento visual.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/resultados/RankingEmpresasCompleto.tsx:102</span></td>
+          <td>Adicionar breakpoint <code>md:grid-cols-[2rem_1fr_5rem_5rem_5rem]</code> para tablet ou ocultar colunas menos importantes via <code>hidden md:block</code></td>
+        </tr>
+
+        <!-- Pontos positivos -->
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-A</span></td>
+          <td>
+            <strong>Tipografia 100% aderente ao DS v5</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Todos os KPI values usam <code>font-display tracking-tight</code> (Manrope). Labels em
+              <code>text-xs font-medium uppercase tracking-wide</code>. OAB em <code>font-mono</code>.
+              Sem font-family hardcoded em nenhum arquivo.
+            </span>
+          </td>
+          <td><span class="filepath">Todos os KPICard components</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-B</span></td>
+          <td>
+            <strong>Zero cores hardcoded no JSX</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Nenhum <code>bg-[#...]</code> ou <code>text-[#...]</code> encontrado. Todos os
+              <code>style=&#123;&#125;</code> inline usam <code>hsl(var(--...))</code>.
+              Ícones de chart usam tokens: <code>bg-primary/15</code>, <code>bg-chart-3/15</code>,
+              <code>bg-destructive/15</code>.
+            </span>
+          </td>
+          <td><span class="filepath">Global</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-B</span></td>
+          <td>
+            <strong>Cegueira financeira implementada corretamente</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              KPIsGrid verifica <code>acesso_financeiro</code> via useAuth e exibe <code>R$ •••••</code> ou
+              toggle por usuário. ModalRankingCompleto também oculta coluna Receita para <code>!acesso_financeiro</code>.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/dashboard/KPIsGrid.tsx, modals/ModalRankingCompleto.tsx</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-D</span></td>
+          <td>
+            <strong>Skeleton loading em todos os dados assíncronos principais</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Todos os KPI cards, rankings, timelines e charts possuem estado de loading com Skeleton adequado.
+              Shimmer animation nativo do shadcn.
+            </span>
+          </td>
+          <td><span class="filepath">Global</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-F</span></td>
+          <td>
+            <strong>GlassCard usado consistentemente em todos os cards da página</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              100% dos cards de conteúdo usam <code>GlassCard variant="solid"</code>. Zero uso direto de
+              <code>&lt;Card&gt;</code> do shadcn fora do padrão da página.
+            </span>
+          </td>
+          <td><span class="filepath">Global</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-H</span></td>
+          <td>
+            <strong>Animações suaves e polish visual excelente</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Barras de progresso com <code>transition-all duration-500</code>. Fade-in em PesquisaResultado
+              com <code>animate-in</code>. Hover states via <code>hover:bg-accent/30</code>,
+              <code>hover:opacity-80</code>. ErrorBoundary com mensagem clara em pt-BR.
+            </span>
+          </td>
+          <td><span class="filepath">Global</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-F</span></td>
+          <td>
+            <strong>Nenhum arquivo excede 500 linhas</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Arquivo maior: <code>JurimetriaFiltrosGlobais.tsx</code> com 473 linhas — abaixo do limite.
+              Todos os demais bem abaixo de 300 linhas. Boa decomposição em sub-componentes.
+            </span>
+          </td>
+          <td><span class="filepath">components/JurimetriaFiltrosGlobais.tsx (473 linhas)</span></td>
+          <td>Nenhuma ação necessária (473 &lt; 500)</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-E</span></td>
+          <td>
+            <strong>Sidebar vira drawer em mobile — layout funcional em 375px e 768px</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              Página funciona em todos os breakpoints testados (375, 768, 1280). Tabs horizontais com
+              overflow-x-auto e whitespace-nowrap. Filtros com flex-wrap. KPI grid com grid-cols-2 mobile.
+            </span>
+          </td>
+          <td><span class="filepath">Global</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+        <tr>
+          <td><span class="badge badge-ok">OK</span></td>
+          <td><span class="badge badge-cat">CAT-D</span></td>
+          <td>
+            <strong>Tooltips nos elementos informativos (Info icon, barras da timeline)</strong><br>
+            <span style="color:var(--muted);font-size:12px">
+              PainelChanceGanho e TimelineProcessual usam <code>TooltipProvider + Tooltip + TooltipTrigger</code>
+              do shadcn corretamente. Info icon com cursor-help.
+            </span>
+          </td>
+          <td><span class="filepath">tabs/dashboard/PainelChanceGanho.tsx, tabs/tempo/TimelineProcessual.tsx</span></td>
+          <td>Nenhuma ação necessária</td>
+        </tr>
+
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- Fixes por prioridade -->
+  <div class="section">
+    <h2 class="section-title">Fixes por Prioridade</h2>
+
+    <h3 style="color:var(--danger);font-size:13px;font-weight:700;margin:0 0 8px;letter-spacing:0.05em;text-transform:uppercase">P0 — Crítico (JÁ CORRIGIDO)</h3>
+
+    <div class="fix-box" style="border-color:rgba(34,197,94,0.3);background:rgba(34,197,94,0.04)">
+      <div class="fix-title"><span class="badge badge-ok">FIXED</span> ModalRankingCompleto — JSX fora do return()</div>
+      <p>Linhas 122 e 257-258 — Fragment adicionado. Página /jurimetria agora carrega sem erro.</p>
+      <code>// ANTES — SWC rejeita com "Expected ',', got '{'"
+return (
+  &lt;Dialog ...&gt;...&lt;/Dialog&gt;
+
+  {julgadorDetalhesId &amp;&amp; &lt;ModalDetalhes ... /&gt;}  // ← orphan JSX
+);
+
+// DEPOIS — correto
+return (
+  &lt;&gt;
+    &lt;Dialog ...&gt;...&lt;/Dialog&gt;
+    {julgadorDetalhesId &amp;&amp; &lt;ModalDetalhes ... /&gt;}
+  &lt;/&gt;
+);</code>
+    </div>
+
+    <h3 style="color:var(--warn);font-size:13px;font-weight:700;margin:16px 0 8px;letter-spacing:0.05em;text-transform:uppercase">P1 — Importante</h3>
+
+    <div class="fix-box">
+      <div class="fix-title"><span class="badge badge-p1">P1</span> staleTime — padronizar para 30_000</div>
+      <p>18+ queries usam 5 min. Conforme CLAUDE.md seção 10: <code>staleTime: 30_000</code> obrigatório.</p>
+      <code>// Buscar e substituir em todos os useQuery da pasta:
+// staleTime: 5 * 60 * 1000  →  staleTime: 30_000
+// staleTime: 10 * 60 * 1000 →  staleTime: 30_000
+// staleTime: 60 * 1000      →  staleTime: 30_000
+// staleTime: 2 * 60 * 1000  →  staleTime: 30_000</code>
+    </div>
+
+    <div class="fix-box">
+      <div class="fix-title"><span class="badge badge-p1">P1</span> aria-labels em botões ícone</div>
+      <p>RankingEmpresasCompleto paginação + StepUpload botão X</p>
+      <code>// RankingEmpresasCompleto.tsx:148
+&lt;Button ... aria-label="Página anterior"&gt;
+  &lt;ChevronLeft className="h-4 w-4" /&gt;
+&lt;/Button&gt;
+&lt;Button ... aria-label="Próxima página"&gt;
+  &lt;ChevronRight className="h-4 w-4" /&gt;
+&lt;/Button&gt;
+
+// StepUpload.tsx:103
+&lt;Button ... aria-label="Remover arquivo"&gt;
+  &lt;X className="h-4 w-4" /&gt;
+&lt;/Button&gt;</code>
+    </div>
+
+    <div class="fix-box">
+      <div class="fix-title"><span class="badge badge-p1">P1</span> TabPesquisa — dead code ou integrar na nav</div>
+      <p>4 arquivos em <span class="filepath">tabs/pesquisa/</span> não estão referenciados na navegação principal. Decisão necessária.</p>
+      <code>// JurimetriaTabs.tsx — adicionar aba se a feature deve ser exposta:
+const tabs = [
+  { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+  { id: 'resultados', label: 'Resultados', icon: Target },
+  { id: 'tempo', label: 'Tempo Processual', icon: Clock },
+  { id: 'julgadores', label: 'Varas &amp; Juízes', icon: Scale },
+  { id: 'pesquisa', label: 'Pesquisa', icon: Search }, // ← adicionar
+];
+
+// JurimetriaPage.tsx — adicionar renderização:
+{activeTab === 'pesquisa' &amp;&amp; &lt;TabPesquisa filters={filters} /&gt;}</code>
+    </div>
+
+    <h3 style="color:var(--primary);font-size:13px;font-weight:700;margin:16px 0 8px;letter-spacing:0.05em;text-transform:uppercase">P2 — Melhoria</h3>
+
+    <div class="fix-box">
+      <div class="fix-title"><span class="badge badge-p2">P2</span> BlindedValue — aria-label no toggle</div>
+      <code>// KPIsGrid.tsx:25
+&lt;button
+  onClick={() =&gt; setVisible(v =&gt; !v)}
+  aria-label={visible ? "Ocultar receita total" : "Exibir receita total"}
+  className="flex items-center gap-1.5 group"
+&gt;</code>
+    </div>
+
+    <div class="fix-box">
+      <div class="fix-title"><span class="badge badge-p2">P2</span> TabJulgadores — semântica de tablist</div>
+      <code>// TabJulgadores.tsx:49 — adicionar role="tablist" na div e role="tab" nos botões
+&lt;div className="flex items-center gap-1" role="tablist"&gt;
+  {SUBTABS.map(t =&gt; (
+    &lt;Button
+      role="tab"
+      aria-selected={subtab === t.key}
+      aria-controls={`panel-${t.key}`}
+      ...
+    &gt;</code>
+    </div>
+
+    <div class="fix-box">
+      <div class="fix-title"><span class="badge badge-p2">P2</span> Empty states — adicionar ícone contextual</div>
+      <code>// Padrão atual (RankingAdvogados, RankingEmpresas, etc.):
+&lt;p className="text-sm"&gt;Nenhum advogado...&lt;/p&gt;
+
+// Padrão recomendado (já usado em DocsPendentes e PainelChanceGanho):
+&lt;div className="flex flex-col items-center justify-center py-8 text-muted-foreground gap-2"&gt;
+  &lt;Users className="h-8 w-8 opacity-40" /&gt;
+  &lt;p className="text-sm"&gt;Nenhum advogado com processos no período&lt;/p&gt;
+&lt;/div&gt;</code>
+    </div>
+
+    <div class="fix-box">
+      <div class="fix-title"><span class="badge badge-p2">P2</span> RankingEmpresasCompleto — breakpoint tablet ausente</div>
+      <code>// RankingEmpresasCompleto.tsx:102
+// ANTES — só 2 estados: mobile (3 cols) e desktop (8 cols)
+className="grid grid-cols-[2rem_1fr_auto] lg:grid-cols-[2rem_1fr_5rem_5rem_5rem_5rem_6rem_7rem] ..."
+
+// DEPOIS — adicionar breakpoint md intermediário
+className="grid grid-cols-[2rem_1fr_auto] md:grid-cols-[2rem_1fr_5rem_5rem_5rem] lg:grid-cols-[2rem_1fr_5rem_5rem_5rem_5rem_6rem_7rem] ..."
+// + ocultar header cols que não aparecem no md:
+&lt;TableHead className="hidden md:table-cell"&gt;Taxa&lt;/TableHead&gt;</code>
+    </div>
+  </div>
+
+  <!-- Conclusão -->
+  <div class="conclusion">
+    <h3>Conclusão</h3>
+    <p>
+      A página /jurimetria está em <strong>excelente estado geral</strong> — nota 7.5/10.
+      O Design System v5 Warm Charcoal é seguido rigorosamente: zero cores hardcoded, tipografia 100% via tokens,
+      todos os cards usam GlassCard, loading skeletons completos, cegueira financeira implementada corretamente.
+    </p>
+    <p>
+      O único bug crítico (P0) era um JSX mal posicionado em <code>ModalRankingCompleto.tsx</code> que tornava
+      a rota completamente inacessível — <strong>já corrigido durante esta auditoria</strong>.
+    </p>
+    <p>
+      Os principais pontos de melhoria são na <strong>acessibilidade (CAT-G, nota 5)</strong>: botões ícone sem
+      aria-label, sub-navegação sem semântica tablist, e toggle de receita sem descrição para leitores de tela.
+      Há também <strong>18 queries com staleTime acima do padrão</strong> (5 min em vez de 30s) e um
+      <strong>TabPesquisa orphaned</strong> que precisa de decisão do CTO.
+    </p>
+    <p>
+      Responsividade está sólida — mobile 375px e tablet 768px funcionam, com pequenas oportunidades de refinamento
+      nos chips de filtro e na grid do ranking de empresas em tablet.
+    </p>
+  </div>
+
+  <div style="text-align:center;margin-top:28px;font-size:11px;color:var(--muted)">
+    MdFlow Front Audit v1 · /jurimetria · 2026-04-02 · Claude Code Sonnet 4.6
+  </div>
+
+</div>
+</body>
+</html>

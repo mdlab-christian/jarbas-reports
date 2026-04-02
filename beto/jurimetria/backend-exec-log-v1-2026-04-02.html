@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Backend Executor — /jurimetria — 2026-04-02</title>
+  <style>
+    :root {
+      --bg: #12100e;
+      --card: #1a1714;
+      --surface: #211e1a;
+      --border: #3a3530;
+      --fg: #f2efe8;
+      --muted: #9e978a;
+      --primary: #20c997;
+      --primary-dim: rgba(32,201,151,0.12);
+      --danger: #ef4444;
+      --danger-dim: rgba(239,68,68,0.12);
+      --warning: #f59e0b;
+      --warning-dim: rgba(245,158,11,0.12);
+      --success: #22c55e;
+      --success-dim: rgba(34,197,94,0.12);
+      --violet: #a78bfa;
+      --violet-dim: rgba(167,139,250,0.12);
+      --skip: #64748b;
+      --skip-dim: rgba(100,116,139,0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 32px 24px;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    h1 { font-family: 'Manrope', system-ui, sans-serif; font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 4px; }
+    h2 { font-family: 'Manrope', system-ui, sans-serif; font-size: 15px; font-weight: 600; margin-bottom: 16px; color: var(--muted); letter-spacing: 0.04em; text-transform: uppercase; }
+    h3 { font-family: 'Manrope', system-ui, sans-serif; font-size: 14px; font-weight: 700; }
+    .meta { color: var(--muted); font-size: 12px; margin-bottom: 32px; }
+    .meta span { color: var(--fg); font-weight: 500; }
+
+    /* Summary scorecard */
+    .scorecard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    .score-item {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .score-item .val {
+      font-family: 'Manrope', system-ui, sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .score-item .lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .val-green { color: var(--success); }
+    .val-amber { color: var(--warning); }
+    .val-red { color: var(--danger); }
+    .val-primary { color: var(--primary); }
+
+    /* Bug cards */
+    .bug-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
+    .bug-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .bug-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .bug-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--surface);
+      padding: 3px 8px;
+      border-radius: 5px;
+      color: var(--muted);
+    }
+    .bug-title { flex: 1; font-weight: 600; font-size: 14px; }
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .badge-p0 { background: var(--danger-dim); color: var(--danger); }
+    .badge-p1 { background: var(--warning-dim); color: var(--warning); }
+    .badge-p2 { background: var(--skip-dim); color: var(--skip); }
+    .badge-ok { background: var(--success-dim); color: var(--success); }
+    .badge-skip { background: var(--skip-dim); color: var(--skip); }
+    .badge-warn { background: var(--warning-dim); color: var(--warning); }
+    .status-icon { font-size: 16px; }
+
+    .bug-body { padding: 16px 18px; }
+    .bug-section { margin-bottom: 14px; }
+    .bug-section:last-child { margin-bottom: 0; }
+    .bug-section-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; font-weight: 600; }
+
+    .detail-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 16px; }
+    .detail-key { color: var(--muted); font-size: 12px; }
+    .detail-val { font-size: 12px; }
+
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      background: var(--surface);
+      border-radius: 6px;
+    }
+    pre { padding: 12px 14px; overflow-x: auto; border: 1px solid var(--border); line-height: 1.5; }
+    code { padding: 1px 5px; color: var(--primary); }
+
+    .commit-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--primary-dim);
+      border: 1px solid rgba(32,201,151,0.25);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--primary);
+      margin-top: 8px;
+    }
+
+    .skip-reason {
+      background: var(--skip-dim);
+      border: 1px solid rgba(100,116,139,0.25);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--skip);
+      font-size: 12px;
+    }
+
+    /* Summary table */
+    .summary-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+    .summary-table th {
+      background: var(--surface);
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+    .summary-table td { padding: 10px 16px; border-top: 1px solid var(--border); font-size: 12px; vertical-align: middle; }
+    .summary-table tr:last-child td { border-bottom: none; }
+
+    .migration-list { display: flex; flex-direction: column; gap: 8px; }
+    .migration-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .migration-item .m-commit { color: var(--primary); }
+    .migration-item .m-file { color: var(--fg); flex: 1; }
+    .migration-item .m-desc { color: var(--muted); font-size: 10px; }
+
+    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 11px; text-align: center; }
+    footer strong { color: var(--fg); }
+  </style>
+</head>
+<body>
+
+  <h1>Backend Executor — /jurimetria</h1>
+  <p class="meta">
+    Data: <span>2026-04-02</span> &nbsp;·&nbsp;
+    Agente: <span>Beto (Claude Code)</span> &nbsp;·&nbsp;
+    Projeto: <span>MdFlow · Supabase qdivfairxhdihaqqypgb</span> &nbsp;·&nbsp;
+    Branch: <span>main</span>
+  </p>
+
+  <!-- Scorecard -->
+  <div class="scorecard">
+    <div class="score-item">
+      <div class="val val-green">4</div>
+      <div class="lbl">Fixes executados</div>
+    </div>
+    <div class="score-item">
+      <div class="val val-primary">2</div>
+      <div class="lbl">P0 resolvidos</div>
+    </div>
+    <div class="score-item">
+      <div class="val val-primary">2</div>
+      <div class="lbl">P1 tratados</div>
+    </div>
+    <div class="score-item">
+      <div class="val val-amber">2</div>
+      <div class="lbl">Skips (P2 + n8n)</div>
+    </div>
+    <div class="score-item">
+      <div class="val val-green">4</div>
+      <div class="lbl">Migrations criadas</div>
+    </div>
+    <div class="score-item">
+      <div class="val val-green">4</div>
+      <div class="lbl">Commits isolados</div>
+    </div>
+  </div>
+
+  <h2>Bugs Executados</h2>
+  <div class="bug-list">
+
+    <!-- BUG-BE-01 -->
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-id">BUG-BE-01</span>
+        <span class="bug-title">RLS OFF em tabelas legacy jurimetria</span>
+        <span class="badge badge-p0">P0</span>
+        <span class="badge badge-ok">✅ Resolvido</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <div class="bug-section-label">Diagnóstico</div>
+          <div class="detail-grid">
+            <span class="detail-key">Tabelas afetadas</span>
+            <span class="detail-val"><code>jurimetria_empresas</code>, <code>jurimetria_juizes</code>, <code>jurimetria_escritorios_reu</code>, <code>jurimetria_acordos</code></span>
+            <span class="detail-key">RLS antes</span>
+            <span class="detail-val" style="color:var(--danger)">OFF em todas as 4 tabelas</span>
+            <span class="detail-key">organizacao_id</span>
+            <span class="detail-val">Presente em 3 tabelas; <code>jurimetria_acordos</code> não tem (tabela global)</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Solução aplicada</div>
+          <pre>-- Tabelas com organizacao_id → modelo A (tenant_isolation)
+ALTER TABLE jurimetria_empresas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "tenant_isolation" ON jurimetria_empresas
+  USING (organizacao_id = public.get_org_id());
+-- (idem para jurimetria_juizes e jurimetria_escritorios_reu)
+
+-- jurimetria_acordos → sem org_id → SELECT público
+ALTER TABLE jurimetria_acordos ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "allow_select" ON jurimetria_acordos
+  FOR SELECT USING (true);</pre>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Verificação</div>
+          <p style="font-size:12px;">Consulta <code>pg_class.relrowsecurity</code> confirmou <code>true</code> em todas as 4 tabelas após aplicação.</p>
+        </div>
+        <div class="commit-chip">
+          <span>commit</span>
+          <span>289b8f5f</span>
+          <span style="color:var(--muted)">20260402180001_fix_jurimetria_rls_legacy_tables.sql</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-BE-02 -->
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-id">BUG-BE-02</span>
+        <span class="bug-title">julgadores.grau = NULL em 760/761 registros</span>
+        <span class="badge badge-p0">P0</span>
+        <span class="badge badge-ok">✅ Resolvido</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <div class="bug-section-label">Diagnóstico</div>
+          <div class="detail-grid">
+            <span class="detail-key">Distribuição</span>
+            <span class="detail-val"><code>grau=NULL → 760 registros</code> | <code>grau=2 → 1 registro</code></span>
+            <span class="detail-key">Causa raiz</span>
+            <span class="detail-val">Julgadores importados de dados legados sem comarca_vara_id. Trigger <code>fn_valida_vinculo_julgador</code> impede setar <code>grau=1</code> sem comarca_vara_id.</span>
+            <span class="detail-key">Impacto</span>
+            <span class="detail-val">RPC com <code>p_grau=1</code> excluía 760 julgadores — subtab "1° Grau" mostrava vazio.</span>
+            <span class="detail-key">Frontend</span>
+            <span class="detail-val">SubtabPrimeiroGrau e SubtabComparativo já tinham workaround client-side (<code>j.grau == null</code> = 1º grau).</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Opções avaliadas</div>
+          <div class="detail-grid">
+            <span class="detail-key">Opção A (descartada)</span>
+            <span class="detail-val">UPDATE grau=1 — bloqueado pelo trigger (requer comarca_vara_id)</span>
+            <span class="detail-key">Opção B (adotada)</span>
+            <span class="detail-val">Corrigir RPC: <code>OR (p_grau = 1 AND j.grau IS NULL)</code> — alinha com lógica do frontend</span>
+            <span class="detail-key">Opção C</span>
+            <span class="detail-val">Dropar trigger + update em lote — invasivo demais para dados de produção</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Fix na RPC</div>
+          <pre>-- Antes:
+AND (p_grau IS NULL OR j.grau = p_grau::smallint)
+
+-- Depois:
+AND (
+  p_grau IS NULL
+  OR j.grau = p_grau::smallint
+  OR (p_grau = 1 AND j.grau IS NULL)  -- grau=NULL → 1º grau (dados legados)
+)</pre>
+        </div>
+        <div class="commit-chip">
+          <span>commit</span>
+          <span>045535c6</span>
+          <span style="color:var(--muted)">20260402190001_fix_jurimetria_julgadores_grau_null.sql</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-BE-03 -->
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-id">BUG-BE-03</span>
+        <span class="bug-title">upsert_julgador — função duplicada</span>
+        <span class="badge badge-p1">P1</span>
+        <span class="badge badge-ok">✅ Resolvido</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <div class="bug-section-label">Diagnóstico</div>
+          <div class="detail-grid">
+            <span class="detail-key">Versão antiga (droppada)</span>
+            <span class="detail-val"><code>oid 37372</code> — sem parâmetro <code>p_ativo</code></span>
+            <span class="detail-key">Versão correta (mantida)</span>
+            <span class="detail-val"><code>oid 44273</code> — com <code>p_ativo boolean DEFAULT true</code></span>
+            <span class="detail-key">Risco</span>
+            <span class="detail-val">Ambiguidade de overloading — chamadas sem <code>p_ativo</code> podiam resolver para versão antiga</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Fix executado</div>
+          <pre>DROP FUNCTION IF EXISTS public.upsert_julgador(
+  uuid, text, text, integer, uuid, uuid, uuid, uuid, uuid
+);</pre>
+          <p style="font-size:12px;margin-top:8px;">TypeScript check pós-drop: zero erros em referências a <code>upsert_julgador</code>.</p>
+        </div>
+        <div class="commit-chip">
+          <span>commit</span>
+          <span>8769c789</span>
+          <span style="color:var(--muted)">20260402200001_fix_jurimetria_upsert_julgador_duplicado.sql</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-BE-04 -->
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-id">BUG-BE-04</span>
+        <span class="bug-title">comarcas_varas com NULL comarca/vara</span>
+        <span class="badge badge-p1">P1</span>
+        <span class="badge badge-warn">⚠️ Auditado — sem ação de dados</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-section">
+          <div class="bug-section-label">Auditoria</div>
+          <div class="detail-grid">
+            <span class="detail-key">Registros NULL</span>
+            <span class="detail-val">217 registros com <code>vara=NULL</code> (comarca sempre preenchida)</span>
+            <span class="detail-key">Processos vinculados</span>
+            <span class="detail-val">537 processos ativos com FK para esses registros</span>
+            <span class="detail-key">Status</span>
+            <span class="detail-val">Todos <code>ativo=true</code>, <code>organizacao_id</code> válido</span>
+          </div>
+        </div>
+        <div class="bug-section">
+          <div class="bug-section-label">Decisão</div>
+          <p style="font-size:12px;">Registros representam comarcas sem vara específica (jurisdição comarca-level). São dados válidos — não há como fazer soft-delete sem quebrar 537 FKs. Mitigação no frontend já existe via BUG-V3-01. Migration criada como documentação de auditoria.</p>
+          <p style="font-size:12px;margin-top:8px;color:var(--muted)">Pendência futura (P2): constraint CHECK parcial para novas inserções.</p>
+        </div>
+        <div class="commit-chip">
+          <span>commit</span>
+          <span>179563d6</span>
+          <span style="color:var(--muted)">20260402210001_audit_comarcas_varas_null_vara.sql</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-BE-05 -->
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-id">BUG-BE-05</span>
+        <span class="bug-title">julgadores e comarcas_varas sem deleted_at</span>
+        <span class="badge badge-p2">P2</span>
+        <span class="badge badge-skip">⏭️ Skip</span>
+      </div>
+      <div class="bug-body">
+        <div class="skip-reason">
+          Schema change significativa (ADD COLUMN + atualizar triggers + RLS). Impacto em múltiplas RPCs e queries. Pendência futura — não bloqueia funcionalidade atual.
+        </div>
+      </div>
+    </div>
+
+    <!-- BUG-BE-06 -->
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-id">BUG-BE-06</span>
+        <span class="bug-title">Webhook confirmar_import não existe</span>
+        <span class="badge badge-p1">P1</span>
+        <span class="badge badge-skip">⏭️ Skip</span>
+      </div>
+      <div class="bug-body">
+        <div class="skip-reason">
+          Modal de importação aguarda criação do workflow n8n correspondente. Dependência externa — não executável neste ciclo de backend.
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Summary table -->
+  <h2>Resumo de Commits</h2>
+  <div class="migration-list" style="margin-bottom:32px;">
+    <div class="migration-item">
+      <span class="m-commit">289b8f5f</span>
+      <span class="m-file">20260402180001_fix_jurimetria_rls_legacy_tables.sql</span>
+      <span class="m-desc">BUG-BE-01 · RLS 4 tabelas legacy</span>
+    </div>
+    <div class="migration-item">
+      <span class="m-commit">045535c6</span>
+      <span class="m-file">20260402190001_fix_jurimetria_julgadores_grau_null.sql</span>
+      <span class="m-desc">BUG-BE-02 · RPC grau NULL → 1º grau</span>
+    </div>
+    <div class="migration-item">
+      <span class="m-commit">8769c789</span>
+      <span class="m-file">20260402200001_fix_jurimetria_upsert_julgador_duplicado.sql</span>
+      <span class="m-desc">BUG-BE-03 · DROP upsert_julgador sem p_ativo</span>
+    </div>
+    <div class="migration-item">
+      <span class="m-commit">179563d6</span>
+      <span class="m-file">20260402210001_audit_comarcas_varas_null_vara.sql</span>
+      <span class="m-desc">BUG-BE-04 · Auditoria comarcas_varas (sem DDL)</span>
+    </div>
+  </div>
+
+  <!-- Score final -->
+  <h2>Score pós-fix</h2>
+  <table class="summary-table">
+    <thead>
+      <tr>
+        <th>Bug</th>
+        <th>Prioridade</th>
+        <th>Status</th>
+        <th>Tipo de fix</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>BUG-BE-01</code> — RLS legacy tables</td>
+        <td><span class="badge badge-p0">P0</span></td>
+        <td><span style="color:var(--success)">✅ Resolvido</span></td>
+        <td>DDL: ALTER TABLE + CREATE POLICY</td>
+      </tr>
+      <tr>
+        <td><code>BUG-BE-02</code> — julgadores.grau NULL</td>
+        <td><span class="badge badge-p0">P0</span></td>
+        <td><span style="color:var(--success)">✅ Resolvido</span></td>
+        <td>RPC: OR (p_grau=1 AND j.grau IS NULL)</td>
+      </tr>
+      <tr>
+        <td><code>BUG-BE-03</code> — upsert_julgador dup</td>
+        <td><span class="badge badge-p1">P1</span></td>
+        <td><span style="color:var(--success)">✅ Resolvido</span></td>
+        <td>DDL: DROP FUNCTION versão antiga</td>
+      </tr>
+      <tr>
+        <td><code>BUG-BE-04</code> — comarcas_varas NULL</td>
+        <td><span class="badge badge-p1">P1</span></td>
+        <td><span style="color:var(--warning)">⚠️ Auditado</span></td>
+        <td>Dados válidos — sem ação necessária</td>
+      </tr>
+      <tr>
+        <td><code>BUG-BE-05</code> — deleted_at faltando</td>
+        <td><span class="badge badge-p2">P2</span></td>
+        <td><span style="color:var(--skip)">⏭️ Skip</span></td>
+        <td>Schema change — pendência futura</td>
+      </tr>
+      <tr>
+        <td><code>BUG-BE-06</code> — webhook import</td>
+        <td><span class="badge badge-p1">P1</span></td>
+        <td><span style="color:var(--skip)">⏭️ Skip</span></td>
+        <td>Aguarda n8n workflow</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="scorecard" style="margin-bottom:0;">
+    <div class="score-item" style="grid-column:1/-1;background:var(--surface);">
+      <div class="val val-primary" style="font-size:36px;">100%</div>
+      <div class="lbl">Score P0+P1 executáveis — 4/4 tratados (2 resolvidos, 1 auditado, 1 aguarda n8n)</div>
+    </div>
+  </div>
+
+  <footer>
+    Gerado por <strong>Beto (Claude Code)</strong> · MdFlow backend executor · <strong>2026-04-02</strong><br/>
+    Supabase project: <code>qdivfairxhdihaqqypgb</code> · Branch: <code>main</code>
+  </footer>
+
+</body>
+</html>

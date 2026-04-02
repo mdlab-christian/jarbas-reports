@@ -5819,14 +5819,18 @@
 <section id="page-homepage" class="page-section">
   <div class="pg-header">
     <h2>Homepage</h2>
-    <p class="sub">Dashboard principal do usuário logado — 4 views por perfil</p>
-    <div class="badge-row"><span class="badge badge-route">/homepage</span><span class="badge badge-ok">Reteste APROVADO 9.5/10 — 8/8 bugs corrigidos (2026-03-31)</span></div>
+    <p class="sub">Dashboard executivo com views por perfil — 100% read-only, dados via RPCs SECURITY DEFINER</p>
+    <div class="badge-row">
+      <span class="badge badge-route">/homepage</span>
+      <span class="badge badge-ok">Ciclo completo 2026-04-02 — nota 8.5/10 — OPERACIONAL</span>
+    </div>
   </div>
 
   <details open>
     <summary>📋 Core + Ligações</summary>
     <div class="details-body">
-      <p>Dashboard personalizado por perfil. Gate logic seleciona a view conforme <code>user.perfil</code> e <code>acesso_gestor</code>. Redirect padrão após login.</p>
+      <p>Dashboard personalizado por perfil. Gate logic seleciona a view conforme <code>user.perfil</code> e <code>acesso_gestor</code>. Redirect padrão após login. 100% read-only — sem n8n, sem mutações. Dados via 4 RPCs SECURITY DEFINER com filtro <code>p_org_id</code>.</p>
+      <p><strong>Regra crítica:</strong> <code>processos.advogado_id</code> aponta para <code>advogados.id</code> (FK), não para <code>users.id</code>. RPCs devem fazer JOIN via <code>advogados</code> tabela.</p>
 
       <h4 style="margin-top:12px;color:var(--primary)">Views por perfil</h4>
       <table class="tbl" style="margin-top:6px">
@@ -5836,6 +5840,7 @@
           <tr><td><code>acesso_gestor</code></td><td>ViewGestor</td><td>KPIs equipe + "Meu painel" pessoal</td></tr>
           <tr><td><code>juridico / operacional</code></td><td>ViewJuridico</td><td>KPIs jurídicos, score semanal, gráfico, agenda, audiências</td></tr>
           <tr><td><code>comercial</code></td><td>ViewComercial</td><td>KPIs comerciais, score semanal, gráfico, agenda</td></tr>
+          <tr><td>outros</td><td>HomepagePerfilFallback</td><td>Tela de fallback para perfis não reconhecidos</td></tr>
         </tbody>
       </table>
 
@@ -5845,24 +5850,31 @@
         <li><span class="tag tag-hook">hook</span> useHomepageGestor — RPCs gestor_comercial + gestor_juridico + ranking (isolamento de erros)</li>
         <li><span class="tag tag-hook">hook</span> useHomepageAvisos — avisos_escritorio + lidos (staleTime: 30s)</li>
         <li><span class="tag tag-table">atividades</span> Agenda do dia + score semanal</li>
-        <li><span class="tag tag-table">processos</span> KPIs advogado (via advogado_id)</li>
+        <li><span class="tag tag-table">processos</span> KPIs advogado (via advogado_id → advogados.id)</li>
         <li><span class="tag tag-table">leads</span> KPIs comercial (conversões, funil)</li>
-        <li><span class="tag tag-table">audiencias</span> Audiências do dia (filtradas por advogado_id)</li>
-        <li><span class="tag tag-table">avisos_escritorio</span> Mural de avisos</li>
+        <li><span class="tag tag-table">audiencias</span> Audiências do dia (filtradas por advogado_id via advogados tabela)</li>
+        <li><span class="tag tag-table">avisos_escritorio</span> Mural de avisos (RLS ativo)</li>
+        <li><span class="tag tag-table">avisos_escritorio_lidos</span> Controle de leitura (RLS ativo, índice user_id)</li>
       </ul>
 
-      <h4 style="margin-top:12px;color:var(--primary)">RPCs</h4>
+      <h4 style="margin-top:12px;color:var(--primary)">RPCs (todas SECURITY DEFINER + p_org_id)</h4>
       <ul class="ilist" style="margin-top:6px;">
-        <li><code>get_homepage_pessoal(user_id, org_id, perfil, periodo)</code> — KPIs pessoais + agenda + chart</li>
-        <li><code>get_homepage_gestor_comercial(user_id, org_id, periodo)</code> — KPIs comerciais consolidados</li>
-        <li><code>get_homepage_gestor_juridico(user_id, org_id, periodo)</code> — KPIs jurídicos consolidados</li>
-        <li><code>get_homepage_ranking(user_id, org_id)</code> — Ranking equipe por score</li>
+        <li><code>get_homepage_pessoal(p_user_id, p_org_id, p_perfil, p_periodo)</code> — KPIs pessoais + agenda + chart</li>
+        <li><code>get_homepage_gestor_comercial(p_user_id, p_org_id, p_periodo)</code> — KPIs comerciais consolidados</li>
+        <li><code>get_homepage_gestor_juridico(p_user_id, p_org_id, p_periodo)</code> — KPIs jurídicos (usa data_vencimento, não prazo_fatal)</li>
+        <li><code>get_homepage_ranking(p_user_id, p_org_id)</code> — Ranking equipe JOIN via advogados.id</li>
+      </ul>
+
+      <h4 style="margin-top:12px;color:var(--primary)">Filtros de período</h4>
+      <ul class="ilist" style="margin-top:6px;">
+        <li>Opções: <code>7d</code> · <code>30d</code> · <code>90d</code></li>
+        <li>Toggle atualiza todos os KPIs simultaneamente</li>
       </ul>
     </div>
   </details>
 
   <details>
-    <summary>🔧 Correções aplicadas + reteste APROVADO 9.5/10 (2026-03-31)</summary>
+    <summary>🔧 Ciclo 2026-03-31 — Reteste APROVADO 9.5/10 (8/8 bugs)</summary>
     <div class="details-body">
       <ul class="ilist">
         <li><strong>HP-01 P0:</strong> RPC ranking usava <code>p.responsavel_id</code> (inexistente) — corrigido para <code>p.advogado_id</code></li>
@@ -5873,6 +5885,111 @@
         <li><strong>HP-06 P2:</strong> Audiências filtradas por advogado_id do usuário</li>
         <li><strong>HP-07 P2:</strong> KpiGrid suporta 6-7 colunas</li>
         <li><strong>HP-08 P2:</strong> KpiCardData.value restrito a number</li>
+      </ul>
+    </div>
+  </details>
+
+  <details open>
+    <summary>🔧 Ciclo completo 2026-04-02 — nota 8.5/10 (5 fases, bug sistêmico resolvido)</summary>
+    <div class="details-body">
+
+      <h4 style="color:var(--primary)">Fase 1 — Funcional (5 bugs → 5 corrigidos)</h4>
+      <ul class="ilist">
+        <li><strong>BUG-HP-R01 P0:</strong> get_homepage_ranking usava <code>p.responsavel_id</code> — migration 20260331100001 aplicada via API</li>
+        <li><strong>BUG-HP-R02 P0:</strong> taxa_conversao retornava 200%+ — migration 20260331100002 (resultado: 75%)</li>
+        <li><strong>BUG-HP-N01 P1:</strong> Overflow horizontal 375px — <code>overflow-x:hidden</code> no body (index.css)</li>
+        <li><strong>BUG-HP-N02 P2:</strong> Labels sem capitalização — KPI_LABELS + formatKpiLabel() adicionados</li>
+        <li><strong>BUG-HP-N03 P1:</strong> HTTP 400 no console — auto-resolvido com R01</li>
+        <li><em>Commits:</em> ea05ed62, 1e220e51</li>
+      </ul>
+
+      <h4 style="margin-top:12px;color:var(--primary)">Fase 2 — Deep Explorer + Polish (7 achados → 7 corrigidos)</h4>
+      <ul class="ilist">
+        <li><strong>POLISH-001 FUNC:</strong> taxa_conversao sem "%" no GestorExecutiveBlock — PERCENT_KEYS Set adicionado</li>
+        <li><strong>POLISH-002 RESP:</strong> Header mobile overflow — logo <code>h-10 → h-8 max-w-[120px]</code></li>
+        <li><em>Commits:</em> 2702601a, 3abf1c58</li>
+      </ul>
+
+      <h4 style="margin-top:12px;color:var(--primary)">Fase 3 — UI/UX Frontend (nota 7.4/10 → 5 fixes)</h4>
+      <table class="tbl" style="margin-top:6px">
+        <thead><tr><th>Categoria</th><th>Nota</th></tr></thead>
+        <tbody>
+          <tr><td>CAT-A Hierarquia Visual</td><td>8.0/10</td></tr>
+          <tr><td>CAT-B Design System</td><td>9.5/10 — zero violations</td></tr>
+          <tr><td>CAT-C Cards/Listas</td><td>8.5/10</td></tr>
+          <tr><td>CAT-E Botões/Ações</td><td>8.5/10</td></tr>
+          <tr><td>CAT-F Tipografia/Espaçamento</td><td>7.5/10</td></tr>
+          <tr><td>CAT-G Estados Visuais</td><td>7.0/10</td></tr>
+          <tr><td>CAT-H Responsividade (6 breakpoints)</td><td>8.5/10</td></tr>
+        </tbody>
+      </table>
+      <ul class="ilist" style="margin-top:6px;">
+        <li><strong>FRONT-001:</strong> font-display h3 em 3 componentes</li>
+        <li><strong>FRONT-002/003:</strong> Ícones Trophy + BarChart2 nos empty states</li>
+        <li><strong>FRONT-005:</strong> CTA no empty state DailyAgenda</li>
+        <li><em>Commits:</em> 81271e6f, 973ee6a4, 225987e0, aa8f85e3</li>
+      </ul>
+
+      <h4 style="margin-top:12px;color:var(--primary)">Fase 4A — Front Tester (18/20 = 90%)</h4>
+      <ul class="ilist">
+        <li>Navegação 5/5 ✅ | Filtros 3/3 ✅ | Cards 4/6 | Estados 3/3 ✅ | Responsividade 3/3 ✅</li>
+        <li>Falhas: 0 — página estável</li>
+        <li><em>Achado colateral:</em> /usuario "useBlocker must be used within a data router" — escopo externo, investigar separadamente</li>
+      </ul>
+
+      <h4 style="margin-top:12px;color:var(--primary)">Fase 4B — Backend Tester (saúde 72% → 90%)</h4>
+      <ul class="ilist">
+        <li><strong>FIX-BT-001:</strong> get_homepage_pessoal trata perfil operacional (sem_dados:true) — migration 20260402000001</li>
+        <li><strong>FIX-BT-002:</strong> get_homepage_gestor_juridico usa data_vencimento (não prazo_fatal) — migration 20260402000002</li>
+        <li><strong>FIX-BT-003:</strong> índice user_id em avisos_escritorio_lidos — migration 20260402000003</li>
+        <li><em>P0 pendente:</em> spec _resumido___homepage.txt ausente no repo (requer CTO)</li>
+      </ul>
+
+      <h4 style="margin-top:12px;color:var(--primary)">Fase 5 — Senior Review (nota 6.4 → 8.5/10)</h4>
+      <p><strong>Bug sistêmico:</strong> <code>processos.advogado_id → advogados.id</code> (FK), mas RPCs faziam JOIN com <code>users.id</code> diretamente — causava scores=0 e processos_ativos=0 para todos.</p>
+      <ul class="ilist">
+        <li><strong>SR-NOVO-01 P1:</strong> get_homepage_ranking JOIN via advogados.id — scores: 0 → reais (ex: 6454) — migration 20260402100001</li>
+        <li><strong>SR-NOVO-02 P1:</strong> get_homepage_pessoal processos_ativos: 0 → 8595 — migration 20260402100002</li>
+        <li><strong>SR-NOVO-03 P1:</strong> HomepageAudienciasDia filtrava via users.id → corrigido advogados.id — migration 20260402100003</li>
+        <li><strong>SR-NOVO-04 P2:</strong> font-display h3 RankingCard</li>
+        <li><em>Commits:</em> db9575ab, 2f5caed7, eadc724d, 774b2063</li>
+      </ul>
+
+      <h4 style="margin-top:12px;color:var(--primary)">Scores finais 2026-04-02</h4>
+      <table class="tbl" style="margin-top:6px">
+        <thead><tr><th>Dimensão</th><th>Nota</th></tr></thead>
+        <tbody>
+          <tr><td>Funcionalidade Core</td><td>8/10</td></tr>
+          <tr><td>Design System</td><td>9/10</td></tr>
+          <tr><td>Estabilidade</td><td>9/10</td></tr>
+          <tr><td>Backend</td><td>9/10</td></tr>
+          <tr><td>Multi-tenant</td><td>9/10</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </details>
+
+  <details>
+    <summary>⚠️ Pendências abertas</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>Spec <code>_resumido___homepage.txt</code> ausente no repo — requer CTO criar</li>
+        <li>/usuario: "useBlocker must be used within a data router" — bug colateral fora do escopo homepage</li>
+        <li>Seed data <code>processos.advogado_id</code> (UUIDs a1000001-...) sem processos reais — ranking reflete dados de produção Midas</li>
+      </ul>
+    </div>
+  </details>
+
+  <details>
+    <summary>✅ Estado técnico final (2026-04-02)</summary>
+    <div class="details-body">
+      <ul class="ilist">
+        <li>TypeScript: zero erros</li>
+        <li>Responsividade: 375/640/768/1024/1280/1440px sem overflow</li>
+        <li>Design System: zero hardcodes (tokens CSS 100%)</li>
+        <li>Multi-tenant: RLS ativo em todas as tabelas (avisos_escritorio, avisos_escritorio_lidos)</li>
+        <li>staleTime: 30_000 em todos os hooks</li>
+        <li>RPCs: 4/4 com SECURITY DEFINER + filtro p_org_id</li>
       </ul>
     </div>
   </details>

@@ -1,0 +1,808 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Backend Audit — /crm — v2 — 2026-04-02</title>
+  <style>
+    :root {
+      --bg: #12100e;
+      --surface: #1a1815;
+      --surface2: #211e1b;
+      --border: #2d2925;
+      --primary: #20c997;
+      --primary-dim: rgba(32,201,151,0.12);
+      --text: #e8e0d8;
+      --muted: #8a7f78;
+      --red: #ef4444;
+      --red-dim: rgba(239,68,68,0.12);
+      --yellow: #f59e0b;
+      --yellow-dim: rgba(245,158,11,0.12);
+      --green: #22c55e;
+      --green-dim: rgba(34,197,94,0.12);
+      --blue: #3b82f6;
+      --blue-dim: rgba(59,130,246,0.12);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 32px 24px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    /* Header */
+    .header { margin-bottom: 32px; }
+    .header h1 { font-family: Manrope, Inter, sans-serif; font-size: 22px; font-weight: 700; color: var(--text); }
+    .header .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600;
+    }
+    .badge-p0 { background: var(--red-dim); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+    .badge-p1 { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+    .badge-p2 { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+    .badge-ok { background: var(--green-dim); color: var(--green); border: 1px solid rgba(34,197,94,0.3); }
+    .badge-warn { background: var(--yellow-dim); color: var(--yellow); border: 1px solid rgba(245,158,11,0.3); }
+
+    /* KPI Cards */
+    .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .kpi-card .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+    .kpi-card .value { font-family: Manrope, Inter, sans-serif; font-size: 32px; font-weight: 700; line-height: 1; }
+    .kpi-card .sub { font-size: 12px; color: var(--muted); margin-top: 6px; }
+    .kpi-card.health .value { color: var(--yellow); }
+    .kpi-card.passes .value { color: var(--green); }
+    .kpi-card.fails .value { color: var(--red); }
+    .kpi-card.warns .value { color: var(--yellow); }
+
+    /* Sections */
+    .section { margin-bottom: 32px; }
+    .section-title {
+      font-family: Manrope, Inter, sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Check Table */
+    .check-table { width: 100%; border-collapse: collapse; }
+    .check-table th {
+      text-align: left; padding: 10px 14px;
+      font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .check-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .check-table tr:last-child td { border-bottom: none; }
+    .check-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .check-table td:first-child { font-weight: 500; }
+    .check-table td code {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 11px;
+      background: rgba(255,255,255,0.05);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--primary);
+    }
+    .status-dot {
+      display: inline-flex; align-items: center; gap: 6px; font-weight: 600;
+    }
+    .status-dot::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+    .status-dot.ok::before { background: var(--green); }
+    .status-dot.fail::before { background: var(--red); }
+    .status-dot.warn::before { background: var(--yellow); }
+    .status-dot.ok { color: var(--green); }
+    .status-dot.fail { color: var(--red); }
+    .status-dot.warn { color: var(--yellow); }
+
+    /* Bug Cards */
+    .bug-list { display: flex; flex-direction: column; gap: 14px; }
+    .bug-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+    }
+    .bug-card.p0 { border-left: 3px solid var(--red); }
+    .bug-card.p1 { border-left: 3px solid var(--yellow); }
+    .bug-card.p2 { border-left: 3px solid var(--blue); }
+    .bug-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .bug-title { font-weight: 600; font-size: 14px; }
+    .bug-body { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+    .bug-field { font-size: 12px; }
+    .bug-field .field-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    .bug-field .field-val { color: var(--text); }
+    .bug-field code {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 11px;
+      background: var(--surface2);
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: var(--primary);
+      display: inline-block;
+    }
+    .bug-field .solution-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      font-size: 11px;
+      color: var(--primary);
+      white-space: pre-wrap;
+      margin-top: 4px;
+    }
+
+    /* Schema detail */
+    .schema-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .schema-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .schema-card h3 { font-size: 12px; font-weight: 700; color: var(--primary); margin-bottom: 10px; font-family: 'JetBrains Mono', monospace; }
+    .field-row { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; }
+    .field-row:last-child { border-bottom: none; }
+    .field-name { color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+    .field-type { color: var(--muted); font-size: 11px; }
+    .field-null { font-size: 10px; padding: 1px 5px; border-radius: 3px; }
+    .field-null.nn { background: rgba(239,68,68,0.15); color: var(--red); }
+    .field-null.yes { background: rgba(138,127,120,0.15); color: var(--muted); }
+
+    /* Summary table */
+    .summary-table { width: 100%; border-collapse: collapse; }
+    .summary-table th {
+      text-align: left; padding: 10px 14px;
+      font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+    }
+    .summary-table td {
+      padding: 9px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .summary-table tr:last-child td { border-bottom: none; }
+
+    /* Health bar */
+    .health-bar-container { background: var(--surface2); border-radius: 99px; height: 8px; overflow: hidden; margin-top: 6px; }
+    .health-bar-fill { height: 100%; border-radius: 99px; background: var(--yellow); transition: width 0.5s ease; }
+
+    /* Divider */
+    hr { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+
+    /* Footer */
+    .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; display: flex; justify-content: space-between; }
+
+    @media (max-width: 768px) {
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .bug-body { grid-template-columns: 1fr; }
+      .schema-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Backend Audit — /crm</h1>
+  <div class="meta">
+    MdFlow · Projeto: qdivfairxhdihaqqypgb · Auditado em: 2026-04-02 · Versão: v2
+  </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card health">
+    <div class="label">Saúde Geral</div>
+    <div class="value">72%</div>
+    <div class="health-bar-container"><div class="health-bar-fill" style="width:72%"></div></div>
+    <div class="sub">1 P0 · 2 P1 · 2 P2</div>
+  </div>
+  <div class="kpi-card passes">
+    <div class="label">Checks Passaram</div>
+    <div class="value">21</div>
+    <div class="sub">de 26 total</div>
+  </div>
+  <div class="kpi-card fails">
+    <div class="label">Falhas Críticas</div>
+    <div class="value">3</div>
+    <div class="sub">P0: 1 · P1: 2</div>
+  </div>
+  <div class="kpi-card warns">
+    <div class="label">Avisos</div>
+    <div class="value">2</div>
+    <div class="sub">P2 (melhorias)</div>
+  </div>
+</div>
+
+<!-- Summary Check Table -->
+<div class="section">
+  <div class="section-title">Resumo dos Checks</div>
+  <table class="summary-table" style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+    <thead>
+      <tr>
+        <th>Categoria</th>
+        <th>Status</th>
+        <th>Detalhes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Schema leads — estrutura base</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>62 campos · id, organizacao_id, created_at, updated_at, deleted_at presentes</td>
+      </tr>
+      <tr>
+        <td>Schema — soft delete</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><code>deleted_at TIMESTAMPTZ</code> presente em leads e leads_origens</td>
+      </tr>
+      <tr>
+        <td>Schema — campos monetários</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><code>valor_estimado BIGINT</code> — centavos, conforme padrão</td>
+      </tr>
+      <tr>
+        <td>Schema — coluna_crm CHECK constraint</td>
+        <td><span class="status-dot warn">WARN</span></td>
+        <td>CHECK inclui 7 valores. RPC bulk_action aceita 8 (inclui <code>documentos_pendentes</code> não mapeado no CHECK) — P0</td>
+      </tr>
+      <tr>
+        <td>Schema — TEXT CHECK vs ENUM</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>coluna_crm e sexo usam TEXT CHECK. Nenhum ENUM nativo encontrado.</td>
+      </tr>
+      <tr>
+        <td>leads_arquivamento_motivo — updated_at</td>
+        <td><span class="status-dot warn">WARN</span></td>
+        <td>Tabela sem campo <code>updated_at</code> e sem trigger de atualização — P2</td>
+      </tr>
+      <tr>
+        <td>RLS — leads</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>rowsecurity=true · 4 policies (SELECT/INSERT/UPDATE/DELETE)</td>
+      </tr>
+      <tr>
+        <td>RLS — leads_arquivamento_motivo</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>rowsecurity=true · 4 policies com isolamento por org</td>
+      </tr>
+      <tr>
+        <td>RLS — leads_origens</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>rowsecurity=true · 4 policies</td>
+      </tr>
+      <tr>
+        <td>RLS — restricoes</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>rowsecurity=true · policy ALL usando <code>get_org_id()</code></td>
+      </tr>
+      <tr>
+        <td>RLS — estados_distribuicao</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>rowsecurity=true · 4 policies</td>
+      </tr>
+      <tr>
+        <td>RLS — vendedores (base view_vendedores_metricas)</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>rowsecurity=true · 4 policies com isolamento por org</td>
+      </tr>
+      <tr>
+        <td>RPC rpc_crm_bulk_action</td>
+        <td><span class="status-dot fail">FAIL</span></td>
+        <td>Existe · SECURITY DEFINER · mas aceita <code>documentos_pendentes</code> que viola CHECK constraint — P0 bloqueante</td>
+      </tr>
+      <tr>
+        <td>RPC distribuir_lead_completo</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>Existe · SECURITY DEFINER · validação completa (advogado, restrições, pg_net lotes)</td>
+      </tr>
+      <tr>
+        <td>RPC rpc_crm_dashboard_kpis</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>Existe · SECURITY DEFINER · usa organizacao_id corretamente</td>
+      </tr>
+      <tr>
+        <td>RPC rpc_crm_aprovar_triagem</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>Existe · SECURITY DEFINER · 9 parâmetros</td>
+      </tr>
+      <tr>
+        <td>RPC fn_crm_funil / fn_crm_stats</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>Ambas existem · SECURITY DEFINER</td>
+      </tr>
+      <tr>
+        <td>RPC rpc_crm_kanban_counts</td>
+        <td><span class="status-dot fail">FAIL</span></td>
+        <td>Não encontrada no banco — P1 (se usada pelo frontend)</td>
+      </tr>
+      <tr>
+        <td>RPC rpc_crm_kpis</td>
+        <td><span class="status-dot fail">FAIL</span></td>
+        <td>Não encontrada — P1 (rpc_crm_dashboard_kpis existe como substituta)</td>
+      </tr>
+      <tr>
+        <td>RPC rpc_crm_add_tag / rpc_crm_remove_tag</td>
+        <td><span class="status-dot warn">WARN</span></td>
+        <td>Não encontradas. Frontend gerencia etiquetas via UPDATE direto no campo ARRAY — P2</td>
+      </tr>
+      <tr>
+        <td>view_crm_leads_kanban</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>Existe · filtra <code>deleted_at IS NULL</code> e <code>arquivado = false</code> · joins corretos</td>
+      </tr>
+      <tr>
+        <td>view_vendedores_metricas</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>Existe · JOIN com tabela vendedores (RLS ativo)</td>
+      </tr>
+      <tr>
+        <td>Índices leads — organizacao_id</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><code>idx_leads_active</code> · <code>idx_leads_coluna</code> · <code>idx_leads_funil</code> · <code>idx_leads_org_created</code></td>
+      </tr>
+      <tr>
+        <td>Índices leads — deleted_at</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><code>idx_leads_active</code> inclui filtro <code>WHERE deleted_at IS NULL</code></td>
+      </tr>
+      <tr>
+        <td>Triggers leads</td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>5 triggers: updated_at · historico_entrada · historico_update · data_conversao · mdzap_sync</td>
+      </tr>
+      <tr>
+        <td>staleTime hooks CRM</td>
+        <td><span class="status-dot warn">WARN</span></td>
+        <td>useLeads=30s ✓ · useCrmDashboard=5min · useCrmRadar=60s · useSugestaoDistribuicao=10s — divergências do padrão 30s — P2</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Bugs P0/P1/P2 -->
+<div class="section">
+  <div class="section-title">Bugs Encontrados</div>
+  <div class="bug-list">
+
+    <!-- P0 -->
+    <div class="bug-card p0">
+      <div class="bug-header">
+        <span class="badge badge-p0">P0</span>
+        <span class="bug-title">rpc_crm_bulk_action aceita coluna 'documentos_pendentes' que viola CHECK constraint</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-field">
+          <div class="field-label">Causa Raiz</div>
+          <div class="field-val">
+            O CHECK constraint de <code>leads.coluna_crm</code> permite apenas 7 valores:
+            <code>novos, em_atendimento, aguardando_documentos, aguardando_assinatura, triagem, arquivados, convertido</code>.<br><br>
+            A RPC <code>rpc_crm_bulk_action</code> (ação <code>mover_coluna</code>) valida internamente 8 valores aceitando também
+            <code>documentos_pendentes</code>. A validação da RPC passa, mas o UPDATE subsequente na tabela leads levanta
+            <code>ERROR: new row for relation "leads" violates check constraint "leads_coluna_crm_check"</code> —
+            o erro é capturado pelo bloco EXCEPTION e retorna <code>success: false</code> silenciosamente.
+          </div>
+        </div>
+        <div class="bug-field">
+          <div class="field-label">Impacto</div>
+          <div class="field-val">Qualquer ação bulk "mover para Documentos Pendentes" via CRM falha silenciosamente — 0 leads movidos, usuário não sabe por quê.</div>
+        </div>
+        <div class="bug-field" style="grid-column: 1/-1">
+          <div class="field-label">Solução — Opção A: adicionar 'documentos_pendentes' ao CHECK (recomendada)</div>
+          <div class="solution-block">ALTER TABLE leads DROP CONSTRAINT leads_coluna_crm_check;
+ALTER TABLE leads ADD CONSTRAINT leads_coluna_crm_check
+  CHECK (coluna_crm IN (
+    'novos','em_atendimento','aguardando_documentos',
+    'aguardando_assinatura','triagem','arquivados',
+    'convertido','documentos_pendentes'
+  ));</div>
+        </div>
+        <div class="bug-field" style="grid-column: 1/-1">
+          <div class="field-label">Solução — Opção B: remover 'documentos_pendentes' da lista de colunas válidas na RPC</div>
+          <div class="solution-block">-- No corpo de rpc_crm_bulk_action, substituir:
+IF v_nova_coluna NOT IN ('novos','em_atendimento','aguardando_documentos',
+  'aguardando_assinatura','triagem','arquivados','convertido','documentos_pendentes')
+-- por:
+IF v_nova_coluna NOT IN ('novos','em_atendimento','aguardando_documentos',
+  'aguardando_assinatura','triagem','arquivados','convertido')</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1: rpc_crm_kanban_counts ausente -->
+    <div class="bug-card p1">
+      <div class="bug-header">
+        <span class="badge badge-p1">P1</span>
+        <span class="bug-title">rpc_crm_kanban_counts não existe no banco</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-field">
+          <div class="field-label">Causa Raiz</div>
+          <div class="field-val">
+            A spec do /crm cita <code>rpc_crm_kanban_counts</code> como RPC esperada. A função não foi encontrada na busca
+            no <code>pg_proc</code>. O frontend usa queryKey <code>crm-colunas-contagem</code> (invalidado pelo useCrmKanban),
+            mas sem RPC dedicada — possivelmente a contagem é feita via query direta ou não está implementada.
+          </div>
+        </div>
+        <div class="bug-field">
+          <div class="field-label">Impacto</div>
+          <div class="field-val">Se o frontend chamar essa RPC, receberá erro 404 / PGRST202. Contadores de colunas do kanban podem não carregar.</div>
+        </div>
+        <div class="bug-field" style="grid-column: 1/-1">
+          <div class="field-label">Solução</div>
+          <div class="solution-block">-- Verificar se frontend chama essa RPC diretamente.
+-- Se sim, criar:
+CREATE OR REPLACE FUNCTION rpc_crm_kanban_counts(p_organizacao_id UUID)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+BEGIN
+  RETURN (
+    SELECT jsonb_object_agg(coluna_crm, cnt)
+    FROM (
+      SELECT coluna_crm, COUNT(*) as cnt FROM leads
+      WHERE organizacao_id = p_organizacao_id
+        AND arquivado = false AND deleted_at IS NULL
+      GROUP BY coluna_crm
+    ) sub
+  );
+END; $$;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1: rpc_crm_kpis ausente -->
+    <div class="bug-card p1">
+      <div class="bug-header">
+        <span class="badge badge-p1">P1</span>
+        <span class="bug-title">rpc_crm_kpis não existe — possível renomeação para rpc_crm_dashboard_kpis</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-field">
+          <div class="field-label">Causa Raiz</div>
+          <div class="field-val">
+            A spec lista <code>rpc_crm_kpis</code>. No banco existe <code>rpc_crm_dashboard_kpis</code> com funcionalidade equivalente
+            (leads ativos, conversões, taxa, por_coluna, awaiting_human). Possível renomeação sem atualizar a spec.
+          </div>
+        </div>
+        <div class="bug-field">
+          <div class="field-label">Impacto</div>
+          <div class="field-val">Se algum componente chamar <code>rpc_crm_kpis</code>, receberá erro. Verificar referências no frontend.</div>
+        </div>
+        <div class="bug-field" style="grid-column: 1/-1">
+          <div class="field-label">Solução</div>
+          <div class="solution-block">-- Verificar no frontend:
+grep -rn "rpc_crm_kpis" src/
+-- Se não há referência direta, criar alias:
+CREATE OR REPLACE FUNCTION rpc_crm_kpis(p_organizacao_id UUID DEFAULT NULL, p_periodo_dias INT DEFAULT 30)
+RETURNS JSONB LANGUAGE SQL SECURITY DEFINER AS $$
+  SELECT rpc_crm_dashboard_kpis(p_organizacao_id, p_periodo_dias);
+$$;</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2: staleTime divergências -->
+    <div class="bug-card p2">
+      <div class="bug-header">
+        <span class="badge badge-p2">P2</span>
+        <span class="bug-title">staleTime diverge do padrão 30s em 6 hooks do CRM</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-field">
+          <div class="field-label">Hooks afetados</div>
+          <div class="field-val">
+            <code>useSugestaoDistribuicao</code>: 10s<br>
+            <code>useCrmRadar</code>: 60s<br>
+            <code>useCrmDashboard</code>: 5min<br>
+            <code>useLeadFollowup</code> (2 queries): 5min<br>
+            <code>useCrmIcp</code>: 5min
+          </div>
+        </div>
+        <div class="bug-field">
+          <div class="field-label">Impacto</div>
+          <div class="field-val">Dados do dashboard e followup podem ficar desatualizados por até 5 minutos. useSugestaoDistribuicao refetch a cada 10s — pode sobrecarregar desnecessariamente.</div>
+        </div>
+        <div class="bug-field" style="grid-column: 1/-1">
+          <div class="field-label">Solução</div>
+          <div class="solution-block">-- Regra CLAUDE.md: staleTime: 30_000 em TODOS os hooks React Query
+-- Exceções documentadas permitidas para dados de baixa frequência (KPI dashboard)
+-- useSugestaoDistribuicao: aumentar para 30_000 (era 10_000)
+-- useCrmDashboard / useCrmIcp: 5min pode ser intencional — documentar explicitamente</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2: leads_arquivamento_motivo sem updated_at -->
+    <div class="bug-card p2">
+      <div class="bug-header">
+        <span class="badge badge-p2">P2</span>
+        <span class="bug-title">leads_arquivamento_motivo sem campo updated_at e sem trigger</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-field">
+          <div class="field-label">Causa Raiz</div>
+          <div class="field-val">
+            Schema: <code>id, organizacao_id, nome, ativo, created_at</code>. Faltam <code>updated_at</code> e <code>deleted_at</code>.
+            Sem <code>deleted_at</code>, itens arquivados são hard-delete ou desativados via flag <code>ativo=false</code>.
+          </div>
+        </div>
+        <div class="bug-field">
+          <div class="field-label">Impacto</div>
+          <div class="field-val">Auditoria de motivos de arquivamento incompleta. Sem updated_at, impossível rastrear quando o nome/ativo foi alterado.</div>
+        </div>
+        <div class="bug-field" style="grid-column: 1/-1">
+          <div class="field-label">Solução</div>
+          <div class="solution-block">ALTER TABLE leads_arquivamento_motivo
+  ADD COLUMN updated_at TIMESTAMPTZ DEFAULT now() NOT NULL,
+  ADD COLUMN deleted_at TIMESTAMPTZ;
+
+CREATE TRIGGER set_updated_at
+  BEFORE UPDATE ON leads_arquivamento_motivo
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Schema Detail -->
+<div class="section">
+  <div class="section-title">Schema — Tabelas Principais</div>
+  <div class="schema-grid">
+
+    <div class="schema-card">
+      <h3>leads</h3>
+      <div class="field-row"><span class="field-name">id</span><span><span class="field-type">uuid</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">organizacao_id</span><span><span class="field-type">uuid</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">nome</span><span><span class="field-type">text</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">coluna_crm</span><span><span class="field-type">text</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">cpf / email / whatsapp</span><span><span class="field-type">text</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">valor_estimado</span><span><span class="field-type">bigint (centavos)</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">arquivado</span><span><span class="field-type">bool default false</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">convertido</span><span><span class="field-type">bool default false</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">deleted_at</span><span><span class="field-type">timestamptz</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">created_at / updated_at</span><span><span class="field-type">timestamptz</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row" style="margin-top: 8px; color: var(--muted); font-size: 11px;">
+        62 campos total · 5 triggers · 33 índices
+      </div>
+    </div>
+
+    <div class="schema-card">
+      <h3>leads_arquivamento_motivo</h3>
+      <div class="field-row"><span class="field-name">id</span><span><span class="field-type">uuid</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">organizacao_id</span><span><span class="field-type">uuid</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">nome</span><span><span class="field-type">text</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">ativo</span><span><span class="field-type">bool</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">created_at</span><span><span class="field-type">timestamptz</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row" style="padding: 6px 0; color: var(--red); font-size: 11px;">
+        ⚠ Sem updated_at · Sem deleted_at · Sem trigger
+      </div>
+    </div>
+
+    <div class="schema-card">
+      <h3>leads_origens</h3>
+      <div class="field-row"><span class="field-name">id</span><span><span class="field-type">uuid</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">organizacao_id</span><span><span class="field-type">uuid</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">nome</span><span><span class="field-type">text</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">tipo / fonte / slug / descricao</span><span><span class="field-type">text</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">ativo</span><span><span class="field-type">bool</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">deleted_at / updated_at</span><span><span class="field-type">timestamptz</span> <span class="field-null yes">NULL</span></span></div>
+    </div>
+
+    <div class="schema-card">
+      <h3>restricoes (usada por distribuir_lead_completo)</h3>
+      <div class="field-row"><span class="field-name">id / organizacao_id / lead_id</span><span><span class="field-type">uuid</span> <span class="field-null nn">NN</span></span></div>
+      <div class="field-row"><span class="field-name">empresa_id / processo_id</span><span><span class="field-type">uuid</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">tipo</span><span><span class="field-type">text (comprador/devedor…)</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">processavel</span><span><span class="field-type">bool</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">valor</span><span><span class="field-type">bigint (centavos)</span> <span class="field-null yes">NULL</span></span></div>
+      <div class="field-row"><span class="field-name">deleted_at / created_at / updated_at</span><span><span class="field-type">timestamptz</span> <span class="field-null yes">NULL</span></span></div>
+    </div>
+  </div>
+</div>
+
+<!-- RPCs -->
+<div class="section">
+  <div class="section-title">RPCs — Status Completo</div>
+  <table class="check-table" style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+    <thead>
+      <tr>
+        <th>RPC / View</th>
+        <th>Existe</th>
+        <th>SEC DEF</th>
+        <th>Obs</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>rpc_crm_bulk_action</code></td>
+        <td><span class="status-dot fail">FAIL</span></td>
+        <td><span class="status-dot ok">SIM</span></td>
+        <td>Existe mas aceita coluna inválida <code>documentos_pendentes</code> — P0</td>
+      </tr>
+      <tr>
+        <td><code>distribuir_lead_completo</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><span class="status-dot ok">SIM</span></td>
+        <td>Lógica completa: validação advogado, restricoes, pg_net lotes, leads_atividades</td>
+      </tr>
+      <tr>
+        <td><code>rpc_crm_dashboard_kpis</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><span class="status-dot ok">SIM</span></td>
+        <td>Retorna leads ativos, conversões, taxa, por_coluna, awaiting_human</td>
+      </tr>
+      <tr>
+        <td><code>rpc_crm_aprovar_triagem</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><span class="status-dot ok">SIM</span></td>
+        <td>9 parâmetros · suporta aprovar/reprovar/distribuir</td>
+      </tr>
+      <tr>
+        <td><code>fn_crm_funil</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><span class="status-dot ok">SIM</span></td>
+        <td>Funil com período configurável (30 dias default)</td>
+      </tr>
+      <tr>
+        <td><code>fn_crm_stats</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><span class="status-dot ok">SIM</span></td>
+        <td>Estatísticas gerais por org</td>
+      </tr>
+      <tr>
+        <td><code>rpc_devolver_crm</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td><span class="status-dot ok">SIM</span></td>
+        <td>Devolve processo ao CRM com motivo e pendência opcional</td>
+      </tr>
+      <tr>
+        <td><code>rpc_crm_kanban_counts</code></td>
+        <td><span class="status-dot fail">AUSENTE</span></td>
+        <td>—</td>
+        <td>Citada na spec. Não encontrada no banco — P1</td>
+      </tr>
+      <tr>
+        <td><code>rpc_crm_kpis</code></td>
+        <td><span class="status-dot fail">AUSENTE</span></td>
+        <td>—</td>
+        <td>Citada na spec. Provável alias de rpc_crm_dashboard_kpis — P1</td>
+      </tr>
+      <tr>
+        <td><code>rpc_crm_add_tag / rpc_crm_remove_tag</code></td>
+        <td><span class="status-dot warn">AUSENTE</span></td>
+        <td>—</td>
+        <td>Frontend gerencia etiquetas via UPDATE direto no ARRAY — P2 (anti-padrão menor)</td>
+      </tr>
+      <tr>
+        <td><code>view_crm_leads_kanban</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>VIEW</td>
+        <td>Filtra deleted_at IS NULL + arquivado=false. JOINs: users, advogados, origens, estados, leads_atividades</td>
+      </tr>
+      <tr>
+        <td><code>view_vendedores_metricas</code></td>
+        <td><span class="status-dot ok">OK</span></td>
+        <td>VIEW</td>
+        <td>Herdada da RLS de vendedores (filtro org automático)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Índices -->
+<div class="section">
+  <div class="section-title">Índices — Cobertura</div>
+  <table class="check-table" style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+    <thead>
+      <tr>
+        <th>Índice</th>
+        <th>Cobertura</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>idx_leads_active</code></td>
+        <td>organizacao_id WHERE deleted_at IS NULL</td>
+        <td><span class="status-dot ok">OK</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_coluna</code></td>
+        <td>organizacao_id, coluna_crm</td>
+        <td><span class="status-dot ok">OK</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_funil</code></td>
+        <td>organizacao_id, coluna_crm, created_at DESC</td>
+        <td><span class="status-dot ok">OK — query kanban ordenada</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_org_created</code></td>
+        <td>organizacao_id, created_at DESC WHERE deleted_at IS NULL</td>
+        <td><span class="status-dot ok">OK</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_cpf_unique_ativo</code></td>
+        <td>UNIQUE (org, cpf) WHERE arquivado=false AND deleted_at IS NULL</td>
+        <td><span class="status-dot ok">OK — deduplicação</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_whatsapp_unique_ativo</code></td>
+        <td>UNIQUE (org, whatsapp) WHERE arquivado=false</td>
+        <td><span class="status-dot ok">OK — deduplicação WhatsApp</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_nome</code></td>
+        <td>GIN trgm — busca textual por nome</td>
+        <td><span class="status-dot ok">OK</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_aguardando_humano</code></td>
+        <td>organizacao_id, aguardando_humano WHERE deleted_at IS NULL</td>
+        <td><span class="status-dot ok">OK — filtro Nina/bot</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_mdzap</code></td>
+        <td>mdzap_contact_id WHERE NOT NULL</td>
+        <td><span class="status-dot ok">OK — sync MDZap</span></td>
+      </tr>
+      <tr>
+        <td><code>idx_leads_arq_motivo_org</code></td>
+        <td>organizacao_id (leads_arquivamento_motivo)</td>
+        <td><span class="status-dot ok">OK</span></td>
+      </tr>
+      <tr>
+        <td>leads_origens — 3 índices</td>
+        <td>organizacao_id · ativo · fonte</td>
+        <td><span class="status-dot ok">OK</span></td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- staleTime hooks -->
+<div class="section">
+  <div class="section-title">staleTime — Hooks React Query</div>
+  <table class="check-table" style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+    <thead>
+      <tr><th>Hook</th><th>staleTime atual</th><th>Padrão (30s)</th><th>Status</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>useLeads</code></td><td>30s</td><td>30s</td><td><span class="status-dot ok">OK</span></td></tr>
+      <tr><td><code>useLeadFollowup (1)</code></td><td>30s</td><td>30s</td><td><span class="status-dot ok">OK</span></td></tr>
+      <tr><td><code>useLeadFollowup (2)</code></td><td>30s</td><td>30s</td><td><span class="status-dot ok">OK</span></td></tr>
+      <tr><td><code>useSugestaoDistribuicao</code></td><td>10s</td><td>30s</td><td><span class="status-dot warn">WARN — refetch excessivo</span></td></tr>
+      <tr><td><code>useCrmRadar</code></td><td>60s</td><td>30s</td><td><span class="status-dot warn">WARN — aceitável se intencional</span></td></tr>
+      <tr><td><code>useCrmDashboard</code></td><td>5min</td><td>30s</td><td><span class="status-dot warn">WARN — dados podem envelhecer demais</span></td></tr>
+      <tr><td><code>useLeadFollowup (3,4)</code></td><td>5min</td><td>30s</td><td><span class="status-dot warn">WARN — aceitável para dados estáticos</span></td></tr>
+      <tr><td><code>useCrmIcp</code></td><td>5min</td><td>30s</td><td><span class="status-dot warn">WARN — ICP score muda raramente, aceitável</span></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="footer">
+  <span>MdFlow Backend Audit · /crm · v2 · 2026-04-02</span>
+  <span>Gerado por: page-backend-tester (Claude Code)</span>
+</div>
+
+</body>
+</html>

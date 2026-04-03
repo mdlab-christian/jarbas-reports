@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plano Turbo — Analise IA Controller v3</title>
+<style>
+  :root {
+    --bg: #0d0f18; --surface: #161926; --surface2: #1e2235;
+    --border: #2a2f4a;
+    --accent: #7c6dff; --accent2: #ff6b6b; --accent3: #4fffb0;
+    --accent4: #ffd166; --accent5: #5bc4f5;
+    --text: #e8eaf6; --text-muted: #7a82a8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  .hero { text-align: center; padding: 48px 24px 32px; }
+  .hero h1 { font-family: 'Manrope', sans-serif; font-size: 2.4rem; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent5));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 12px; }
+  .hero-sub { color: var(--text-muted); font-size: 1.1rem; max-width: 700px; margin: 0 auto; }
+
+  .badges { display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .badge { padding: 4px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+  .badge-purple { background: rgba(124,109,255,.15); color: var(--accent); border: 1px solid rgba(124,109,255,.3); }
+  .badge-green { background: rgba(79,255,176,.12); color: var(--accent3); border: 1px solid rgba(79,255,176,.3); }
+  .badge-red { background: rgba(255,107,107,.12); color: var(--accent2); border: 1px solid rgba(255,107,107,.3); }
+  .badge-blue { background: rgba(91,196,245,.12); color: var(--accent5); border: 1px solid rgba(91,196,245,.3); }
+  .badge-yellow { background: rgba(255,209,102,.12); color: var(--accent4); border: 1px solid rgba(255,209,102,.3); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 32px 0; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .stat-value { font-family: 'Manrope', sans-serif; font-size: 2rem; font-weight: 800; }
+  .stat-label { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+
+  .section { margin: 40px 0; }
+  .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+  .section-header h2 { font-family: 'Manrope', sans-serif; font-size: 1.4rem; font-weight: 700; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-weight: 700; font-size: 1rem; margin-bottom: 8px; }
+  .card-accent { border-left: 3px solid var(--accent); }
+  .card-green { border-left: 3px solid var(--accent3); }
+  .card-red { border-left: 3px solid var(--accent2); }
+  .card-yellow { border-left: 3px solid var(--accent4); }
+  .card-blue { border-left: 3px solid var(--accent5); }
+
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 10px 12px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+  td { padding: 10px 12px; border-bottom: 1px solid rgba(42,47,74,.4); font-size: 0.9rem; }
+  tr:hover td { background: rgba(124,109,255,.04); }
+
+  .pipeline { display: flex; gap: 0; align-items: stretch; margin: 24px 0; flex-wrap: wrap; }
+  .pipeline-step { flex: 1; min-width: 200px; background: var(--surface); border: 1px solid var(--border); padding: 20px; position: relative; }
+  .pipeline-step:first-child { border-radius: 12px 0 0 12px; }
+  .pipeline-step:last-child { border-radius: 0 12px 12px 0; }
+  .pipeline-step::after { content: ''; position: absolute; right: -12px; top: 50%; transform: translateY(-50%); width: 0; height: 0; border-left: 12px solid var(--border); border-top: 12px solid transparent; border-bottom: 12px solid transparent; z-index: 1; }
+  .pipeline-step:last-child::after { display: none; }
+  .step-number { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; font-size: 0.85rem; font-weight: 800; margin-bottom: 8px; }
+  .step-1 .step-number { background: rgba(91,196,245,.2); color: var(--accent5); }
+  .step-2 .step-number { background: rgba(124,109,255,.2); color: var(--accent); }
+  .step-3 .step-number { background: rgba(79,255,176,.2); color: var(--accent3); }
+  .step-4 .step-number { background: rgba(255,209,102,.2); color: var(--accent4); }
+  .step-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 6px; }
+  .step-desc { color: var(--text-muted); font-size: 0.8rem; }
+  .step-model { margin-top: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 3px 8px; background: rgba(124,109,255,.1); border-radius: 6px; display: inline-block; color: var(--accent); }
+
+  .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .comparison .card { height: 100%; }
+
+  .cost-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .cost-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .cost-value { font-family: 'Manrope', sans-serif; font-size: 1.8rem; font-weight: 800; color: var(--accent3); }
+  .cost-label { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+  .cost-detail { font-size: 0.75rem; color: var(--text-muted); margin-top: 8px; }
+
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 8px 0; display: flex; align-items: flex-start; gap: 8px; }
+  .checklist li::before { content: ''; width: 16px; height: 16px; border-radius: 4px; border: 2px solid var(--border); flex-shrink: 0; margin-top: 3px; }
+
+  .highlight { background: rgba(124,109,255,.08); border: 1px solid rgba(124,109,255,.2); border-radius: 8px; padding: 16px; margin: 12px 0; }
+
+  code { font-family: 'JetBrains Mono', monospace; background: rgba(124,109,255,.1); padding: 2px 6px; border-radius: 4px; font-size: 0.85em; }
+
+  .json-preview { background: #0a0c14; border: 1px solid var(--border); border-radius: 8px; padding: 16px; overflow-x: auto; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; line-height: 1.5; color: var(--accent3); white-space: pre; }
+  .json-key { color: var(--accent5); }
+  .json-str { color: var(--accent3); }
+  .json-num { color: var(--accent4); }
+  .json-bool { color: var(--accent); }
+
+  .optimization-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+
+  .progress-bar { height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 4px; }
+
+  .footer { text-align: center; padding: 32px 24px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+
+  @media (max-width: 768px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
+    .comparison, .cost-grid, .optimization-grid { grid-template-columns: 1fr; }
+    .pipeline { flex-direction: column; }
+    .pipeline-step { border-radius: 12px !important; }
+    .pipeline-step::after { display: none; }
+    .hero h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <div style="font-size: 3rem; margin-bottom: 12px;">🧠</div>
+  <h1>Plano Turbo — Analise IA</h1>
+  <p class="hero-sub">Re-analise completa de 628 intimacoes com pipeline de 3 agentes Sonnet 4.6, prompts especializados e output rico para o Controller</p>
+  <div class="badges">
+    <span class="badge badge-purple">Sonnet 4.6</span>
+    <span class="badge badge-green">3-Stage Pipeline</span>
+    <span class="badge badge-blue">628 Intimacoes</span>
+    <span class="badge badge-yellow">Full Schema</span>
+    <span class="badge badge-red">Zero Regex</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-value" style="color: var(--accent2);">628</div>
+    <div class="stat-label">Intimacoes para re-analise</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color: var(--accent);">3</div>
+    <div class="stat-label">Agentes IA no pipeline</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color: var(--accent3);">~$35</div>
+    <div class="stat-label">Custo estimado total</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" style="color: var(--accent5);">25+</div>
+    <div class="stat-label">Campos por analise</div>
+  </div>
+</div>
+
+<!-- PROBLEMA -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">🔴</span>
+    <h2>O Problema — Por que a analise ficou ruim</h2>
+  </div>
+
+  <div class="comparison">
+    <div class="card card-red">
+      <div class="card-title" style="color: var(--accent2);">Import Anterior (Regex)</div>
+      <ul style="color: var(--text-muted); padding-left: 20px; font-size: 0.9rem;">
+        <li>Classificador baseado em regex simples</li>
+        <li>Sem entendimento semantico do texto</li>
+        <li>Todos os campos de IA vazios no drawer</li>
+        <li>Sem flags (ciencia_renuncia, audiencia, etc)</li>
+        <li>Sem fase_processual, sem atividade_tipo</li>
+        <li>Sem responsavel sugerido (Stefany/Leonardo/Marcelo)</li>
+        <li>Sem documentos_necessarios</li>
+        <li>Sem proximos_passos</li>
+        <li>Sem impacto_financeiro</li>
+        <li>Resumo generico: "Verificar nos autos"</li>
+        <li><code>_analista_raw</code> com dados falsos de regex</li>
+      </ul>
+    </div>
+    <div class="card card-green">
+      <div class="card-title" style="color: var(--accent3);">Turbo (Sonnet 4.6 Pipeline)</div>
+      <ul style="color: var(--text-muted); padding-left: 20px; font-size: 0.9rem;">
+        <li>3 agentes especializados (Triador + Analista + Financeiro)</li>
+        <li>Compreensao profunda do contexto juridico</li>
+        <li>Drawer completo com todas as secoes preenchidas</li>
+        <li>Flags inteligentes (ciencia, audiencia, pericia, recurso)</li>
+        <li>Fase processual correta por analise semantica</li>
+        <li>Responsavel por arvore de decisao (reu → advogado)</li>
+        <li>Lista precisa de documentos pedidos pelo juiz</li>
+        <li>Proximos passos accionaveis</li>
+        <li>Extracao automatica de valores financeiros</li>
+        <li>Resumo preciso e contextualizado</li>
+        <li><code>_analista_raw</code> completo com 25+ campos</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- PIPELINE -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">⚡</span>
+    <h2>Pipeline de 3 Agentes</h2>
+  </div>
+
+  <div class="pipeline">
+    <div class="pipeline-step step-1">
+      <div class="step-number">1</div>
+      <div class="step-title">TRIADOR</div>
+      <div class="step-desc">Classifica complexidade (simples/padrao/complexo), urgencia, detecta prazos e flag ciencia_renuncia. Filtra ruido.</div>
+      <div class="step-model">sonnet-4.6 · 1024 tok · t=0.1</div>
+    </div>
+    <div class="pipeline-step step-2">
+      <div class="step-number">2</div>
+      <div class="step-title">ANALISTA</div>
+      <div class="step-desc">Analise juridica profunda: flags, fase, atividade, responsavel, documentos, resumo, audiencia, prazo fatal.</div>
+      <div class="step-model">sonnet-4.6 · 2048 tok · t=0.1</div>
+    </div>
+    <div class="pipeline-step step-3">
+      <div class="step-number">3</div>
+      <div class="step-title">FINANCEIRO</div>
+      <div class="step-desc">Extracao de valores: danos morais, materiais, honorarios, astreintes, bloqueio SISBAJUD. So para sentencas/decisoes.</div>
+      <div class="step-model">sonnet-4.6 · 2048 tok · t=0.1</div>
+    </div>
+    <div class="pipeline-step step-4">
+      <div class="step-number">4</div>
+      <div class="step-title">MERGE</div>
+      <div class="step-desc">Combina outputs em analise_ia JSONB completo. Preenche campos da tabela (ia_status, ia_risco_nivel, etc).</div>
+      <div class="step-model">local · zero custo</div>
+    </div>
+  </div>
+
+  <div class="highlight">
+    <strong>Decisao de roteamento:</strong> Se Triador classifica como <code>simples</code> → pula Analista + Financeiro (so registra). Se <code>complexo</code> ou detecta valores → chama Financeiro apos Analista. Economia de ~40% no custo total.
+  </div>
+</div>
+
+<!-- OUTPUT ESPERADO -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">📋</span>
+    <h2>Output Esperado — analise_ia JSONB</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Schema Completo (o que o Drawer espera)</div>
+    <div class="json-preview">{
+  <span class="json-key">"resumo"</span>: <span class="json-str">"Sentenca parcialmente procedente. Danos morais R$5.000. Exclusao SPC em 15 dias."</span>,
+  <span class="json-key">"confianca"</span>: <span class="json-num">0.92</span>,
+  <span class="json-key">"risco"</span>: <span class="json-str">"alto"</span>,
+  <span class="json-key">"proximos_passos"</span>: [<span class="json-str">"Verificar prazo recursal"</span>, <span class="json-str">"Iniciar cumprimento"</span>],
+  <span class="json-key">"atividade_sugerida"</span>: {
+    <span class="json-key">"titulo"</span>: <span class="json-str">"Cumprimento de Sentenca"</span>,
+    <span class="json-key">"descricao"</span>: <span class="json-str">"Sentenca procedente com condenacao em danos morais..."</span>,
+    <span class="json-key">"urgente"</span>: <span class="json-bool">true</span>,
+    <span class="json-key">"prazo_dias"</span>: <span class="json-num">15</span>
+  },
+  <span class="json-key">"prazo"</span>: {
+    <span class="json-key">"prazo_dias"</span>: <span class="json-num">15</span>,
+    <span class="json-key">"prazo_fatal"</span>: <span class="json-bool">true</span>,
+    <span class="json-key">"tipo_dias"</span>: <span class="json-str">"uteis"</span>
+  },
+  <span class="json-key">"impacto_financeiro"</span>: {
+    <span class="json-key">"condenacao"</span>: <span class="json-num">500000</span>,
+    <span class="json-key">"danos"</span>: <span class="json-num">500000</span>,
+    <span class="json-key">"honorarios"</span>: <span class="json-num">50000</span>
+  },
+  <span class="json-key">"documentos_necessarios"</span>: [],
+  <span class="json-key">"requer_peticao"</span>: <span class="json-bool">false</span>,
+  <span class="json-key">"_analista_raw"</span>: {
+    <span class="json-key">"flag_ciencia_renuncia"</span>: <span class="json-bool">false</span>,
+    <span class="json-key">"flag_decisao_favoravel"</span>: <span class="json-bool">true</span>,
+    <span class="json-key">"flag_audiencia_marcada"</span>: <span class="json-bool">false</span>,
+    <span class="json-key">"flag_pericia_marcada"</span>: <span class="json-bool">false</span>,
+    <span class="json-key">"flag_recurso_necessario"</span>: <span class="json-bool">null</span>,
+    <span class="json-key">"flag_ajg_documentos"</span>: <span class="json-bool">false</span>,
+    <span class="json-key">"fase_processual"</span>: <span class="json-str">"julgamento"</span>,
+    <span class="json-key">"atividade_tipo"</span>: <span class="json-str">"julgado_procedente"</span>,
+    <span class="json-key">"responsavel_sugerido_nome"</span>: <span class="json-str">"Dra. Heloisa"</span>,
+    <span class="json-key">"documentos_necessarios"</span>: [],
+    <span class="json-key">"resumo_controller"</span>: <span class="json-str">"Procedente. R$5.000 danos morais + exclusao SPC."</span>,
+    <span class="json-key">"confianca"</span>: <span class="json-num">92</span>,
+    <span class="json-key">"analise"</span>: { <span class="json-key">"reu"</span>: <span class="json-str">"Serasa"</span>, <span class="json-key">"autor"</span>: <span class="json-str">"Joao Silva"</span> }
+  },
+  <span class="json-key">"_financeiro_raw"</span>: {
+    <span class="json-key">"resultado"</span>: <span class="json-str">"procedente"</span>,
+    <span class="json-key">"valores"</span>: { <span class="json-key">"danos_morais"</span>: <span class="json-num">5000.00</span>, <span class="json-key">"total_condenacao"</span>: <span class="json-num">5000.00</span> }
+  }
+}</div>
+  </div>
+
+  <div class="card" style="margin-top: 16px;">
+    <div class="card-title">Campos Adicionais Preenchidos na Tabela</div>
+    <table>
+      <thead><tr><th>Coluna</th><th>Antes (Regex)</th><th>Depois (Turbo)</th></tr></thead>
+      <tbody>
+        <tr><td><code>ia_status</code></td><td>concluido</td><td>concluido</td></tr>
+        <tr><td><code>ia_classificacao</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">intimacao / sentenca / despacho...</td></tr>
+        <tr><td><code>ia_risco_nivel</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">critico / alto / medio / baixo</td></tr>
+        <tr><td><code>ia_acao_recomendada</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">Titulo da atividade sugerida</td></tr>
+        <tr><td><code>ia_prazo_sugerido</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">2026-04-18 (data calculada)</td></tr>
+        <tr><td><code>resumo_ia</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">Resumo curto (80 chars)</td></tr>
+        <tr><td><code>modelo_ia</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">claude-sonnet-4-6</td></tr>
+        <tr><td><code>tokens_ia</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">2847 (real)</td></tr>
+        <tr><td><code>custo_ia</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">0.0345 (USD)</td></tr>
+        <tr><td><code>data_prazo</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">2026-04-18 (extraido)</td></tr>
+        <tr><td><code>prazo_dias</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">15 (detectado)</td></tr>
+        <tr><td><code>urgente</code></td><td>true/false (fixo)</td><td style="color:var(--accent3)">Baseado em risco real</td></tr>
+        <tr><td><code>analise_versao</code></td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">turbo_v1_sonnet46</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- CUSTOS -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">💰</span>
+    <h2>Estimativa de Custos</h2>
+  </div>
+
+  <div class="cost-grid">
+    <div class="cost-card">
+      <div class="cost-value">~$35</div>
+      <div class="cost-label">Custo Total (628 registros)</div>
+      <div class="cost-detail">Teste unico de re-analise completa</div>
+    </div>
+    <div class="cost-card">
+      <div class="cost-value" style="color: var(--accent);">~$0.056</div>
+      <div class="cost-label">Custo Medio por Intimacao</div>
+      <div class="cost-detail">Triador + Analista + 30% Financeiro</div>
+    </div>
+    <div class="cost-card">
+      <div class="cost-value" style="color: var(--accent5);">~$18</div>
+      <div class="cost-label">Com Prompt Caching</div>
+      <div class="cost-detail">~48% economia (system prompts cached)</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 20px;">
+    <div class="card-title">Breakdown por Agente</div>
+    <table>
+      <thead><tr><th>Agente</th><th>Input Tokens</th><th>Output Tokens</th><th>Custo/Record</th><th>Records</th><th>Subtotal</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-blue">Triador</span></td>
+          <td>~5.500</td><td>~300</td><td>$0.021</td><td>628</td><td>$13.19</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-purple">Analista</span></td>
+          <td>~7.000</td><td>~1.000</td><td>$0.036</td><td>~440*</td><td>$15.84</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-green">Financeiro</span></td>
+          <td>~8.000</td><td>~800</td><td>$0.036</td><td>~135*</td><td>$4.86</td>
+        </tr>
+        <tr style="font-weight: 700; border-top: 2px solid var(--border);">
+          <td colspan="4"></td><td>TOTAL</td><td style="color: var(--accent3);">~$33.89</td>
+        </tr>
+      </tbody>
+    </table>
+    <div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 8px;">
+      * ~30% filtrado pelo Triador como "simples" (ruido). ~30% classificado como "complexo" (requer Financeiro).<br>
+      Precos: Sonnet 4.6 — $3/M input, $15/M output. Com caching: $0.30/M input cached.
+    </div>
+  </div>
+
+  <div class="card card-yellow" style="margin-top: 16px;">
+    <div class="card-title" style="color: var(--accent4);">Projecao Custo Diario em Producao</div>
+    <table>
+      <thead><tr><th>Cenario</th><th>Intimacoes/dia</th><th>Custo/dia</th><th>Custo/mes</th></tr></thead>
+      <tbody>
+        <tr><td>Baixo (so 1 OAB)</td><td>50-100</td><td>$3-6</td><td>$90-180</td></tr>
+        <tr><td>Normal (5 OABs)</td><td>200-400</td><td>$11-22</td><td>$330-660</td></tr>
+        <tr><td>Pico (pos feriado)</td><td>600-800</td><td>$34-45</td><td>-</td></tr>
+        <tr style="background: rgba(79,255,176,.05);">
+          <td>Normal + Caching</td><td>200-400</td><td style="color:var(--accent3)">$6-12</td><td style="color:var(--accent3)">$180-360</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- OTIMIZACOES -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">🚀</span>
+    <h2>Otimizacoes para Sistema Perfeito</h2>
+  </div>
+
+  <div class="optimization-grid">
+    <div class="card card-accent">
+      <div class="card-title">1. Prompt Caching Automatico</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">System prompts dos 3 agentes sao estaticos (~15k tokens). Com caching da Anthropic API, input de sistema cai de $3/M para $0.30/M — economia de 90% no custo fixo.</p>
+      <div style="margin-top: 8px;"><span class="badge badge-green">Economia: ~48%</span></div>
+    </div>
+
+    <div class="card card-accent">
+      <div class="card-title">2. Triador como Filtro Inteligente</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Triador classifica ~30-50% como "simples" (juntadas, certidoes, ruido). Esses NAO passam pelo Analista — economia direta de 30-50% em chamadas.</p>
+      <div style="margin-top: 8px;"><span class="badge badge-green">Economia: ~35%</span></div>
+    </div>
+
+    <div class="card card-accent">
+      <div class="card-title">3. Batch Processing (5 paralelos)</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Processar 5 intimacoes em paralelo com Promise.allSettled(). Reduz tempo total de ~3h para ~40 min. Rate limit da API: 50 req/min.</p>
+      <div style="margin-top: 8px;"><span class="badge badge-blue">Velocidade: 4.5x</span></div>
+    </div>
+
+    <div class="card card-accent">
+      <div class="card-title">4. Retry com Escalacao</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Se Analista retorna confianca &lt; 0.60, retry automatico com texto completo (sem truncar) e contexto de processo enriquecido. Max 1 retry.</p>
+      <div style="margin-top: 8px;"><span class="badge badge-yellow">Qualidade: +15%</span></div>
+    </div>
+
+    <div class="card card-accent">
+      <div class="card-title">5. Contexto de Processo</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Para cada intimacao, buscar dados do processo (tipo, valor_causa, status, advogado_reu) e injetar no prompt do Analista. Melhora roteamento de responsavel e fase.</p>
+      <div style="margin-top: 8px;"><span class="badge badge-purple">Precisao: +20%</span></div>
+    </div>
+
+    <div class="card card-accent">
+      <div class="card-title">6. Deduplicacao por Signature</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Hash MD5 do conteudo evita re-analise de duplicatas. Constraint UNIQUE ja existe: (signature_hash, organizacao_id). Zero custo em re-runs.</p>
+      <div style="margin-top: 8px;"><span class="badge badge-green">Economia: duplicatas</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ARQUITETURA DO SCRIPT -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">🔧</span>
+    <h2>Arquitetura do Script Turbo</h2>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Fluxo de Execucao</div>
+    <div class="json-preview" style="color: var(--text); font-size: 0.78rem;">
+1. PREPARACAO
+   ├─ Ler 628 registros de /tmp/planilha_classificada.json
+   ├─ Buscar system prompts de ai_agents_config (Supabase)
+   ├─ Limpar intimacoes existentes (soft-delete)
+   └─ Preparar metricas (custo, tokens, tempo)
+
+2. LOOP POR INTIMACAO (5 paralelas)
+   │
+   ├─ [TRIADOR] Enviar texto → Sonnet 4.6
+   │   ├─ simples? → INSERT basico, skip Analista
+   │   └─ padrao/complexo? → continuar
+   │
+   ├─ [ANALISTA] Enviar texto + contexto processo → Sonnet 4.6
+   │   ├─ confianca >= 0.60? → aceitar
+   │   └─ confianca < 0.60? → retry com texto completo
+   │
+   ├─ [FINANCEIRO] Se complexo + valores → Sonnet 4.6
+   │   └─ Extrair danos, honorarios, astreintes
+   │
+   └─ [MERGE] Combinar outputs → analise_ia JSONB
+       ├─ INSERT intimacao com todos os campos
+       ├─ Acumular metricas (tokens, custo)
+       └─ Log progresso
+
+3. FINALIZACAO
+   ├─ Relatorio de execucao (custo total, distribuicao, qualidade)
+   ├─ Verificar integridade (count, nulls, confianca media)
+   └─ Publicar HTML de resultado</div>
+  </div>
+</div>
+
+<!-- COMPARACAO REGEX vs TURBO -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">📊</span>
+    <h2>Impacto no Drawer do Controller</h2>
+  </div>
+
+  <div class="comparison">
+    <div class="card card-red">
+      <div class="card-title" style="color: var(--accent2);">Drawer ANTES (vazio)</div>
+      <div style="background: #0a0c14; border-radius: 8px; padding: 16px; margin-top: 8px;">
+        <div style="color: var(--text-muted); font-size: 0.85rem;">
+          <div style="margin-bottom: 8px;"><strong>Resumo IA:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Classificacao:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Risco:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Responsavel:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Fase:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Atividade:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Documentos:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Proximos Passos:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div style="margin-bottom: 8px;"><strong>Prazo:</strong> <span style="color: var(--accent2);">—</span></div>
+          <div><strong>Financeiro:</strong> <span style="color: var(--accent2);">—</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="card card-green">
+      <div class="card-title" style="color: var(--accent3);">Drawer DEPOIS (completo)</div>
+      <div style="background: #0a0c14; border-radius: 8px; padding: 16px; margin-top: 8px;">
+        <div style="color: var(--text-muted); font-size: 0.85rem;">
+          <div style="margin-bottom: 8px;"><strong>Resumo IA:</strong> <span style="color: var(--accent3);">Despacho defere AJG e determina citacao do reu. Prazo 15 dias para contestacao.</span></div>
+          <div style="margin-bottom: 8px;"><strong>Classificacao:</strong> <span class="badge badge-blue">Despacho</span> <span class="badge badge-yellow">Media</span></div>
+          <div style="margin-bottom: 8px;"><strong>Risco:</strong> <span class="badge badge-yellow">Medio</span></div>
+          <div style="margin-bottom: 8px;"><strong>Responsavel:</strong> <span style="color: var(--accent3);">Stefany</span> (banco no polo passivo)</div>
+          <div style="margin-bottom: 8px;"><strong>Fase:</strong> <span class="badge badge-purple">Inicial</span></div>
+          <div style="margin-bottom: 8px;"><strong>Atividade:</strong> <span style="color: var(--accent3);">Ciencia com Renuncia</span></div>
+          <div style="margin-bottom: 8px;"><strong>Documentos:</strong> <span style="color: var(--text-muted);">Nenhum</span></div>
+          <div style="margin-bottom: 8px;"><strong>Proximos Passos:</strong> <span style="color: var(--accent3);">Dar ciencia → Aguardar contestacao</span></div>
+          <div style="margin-bottom: 8px;"><strong>Prazo:</strong> <span style="color: var(--accent3);">Sem prazo para autor</span></div>
+          <div><strong>Confianca:</strong> <span style="color: var(--accent3);">92%</span> <div class="progress-bar" style="width:150px;display:inline-block;vertical-align:middle;"><div class="progress-fill" style="width:92%;background:var(--accent3);"></div></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- METRICAS DE QUALIDADE -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">🎯</span>
+    <h2>Metricas de Qualidade Esperadas</h2>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-value" style="color: var(--accent3);">90%+</div>
+      <div class="stat-label">Confianca media</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color: var(--accent);">100%</div>
+      <div class="stat-label">Drawers preenchidos</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color: var(--accent5);">25+</div>
+      <div class="stat-label">Campos por analise</div>
+    </div>
+    <div class="stat">
+      <div class="stat-value" style="color: var(--accent4);">&lt;2%</div>
+      <div class="stat-label">Taxa de erro esperada</div>
+    </div>
+  </div>
+</div>
+
+<!-- PLANO DE EXECUCAO -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">📝</span>
+    <h2>Plano de Execucao</h2>
+  </div>
+
+  <div class="card card-accent">
+    <div class="card-title">Fase 1 — Preparacao (5 min)</div>
+    <ul class="checklist">
+      <li>Soft-delete de todas as 627 intimacoes existentes</li>
+      <li>Buscar system prompts de ai_agents_config</li>
+      <li>Carregar dados da planilha classificada (687 registros)</li>
+      <li>Preparar metricas de tracking</li>
+    </ul>
+  </div>
+
+  <div class="card card-accent">
+    <div class="card-title">Fase 2 — Execucao Pipeline (40-60 min)</div>
+    <ul class="checklist">
+      <li>Processar 628 registros (excluindo classe A) pelo pipeline completo</li>
+      <li>5 chamadas paralelas com rate limiting (50 req/min)</li>
+      <li>Triador filtra ~30% como simples (skip Analista)</li>
+      <li>Analista processa ~440 registros com analise profunda</li>
+      <li>Financeiro extrai valores de ~135 sentencas/decisoes</li>
+      <li>Retry automatico em confianca &lt; 0.60</li>
+    </ul>
+  </div>
+
+  <div class="card card-accent">
+    <div class="card-title">Fase 3 — Insercao (10 min)</div>
+    <ul class="checklist">
+      <li>INSERT em lotes de 25 com todos os campos preenchidos</li>
+      <li>ON CONFLICT para duplicatas (signature_hash)</li>
+      <li>Verificar integridade: count, nulls, distribuicao</li>
+    </ul>
+  </div>
+
+  <div class="card card-accent">
+    <div class="card-title">Fase 4 — Validacao e Relatorio (5 min)</div>
+    <ul class="checklist">
+      <li>Query v_controller_intimacoes_completa — confirmar dados na view</li>
+      <li>Verificar drawer de 3 intimacoes aleatorias</li>
+      <li>Gerar HTML de resultado com custos reais e metricas</li>
+      <li>Comparar qualidade: antes vs depois em 10 amostras</li>
+    </ul>
+  </div>
+</div>
+
+<!-- SISTEMA A PROVA DE FALHAS -->
+<div class="section">
+  <div class="section-header">
+    <span style="font-size: 1.4rem;">🛡</span>
+    <h2>Sistema a Prova de Falhas</h2>
+  </div>
+
+  <div class="optimization-grid">
+    <div class="card card-green">
+      <div class="card-title">Retry com Backoff</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Falha na API? Retry com backoff exponencial (1s, 2s, 4s). Max 3 tentativas. Se falhar, marcar ia_status='erro' e seguir.</p>
+    </div>
+    <div class="card card-green">
+      <div class="card-title">Validacao de Output</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">JSON.parse() obrigatorio. Se resposta nao e JSON valido, retry. Se retry falha, usar output do Triador como fallback.</p>
+    </div>
+    <div class="card card-green">
+      <div class="card-title">Checkpoint a Cada 50</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Salvar progresso em /tmp/turbo_checkpoint.json a cada 50 registros. Se script crashar, retomar do checkpoint.</p>
+    </div>
+    <div class="card card-green">
+      <div class="card-title">Schema Validation</div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Validar que output do Analista tem campos obrigatorios (flag_ciencia_renuncia, atividade_tipo, resumo_controller, confianca). Se faltar campo, usar default seguro.</p>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  🐙 Jarbas 2.0 — MdLab LegalTech · Plano Turbo Analise IA · 03/04/2026
+</div>
+
+</div>
+</body>
+</html>

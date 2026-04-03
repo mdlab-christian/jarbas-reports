@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resultado Turbo Analysis - Sonnet 4 Pipeline</title>
+<style>
+  :root {
+    --bg: #0d0f18; --surface: #161926; --surface2: #1e2235;
+    --border: #2a2f4a;
+    --accent: #7c6dff; --accent2: #ff6b6b; --accent3: #4fffb0;
+    --accent4: #ffd166; --accent5: #5bc4f5;
+    --text: #e8eaf6; --text-muted: #7a82a8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', -apple-system, sans-serif; line-height: 1.6; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+  /* Hero */
+  .hero { text-align: center; padding: 48px 0 32px; }
+  .hero-icon { font-size: 64px; margin-bottom: 16px; }
+  .hero h1 { font-size: 2.4rem; font-weight: 800; font-family: 'Manrope', sans-serif;
+    background: linear-gradient(135deg, var(--accent), var(--accent5));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 8px; }
+  .hero-sub { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 24px; }
+  .hero-badges { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .badge { padding: 6px 16px; border-radius: 20px; font-size: 0.85rem; font-weight: 600; }
+  .badge-success { background: rgba(79,255,176,0.15); color: var(--accent3); border: 1px solid rgba(79,255,176,0.3); }
+  .badge-info { background: rgba(91,196,245,0.15); color: var(--accent5); border: 1px solid rgba(91,196,245,0.3); }
+  .badge-accent { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+
+  /* Score Ring */
+  .score-section { display: flex; justify-content: center; gap: 48px; margin: 32px 0; flex-wrap: wrap; }
+  .score-ring { text-align: center; }
+  .score-ring svg { width: 140px; height: 140px; }
+  .score-ring circle { fill: none; stroke-width: 8; }
+  .score-ring .bg { stroke: var(--surface2); }
+  .score-ring .fg { stroke-linecap: round; transition: stroke-dashoffset 1s; }
+  .score-value { font-size: 2rem; font-weight: 800; font-family: 'Manrope', sans-serif; }
+  .score-label { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+
+  /* Stats Grid */
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 32px 0; }
+  @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .stat-value { font-size: 1.8rem; font-weight: 800; font-family: 'Manrope', sans-serif; }
+  .stat-label { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-sub { color: var(--text-muted); font-size: 0.75rem; margin-top: 2px; }
+
+  /* Section */
+  .section { margin: 40px 0; }
+  .section-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .section-header .icon { font-size: 1.5rem; }
+  .section-header h2 { font-size: 1.3rem; font-weight: 700; font-family: 'Manrope', sans-serif; }
+
+  /* Cards */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 16px; }
+  .card-title { font-size: 1rem; font-weight: 700; margin-bottom: 12px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; padding: 12px 16px; background: var(--surface2); color: var(--text-muted);
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+  td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  tr:hover td { background: rgba(124,109,255,0.05); }
+
+  /* Bar chart inline */
+  .bar-container { display: flex; align-items: center; gap: 8px; }
+  .bar { height: 24px; border-radius: 4px; min-width: 4px; transition: width 0.5s; }
+  .bar-label { font-size: 0.8rem; color: var(--text-muted); white-space: nowrap; }
+
+  /* Confidence distribution */
+  .conf-dist { display: flex; gap: 2px; border-radius: 8px; overflow: hidden; height: 32px; margin: 12px 0; }
+  .conf-segment { display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: #000; }
+
+  /* Pipeline flow */
+  .pipeline { display: flex; align-items: center; gap: 0; margin: 24px 0; flex-wrap: wrap; justify-content: center; }
+  .pipeline-step { background: var(--surface); border: 2px solid var(--border); border-radius: 12px; padding: 16px 20px; text-align: center; min-width: 160px; }
+  .pipeline-step.active { border-color: var(--accent); }
+  .pipeline-step .step-name { font-weight: 700; font-size: 0.95rem; }
+  .pipeline-step .step-count { font-size: 1.4rem; font-weight: 800; color: var(--accent); font-family: 'Manrope', sans-serif; }
+  .pipeline-step .step-sub { font-size: 0.75rem; color: var(--text-muted); }
+  .pipeline-arrow { font-size: 1.5rem; color: var(--accent); padding: 0 8px; }
+
+  /* Cost breakdown */
+  .cost-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 768px) { .cost-grid { grid-template-columns: 1fr; } }
+  .cost-card { background: var(--surface2); border-radius: 10px; padding: 20px; text-align: center; }
+  .cost-value { font-size: 1.6rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .cost-label { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+
+  /* Comparison */
+  .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  @media (max-width: 768px) { .compare { grid-template-columns: 1fr; } }
+  .compare-card { border-radius: 12px; padding: 24px; }
+  .compare-before { background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.3); }
+  .compare-after { background: rgba(79,255,176,0.1); border: 1px solid rgba(79,255,176,0.3); }
+  .compare-title { font-weight: 700; font-size: 1rem; margin-bottom: 12px; }
+  .compare-list { list-style: none; }
+  .compare-list li { padding: 6px 0; font-size: 0.9rem; }
+  .compare-list li::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 10px; }
+  .compare-before .compare-list li::before { background: var(--accent2); }
+  .compare-after .compare-list li::before { background: var(--accent3); }
+
+  /* Projection */
+  .projection-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media (max-width: 768px) { .projection-grid { grid-template-columns: 1fr; } }
+  .proj-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; text-align: center; }
+  .proj-scenario { font-size: 0.8rem; color: var(--accent5); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+  .proj-value { font-size: 1.8rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; margin: 8px 0; }
+  .proj-detail { font-size: 0.8rem; color: var(--text-muted); }
+
+  /* Resumo examples */
+  .resumo-item { background: var(--surface2); border-radius: 8px; padding: 14px 18px; margin-bottom: 10px; }
+  .resumo-tipo { font-size: 0.7rem; text-transform: uppercase; font-weight: 700; padding: 2px 8px; border-radius: 4px; display: inline-block; margin-bottom: 6px; }
+  .resumo-text { font-size: 0.9rem; line-height: 1.5; }
+  .tipo-sentenca { background: rgba(79,255,176,0.2); color: var(--accent3); }
+  .tipo-decisao { background: rgba(124,109,255,0.2); color: var(--accent); }
+  .tipo-audiencia { background: rgba(255,209,102,0.2); color: var(--accent4); }
+
+  /* Footer */
+  .footer { text-align: center; padding: 40px 0 24px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-icon">&#x1F419;</div>
+    <h1>Turbo Analysis — Resultados</h1>
+    <div class="hero-sub">Pipeline 3-Agentes Sonnet 4 | 687 intimacoes | 02/04/2026</div>
+    <div class="hero-badges">
+      <span class="badge badge-success">687/687 processados</span>
+      <span class="badge badge-success">0 erros</span>
+      <span class="badge badge-info">Sonnet 4 only</span>
+      <span class="badge badge-accent">$25.94 total</span>
+    </div>
+  </div>
+
+  <!-- Score Rings -->
+  <div class="score-section">
+    <div class="score-ring">
+      <svg viewBox="0 0 140 140">
+        <circle class="bg" cx="70" cy="70" r="58"/>
+        <circle class="fg" cx="70" cy="70" r="58" stroke="url(#grad1)"
+          stroke-dasharray="364.4" stroke-dashoffset="21.5"
+          transform="rotate(-90 70 70)"/>
+        <defs><linearGradient id="grad1"><stop offset="0%" stop-color="#7c6dff"/><stop offset="100%" stop-color="#4fffb0"/></linearGradient></defs>
+      </svg>
+      <div class="score-value" style="color:var(--accent3)">94.1%</div>
+      <div class="score-label">Confianca Media</div>
+    </div>
+    <div class="score-ring">
+      <svg viewBox="0 0 140 140">
+        <circle class="bg" cx="70" cy="70" r="58"/>
+        <circle class="fg" cx="70" cy="70" r="58" stroke="var(--accent5)"
+          stroke-dasharray="364.4" stroke-dashoffset="38.3"
+          transform="rotate(-90 70 70)"/>
+      </svg>
+      <div class="score-value" style="color:var(--accent5)">89.5%</div>
+      <div class="score-label">Vinculados a Processos</div>
+    </div>
+    <div class="score-ring">
+      <svg viewBox="0 0 140 140">
+        <circle class="bg" cx="70" cy="70" r="58"/>
+        <circle class="fg" cx="70" cy="70" r="58" stroke="var(--accent)"
+          stroke-dasharray="364.4" stroke-dashoffset="0"
+          transform="rotate(-90 70 70)"/>
+      </svg>
+      <div class="score-value" style="color:var(--accent)">100%</div>
+      <div class="score-label">Taxa de Sucesso</div>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent3)">687</div>
+      <div class="stat-label">Total Processados</div>
+      <div class="stat-sub">0 erros, 0 retries</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent5)">6.83M</div>
+      <div class="stat-label">Tokens Consumidos</div>
+      <div class="stat-sub">6.38M input + 454K output</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent)">1,457</div>
+      <div class="stat-label">Chamadas API</div>
+      <div class="stat-sub">687T + 549A + 221F</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent4)">62.8m</div>
+      <div class="stat-label">Tempo Total</div>
+      <div class="stat-sub">5.5s / registro (5 paralelos)</div>
+    </div>
+  </div>
+
+  <!-- Pipeline Flow -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x2699;&#xFE0F;</span>
+      <h2>Pipeline 3-Agentes</h2>
+    </div>
+    <div class="pipeline">
+      <div class="pipeline-step active">
+        <div class="step-name">Triador</div>
+        <div class="step-count">687</div>
+        <div class="step-sub">100% — classifica complexidade</div>
+      </div>
+      <div class="pipeline-arrow">&#x27A1;&#xFE0F;</div>
+      <div class="pipeline-step active">
+        <div class="step-name">Analista</div>
+        <div class="step-count">549</div>
+        <div class="step-sub">79.9% — analise profunda</div>
+      </div>
+      <div class="pipeline-arrow">&#x27A1;&#xFE0F;</div>
+      <div class="pipeline-step active">
+        <div class="step-name">Financeiro</div>
+        <div class="step-count">221</div>
+        <div class="step-sub">32.2% — extracao monetaria</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Distribuicao de Confianca</div>
+      <div class="conf-dist">
+        <div class="conf-segment" style="width:90.5%;background:var(--accent3)">622 (90.5%) &#x2265;90%</div>
+        <div class="conf-segment" style="width:8.9%;background:var(--accent5)">61 (8.9%)</div>
+        <div class="conf-segment" style="width:0.6%;background:var(--accent4)">4</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.75rem;color:var(--text-muted);">
+        <span>Excelente (&#x2265;90%): 622</span>
+        <span>Boa (80-89%): 61</span>
+        <span>Media (60-79%): 4</span>
+        <span>Baixa (&lt;60%): 0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Classification -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x1F3AF;</span>
+      <h2>Classificacao por Tipo</h2>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Tipo</th><th>Qtd</th><th>%</th><th>Confianca</th><th>Distribuicao</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>Decisao</strong></td><td>165</td><td>24.0%</td><td>94.9%</td>
+            <td><div class="bar-container"><div class="bar" style="width:165px;background:var(--accent)"></div></div></td></tr>
+          <tr><td><strong>Expediente</strong></td><td>134</td><td>19.5%</td><td>90.8%</td>
+            <td><div class="bar-container"><div class="bar" style="width:134px;background:var(--accent5)"></div></div></td></tr>
+          <tr><td><strong>Despacho</strong></td><td>115</td><td>16.7%</td><td>95.0%</td>
+            <td><div class="bar-container"><div class="bar" style="width:115px;background:var(--accent4)"></div></div></td></tr>
+          <tr><td><strong>Recurso</strong></td><td>92</td><td>13.4%</td><td>94.9%</td>
+            <td><div class="bar-container"><div class="bar" style="width:92px;background:var(--accent3)"></div></div></td></tr>
+          <tr><td><strong>Intimacao</strong></td><td>88</td><td>12.8%</td><td>94.9%</td>
+            <td><div class="bar-container"><div class="bar" style="width:88px;background:var(--accent)"></div></div></td></tr>
+          <tr><td><strong>Sentenca</strong></td><td>75</td><td>10.9%</td><td>94.7%</td>
+            <td><div class="bar-container"><div class="bar" style="width:75px;background:var(--accent2)"></div></div></td></tr>
+          <tr><td><strong>Audiencia</strong></td><td>10</td><td>1.5%</td><td>95.0%</td>
+            <td><div class="bar-container"><div class="bar" style="width:10px;background:var(--accent4)"></div></div></td></tr>
+          <tr><td><strong>Outros</strong></td><td>8</td><td>1.2%</td><td>95.0%</td>
+            <td><div class="bar-container"><div class="bar" style="width:8px;background:var(--text-muted)"></div></div></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Risk Distribution -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x26A0;&#xFE0F;</span>
+      <h2>Distribuicao por Risco</h2>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--accent2)">9</div>
+        <div class="stat-label">Critico</div>
+        <div class="stat-sub">1.3%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--accent4)">171</div>
+        <div class="stat-label">Alto</div>
+        <div class="stat-sub">24.9%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--accent5)">352</div>
+        <div class="stat-label">Medio</div>
+        <div class="stat-sub">51.2%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="color:var(--accent3)">155</div>
+        <div class="stat-label">Baixo</div>
+        <div class="stat-sub">22.6%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sample Resumos -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x1F4DD;</span>
+      <h2>Exemplos de Analise (Qualidade)</h2>
+    </div>
+    <div class="resumo-item">
+      <span class="resumo-tipo tipo-sentenca">Sentenca</span>
+      <div class="resumo-text">Vitoria! Sentenca parcialmente procedente declarando inexistencia do debito e determinando exclusao da negativacao.</div>
+    </div>
+    <div class="resumo-item">
+      <span class="resumo-tipo tipo-decisao">Decisao</span>
+      <div class="resumo-text">Liminar negada por falta de verossimilhanca. Juiz citou outras acoes similares do autor. Agravo necessario.</div>
+    </div>
+    <div class="resumo-item">
+      <span class="resumo-tipo tipo-decisao">Decisao</span>
+      <div class="resumo-text">Redistribuicao para Foro Regional Sao Miguel por incompetencia territorial.</div>
+    </div>
+    <div class="resumo-item">
+      <span class="resumo-tipo tipo-audiencia">Audiencia</span>
+      <div class="resumo-text">Apelacao pautada para julgamento em 15/04/2026 as 13:30h.</div>
+    </div>
+    <div class="resumo-item">
+      <span class="resumo-tipo tipo-sentenca">Sentenca</span>
+      <div class="resumo-text">Sentenca parcialmente procedente - declaracao inexistencia debito R$498,91.</div>
+    </div>
+  </div>
+
+  <!-- Before/After Comparison -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x1F504;</span>
+      <h2>Antes vs Depois</h2>
+    </div>
+    <div class="compare">
+      <div class="compare-card compare-before">
+        <div class="compare-title" style="color:var(--accent2)">&#x274C; Import Regex (anterior)</div>
+        <ul class="compare-list">
+          <li>Classificacao por regex simples</li>
+          <li>Confianca arbitraria (30-90%)</li>
+          <li>analise_ia sem _analista_raw</li>
+          <li>Drawer IA completamente vazio</li>
+          <li>Sem extracao financeira</li>
+          <li>Sem atividade sugerida</li>
+          <li>Sem responsavel sugerido</li>
+          <li>Sem flags (ciencia, recurso, etc)</li>
+          <li>"Errou muito!" - feedback do usuario</li>
+        </ul>
+      </div>
+      <div class="compare-card compare-after">
+        <div class="compare-title" style="color:var(--accent3)">&#x2705; Turbo Sonnet 4 (agora)</div>
+        <ul class="compare-list">
+          <li>Pipeline 3-agentes especializado</li>
+          <li>Confianca media 94.1% (real)</li>
+          <li>_analista_raw completo em 549 registros</li>
+          <li>Drawer IA totalmente funcional</li>
+          <li>221 com extracao financeira</li>
+          <li>Atividade sugerida com prazo e descricao</li>
+          <li>Responsavel: Stefany / Dra. Heloisa / etc</li>
+          <li>12 flags booleanas por registro</li>
+          <li>$25.94 = $0.038/registro</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cost Breakdown -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x1F4B0;</span>
+      <h2>Custos — Breakdown</h2>
+    </div>
+    <div class="cost-grid">
+      <div class="cost-card">
+        <div class="cost-value" style="color:var(--accent3)">$25.94</div>
+        <div class="cost-label">Custo Total Pipeline</div>
+      </div>
+      <div class="cost-card">
+        <div class="cost-value" style="color:var(--accent5)">$0.038</div>
+        <div class="cost-label">Por Registro</div>
+      </div>
+      <div class="cost-card">
+        <div class="cost-value" style="color:var(--accent)">$19.13 + $6.81</div>
+        <div class="cost-label">Input + Output</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Detalhamento por Agente</div>
+      <table>
+        <thead><tr><th>Agente</th><th>Chamadas</th><th>Max Tokens</th><th>Custo Est.</th></tr></thead>
+        <tbody>
+          <tr><td>Triador (Sonnet 4)</td><td>687</td><td>1,024</td><td>~$6.50</td></tr>
+          <tr><td>Analista (Sonnet 4)</td><td>549</td><td>2,048</td><td>~$13.20</td></tr>
+          <tr><td>Financeiro (Sonnet 4)</td><td>221</td><td>2,048</td><td>~$6.24</td></tr>
+          <tr style="font-weight:700;"><td>TOTAL</td><td>1,457</td><td>—</td><td>$25.94</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Daily Cost Projections -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x1F4C8;</span>
+      <h2>Projecao de Custos Diarios</h2>
+    </div>
+    <div class="projection-grid">
+      <div class="proj-card">
+        <div class="proj-scenario">Dia Leve</div>
+        <div class="proj-value" style="color:var(--accent3)">$3.78</div>
+        <div class="proj-detail">~100 intimacoes/dia</div>
+        <div class="proj-detail">~R$ 22/dia | R$ 660/mes</div>
+      </div>
+      <div class="proj-card" style="border-color:var(--accent);">
+        <div class="proj-scenario">Dia Normal</div>
+        <div class="proj-value" style="color:var(--accent)">$7.56</div>
+        <div class="proj-detail">~200 intimacoes/dia</div>
+        <div class="proj-detail">~R$ 44/dia | R$ 1.320/mes</div>
+      </div>
+      <div class="proj-card">
+        <div class="proj-scenario">Dia Pesado</div>
+        <div class="proj-value" style="color:var(--accent4)">$25.94</div>
+        <div class="proj-detail">~687 intimacoes/dia</div>
+        <div class="proj-detail">~R$ 150/dia | R$ 4.500/mes</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Otimizacoes de Custo Possiveis</div>
+      <table>
+        <thead><tr><th>Estrategia</th><th>Economia</th><th>Impacto Qualidade</th></tr></thead>
+        <tbody>
+          <tr><td>Prompt caching Anthropic (system prompts)</td><td>~50-60%</td><td>Zero — mesma qualidade</td></tr>
+          <tr><td>Haiku 4.5 no Triador (Sonnet no Analista/Financeiro)</td><td>~25%</td><td>Minimo — triagem simples</td></tr>
+          <tr><td>Skip Financeiro se nao-sentenca/decisao</td><td>~10%</td><td>Zero — ja implementado</td></tr>
+          <tr><td>Batch API (50% desconto, +24h latencia)</td><td>~50%</td><td>Zero — nao-urgente</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Drawer Fix -->
+  <div class="section">
+    <div class="section-header">
+      <span class="icon">&#x1F5C3;&#xFE0F;</span>
+      <h2>Drawer IA — Status</h2>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:var(--accent3)">&#x2705; CORRIGIDO</div>
+      <p style="margin-bottom:12px;">O drawer de analise IA no /controller agora funciona corretamente para os 687 registros turbo.</p>
+      <table>
+        <thead><tr><th>Campo</th><th>Antes</th><th>Agora</th></tr></thead>
+        <tbody>
+          <tr><td>_analista_raw</td><td style="color:var(--accent2)">Ausente</td><td style="color:var(--accent3)">549 registros</td></tr>
+          <tr><td>_financeiro_raw</td><td style="color:var(--accent2)">Ausente</td><td style="color:var(--accent3)">221 registros</td></tr>
+          <tr><td>_triador_raw</td><td style="color:var(--accent2)">Ausente</td><td style="color:var(--accent3)">687 registros</td></tr>
+          <tr><td>Flags (12 booleanos)</td><td style="color:var(--accent2)">Nenhum</td><td style="color:var(--accent3)">Todos preenchidos</td></tr>
+          <tr><td>fase_processual</td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">Preenchido</td></tr>
+          <tr><td>responsavel_sugerido</td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">Preenchido</td></tr>
+          <tr><td>atividade_sugerida</td><td style="color:var(--accent2)">NULL</td><td style="color:var(--accent3)">Com titulo+descricao+prazo</td></tr>
+          <tr><td>resumo_controller</td><td style="color:var(--accent2)">Generico</td><td style="color:var(--accent3)">Contextualizado</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    &#x1F419; Jarbas 2.0 — MdLab LegalTech | Turbo Analysis Report | 03/04/2026 04:15 BRT
+  </div>
+
+</div>
+</body>
+</html>

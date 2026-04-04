@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA V3 — Issues Atomicas & Gestao de Terminais</title>
+<style>
+:root{--bg:#0d0f18;--surface:#161926;--surface2:#1e2235;--surface3:#252a40;--border:#2a2f4a;--accent:#7c6dff;--accent2:#ff6b6b;--accent3:#4fffb0;--accent4:#ffd166;--accent5:#5bc4f5;--text:#e8eaf6;--text-muted:#7a82a8}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:.88rem;line-height:1.6;padding:20px}
+.container{max-width:1200px;margin:0 auto}
+.hero{text-align:center;padding:40px 0 30px}
+.hero h1{font-family:'Manrope',sans-serif;font-size:2.2rem;background:linear-gradient(135deg,var(--accent),var(--accent5));-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px}
+.hero-sub{color:var(--text-muted);font-size:1rem;margin-bottom:16px}
+.badges{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.badge{padding:4px 14px;border-radius:20px;font-size:.78rem;font-weight:600;border:1px solid var(--border);background:var(--surface)}
+.badge-purple{border-color:var(--accent);color:var(--accent)}
+.badge-green{border-color:var(--accent3);color:var(--accent3)}
+.badge-blue{border-color:var(--accent5);color:var(--accent5)}
+.badge-yellow{border-color:var(--accent4);color:var(--accent4)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:30px 0}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
+.stat-value{font-family:'Manrope',sans-serif;font-size:1.8rem;font-weight:800;color:var(--accent3)}
+.stat-label{color:var(--text-muted);font-size:.78rem;margin-top:4px}
+.section{margin:40px 0}
+.section-header{display:flex;align-items:center;gap:10px;margin-bottom:20px}
+.section-header h2{font-family:'Manrope',sans-serif;font-size:1.4rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+.card-title{font-weight:700;margin-bottom:10px;font-size:1rem}
+/* Terminal cards */
+.terminal-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.terminal-card{background:var(--surface);border:2px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden}
+.terminal-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.t-ctrl::before{background:var(--accent)}.t-ctrl{border-color:rgba(124,109,255,.3)}
+.t-front::before{background:var(--accent3)}.t-front{border-color:rgba(79,255,176,.3)}
+.t-back::before{background:var(--accent5)}.t-back{border-color:rgba(91,196,245,.3)}
+.t-mech::before{background:var(--accent4)}.t-mech{border-color:rgba(255,209,102,.3)}
+.t-play::before{background:var(--accent2)}.t-play{border-color:rgba(255,107,107,.3)}
+.t-qa::before{background:var(--text-muted)}.t-qa{border-color:rgba(122,130,168,.3)}
+.terminal-name{font-family:'JetBrains Mono',monospace;font-weight:700;font-size:1rem;margin-bottom:4px}
+.terminal-role{color:var(--text-muted);font-size:.82rem;margin-bottom:10px}
+.terminal-sprints{font-size:.82rem}
+.terminal-sprints strong{color:var(--accent3)}
+/* Timeline */
+.timeline{display:flex;gap:0;margin:20px 0;overflow-x:auto;padding-bottom:10px}
+.phase{flex:1;min-width:160px;text-align:center;position:relative;padding:16px 8px}
+.phase::after{content:'';position:absolute;top:38px;right:-8px;width:16px;height:2px;background:var(--border)}
+.phase:last-child::after{display:none}
+.phase-num{width:32px;height:32px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:.82rem;margin-bottom:8px;border:2px solid var(--border);background:var(--surface2)}
+.phase-active{border-color:var(--accent3);color:var(--accent3)}
+.phase-title{font-weight:600;font-size:.82rem;margin-bottom:4px}
+.phase-desc{color:var(--text-muted);font-size:.75rem}
+.phase-terminals{display:flex;gap:4px;justify-content:center;margin-top:6px}
+.phase-dot{width:10px;height:10px;border-radius:50%}
+/* Sprint accordion */
+details{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden}
+details[open]{border-color:var(--accent)}
+summary{padding:16px 20px;cursor:pointer;display:flex;align-items:center;gap:12px;font-weight:600;list-style:none;user-select:none}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'';width:0;height:0;border-left:6px solid var(--text-muted);border-top:4px solid transparent;border-bottom:4px solid transparent;transition:transform .2s}
+details[open] summary::before{transform:rotate(90deg)}
+.sprint-badge{padding:2px 10px;border-radius:10px;font-size:.72rem;font-weight:700}
+.sprint-terminal{margin-left:auto;padding:2px 10px;border-radius:10px;font-size:.72rem;border:1px solid var(--border)}
+.issue-table{width:100%;border-collapse:collapse;font-size:.82rem}
+.issue-table th{text-align:left;padding:10px 12px;background:var(--surface2);color:var(--text-muted);font-weight:600;border-bottom:1px solid var(--border);font-size:.75rem;text-transform:uppercase;letter-spacing:.5px}
+.issue-table td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top}
+.issue-table tr:last-child td{border-bottom:none}
+.issue-id{font-family:'JetBrains Mono',monospace;color:var(--accent);font-weight:600;white-space:nowrap;font-size:.78rem}
+.issue-files{font-family:'JetBrains Mono',monospace;color:var(--text-muted);font-size:.72rem;word-break:break-all}
+.issue-pre{color:var(--accent4);font-size:.75rem}
+.issue-crit{color:var(--accent3);font-size:.75rem}
+/* Prompt cards */
+.prompt-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:12px;position:relative}
+.prompt-card .terminal-name{font-size:.88rem}
+.prompt-text{font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--text-muted);line-height:1.5;white-space:pre-wrap;margin-top:10px;background:var(--bg);padding:12px;border-radius:8px;border:1px solid var(--border)}
+.copy-btn{position:absolute;top:12px;right:12px;background:var(--accent);color:#fff;border:none;padding:4px 12px;border-radius:6px;font-size:.72rem;cursor:pointer;font-weight:600}
+.copy-btn:hover{opacity:.8}
+.copy-btn.copied{background:var(--accent3)}
+/* Summary grid */
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.summary-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px}
+.summary-card h3{font-size:.95rem;margin-bottom:12px;color:var(--accent)}
+.summary-item{display:flex;justify-content:space-between;padding:4px 0;font-size:.82rem;border-bottom:1px solid rgba(42,47,74,.5)}
+.summary-item:last-child{border-bottom:none}
+.summary-count{color:var(--accent3);font-weight:600}
+/* Rules */
+.rules-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.rule{background:var(--surface2);border-left:3px solid var(--accent4);padding:12px 16px;border-radius:0 8px 8px 0;font-size:.82rem}
+.rule strong{color:var(--accent4)}
+.rule-danger{border-left-color:var(--accent2)}
+.rule-danger strong{color:var(--accent2)}
+/* Dependency diagram */
+.dep-flow{display:flex;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;padding:16px;font-size:.82rem}
+.dep-box{background:var(--surface2);padding:6px 14px;border-radius:8px;border:1px solid var(--border);white-space:nowrap}
+.dep-arrow{color:var(--accent);font-weight:700}
+footer{text-align:center;padding:40px 0 20px;color:var(--text-muted);font-size:.78rem}
+@media(max-width:768px){.stats,.terminal-grid,.summary-grid,.rules-grid{grid-template-columns:1fr}.timeline{flex-direction:column}.phase::after{display:none}}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Hero -->
+<div class="hero">
+<h1>OlivIA V3 — Issues Atomicas & Gestao de Terminais</h1>
+<p class="hero-sub">BREAK Phase | Spec &rarr; Break &rarr; Plan &rarr; Execute (Deborah Folloni)</p>
+<div class="badges">
+<span class="badge badge-purple">76 Issues</span>
+<span class="badge badge-green">9 Sprints</span>
+<span class="badge badge-blue">6 Terminais</span>
+<span class="badge badge-yellow">Projeto Impecavel (D14)</span>
+</div>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+<div class="stat"><div class="stat-value">76</div><div class="stat-label">Issues Atomicas</div></div>
+<div class="stat"><div class="stat-value">9</div><div class="stat-label">Sprints</div></div>
+<div class="stat"><div class="stat-value">6</div><div class="stat-label">Terminais Paralelos</div></div>
+<div class="stat"><div class="stat-value" style="color:var(--accent)">8.3</div><div class="stat-label">Nota Arquitetura /10</div></div>
+</div>
+
+<!-- Secao 1: Terminais -->
+<div class="section">
+<div class="section-header"><span style="font-size:1.4rem">&#128421;</span><h2>1. Mapa de Terminais</h2></div>
+<div class="terminal-grid">
+<div class="terminal-card t-ctrl">
+<div class="terminal-name" style="color:var(--accent)">T-CTRL</div>
+<div class="terminal-role">Controlador / Gerente</div>
+<div style="font-size:.82rem;margin-bottom:8px"><strong style="color:var(--accent)">Modelo:</strong> Claude Opus 4.6</div>
+<div class="terminal-sprints">NAO implementa. Coordena, valida, gera HTMLs, roda code review GPT-5.4. <strong>Fica SEMPRE aberto.</strong></div>
+</div>
+<div class="terminal-card t-front">
+<div class="terminal-name" style="color:var(--accent3)">T-FRONT</div>
+<div class="terminal-role">Frontend React/TypeScript/TipTap</div>
+<div style="font-size:.82rem;margin-bottom:8px"><strong style="color:var(--accent3)">Modelo:</strong> Claude Sonnet 4.6</div>
+<div class="terminal-sprints">Sprints: <strong>1, 2, 3, 4, 5</strong> (sequenciais)<br>28 issues | Steps 1-4 + refactors</div>
+</div>
+<div class="terminal-card t-back">
+<div class="terminal-name" style="color:var(--accent5)">T-BACK</div>
+<div class="terminal-role">Backend Supabase/Edge Functions</div>
+<div style="font-size:.82rem;margin-bottom:8px"><strong style="color:var(--accent5)">Modelo:</strong> Claude Sonnet 4.6</div>
+<div class="terminal-sprints">Sprints: <strong>0, 6</strong><br>22 issues | Security + migrations + Edge Fn</div>
+</div>
+<div class="terminal-card t-mech">
+<div class="terminal-name" style="color:var(--accent4)">T-MECH</div>
+<div class="terminal-role">Mecanismo Mac Mini (SSH olivia)</div>
+<div style="font-size:.82rem;margin-bottom:8px"><strong style="color:var(--accent4)">Modelo:</strong> Claude Sonnet 4.6</div>
+<div class="terminal-sprints">Sprint: <strong>7</strong> (paralelo com frontend)<br>11 issues | Pipeline V3 + pgvector + vault</div>
+</div>
+<div class="terminal-card t-play">
+<div class="terminal-name" style="color:var(--accent2)">T-PLAY</div>
+<div class="terminal-role">Playbooks /playbooks</div>
+<div style="font-size:.82rem;margin-bottom:8px"><strong style="color:var(--accent2)">Modelo:</strong> Claude Sonnet 4.6</div>
+<div class="terminal-sprints">Sprint: <strong>8</strong> (paralelo com frontend)<br>6 issues | Cleanup + Style Guides + Reportagens</div>
+</div>
+<div class="terminal-card t-qa">
+<div class="terminal-name" style="color:var(--text-muted)">T-QA</div>
+<div class="terminal-role">Quality Assurance & Integration</div>
+<div style="font-size:.82rem;margin-bottom:8px"><strong style="color:var(--text-muted)">Modelo:</strong> Claude Sonnet 4.6</div>
+<div class="terminal-sprints">Sprint: <strong>9</strong> (depois de TUDO)<br>9 issues | E2E, code review GPT-5.4, fix loop</div>
+</div>
+</div>
+</div>
+
+<!-- Secao 2: Ordem de Execucao -->
+<div class="section">
+<div class="section-header"><span style="font-size:1.4rem">&#128197;</span><h2>2. Ordem de Execucao</h2></div>
+<div class="timeline">
+<div class="phase"><div class="phase-num phase-active">1</div><div class="phase-title">Sprint 0</div><div class="phase-desc">Security & Cleanup<br>12 issues</div><div class="phase-terminals"><div class="phase-dot" style="background:var(--accent5)"></div></div><div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">T-BACK sozinho</div></div>
+<div class="phase"><div class="phase-num">2</div><div class="phase-title">Sprint 1 + 6</div><div class="phase-desc">Step 1 refactor + Backend<br>14 issues</div><div class="phase-terminals"><div class="phase-dot" style="background:var(--accent3)"></div><div class="phase-dot" style="background:var(--accent5)"></div></div><div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">T-FRONT + T-BACK</div></div>
+<div class="phase"><div class="phase-num">3</div><div class="phase-title">Sprint 2 + 7 + 8</div><div class="phase-desc">Step 2 + Pipeline + Playbooks<br>25 issues</div><div class="phase-terminals"><div class="phase-dot" style="background:var(--accent3)"></div><div class="phase-dot" style="background:var(--accent4)"></div><div class="phase-dot" style="background:var(--accent2)"></div></div><div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">3 paralelos</div></div>
+<div class="phase"><div class="phase-num">4</div><div class="phase-title">Sprint 3</div><div class="phase-desc">Editor + VibeLaw<br>9 issues</div><div class="phase-terminals"><div class="phase-dot" style="background:var(--accent3)"></div></div><div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">T-FRONT (depende Sprint 6)</div></div>
+<div class="phase"><div class="phase-num">5</div><div class="phase-title">Sprint 4 + 5</div><div class="phase-desc">Conclusao + Refactors<br>7 issues</div><div class="phase-terminals"><div class="phase-dot" style="background:var(--accent3)"></div></div><div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">T-FRONT sequencial</div></div>
+<div class="phase"><div class="phase-num">6</div><div class="phase-title">Sprint 9</div><div class="phase-desc">QA & Integration<br>9 issues</div><div class="phase-terminals"><div class="phase-dot" style="background:var(--text-muted)"></div></div><div style="font-size:.7rem;color:var(--text-muted);margin-top:4px">T-QA (depois de tudo)</div></div>
+</div>
+
+<div class="card" style="margin-top:16px">
+<div class="card-title">Dependencias Criticas</div>
+<div class="dep-flow">
+<div class="dep-box" style="border-color:var(--accent5)">Sprint 0 (Security)</div>
+<span class="dep-arrow">&rarr;</span>
+<div class="dep-box" style="border-color:var(--accent5)">Sprint 6 (Edge Fn)</div>
+<span class="dep-arrow">&rarr;</span>
+<div class="dep-box" style="border-color:var(--accent3)">Sprint 3 (VibeLaw)</div>
+</div>
+<div class="dep-flow">
+<div class="dep-box" style="border-color:var(--accent5)">Sprint 6 (Edge Fn)</div>
+<span class="dep-arrow">&rarr;</span>
+<div class="dep-box" style="border-color:var(--accent4)">Sprint 7 (Pipeline)</div>
+</div>
+<div class="dep-flow">
+<div class="dep-box" style="border-color:var(--accent5)">Sprint 6 (tabelas)</div>
+<span class="dep-arrow">&rarr;</span>
+<div class="dep-box" style="border-color:var(--accent2)">Sprint 8 (Playbooks tabs)</div>
+</div>
+<div style="font-size:.78rem;color:var(--text-muted);text-align:center;margin-top:10px">Sprints sem seta podem rodar em paralelo. Sprint 9 depende de TODOS.</div>
+</div>
+</div>
+
+<!-- Secao 3: Como Usar -->
+<div class="section">
+<div class="section-header"><span style="font-size:1.4rem">&#128736;</span><h2>3. Como Usar na Pratica</h2></div>
+<div class="card">
+<div class="card-title">Passo a Passo</div>
+<ol style="padding-left:20px;font-size:.88rem;line-height:2">
+<li>Abrir <strong>6 terminais</strong> no Claude Code Desktop (ou VS Code com extensao Claude)</li>
+<li>Em cada terminal, colar o <strong>prompt de recovery</strong> da secao 5 abaixo</li>
+<li><strong>T-CTRL</strong> (este terminal) coordena &mdash; NAO implementa codigo</li>
+<li>Comecar <strong>SEMPRE</strong> pelo T-BACK com Sprint 0 (security fixes)</li>
+<li>Depois de Sprint 0, abrir T-FRONT + T-BACK em <strong>paralelo</strong> (Sprint 1 + Sprint 6)</li>
+<li>A cada sprint concluido, T-CTRL valida + roda code review GPT-5.4</li>
+<li>Se encontrar P0/P1, T-CTRL cria issue de fix e delega ao terminal correto</li>
+<li>Sprint 9 (QA) so comeca quando <strong>TODOS</strong> os outros terminaram</li>
+</ol>
+</div>
+<div class="rules-grid" style="margin-top:16px">
+<div class="rule"><strong>NUNCA</strong> 2 terminais mexendo no mesmo arquivo simultaneamente</div>
+<div class="rule"><strong>Verificar</strong> pre-condicoes antes de iniciar cada issue</div>
+<div class="rule rule-danger"><strong>Se bloqueado</strong> por dependencia, pular para proxima issue do sprint</div>
+<div class="rule"><strong>1 commit</strong> por issue &mdash; nao acumular</div>
+<div class="rule"><strong>Recovery:</strong> se terminal perder contexto, colar prompt + &ldquo;continua de onde parou&rdquo;</div>
+<div class="rule rule-danger"><strong>ZERO TODO/placeholder</strong> &mdash; implementar completo ou PENDENCIA formal</div>
+</div>
+</div>
+
+<!-- Secao 4: Issues por Sprint -->
+<div class="section">
+<div class="section-header"><span style="font-size:1.4rem">&#128203;</span><h2>4. Issues por Sprint (76 total)</h2></div>
+
+<!-- Sprint 0 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(91,196,245,.15);color:var(--accent5)">Sprint 0</span>
+Security & Cleanup (12 issues)
+<span class="sprint-terminal" style="color:var(--accent5)">T-BACK</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-001</td><td>Remover OLIVIA_TOKEN do frontend</td><td class="issue-files">useExportarDocumento.ts, UploadDrawer.tsx, OliviaAnaliseUnificada.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Token NAO aparece em nenhum .ts/.tsx</td></tr>
+<tr><td class="issue-id">ISS-002</td><td>Adicionar RLS em olivia_structural_templates</td><td class="issue-files">Migration SQL</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Policy tenant_isolation criada</td></tr>
+<tr><td class="issue-id">ISS-003</td><td>Dropar RPCs que referenciam olivia_flow</td><td class="issue-files">fn_olivia_get_triagem, fn_olivia_get_triagem_by_grupo</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">RPCs removidas sem erro</td></tr>
+<tr><td class="issue-id">ISS-004</td><td>Padronizar status (CONCLUIDO/PROCESSANDO/ERRO)</td><td class="issue-files">5 RPCs afetadas</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Todos status consistentes com dados reais</td></tr>
+<tr><td class="issue-id">ISS-005</td><td>Fix trigger updated_at em olivia_agente_contexto</td><td class="issue-files">Migration: add coluna updated_at</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Trigger funciona sem erro</td></tr>
+<tr><td class="issue-id">ISS-006</td><td>Remover duplicacao tags_ids array</td><td class="issue-files">olivia_modelos_grupo: drop tags_ids</td><td class="issue-pre">ISS-004</td><td class="issue-crit">Apenas junction table olivia_modelo_tags</td></tr>
+<tr><td class="issue-id">ISS-007</td><td>Fix tag_ids text[] para uuid[]</td><td class="issue-files">olivia_jurisprudencias</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Coluna uuid[] com FK validation</td></tr>
+<tr><td class="issue-id">ISS-008</td><td>Fix schema drift jarbas_style_guide</td><td class="issue-files">Queries em /playbooks</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Queries alinhadas com schema real</td></tr>
+<tr><td class="issue-id">ISS-009</td><td>Deletar mockData.ts</td><td class="issue-files">components/express/mockData.ts</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Arquivo removido, sem imports quebrados</td></tr>
+<tr><td class="issue-id">ISS-010</td><td>Deletar PainelInformacoesOrgao duplicado</td><td class="issue-files">components/shared/PainelInformacoesOrgao.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">So existe versao em /identificacao/</td></tr>
+<tr><td class="issue-id">ISS-011</td><td>Deletar backup v1 mecanismo</td><td class="issue-files">olivia-gera-peticao.v1.bak.mjs (Mac Mini)</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Arquivo removido</td></tr>
+<tr><td class="issue-id">ISS-012</td><td>Popular jarbas_style_guide (2 registros)</td><td class="issue-files">INSERT SQL</td><td class="issue-pre">ISS-008</td><td class="issue-crit">Christian (Calibri, CANOAS/RS, CAIXA ALTA, blockquote azul) + Heloisa (Georgia, cidade processo, Title Case, italic)</td></tr>
+</table>
+</details>
+
+<!-- Sprint 1 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(79,255,176,.15);color:var(--accent3)">Sprint 1</span>
+Frontend Step 1 Refactor (4 issues)
+<span class="sprint-terminal" style="color:var(--accent3)">T-FRONT</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-013</td><td>Converter UploadDrawer Sheet&rarr;Dialog</td><td class="issue-files">UploadDrawer.tsx</td><td class="issue-pre">ISS-001</td><td class="issue-crit">Sheet substituido por Dialog</td></tr>
+<tr><td class="issue-id">ISS-014</td><td>Refatorar UploadDrawer (&lt;300L)</td><td class="issue-files">UploadDrawer.tsx &rarr; FileUploadZone, DocumentList, TipoSelector</td><td class="issue-pre">ISS-013</td><td class="issue-crit">Arquivo principal &lt;300 linhas</td></tr>
+<tr><td class="issue-id">ISS-015</td><td>Indicador de progresso por tab</td><td class="issue-files">WizardTabBar.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Badge mostra step atual de cada tab</td></tr>
+<tr><td class="issue-id">ISS-016</td><td>Status persistente por tab (Idea #6)</td><td class="issue-files">usePeticaoStore.ts</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Fechar + reabrir browser retoma step/topicos/rascunho</td></tr>
+</table>
+</details>
+
+<!-- Sprint 2 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(79,255,176,.15);color:var(--accent3)">Sprint 2</span>
+Frontend Step 2 Novo &mdash; Analise + Topicos (8 issues)
+<span class="sprint-terminal" style="color:var(--accent3)">T-FRONT</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-017</td><td>Criar TopicCard component</td><td class="issue-files">express/topicos/TopicCard.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Card com toggle, drag, titulo, desc, juris badges</td></tr>
+<tr><td class="issue-id">ISS-018</td><td>Criar TopicsList com DnD reorder</td><td class="issue-files">express/topicos/TopicsList.tsx</td><td class="issue-pre">ISS-017</td><td class="issue-crit">@dnd-kit sortable, max 6-8 topicos</td></tr>
+<tr><td class="issue-id">ISS-019</td><td>Criar AnalysisDrawer (painel direito 30%)</td><td class="issue-files">express/analise/AnalysisDrawer.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Drawer responsivo, colapsavel mobile</td></tr>
+<tr><td class="issue-id">ISS-020</td><td>Criar AnalysisSummary (score + pilares)</td><td class="issue-files">express/analise/AnalysisSummary.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Score visual, 3 pilares, alertas</td></tr>
+<tr><td class="issue-id">ISS-021</td><td>Botao &ldquo;Ver Relatorio Completo&rdquo;</td><td class="issue-files">AnalysisDrawer.tsx</td><td class="issue-pre">ISS-020</td><td class="issue-crit">Abre HTML Supabase Storage em nova aba</td></tr>
+<tr><td class="issue-id">ISS-022</td><td>Integrar Chat OlivIA no drawer Step 2</td><td class="issue-files">AnalysisDrawer.tsx</td><td class="issue-pre">ISS-040</td><td class="issue-crit">Chat com streaming no drawer</td></tr>
+<tr><td class="issue-id">ISS-023</td><td>Criar ExpressStep2V3.tsx (layout 70/30)</td><td class="issue-files">express/ExpressStep2V3.tsx</td><td class="issue-pre">ISS-017 a ISS-022</td><td class="issue-crit">Layout 70/30 funcional</td></tr>
+<tr><td class="issue-id">ISS-024</td><td>Conectar Step 2 a Supabase Realtime</td><td class="issue-files">ExpressStep2V3.tsx, hooks</td><td class="issue-pre">ISS-050</td><td class="issue-crit">Status atualiza em tempo real</td></tr>
+</table>
+</details>
+
+<!-- Sprint 3 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(79,255,176,.15);color:var(--accent3)">Sprint 3</span>
+Frontend Step 3 &mdash; Editor + VibeLaw (9 issues)
+<span class="sprint-terminal" style="color:var(--accent3)">T-FRONT</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-025</td><td>Instalar 7 TipTap extensions</td><td class="issue-files">package.json</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Table(4 pkgs), TextAlign, Color, TextStyle, Link</td></tr>
+<tr><td class="issue-id">ISS-026</td><td>Implementar toolbar completa</td><td class="issue-files">EditorPeticao.tsx</td><td class="issue-pre">ISS-025</td><td class="issue-crit">Alinhamento, cor, tabela, link funcionais</td></tr>
+<tr><td class="issue-id">ISS-027</td><td>Criar SectionNav (navegacao lateral)</td><td class="issue-files">editor/SectionNav.tsx</td><td class="issue-pre">ISS-026</td><td class="issue-crit">Sidebar: Enderecamento, Qualif, Merito, Pedidos. Click scrolls.</td></tr>
+<tr><td class="issue-id">ISS-028</td><td>Implementar VibeLaw slash commands</td><td class="issue-files">editor/VibeLawSuggestion.tsx</td><td class="issue-pre">ISS-026, ISS-047</td><td class="issue-crit">/reescrever, /expandir, /jurisprudencia, /resumir, /tom</td></tr>
+<tr><td class="issue-id">ISS-029</td><td>Cmd+K command palette (Idea #5)</td><td class="issue-files">editor/CommandPalette.tsx</td><td class="issue-pre">ISS-028</td><td class="issue-crit">Cmd+K abre, filtra, executa</td></tr>
+<tr><td class="issue-id">ISS-030</td><td>Skeleton loading inline VibeLaw</td><td class="issue-files">EditorPeticao.tsx</td><td class="issue-pre">ISS-028</td><td class="issue-crit">Skeleton enquanto IA processa</td></tr>
+<tr><td class="issue-id">ISS-031</td><td>Split view preview (Idea #1)</td><td class="issue-files">editor/SplitView.tsx</td><td class="issue-pre">ISS-026</td><td class="issue-crit">Toggle: editor esq + HTML renderizado dir</td></tr>
+<tr><td class="issue-id">ISS-032</td><td>Diff visual entre versoes (Idea #3)</td><td class="issue-files">editor/DiffView.tsx</td><td class="issue-pre">ISS-026</td><td class="issue-crit">Verde/vermelho entre versao anterior e atual</td></tr>
+<tr><td class="issue-id">ISS-033</td><td>Minimap do documento (Idea #4)</td><td class="issue-files">editor/EditorMinimap.tsx</td><td class="issue-pre">ISS-027</td><td class="issue-crit">Minimap lateral com estrutura do doc</td></tr>
+</table>
+</details>
+
+<!-- Sprint 4 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(79,255,176,.15);color:var(--accent3)">Sprint 4</span>
+Frontend Step 4 &mdash; Conclusao (3 issues)
+<span class="sprint-terminal" style="color:var(--accent3)">T-FRONT</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-034</td><td>Criar ExpressStep4V3.tsx</td><td class="issue-files">express/ExpressStep4V3.tsx</td><td class="issue-pre">Sprint 3</td><td class="issue-crit">Score badge, downloads, relatorio, feedback</td></tr>
+<tr><td class="issue-id">ISS-035</td><td>Historico de versoes por tab</td><td class="issue-files">express/VersionHistory.tsx</td><td class="issue-pre">ISS-034</td><td class="issue-crit">Lista versoes, click restaura</td></tr>
+<tr><td class="issue-id">ISS-036</td><td>Conectar feedback a olivia_aprendizado_analise</td><td class="issue-files">FeedbackSection.tsx</td><td class="issue-pre">ISS-034</td><td class="issue-crit">Estrelas + texto grava por empresa_reu</td></tr>
+</table>
+</details>
+
+<!-- Sprint 5 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(79,255,176,.15);color:var(--accent3)">Sprint 5</span>
+Frontend Refactors &gt;500L (4 issues)
+<span class="sprint-terminal" style="color:var(--accent3)">T-FRONT</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-037</td><td>Refatorar OliviaGeradorExpress (654L)</td><td class="issue-files">OliviaGeradorExpress.tsx &rarr; Step1Content, FABSection</td><td class="issue-pre">Sprint 2</td><td class="issue-crit">Arquivo principal &lt;300L</td></tr>
+<tr><td class="issue-id">ISS-038</td><td>Refatorar OliviaChatPage (589L)</td><td class="issue-files">OliviaChatPage.tsx &rarr; ChatMessages, ChatInput</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Arquivo principal &lt;300L</td></tr>
+<tr><td class="issue-id">ISS-039</td><td>Refatorar ExpressStep4Rascunho (530L)</td><td class="issue-files">ExpressStep4Rascunho &rarr; ProgressSteps, RevisaoForm</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Arquivo principal &lt;300L</td></tr>
+<tr><td class="issue-id">ISS-040</td><td>Reescrever ChatDrawerOlivia com streaming</td><td class="issue-files">ChatDrawerOlivia.tsx</td><td class="issue-pre">ISS-048</td><td class="issue-crit">Streaming, Sheet nativo, thread simples</td></tr>
+</table>
+</details>
+
+<!-- Sprint 6 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(91,196,245,.15);color:var(--accent5)">Sprint 6</span>
+Backend &mdash; Migrations + Edge Functions (10 issues)
+<span class="sprint-terminal" style="color:var(--accent5)">T-BACK</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-041</td><td>Migration V3 consolidada</td><td class="issue-files">SQL migration</td><td class="issue-pre">Sprint 0</td><td class="issue-crit">Todas correcoes aplicadas atomicamente</td></tr>
+<tr><td class="issue-id">ISS-042</td><td>Criar tabela olivia_topicos</td><td class="issue-files">SQL migration</td><td class="issue-pre">ISS-041</td><td class="issue-crit">org_id, historico_id, titulo, desc, ordem, ativo, juris_ids, RLS</td></tr>
+<tr><td class="issue-id">ISS-043</td><td>Criar tabela olivia_reportagens</td><td class="issue-files">SQL migration</td><td class="issue-pre">ISS-041</td><td class="issue-crit">org_id, titulo, conteudo, tipo, tags, RLS</td></tr>
+<tr><td class="issue-id">ISS-044</td><td>Criar RPCs V3</td><td class="issue-files">fn_olivia_iniciar_geracao, fn_olivia_atualizar_status, fn_olivia_buscar_topicos</td><td class="issue-pre">ISS-042</td><td class="issue-crit">RPCs funcionam, retornam JSONB</td></tr>
+<tr><td class="issue-id">ISS-045</td><td>Edge Function: olivia-gerar</td><td class="issue-files">supabase/functions/olivia-gerar/</td><td class="issue-pre">ISS-044</td><td class="issue-crit">POST funciona, chama script Mac Mini</td></tr>
+<tr><td class="issue-id">ISS-046</td><td>Edge Function: olivia-analisar</td><td class="issue-files">supabase/functions/olivia-analisar/</td><td class="issue-pre">ISS-044</td><td class="issue-crit">POST retorna analise</td></tr>
+<tr><td class="issue-id">ISS-047</td><td>Edge Function: olivia-vibelaw</td><td class="issue-files">supabase/functions/olivia-vibelaw/</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">POST retorna HTML reescrito</td></tr>
+<tr><td class="issue-id">ISS-048</td><td>Edge Function: olivia-chat</td><td class="issue-files">supabase/functions/olivia-chat/</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">POST retorna streaming response</td></tr>
+<tr><td class="issue-id">ISS-049</td><td>Migrar 5 webhook call sites</td><td class="issue-files">Frontend hooks com fetch webhook</td><td class="issue-pre">ISS-045 a ISS-048</td><td class="issue-crit">Zero fetch para n8n/webhook URLs</td></tr>
+<tr><td class="issue-id">ISS-050</td><td>Supabase Realtime status tracking</td><td class="issue-files">Channel config</td><td class="issue-pre">ISS-045</td><td class="issue-crit">Frontend recebe updates via Realtime</td></tr>
+</table>
+</details>
+
+<!-- Sprint 7 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(255,209,102,.15);color:var(--accent4)">Sprint 7</span>
+Mecanismo &mdash; Pipeline V3 (11 issues)
+<span class="sprint-terminal" style="color:var(--accent4)">T-MECH</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-051</td><td>Criar pipeline-v3.mjs (unificado)</td><td class="issue-files">olivia-skills/src/skills/pipeline-v3.mjs</td><td class="issue-pre">Sprint 6</td><td class="issue-crit">Pipeline unico com melhor de A+B+C</td></tr>
+<tr><td class="issue-id">ISS-052</td><td>HTML-direct output do Claude</td><td class="issue-files">pipeline-v3.mjs</td><td class="issue-pre">ISS-051</td><td class="issue-crit">Claude gera HTML, converterReplicaParaHtml ELIMINADO</td></tr>
+<tr><td class="issue-id">ISS-053</td><td>ChromaDB &rarr; pgvector + Gemini Embedding v2</td><td class="issue-files">Migration SQL + script indexacao</td><td class="issue-pre">ISS-041</td><td class="issue-crit">pgvector ativo, Gemini 768 dims</td></tr>
+<tr><td class="issue-id">ISS-054</td><td>Indexar vault completo (2714 arquivos)</td><td class="issue-files">Script batch indexacao</td><td class="issue-pre">ISS-053</td><td class="issue-crit">2714 arquivos indexados, contagem verificada</td></tr>
+<tr><td class="issue-id">ISS-055</td><td>Atualizar vault-reader para Supabase</td><td class="issue-files">vault-reader.mjs</td><td class="issue-pre">ISS-053</td><td class="issue-crit">Leitura via pgvector, nao filesystem/ChromaDB</td></tr>
+<tr><td class="issue-id">ISS-056</td><td>Parametrizar fontes docx-generator</td><td class="issue-files">docx-generator.mjs</td><td class="issue-pre">ISS-012</td><td class="issue-crit">Calibri(Christian), Georgia(Heloisa) por advogado</td></tr>
+<tr><td class="issue-id">ISS-057</td><td>Venire check no pipeline</td><td class="issue-files">pipeline-v3.mjs</td><td class="issue-pre">ISS-051</td><td class="issue-crit">Check obrigatorio antes de S6</td></tr>
+<tr><td class="issue-id">ISS-058</td><td>OCR: pdftotext + Sonnet 4.6 Vision</td><td class="issue-files">pipeline-v3.mjs</td><td class="issue-pre">ISS-051</td><td class="issue-crit">Sem Mistral, Sonnet Vision direto</td></tr>
+<tr><td class="issue-id">ISS-059</td><td>Fallback modelo Sonnet&rarr;Opus (Idea #10)</td><td class="issue-files">pipeline-v3.mjs</td><td class="issue-pre">ISS-051</td><td class="issue-crit">Se Sonnet &gt;10s, usa Opus automaticamente</td></tr>
+<tr><td class="issue-id">ISS-060</td><td>Streaming por secao (S6 incremental)</td><td class="issue-files">pipeline-v3.mjs</td><td class="issue-pre">ISS-051</td><td class="issue-crit">Cada secao aparece no editor conforme gerada</td></tr>
+<tr><td class="issue-id">ISS-061</td><td>Calibrar quality check (20 peticoes)</td><td class="issue-files">skill_olivia_quality_check.mjs</td><td class="issue-pre">ISS-051</td><td class="issue-crit">Limiar calibrado, cap 3 tentativas, feedback estruturado</td></tr>
+</table>
+</details>
+
+<!-- Sprint 8 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(255,107,107,.15);color:var(--accent2)">Sprint 8</span>
+Playbooks &mdash; Cleanup + Novas Tabs (6 issues)
+<span class="sprint-terminal" style="color:var(--accent2)">T-PLAY</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-062</td><td>Remover TabFlow (748L)</td><td class="issue-files">tabs/TabFlow.tsx + modal + hooks</td><td class="issue-pre">ISS-003</td><td class="issue-crit">Arquivo removido, index.tsx atualizado</td></tr>
+<tr><td class="issue-id">ISS-063</td><td>Remover TabAprovacoes (284L)</td><td class="issue-files">TabAprovacoes.tsx, ModalAprovacaoDetalhes, useAprovacoes</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Arquivos removidos</td></tr>
+<tr><td class="issue-id">ISS-064</td><td>Remover TabDocumentosTemplates (202L)</td><td class="issue-files">TabDocumentosTemplates.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Arquivo removido</td></tr>
+<tr><td class="issue-id">ISS-065</td><td>Criar Tab Style Guides (CRUD)</td><td class="issue-files">TabStyleGuides.tsx, ModalStyleGuide.tsx</td><td class="issue-pre">ISS-012</td><td class="issue-crit">CRUD completo jarbas_style_guide</td></tr>
+<tr><td class="issue-id">ISS-066</td><td>Criar Tab Reportagens (CRUD)</td><td class="issue-files">TabReportagens.tsx, ModalReportagem.tsx</td><td class="issue-pre">ISS-043</td><td class="issue-crit">CRUD completo olivia_reportagens</td></tr>
+<tr><td class="issue-id">ISS-067</td><td>Refatorar ModalNovoModelo (502L)</td><td class="issue-files">ModalNovoModelo.tsx</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Arquivo &lt;500L</td></tr>
+</table>
+</details>
+
+<!-- Sprint 9 -->
+<details>
+<summary>
+<span class="sprint-badge" style="background:rgba(122,130,168,.15);color:var(--text-muted)">Sprint 9</span>
+QA & Integration (9 issues)
+<span class="sprint-terminal" style="color:var(--text-muted)">T-QA</span>
+</summary>
+<table class="issue-table">
+<tr><th style="width:70px">ID</th><th>Titulo</th><th style="width:220px">Arquivos</th><th style="width:130px">Pre-condicao</th><th style="width:200px">Criterio de Aceite</th></tr>
+<tr><td class="issue-id">ISS-068</td><td>Criar script code-review.mjs (GPT-5.4)</td><td class="issue-files">06_prompts/code-review.mjs</td><td class="issue-pre">Nenhuma</td><td class="issue-crit">Script roda, recebe diff, retorna P0/P1/P2</td></tr>
+<tr><td class="issue-id">ISS-069</td><td>E2E: Fluxo completo estilo Christian</td><td class="issue-files">Teste manual</td><td class="issue-pre">TODOS sprints</td><td class="issue-crit">DOCX Calibri, blockquote azul, CANOAS/RS</td></tr>
+<tr><td class="issue-id">ISS-070</td><td>E2E: Fluxo completo estilo Heloisa</td><td class="issue-files">Teste manual</td><td class="issue-pre">TODOS sprints</td><td class="issue-crit">DOCX Georgia, italic juris, cidade processo</td></tr>
+<tr><td class="issue-id">ISS-071</td><td>E2E: Edge case sem documentos</td><td class="issue-files">Teste</td><td class="issue-pre">TODOS sprints</td><td class="issue-crit">Sistema informa e permite continuar</td></tr>
+<tr><td class="issue-id">ISS-072</td><td>Teste multi-tab (3 simultaneas)</td><td class="issue-files">Teste</td><td class="issue-pre">TODOS sprints</td><td class="issue-crit">3 tabs gerando sem conflito</td></tr>
+<tr><td class="issue-id">ISS-073</td><td>Teste style guide Christian vs Heloisa</td><td class="issue-files">Teste</td><td class="issue-pre">ISS-056</td><td class="issue-crit">Fontes, topicos, juris corretos</td></tr>
+<tr><td class="issue-id">ISS-074</td><td>Teste exportacao DOCX + PDF</td><td class="issue-files">Teste</td><td class="issue-pre">ISS-056</td><td class="issue-crit">Ambos formatos com estilos corretos</td></tr>
+<tr><td class="issue-id">ISS-075</td><td>Code review final GPT-5.4</td><td class="issue-files">code-review.mjs</td><td class="issue-pre">ISS-068</td><td class="issue-crit">Zero P0, zero P1</td></tr>
+<tr><td class="issue-id">ISS-076</td><td>Fix loop ate 100%</td><td class="issue-files">Todos afetados</td><td class="issue-pre">ISS-075</td><td class="issue-crit">Todos issues de review corrigidos</td></tr>
+</table>
+</details>
+</div>
+
+<!-- Secao 5: Prompts de Recovery -->
+<div class="section">
+<div class="section-header"><span style="font-size:1.4rem">&#128190;</span><h2>5. Prompts de Recovery por Terminal</h2></div>
+
+<div class="prompt-card t-ctrl">
+<div class="terminal-name" style="color:var(--accent)">T-CTRL &mdash; Controlador</div>
+<button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+<div class="prompt-text">Voce e o Jarbas 2.0, CTO do projeto OlivIA V3. Le ~/jarbas-vault/02_projetos/olivia-v3/00_projeto/DECISOES.md e ~/jarbas-vault/02_projetos/olivia-v3/03_spec-lapidado/consolidado.md. Sua funcao e coordenar 5 terminais de execucao. NAO implemente codigo — apenas gerencie, valide, e gere relatorios. Use o modelo Opus 4.6.</div>
+</div>
+
+<div class="prompt-card t-front">
+<div class="terminal-name" style="color:var(--accent3)">T-FRONT &mdash; Frontend</div>
+<button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+<div class="prompt-text">Voce e um especialista React/TypeScript/TipTap implementando OlivIA V3. Le ~/jarbas-vault/02_projetos/olivia-v3/03_spec-lapidado/frontend-mapping.md e ~/beta-mdflow/CLAUDE.md. Siga Design System v5 Warm Charcoal. Zero any, zero hex hardcoded, staleTime 30000. Todos tokens CSS via hsl(var(--token)). Lucide icons apenas. Arquivos max 500 linhas. Implemente a issue: [COLAR ISSUE AQUI]</div>
+</div>
+
+<div class="prompt-card t-back">
+<div class="terminal-name" style="color:var(--accent5)">T-BACK &mdash; Backend</div>
+<button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+<div class="prompt-text">Voce e um especialista Supabase implementando OlivIA V3. Le ~/jarbas-vault/02_projetos/olivia-v3/03_spec-lapidado/backend-mapping.md e ~/beta-mdflow/CLAUDE.md. Regras: organizacao_id + RLS em tudo, TEXT CHECK (nunca ENUM nativo), soft delete (deleted_at), RETURNING id, SECURITY DEFINER em RPCs, get_org_id() para tenant. Implemente a issue: [COLAR ISSUE AQUI]</div>
+</div>
+
+<div class="prompt-card t-mech">
+<div class="terminal-name" style="color:var(--accent4)">T-MECH &mdash; Mecanismo</div>
+<button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+<div class="prompt-text">Voce e um especialista Node.js implementando pipeline OlivIA V3 no Mac Mini. SSH: ssh mac-mini-tail. User: olivia (UID 503). Le ~/jarbas-vault/02_projetos/olivia-v3/03_spec-lapidado/mecanismo-mapping.md. Claude API via @anthropic-ai/sdk. Sonnet 4.6 minimo (claude-sonnet-4-6). Gemini Embedding v2 para pgvector. Implemente a issue: [COLAR ISSUE AQUI]</div>
+</div>
+
+<div class="prompt-card t-play">
+<div class="terminal-name" style="color:var(--accent2)">T-PLAY &mdash; Playbooks</div>
+<button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+<div class="prompt-text">Voce e um especialista React implementando /playbooks no MdFlow. Le ~/jarbas-vault/02_projetos/olivia-v3/03_spec-lapidado/playbooks-mapping.md e ~/beta-mdflow/CLAUDE.md. Siga DS v5 Warm Charcoal. CRUD padrao: Supabase direto com organizacao_id, staleTime 30000, soft delete. Implemente a issue: [COLAR ISSUE AQUI]</div>
+</div>
+
+<div class="prompt-card t-qa">
+<div class="terminal-name" style="color:var(--text-muted)">T-QA &mdash; Quality Assurance</div>
+<button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+<div class="prompt-text">Voce e um QA engineer testando OlivIA V3. Le ~/jarbas-vault/02_projetos/olivia-v3/03_spec-lapidado/consolidado.md e ~/jarbas-vault/02_projetos/olivia-v3/00_projeto/DECISOES.md. Teste cada fluxo E2E, reporte bugs com reprodutor, valide todos requisitos do checklist de 24 items. Teste: estilo Christian (Calibri, CANOAS/RS) vs Heloisa (Georgia, cidade processo). Implemente a issue: [COLAR ISSUE AQUI]</div>
+</div>
+</div>
+
+<!-- Secao 6: Resumo -->
+<div class="section">
+<div class="section-header"><span style="font-size:1.4rem">&#128202;</span><h2>6. Resumo Visual</h2></div>
+<div class="summary-grid">
+<div class="summary-card">
+<h3>76 Issues por Sprint</h3>
+<div class="summary-item"><span>Sprint 0: Security & Cleanup</span><span class="summary-count">12</span></div>
+<div class="summary-item"><span>Sprint 1: Step 1 Refactor</span><span class="summary-count">4</span></div>
+<div class="summary-item"><span>Sprint 2: Step 2 Novo</span><span class="summary-count">8</span></div>
+<div class="summary-item"><span>Sprint 3: Step 3 Editor+VibeLaw</span><span class="summary-count">9</span></div>
+<div class="summary-item"><span>Sprint 4: Step 4 Conclusao</span><span class="summary-count">3</span></div>
+<div class="summary-item"><span>Sprint 5: Refactors &gt;500L</span><span class="summary-count">4</span></div>
+<div class="summary-item"><span>Sprint 6: Backend + Edge Fn</span><span class="summary-count">10</span></div>
+<div class="summary-item"><span>Sprint 7: Mecanismo Pipeline</span><span class="summary-count">11</span></div>
+<div class="summary-item"><span>Sprint 8: Playbooks</span><span class="summary-count">6</span></div>
+<div class="summary-item"><span>Sprint 9: QA & Integration</span><span class="summary-count">9</span></div>
+</div>
+<div class="summary-card">
+<h3>6 Terminais</h3>
+<div class="summary-item"><span style="color:var(--accent)">T-CTRL</span><span>Controlador (Opus)</span></div>
+<div class="summary-item"><span style="color:var(--accent3)">T-FRONT</span><span>Frontend (Sonnet)</span></div>
+<div class="summary-item"><span style="color:var(--accent5)">T-BACK</span><span>Backend (Sonnet)</span></div>
+<div class="summary-item"><span style="color:var(--accent4)">T-MECH</span><span>Mecanismo (Sonnet)</span></div>
+<div class="summary-item"><span style="color:var(--accent2)">T-PLAY</span><span>Playbooks (Sonnet)</span></div>
+<div class="summary-item"><span style="color:var(--text-muted)">T-QA</span><span>QA (Sonnet)</span></div>
+</div>
+<div class="summary-card">
+<h3>Ordem de Execucao</h3>
+<div class="summary-item"><span>Fase 1</span><span>Sprint 0 sozinho</span></div>
+<div class="summary-item"><span>Fase 2</span><span>Sprint 1 + 6 paralelo</span></div>
+<div class="summary-item"><span>Fase 3</span><span>Sprint 2 + 7 + 8 (3 paralelos)</span></div>
+<div class="summary-item"><span>Fase 4</span><span>Sprint 3 (depende 6)</span></div>
+<div class="summary-item"><span>Fase 5</span><span>Sprint 4 + 5 sequencial</span></div>
+<div class="summary-item"><span>Fase 6</span><span>Sprint 9 (depois de tudo)</span></div>
+</div>
+</div>
+</div>
+
+<footer>Jarbas 2.0 &mdash; MdLab LegalTech &middot; 2026-04-04</footer>
+</div>
+
+<script>
+function copyPrompt(btn){const t=btn.parentElement.querySelector('.prompt-text').textContent.trim();navigator.clipboard.writeText(t).then(()=>{btn.textContent='Copiado!';btn.classList.add('copied');setTimeout(()=>{btn.textContent='Copiar';btn.classList.remove('copied')},2000)})}
+</script>
+</body>
+</html>

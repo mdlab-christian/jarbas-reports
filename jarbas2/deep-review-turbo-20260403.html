@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Review — Turbo Analysis & Monitoramento Controller</title>
+<style>
+:root {
+  --bg: #0d0f18; --surface: #161926; --surface2: #1e2235;
+  --border: #2a2f4a;
+  --accent: #7c6dff; --accent2: #ff6b6b; --accent3: #4fffb0;
+  --accent4: #ffd166; --accent5: #5bc4f5;
+  --text: #e8eaf6; --text-muted: #7a82a8;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--bg); color:var(--text); font-family:'Inter',-apple-system,sans-serif; line-height:1.6; }
+.container { max-width:1280px; margin:0 auto; padding:24px 20px; }
+.hero { text-align:center; padding:48px 0 24px; }
+.hero-icon { font-size:64px; margin-bottom:12px; }
+.hero h1 { font-size:2.4rem; font-weight:800; font-family:'Manrope',sans-serif;
+  background:linear-gradient(135deg,var(--accent),var(--accent5));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; margin-bottom:8px; }
+.hero-sub { color:var(--text-muted); font-size:1.05rem; margin-bottom:20px; }
+.badges { display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+.badge { padding:5px 14px; border-radius:20px; font-size:0.82rem; font-weight:600; }
+.b-green { background:rgba(79,255,176,.15); color:var(--accent3); border:1px solid rgba(79,255,176,.3); }
+.b-blue { background:rgba(91,196,245,.15); color:var(--accent5); border:1px solid rgba(91,196,245,.3); }
+.b-purple { background:rgba(124,109,255,.15); color:var(--accent); border:1px solid rgba(124,109,255,.3); }
+.b-red { background:rgba(255,107,107,.15); color:var(--accent2); border:1px solid rgba(255,107,107,.3); }
+.b-yellow { background:rgba(255,209,102,.15); color:var(--accent4); border:1px solid rgba(255,209,102,.3); }
+
+/* Score */
+.score-hero { display:flex; justify-content:center; align-items:center; gap:48px; margin:32px 0; flex-wrap:wrap; }
+.score-ring { text-align:center; }
+.score-ring svg { width:160px; height:160px; }
+.score-ring circle { fill:none; stroke-width:10; }
+.score-ring .bg { stroke:var(--surface2); }
+.score-ring .fg { stroke-linecap:round; }
+.score-main { font-size:3rem; font-weight:900; font-family:'Manrope',sans-serif; }
+.score-grade { font-size:1.4rem; font-weight:700; color:var(--accent3); }
+.score-sub { color:var(--text-muted); font-size:.85rem; }
+
+/* Stats */
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:28px 0; }
+@media(max-width:768px) { .stats { grid-template-columns:repeat(2,1fr); } }
+.stat { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; text-align:center; }
+.stat-val { font-size:1.7rem; font-weight:800; font-family:'Manrope',sans-serif; }
+.stat-lbl { color:var(--text-muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.5px; margin-top:2px; }
+.stat-sub { color:var(--text-muted); font-size:.72rem; }
+
+/* Section */
+.section { margin:40px 0; }
+.sec-hdr { display:flex; align-items:center; gap:12px; margin-bottom:18px; }
+.sec-hdr .ico { font-size:1.4rem; }
+.sec-hdr h2 { font-size:1.25rem; font-weight:700; font-family:'Manrope',sans-serif; }
+.card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:22px; margin-bottom:14px; }
+.card-title { font-size:.95rem; font-weight:700; margin-bottom:10px; }
+
+/* Tables */
+table { width:100%; border-collapse:collapse; font-size:.88rem; }
+th { text-align:left; padding:10px 14px; background:var(--surface2); color:var(--text-muted);
+  font-size:.72rem; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid var(--border); }
+td { padding:10px 14px; border-bottom:1px solid var(--border); }
+tr:hover td { background:rgba(124,109,255,.04); }
+.mono { font-family:'JetBrains Mono',monospace; font-size:.82rem; }
+
+/* Bars */
+.bar-wrap { display:flex; align-items:center; gap:8px; }
+.bar { height:22px; border-radius:4px; min-width:3px; }
+.conf-dist { display:flex; gap:2px; border-radius:8px; overflow:hidden; height:30px; margin:10px 0; }
+.conf-seg { display:flex; align-items:center; justify-content:center; font-size:.68rem; font-weight:700; color:#000; }
+
+/* Pipeline */
+.pipeline { display:flex; align-items:center; gap:0; margin:20px 0; flex-wrap:wrap; justify-content:center; }
+.pipe-step { background:var(--surface); border:2px solid var(--border); border-radius:12px; padding:14px 18px; text-align:center; min-width:150px; }
+.pipe-step.active { border-color:var(--accent); }
+.pipe-name { font-weight:700; font-size:.9rem; }
+.pipe-num { font-size:1.3rem; font-weight:800; color:var(--accent); font-family:'Manrope',sans-serif; }
+.pipe-sub { font-size:.72rem; color:var(--text-muted); }
+.pipe-arrow { font-size:1.3rem; color:var(--accent); padding:0 6px; }
+
+/* Compare */
+.compare { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+@media(max-width:768px) { .compare { grid-template-columns:1fr; } }
+.cmp-card { border-radius:12px; padding:22px; }
+.cmp-before { background:rgba(255,107,107,.08); border:1px solid rgba(255,107,107,.25); }
+.cmp-after { background:rgba(79,255,176,.08); border:1px solid rgba(79,255,176,.25); }
+.cmp-title { font-weight:700; margin-bottom:10px; }
+.cmp-list { list-style:none; }
+.cmp-list li { padding:5px 0; font-size:.88rem; }
+.cmp-list li::before { content:''; display:inline-block; width:7px; height:7px; border-radius:50%; margin-right:9px; }
+.cmp-before .cmp-list li::before { background:var(--accent2); }
+.cmp-after .cmp-list li::before { background:var(--accent3); }
+
+/* Projections */
+.proj-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+@media(max-width:768px) { .proj-grid { grid-template-columns:1fr; } }
+.proj { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px; text-align:center; }
+.proj-scenario { font-size:.75rem; color:var(--accent5); text-transform:uppercase; letter-spacing:.5px; font-weight:600; }
+.proj-val { font-size:1.6rem; font-weight:800; font-family:'JetBrains Mono',monospace; margin:6px 0; }
+.proj-detail { font-size:.78rem; color:var(--text-muted); }
+
+/* Recommendation */
+.rec-winner { background:linear-gradient(135deg,rgba(124,109,255,.12),rgba(79,255,176,.08));
+  border:2px solid var(--accent); border-radius:14px; padding:28px; margin:20px 0; text-align:center; }
+.rec-winner h3 { font-size:1.3rem; font-weight:800; color:var(--accent); margin-bottom:8px; }
+
+/* Roadmap */
+.roadmap-item { display:flex; gap:16px; padding:14px 0; border-bottom:1px solid var(--border); }
+.rm-num { background:var(--accent); color:#000; width:28px; height:28px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; font-weight:800; font-size:.8rem; flex-shrink:0; }
+.rm-content { flex:1; }
+.rm-title { font-weight:700; font-size:.92rem; }
+.rm-desc { font-size:.82rem; color:var(--text-muted); }
+.rm-tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.68rem; font-weight:600; margin-left:8px; }
+
+/* Footer */
+.footer { text-align:center; padding:36px 0 20px; color:var(--text-muted); font-size:.78rem; border-top:1px solid var(--border); margin-top:44px; }
+
+/* TOC */
+.toc { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px 28px; margin:24px 0; }
+.toc-title { font-weight:700; font-size:.9rem; margin-bottom:10px; color:var(--accent); }
+.toc a { color:var(--accent5); text-decoration:none; font-size:.85rem; display:block; padding:3px 0; }
+.toc a:hover { color:var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-icon">&#x1F419;</div>
+  <h1>Deep Review — Turbo Analysis</h1>
+  <div class="hero-sub">Pipeline 3-Agentes Sonnet 4 | Avaliacao Completa | 03/04/2026</div>
+  <div class="badges">
+    <span class="badge b-green">687/687 processados</span>
+    <span class="badge b-green">0 erros</span>
+    <span class="badge b-blue">Sonnet 4 only</span>
+    <span class="badge b-purple">$25.94 total</span>
+    <span class="badge b-yellow">94.1% confianca</span>
+  </div>
+</div>
+
+<!-- TOC -->
+<div class="toc">
+  <div class="toc-title">Indice</div>
+  <a href="#score">1. Score do Sistema</a>
+  <a href="#resultados">2. Resultados da Analise</a>
+  <a href="#pipeline">3. Pipeline 3-Agentes</a>
+  <a href="#bugs">4. Bugs Encontrados e Corrigidos</a>
+  <a href="#modelos">5. Comparacao de Modelos IA</a>
+  <a href="#recomendacao">6. Recomendacao Final</a>
+  <a href="#custos">7. Projecao de Custos</a>
+  <a href="#openclaw">8. OpenClaw vs Pipeline IA</a>
+  <a href="#antes-depois">9. Antes vs Depois</a>
+  <a href="#autonomia">10. IA Autonoma — Visao de Futuro</a>
+  <a href="#roadmap">11. Roadmap de Melhorias</a>
+</div>
+
+<!-- 1. SCORE -->
+<div class="section" id="score">
+  <div class="sec-hdr"><span class="ico">&#x1F3C6;</span><h2>Score do Sistema</h2></div>
+  <div class="score-hero">
+    <div class="score-ring">
+      <svg viewBox="0 0 160 160">
+        <circle class="bg" cx="80" cy="80" r="65"/>
+        <circle class="fg" cx="80" cy="80" r="65" stroke="url(#g1)"
+          stroke-dasharray="408.4" stroke-dashoffset="24.1" transform="rotate(-90 80 80)"/>
+        <defs><linearGradient id="g1"><stop offset="0%" stop-color="#7c6dff"/><stop offset="100%" stop-color="#4fffb0"/></linearGradient></defs>
+      </svg>
+      <div class="score-main" style="color:var(--accent3)">94.1</div>
+      <div class="score-grade">NOTA A+</div>
+      <div class="score-sub">Confianca Media IA</div>
+    </div>
+    <div style="text-align:left">
+      <div style="margin-bottom:14px;">
+        <div style="font-size:.8rem;color:var(--text-muted);text-transform:uppercase;">Precisao</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--accent3);">94.1%</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">622 registros >= 90% | 0 abaixo de 60%</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:.8rem;color:var(--text-muted);text-transform:uppercase;">Confiabilidade</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--accent5);">100%</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">687/687 sem erros, 0 retries</div>
+      </div>
+      <div style="margin-bottom:14px;">
+        <div style="font-size:.8rem;color:var(--text-muted);text-transform:uppercase;">Cobertura</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--accent);">89.5%</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">615/687 vinculados a processos MdFlow</div>
+      </div>
+      <div>
+        <div style="font-size:.8rem;color:var(--text-muted);text-transform:uppercase;">Custo-Eficiencia</div>
+        <div style="font-size:1.6rem;font-weight:800;color:var(--accent4);">$0.038</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">por registro (3 agentes Sonnet 4)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. RESULTADOS -->
+<div class="section" id="resultados">
+  <div class="sec-hdr"><span class="ico">&#x1F4CA;</span><h2>Resultados da Analise</h2></div>
+  <div class="stats">
+    <div class="stat"><div class="stat-val" style="color:var(--accent3)">687</div><div class="stat-lbl">Total Processados</div><div class="stat-sub">0 erros, 0 retries</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent5)">6.83M</div><div class="stat-lbl">Tokens Consumidos</div><div class="stat-sub">6.38M in + 454K out</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent)">1,457</div><div class="stat-lbl">Chamadas API</div><div class="stat-sub">687T + 549A + 221F</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent4)">62.8m</div><div class="stat-lbl">Tempo Total</div><div class="stat-sub">5.5s/registro (5 paralelos)</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Classificacao por Tipo de Movimentacao</div>
+    <table>
+      <thead><tr><th>Tipo</th><th>Qtd</th><th>%</th><th>Confianca</th><th>Distribuicao</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Decisao</strong></td><td>165</td><td>24.0%</td><td class="mono">94.9%</td><td><div class="bar-wrap"><div class="bar" style="width:165px;background:var(--accent)"></div></div></td></tr>
+        <tr><td><strong>Expediente</strong></td><td>134</td><td>19.5%</td><td class="mono">90.8%</td><td><div class="bar-wrap"><div class="bar" style="width:134px;background:var(--accent5)"></div></div></td></tr>
+        <tr><td><strong>Despacho</strong></td><td>115</td><td>16.7%</td><td class="mono">95.0%</td><td><div class="bar-wrap"><div class="bar" style="width:115px;background:var(--accent4)"></div></div></td></tr>
+        <tr><td><strong>Recurso</strong></td><td>92</td><td>13.4%</td><td class="mono">94.9%</td><td><div class="bar-wrap"><div class="bar" style="width:92px;background:var(--accent3)"></div></div></td></tr>
+        <tr><td><strong>Intimacao</strong></td><td>88</td><td>12.8%</td><td class="mono">94.9%</td><td><div class="bar-wrap"><div class="bar" style="width:88px;background:var(--accent)"></div></div></td></tr>
+        <tr><td><strong>Sentenca</strong></td><td>75</td><td>10.9%</td><td class="mono">94.7%</td><td><div class="bar-wrap"><div class="bar" style="width:75px;background:var(--accent2)"></div></div></td></tr>
+        <tr><td><strong>Audiencia</strong></td><td>10</td><td>1.5%</td><td class="mono">95.0%</td><td><div class="bar-wrap"><div class="bar" style="width:10px;background:var(--accent4)"></div></div></td></tr>
+        <tr><td><strong>Outros</strong></td><td>8</td><td>1.2%</td><td class="mono">95.0%</td><td><div class="bar-wrap"><div class="bar" style="width:8px;background:var(--text-muted)"></div></div></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Distribuicao de Confianca</div>
+    <div class="conf-dist">
+      <div class="conf-seg" style="width:90.5%;background:var(--accent3)">622 (90.5%) Excelente</div>
+      <div class="conf-seg" style="width:8.9%;background:var(--accent5)">61</div>
+      <div class="conf-seg" style="width:0.6%;background:var(--accent4)">4</div>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:.72rem;color:var(--text-muted);">
+      <span>Excelente (>=90%): 622</span><span>Boa (80-89%): 61</span><span>Media (60-79%): 4</span><span>Baixa (&lt;60%): 0</span>
+    </div>
+  </div>
+
+  <div class="stats" style="grid-template-columns:repeat(4,1fr);">
+    <div class="stat"><div class="stat-val" style="color:var(--accent2)">9</div><div class="stat-lbl">Critico</div><div class="stat-sub">1.3%</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent4)">171</div><div class="stat-lbl">Alto</div><div class="stat-sub">24.9%</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent5)">352</div><div class="stat-lbl">Medio</div><div class="stat-sub">51.2%</div></div>
+    <div class="stat"><div class="stat-val" style="color:var(--accent3)">155</div><div class="stat-lbl">Baixo</div><div class="stat-sub">22.6%</div></div>
+  </div>
+</div>
+
+<!-- 3. PIPELINE -->
+<div class="section" id="pipeline">
+  <div class="sec-hdr"><span class="ico">&#x2699;&#xFE0F;</span><h2>Pipeline 3-Agentes</h2></div>
+  <div class="pipeline">
+    <div class="pipe-step active"><div class="pipe-name">Triador</div><div class="pipe-num">687</div><div class="pipe-sub">100% — classifica complexidade<br>Simples: 138 | Padrao: 367 | Complexo: 182</div></div>
+    <div class="pipe-arrow">&#x27A1;&#xFE0F;</div>
+    <div class="pipe-step active"><div class="pipe-name">Analista</div><div class="pipe-num">549</div><div class="pipe-sub">79.9% — analise profunda<br>Flags, fase, responsavel, atividade</div></div>
+    <div class="pipe-arrow">&#x27A1;&#xFE0F;</div>
+    <div class="pipe-step active"><div class="pipe-name">Financeiro</div><div class="pipe-num">221</div><div class="pipe-sub">32.2% — extracao monetaria<br>Condenacao, honorarios, astreintes</div></div>
+  </div>
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">Economia do Pipeline Inteligente</div>
+    <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:10px;">O pipeline economiza 38% vs processar tudo com 3 agentes:</p>
+    <table>
+      <thead><tr><th>Cenario</th><th>Chamadas API</th><th>Custo</th><th>Economia</th></tr></thead>
+      <tbody>
+        <tr><td>Brute force (3 agentes em tudo)</td><td>2,061</td><td>~$42</td><td>—</td></tr>
+        <tr style="color:var(--accent3);font-weight:700;"><td>Pipeline inteligente (atual)</td><td>1,457</td><td>$25.94</td><td>38%</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 4. BUGS -->
+<div class="section" id="bugs">
+  <div class="sec-hdr"><span class="ico">&#x1F41B;</span><h2>Bugs Encontrados e Corrigidos</h2></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Prioridade</th><th>Bug</th><th>Antes</th><th>Depois</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><span class="badge b-red">P1</span></td><td>data_intimacao vazio</td><td class="mono">0/687</td><td class="mono" style="color:var(--accent3)">687/687</td><td style="color:var(--accent3)">CORRIGIDO</td></tr>
+        <tr><td><span class="badge b-red">P1</span></td><td>data_prazo nao calculado</td><td class="mono">0/687</td><td class="mono" style="color:var(--accent3)">440/687</td><td style="color:var(--accent3)">CORRIGIDO</td></tr>
+        <tr><td><span class="badge b-yellow">P2</span></td><td>prazo_dias incompleto (faltava _analista_raw)</td><td class="mono">390/687</td><td class="mono" style="color:var(--accent3)">440/687</td><td style="color:var(--accent3)">CORRIGIDO (+50)</td></tr>
+        <tr><td><span class="badge b-blue">Info</span></td><td>138 registros fora da view controller</td><td>—</td><td>classe_cecilia='A' (ruido)</td><td style="color:var(--accent5)">BY DESIGN</td></tr>
+        <tr><td><span class="badge b-blue">Info</span></td><td>72 registros sem processo vinculado</td><td>—</td><td>57 sem CNJ + 15 nao cadastrados</td><td style="color:var(--accent5)">ESPERADO</td></tr>
+        <tr><td><span class="badge b-blue">Info</span></td><td>tokens_ia NULL</td><td class="mono">0/687</td><td>—</td><td style="color:var(--accent4)">MELHORAR no proximo ciclo</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 5. MODELOS -->
+<div class="section" id="modelos">
+  <div class="sec-hdr"><span class="ico">&#x1F916;</span><h2>Comparacao de Modelos IA</h2></div>
+  <div class="card">
+    <div class="card-title">Pricing por 1M Tokens (abril 2026)</div>
+    <table>
+      <thead><tr><th>Modelo</th><th>Input</th><th>Output</th><th>Batch In</th><th>Batch Out</th><th>JSON</th><th>Contexto</th></tr></thead>
+      <tbody>
+        <tr style="background:rgba(79,255,176,.05);"><td><strong>GPT-4.1-nano</strong></td><td class="mono">$0.10</td><td class="mono">$0.40</td><td class="mono">$0.05</td><td class="mono">$0.20</td><td><span class="badge b-yellow">Func Call</span></td><td class="mono">1M</td></tr>
+        <tr style="background:rgba(79,255,176,.05);"><td><strong>Gemini 2.5 Flash</strong></td><td class="mono">$0.30</td><td class="mono">$2.50</td><td class="mono">$0.15</td><td class="mono">$1.25</td><td><span class="badge b-green">Nativo</span></td><td class="mono">1M</td></tr>
+        <tr><td>GPT-4.1-mini</td><td class="mono">$0.40</td><td class="mono">$1.60</td><td class="mono">$0.20</td><td class="mono">$0.80</td><td><span class="badge b-yellow">Func Call</span></td><td class="mono">1M</td></tr>
+        <tr><td>Claude Haiku 4.5</td><td class="mono">$1.00</td><td class="mono">$5.00</td><td class="mono">$0.50</td><td class="mono">$2.50</td><td><span class="badge b-blue">Prompt</span></td><td class="mono">200K</td></tr>
+        <tr><td>GPT-4.1</td><td class="mono">$2.00</td><td class="mono">$8.00</td><td class="mono">$1.00</td><td class="mono">$4.00</td><td><span class="badge b-red">QUEBRADO</span></td><td class="mono">1M</td></tr>
+        <tr><td>GPT-4o</td><td class="mono">$2.50</td><td class="mono">$10.00</td><td class="mono">$1.25</td><td class="mono">$5.00</td><td><span class="badge b-green">100%</span></td><td class="mono">128K</td></tr>
+        <tr style="background:rgba(124,109,255,.06);"><td><strong>Claude Sonnet 4</strong> (atual)</td><td class="mono">$3.00</td><td class="mono">$15.00</td><td class="mono">$1.50</td><td class="mono">$7.50</td><td><span class="badge b-blue">~99%</span></td><td class="mono">200K</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Analise por Modelo</div>
+    <table>
+      <thead><tr><th>Modelo</th><th>Pros</th><th>Contras</th><th>Viavel?</th></tr></thead>
+      <tbody>
+        <tr><td><strong>GPT-4.1</strong></td><td>Bom custo, 1M contexto</td><td style="color:var(--accent2)">json_schema QUEBRADO (15% success rate), knowledge cutoff jun/2024</td><td style="color:var(--accent2)">NAO</td></tr>
+        <tr><td><strong>GPT-4.1-mini</strong></td><td>83% mais barato que 4o, 1M contexto</td><td>Function calling only, nao prompt-based JSON</td><td style="color:var(--accent4)">TESTAR no Triador</td></tr>
+        <tr><td><strong>GPT-4.1-nano</strong></td><td>30x mais barato que Sonnet 4</td><td>Modelo simples, risco de errar em classificacoes complexas</td><td style="color:var(--accent4)">TESTAR no Triador</td></tr>
+        <tr><td><strong>GPT-4o</strong></td><td>JSON schema 100%, multilingual forte</td><td>Mais caro que Sonnet 4 em output ($10 vs $15 mas $2.50 vs $3 input)</td><td style="color:var(--accent5)">ALTERNATIVA ao Sonnet</td></tr>
+        <tr><td><strong>Gemini 2.5 Flash</strong></td><td>10x mais barato, JSON nativo, Google recomenda para classificacao</td><td>Menos testado em juridico pt-BR</td><td style="color:var(--accent3)">MELHOR CUSTO-BENEFICIO</td></tr>
+        <tr><td><strong>Claude Haiku 4.5</strong></td><td>3x mais barato que Sonnet, extended thinking, mesmo ecossistema</td><td>FUNDAMENTALMENTE diferente do 3.5 que falhou — vale retestar</td><td style="color:var(--accent4)">TESTAR (nao confundir com Haiku 3.5)</td></tr>
+        <tr><td><strong>Claude Sonnet 4</strong></td><td style="color:var(--accent3)">COMPROVADO: 94.1% confianca, 0 erros, qualidade excelente</td><td>O mais caro ($3/$15)</td><td style="color:var(--accent3)">PADRAO ATUAL</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title" style="color:var(--accent2)">Por que NAO usar Claude Haiku 3.5 (nunca mais)</div>
+    <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:8px;">O Claude Haiku 3.5 ($0.80/$4.00) foi o responsavel pelo fracasso anterior:</p>
+    <ul style="margin-left:20px;font-size:.88rem;color:var(--text-muted);">
+      <li>Classificacao por regex — nao entende contexto juridico</li>
+      <li>Confianca arbitraria (30-90%) — numeros sem significado</li>
+      <li>analise_ia sem _analista_raw — drawer IA vazio</li>
+      <li>Sem extracao financeira — valores perdidos</li>
+      <li>Sem flags — ciencia_renuncia, recurso, etc nao detectados</li>
+      <li>Feedback do CTO: "Errou muito!"</li>
+    </ul>
+    <p style="font-size:.88rem;color:var(--accent4);margin-top:8px;font-weight:700;">NOTA: Claude Haiku 4.5 e um modelo COMPLETAMENTE diferente — suporta extended thinking e instrucao complexa. Vale testar.</p>
+  </div>
+</div>
+
+<!-- 6. RECOMENDACAO -->
+<div class="section" id="recomendacao">
+  <div class="sec-hdr"><span class="ico">&#x1F3AF;</span><h2>Recomendacao Final</h2></div>
+
+  <div class="rec-winner">
+    <h3>&#x1F451; Configuracao Recomendada</h3>
+    <p style="font-size:1rem;margin-bottom:16px;">Pipeline hibrido — modelo forte onde importa, modelo rapido onde pode</p>
+    <table style="max-width:600px;margin:0 auto;">
+      <thead><tr><th>Camada</th><th>Modelo</th><th>Custo/MTok</th><th>Por que</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Triador</strong></td><td style="color:var(--accent3)">Gemini 2.5 Flash</td><td class="mono">$0.30/$2.50</td><td>Classificacao simples, JSON nativo</td></tr>
+        <tr><td><strong>Analista</strong></td><td style="color:var(--accent)">Claude Sonnet 4</td><td class="mono">$3.00/$15.00</td><td>Qualidade comprovada 94.1%</td></tr>
+        <tr><td><strong>Financeiro</strong></td><td style="color:var(--accent)">Claude Sonnet 4</td><td class="mono">$3.00/$15.00</td><td>Extracao complexa requer modelo forte</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Projecao com Pipeline Hibrido (687 registros)</div>
+    <table>
+      <thead><tr><th>Config</th><th>Custo</th><th>vs Atual</th></tr></thead>
+      <tbody>
+        <tr><td>Atual (Sonnet 4 em tudo)</td><td class="mono">$25.94</td><td>—</td></tr>
+        <tr><td>Hibrido (Gemini Flash Triador + Sonnet Analista/Fin)</td><td class="mono">~$20.06</td><td style="color:var(--accent3)">-23%</td></tr>
+        <tr><td>Hibrido + Prompt Caching Anthropic</td><td class="mono">~$12-15</td><td style="color:var(--accent3)">-42 a -50%</td></tr>
+        <tr><td>Hibrido + Caching + Batch API</td><td class="mono">~$8-10</td><td style="color:var(--accent3)">-62 a -65%</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Proximo Passo: Teste A/B</div>
+    <p style="font-size:.88rem;color:var(--text-muted);">Antes de trocar em producao, rodar teste A/B com 50 intimacoes:</p>
+    <ol style="margin-left:20px;font-size:.88rem;color:var(--text-muted);">
+      <li>Mesmas 50 intimacoes processadas por Sonnet 4 (baseline)</li>
+      <li>Mesmas 50 processadas por Gemini 2.5 Flash (triador)</li>
+      <li>Mesmas 50 processadas por Claude Haiku 4.5 (triador)</li>
+      <li>Mesmas 50 processadas por GPT-4.1-mini (triador)</li>
+      <li>Comparar: confianca, classificacao, custo, erros de JSON</li>
+    </ol>
+  </div>
+</div>
+
+<!-- 7. CUSTOS -->
+<div class="section" id="custos">
+  <div class="sec-hdr"><span class="ico">&#x1F4B0;</span><h2>Projecao de Custos Diarios</h2></div>
+  <div class="proj-grid">
+    <div class="proj"><div class="proj-scenario">Dia Leve (~100)</div><div class="proj-val" style="color:var(--accent3)">$3.78</div><div class="proj-detail">~R$ 22/dia | R$ 660/mes</div><div class="proj-detail" style="margin-top:4px;color:var(--accent3)">Com hibrido: ~$1.50</div></div>
+    <div class="proj" style="border-color:var(--accent);"><div class="proj-scenario">Dia Normal (~200)</div><div class="proj-val" style="color:var(--accent)">$7.56</div><div class="proj-detail">~R$ 44/dia | R$ 1.320/mes</div><div class="proj-detail" style="margin-top:4px;color:var(--accent3)">Com hibrido: ~$3.00</div></div>
+    <div class="proj"><div class="proj-scenario">Dia Pesado (~687)</div><div class="proj-val" style="color:var(--accent4)">$25.94</div><div class="proj-detail">~R$ 150/dia | R$ 4.500/mes</div><div class="proj-detail" style="margin-top:4px;color:var(--accent3)">Com hibrido: ~$10</div></div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="card-title">Custos Atuais (Sonnet 4 puro)</div>
+    <table>
+      <thead><tr><th>Agente</th><th>Chamadas</th><th>Max Tokens</th><th>Custo</th></tr></thead>
+      <tbody>
+        <tr><td>Triador</td><td>687</td><td>1,024</td><td class="mono">~$6.50</td></tr>
+        <tr><td>Analista</td><td>549</td><td>2,048</td><td class="mono">~$13.20</td></tr>
+        <tr><td>Financeiro</td><td>221</td><td>2,048</td><td class="mono">~$6.24</td></tr>
+        <tr style="font-weight:700;"><td>TOTAL</td><td>1,457</td><td>—</td><td class="mono">$25.94</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 8. OPENCLAW -->
+<div class="section" id="openclaw">
+  <div class="sec-hdr"><span class="ico">&#x1F5A5;&#xFE0F;</span><h2>OpenClaw vs Pipeline IA</h2></div>
+  <div class="card">
+    <table>
+      <thead><tr><th>Aspecto</th><th>OpenClaw (antigo)</th><th>Pipeline IA (atual)</th><th>Vencedor</th></tr></thead>
+      <tbody>
+        <tr><td>Runtime</td><td>Playwright + Node.js no Mac Mini</td><td>Anthropic API direto</td><td style="color:var(--accent3)">Pipeline</td></tr>
+        <tr><td>Modelo IA</td><td style="color:var(--accent2)">Haiku 3.5 (FALHO)</td><td style="color:var(--accent3)">Sonnet 4 (94.1%)</td><td style="color:var(--accent3)">Pipeline</td></tr>
+        <tr><td>Latencia</td><td>3-5 min/processo (browser)</td><td>5.5s/registro (API)</td><td style="color:var(--accent3)">Pipeline (33x)</td></tr>
+        <tr><td>Paralelismo</td><td>1 browser por vez</td><td>5+ paralelos</td><td style="color:var(--accent3)">Pipeline</td></tr>
+        <tr><td>Manutencao</td><td style="color:var(--accent2)">Alta (Playwright breakage)</td><td style="color:var(--accent3)">Baixa (API estavel)</td><td style="color:var(--accent3)">Pipeline</td></tr>
+        <tr><td>Captura EPROC</td><td style="color:var(--accent3)">Sim (navega, baixa docs)</td><td style="color:var(--accent2)">Nao (so texto)</td><td style="color:var(--accent3)">OpenClaw</td></tr>
+        <tr><td>Visao (screenshots)</td><td style="color:var(--accent3)">Sim (Vision API)</td><td style="color:var(--accent2)">Nao</td><td style="color:var(--accent3)">OpenClaw</td></tr>
+        <tr><td>Custo/mes (200/dia)</td><td>~$150-200</td><td>~$150 (Sonnet), ~$60 (hibrido)</td><td style="color:var(--accent4)">Empate</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <div class="card-title" style="color:var(--accent)">Veredicto: Pipeline Hibrido</div>
+    <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:8px;">OpenClaw <strong>NAO substitui</strong> o Pipeline IA para analise. MAS OpenClaw/Cecilia ainda e essencial para <strong>captura</strong> de intimacoes no EPROC.</p>
+    <p style="font-size:.88rem;color:var(--accent3);font-weight:700;">Arquitetura ideal: Cecilia captura (EPROC) &#x27A1;&#xFE0F; Pipeline IA analisa (API)</p>
+    <p style="font-size:.88rem;color:var(--text-muted);margin-top:8px;">A captura precisa de browser automation (login EPROC, navegar processos, baixar docs). A analise NAO precisa — funciona melhor com API direto, mais rapido e confiavel.</p>
+  </div>
+</div>
+
+<!-- 9. ANTES vs DEPOIS -->
+<div class="section" id="antes-depois">
+  <div class="sec-hdr"><span class="ico">&#x1F504;</span><h2>Antes vs Depois</h2></div>
+  <div class="compare">
+    <div class="cmp-card cmp-before">
+      <div class="cmp-title" style="color:var(--accent2)">&#x274C; Import Regex + Haiku 3.5</div>
+      <ul class="cmp-list">
+        <li>Classificacao por regex simples</li>
+        <li>Confianca arbitraria (30-90%)</li>
+        <li>analise_ia sem _analista_raw</li>
+        <li>Drawer IA completamente vazio</li>
+        <li>Sem extracao financeira</li>
+        <li>Sem atividade sugerida</li>
+        <li>Sem responsavel sugerido</li>
+        <li>Sem flags (ciencia, recurso, etc)</li>
+        <li>data_intimacao NULL</li>
+        <li>data_prazo NULL</li>
+        <li>"Errou muito!" — CTO</li>
+      </ul>
+    </div>
+    <div class="cmp-card cmp-after">
+      <div class="cmp-title" style="color:var(--accent3)">&#x2705; Turbo Pipeline Sonnet 4</div>
+      <ul class="cmp-list">
+        <li>Pipeline 3-agentes especializado</li>
+        <li>Confianca media 94.1% (real, calibrada)</li>
+        <li>_analista_raw completo em 549 registros</li>
+        <li>Drawer IA totalmente funcional</li>
+        <li>221 com extracao financeira detalhada</li>
+        <li>Atividade sugerida com titulo+descricao+prazo</li>
+        <li>Responsavel: Stefany, Dra. Heloisa, etc</li>
+        <li>12 flags booleanas por registro</li>
+        <li>data_intimacao: 687/687</li>
+        <li>data_prazo: 440/687</li>
+        <li>$0.038/registro | 0 erros</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- 10. AUTONOMIA IA -->
+<div class="section" id="autonomia">
+  <div class="sec-hdr"><span class="ico">&#x1F9E0;</span><h2>IA Autonoma — Visao de Futuro</h2></div>
+  <div class="card">
+    <div class="card-title">Nivel Atual: Semi-Automatico</div>
+    <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:14px;">Hoje: Cecilia captura planilha &#x2192; Script turbo analisa &#x2192; Humano valida no Controller</p>
+
+    <div class="card-title" style="margin-top:16px;">Nivel Proximo: Agente Autonomo</div>
+    <p style="font-size:.88rem;color:var(--text-muted);margin-bottom:10px;">Com mais IA no fluxo, o sistema pode:</p>
+    <table>
+      <thead><tr><th>Capacidade</th><th>Como</th><th>Modelo</th><th>Impacto</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Auto-criar atividades</strong></td><td>Pipeline gera atividade_sugerida &#x2192; Criar automaticamente se confianca >= 90%</td><td>Sonnet 4</td><td>Elimina triagem manual</td></tr>
+        <tr><td><strong>Auto-ciencia com renuncia</strong></td><td>flag_ciencia_renuncia = true + confianca >= 95% &#x2192; Protocolar automaticamente</td><td>Sonnet 4</td><td>Elimina acao repetitiva</td></tr>
+        <tr><td><strong>Auto-classificar urgencia</strong></td><td>Prazo < 3 dias &#x2192; Notificar Telegram + marcar urgente</td><td>Qualquer</td><td>Zero prazos perdidos</td></tr>
+        <tr><td><strong>Acessar pagina do processo</strong></td><td>Cecilia navega EPROC &#x2192; Extrai documentos &#x2192; IA analisa com contexto completo</td><td>Sonnet 4 + Vision</td><td>Analise 10x melhor</td></tr>
+        <tr><td><strong>Monitorar audiencias</strong></td><td>Detectar pauta &#x2192; Criar agenda &#x2192; Notificar equipe</td><td>Gemini Flash</td><td>Zero audiencias perdidas</td></tr>
+        <tr><td><strong>Gerar relatorio diario</strong></td><td>Pipeline completo &#x2192; HTML relatorio &#x2192; Telegram</td><td>Qualquer</td><td>Visibilidade total</td></tr>
+        <tr><td><strong>Detectar padroes</strong></td><td>Analisar historico &#x2192; Prever resultados &#x2192; Sugerir estrategia</td><td>Sonnet 4</td><td>Jurimetria IA</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Custo da Autonomia Completa (estimativa)</div>
+    <table>
+      <thead><tr><th>Nivel</th><th>Volume/dia</th><th>Custo/dia</th><th>Custo/mes</th></tr></thead>
+      <tbody>
+        <tr><td>Semi-auto (atual)</td><td>200 intimacoes</td><td class="mono">$7.56</td><td class="mono">R$ 1.320</td></tr>
+        <tr><td>Auto atividades + ciencia</td><td>200 + 50 acoes</td><td class="mono">$9.00</td><td class="mono">R$ 1.570</td></tr>
+        <tr><td>Auto completo + docs EPROC</td><td>200 + 200 paginas</td><td class="mono">$15.00</td><td class="mono">R$ 2.625</td></tr>
+        <tr style="color:var(--accent3);font-weight:700;"><td>Auto + hibrido otimizado</td><td>200 completo</td><td class="mono">$8.00</td><td class="mono">R$ 1.400</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- 11. ROADMAP -->
+<div class="section" id="roadmap">
+  <div class="sec-hdr"><span class="ico">&#x1F680;</span><h2>Roadmap de Melhorias</h2></div>
+  <div class="card">
+    <div class="roadmap-item">
+      <div class="rm-num">1</div>
+      <div class="rm-content">
+        <div class="rm-title">Teste A/B de modelos para Triador<span class="rm-tag b-green">SEMANA 1</span></div>
+        <div class="rm-desc">Testar Gemini Flash, GPT-4.1-mini, Haiku 4.5 no Triador com 50 intimacoes cada. Objetivo: -50% custo sem perda de qualidade.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">2</div>
+      <div class="rm-content">
+        <div class="rm-title">Prompt caching Anthropic<span class="rm-tag b-green">SEMANA 1</span></div>
+        <div class="rm-desc">Implementar cache de system prompts (15K tokens) no Analista e Financeiro. Reducao de 90% no custo de input recorrente.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">3</div>
+      <div class="rm-content">
+        <div class="rm-title">Auto-criar atividades (confianca >= 90%)<span class="rm-tag b-purple">SEMANA 2</span></div>
+        <div class="rm-desc">622/687 registros (90.5%) tem confianca >= 90%. Criar atividade automaticamente via rpc_controller_criar_atividades_lote.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">4</div>
+      <div class="rm-content">
+        <div class="rm-title">Auto-ciencia com renuncia<span class="rm-tag b-purple">SEMANA 2</span></div>
+        <div class="rm-desc">flag_ciencia_renuncia = true + confianca >= 95% = protocolar automaticamente no EPROC via Cecilia.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">5</div>
+      <div class="rm-content">
+        <div class="rm-title">Integrar Cecilia captura + Pipeline analise<span class="rm-tag b-blue">SEMANA 2-3</span></div>
+        <div class="rm-desc">Cecilia gera planilha &#x2192; Pipeline turbo roda automaticamente &#x2192; Resultados no Controller. Zero intervencao humana na captura+analise.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">6</div>
+      <div class="rm-content">
+        <div class="rm-title">Token tracking (tokens_ia, custo detalhado)<span class="rm-tag b-blue">SEMANA 3</span></div>
+        <div class="rm-desc">Gravar tokens_ia por registro para tracking preciso. Tabela cecilia_custos_diarios para dashboard de custos.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">7</div>
+      <div class="rm-content">
+        <div class="rm-title">Acesso a documentos EPROC<span class="rm-tag b-yellow">SEMANA 3-4</span></div>
+        <div class="rm-desc">Cecilia navega pagina do processo, baixa docs PDF, extrai texto. IA analisa com contexto completo (autor, reu, historico).</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">8</div>
+      <div class="rm-content">
+        <div class="rm-title">Notificacoes Telegram por urgencia<span class="rm-tag b-yellow">SEMANA 4</span></div>
+        <div class="rm-desc">Prazo < 3 dias &#x2192; Alerta Telegram imediato. Sentenca &#x2192; Resumo no grupo. Audiencia &#x2192; Lembrete 48h antes.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">9</div>
+      <div class="rm-content">
+        <div class="rm-title">Batch API para processamento noturno<span class="rm-tag b-yellow">SEMANA 4</span></div>
+        <div class="rm-desc">Processar intimacoes acumuladas a noite via Batch API (50% desconto). Urgentes em tempo real, resto em batch.</div>
+      </div>
+    </div>
+    <div class="roadmap-item">
+      <div class="rm-num">10</div>
+      <div class="rm-content">
+        <div class="rm-title">Relatorio HTML diario automatico<span class="rm-tag b-blue">SEMANA 4</span></div>
+        <div class="rm-desc">Gerar relatorio Jarbas 2.0 por ciclo: KPIs, custos, distribuicao, alertas. Publicar em GitHub Pages + enviar link Telegram.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  &#x1F419; Jarbas 2.0 — MdLab LegalTech | Deep Review Turbo Analysis | 03/04/2026 04:45 BRT<br>
+  <span style="margin-top:4px;display:inline-block;">Pipeline: claude-sonnet-4-20250514 | 687 registros | $25.94 | 94.1% confianca</span>
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>import-controller — Plano de Tarefas</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1714;
+  --card: #201d1a;
+  --border: #2e2b27;
+  --primary: #20c997;
+  --primary-dim: #20c99718;
+  --primary-border: #20c99740;
+  --warn: #f59e0b;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --info: #60a5fa;
+  --violet: #a78bfa;
+  --orange: #fb923c;
+  --text: #f5f0eb;
+  --muted: #9e9890;
+  --mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 2rem 1.5rem;
+}
+
+/* Layout */
+.layout { display: flex; gap: 2rem; max-width: 1280px; margin: 0 auto; }
+.sidebar { width: 220px; position: sticky; top: 24px; height: fit-content; flex-shrink: 0; }
+main { flex: 1; min-width: 0; }
+
+/* Sidebar */
+.sidebar-nav { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1rem; }
+.sidebar-title { font-family: Manrope, sans-serif; font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: .75rem; }
+.sidebar-group { margin-bottom: .75rem; }
+.sidebar-group-label { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: .3rem; padding-left: .25rem; }
+.sidebar-link { display: block; color: var(--muted); text-decoration: none; font-size: 12.5px; padding: .3rem .5rem; border-radius: 5px; transition: background .15s, color .15s; }
+.sidebar-link:hover { background: var(--card); color: var(--text); }
+.sidebar-link.active { background: var(--primary-dim); color: var(--primary); }
+.sidebar-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+
+/* Header */
+.header { margin-bottom: 2rem; }
+.header-top { display: flex; align-items: center; gap: .75rem; margin-bottom: .5rem; }
+.project-icon { font-size: 1.8rem; }
+.project-name { font-family: Manrope, sans-serif; font-size: 26px; font-weight: 800;
+  background: linear-gradient(135deg, var(--primary), var(--info));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+.header-subtitle { color: var(--muted); font-size: 13px; margin-bottom: 1rem; }
+.meta-row { display: flex; flex-wrap: wrap; gap: .5rem; }
+.meta-chip { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: .25rem .75rem; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: .35rem; }
+.meta-chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+
+/* Stats */
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.2rem 1rem; text-align: center; }
+.stat-value { font-family: Manrope, sans-serif; font-size: 28px; font-weight: 800; color: var(--primary); display: block; }
+.stat-label { color: var(--muted); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .06em; margin-top: .2rem; }
+.stat-sub { color: var(--muted); font-size: 11px; margin-top: .3rem; }
+
+/* Section */
+.section { margin-bottom: 2.5rem; }
+.section-header { display: flex; align-items: center; gap: .6rem; margin-bottom: 1.25rem; }
+.section-icon { font-size: 1.2rem; }
+.section-title { font-family: Manrope, sans-serif; font-size: 17px; font-weight: 700; }
+.section-count { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: .1rem .6rem; font-size: 11px; color: var(--muted); margin-left: .25rem; }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; margin-bottom: .875rem; }
+.card:hover { border-color: #3a3730; }
+.card-header { display: flex; align-items: flex-start; gap: .75rem; margin-bottom: .75rem; }
+.task-id { font-family: var(--mono); font-size: 12px; font-weight: 500; color: var(--primary); background: var(--primary-dim); border: 1px solid var(--primary-border); border-radius: 5px; padding: .2rem .5rem; flex-shrink: 0; white-space: nowrap; }
+.card-title { font-family: Manrope, sans-serif; font-size: 14px; font-weight: 700; flex: 1; }
+.card-badges { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: .75rem; }
+.card-body { color: var(--muted); font-size: 12.5px; line-height: 1.55; }
+.card-body p { margin-bottom: .4rem; }
+
+/* Badges */
+.badge { display: inline-flex; align-items: center; gap: .3rem; border-radius: 20px; padding: .15rem .6rem; font-size: 11px; font-weight: 500; }
+.badge-backend  { background: #a78bfa18; color: #a78bfa; border: 1px solid #a78bfa30; }
+.badge-frontend { background: #60a5fa18; color: #60a5fa; border: 1px solid #60a5fa30; }
+.badge-cecilia  { background: #fb923c18; color: #fb923c; border: 1px solid #fb923c30; }
+.badge-polish   { background: #22c55e18; color: #22c55e; border: 1px solid #22c55e30; }
+.badge-s { background: #20c99718; color: #20c997; border: 1px solid #20c99730; }
+.badge-m { background: #f59e0b18; color: #f59e0b; border: 1px solid #f59e0b30; }
+.badge-l { background: #ef444418; color: #ef4444; border: 1px solid #ef444430; }
+.badge-neutral { background: var(--card); color: var(--muted); border: 1px solid var(--border); }
+
+/* Deps */
+.deps-row { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; align-items: center; }
+.deps-label { font-size: 11px; color: var(--muted); }
+.dep-chip { font-family: var(--mono); font-size: 11px; background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: .1rem .4rem; color: var(--muted); }
+
+/* Files */
+.files-list { margin-top: .6rem; }
+.file-item { font-family: var(--mono); font-size: 11px; color: var(--muted); padding: .2rem 0; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: .5rem; }
+.file-item:last-child { border-bottom: none; }
+.file-action { font-size: 10px; padding: .1rem .4rem; border-radius: 3px; flex-shrink: 0; }
+.file-create { background: #20c99718; color: #20c997; }
+.file-modify { background: #f59e0b18; color: #f59e0b; }
+
+/* Commands section */
+.cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.cmd-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: .875rem 1rem; }
+.cmd-card-title { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; margin-bottom: .5rem; display: flex; align-items: center; gap: .4rem; }
+.cmd-block { background: #0d0b09; border-radius: 6px; padding: .625rem .875rem; position: relative; margin-top: .25rem; }
+.cmd-block code { font-family: var(--mono); font-size: 11.5px; color: var(--primary); display: block; white-space: pre-wrap; word-break: break-all; }
+.copy-btn { position: absolute; right: .5rem; top: 50%; transform: translateY(-50%); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; color: var(--muted); font-size: 10px; padding: .15rem .45rem; cursor: pointer; transition: all .15s; font-family: Inter, sans-serif; }
+.copy-btn:hover { background: var(--primary-dim); border-color: var(--primary-border); color: var(--primary); }
+.copy-btn.copied { background: #22c55e18; border-color: #22c55e40; color: #22c55e; }
+
+/* Full commands table */
+.commands-table { width: 100%; border-collapse: collapse; margin-top: .5rem; }
+.commands-table th { text-align: left; padding: .5rem .75rem; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); }
+.commands-table td { padding: .625rem .75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.commands-table tr:last-child td { border-bottom: none; }
+.commands-table tr:hover td { background: var(--card); }
+.cmd-inline { font-family: var(--mono); font-size: 11.5px; color: var(--primary); background: #0d0b09; padding: .25rem .5rem; border-radius: 4px; cursor: pointer; user-select: all; transition: opacity .15s; white-space: nowrap; }
+.cmd-inline:hover { opacity: .8; }
+
+/* Context block */
+.context-block { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--primary); border-radius: 0 8px 8px 0; padding: 1rem 1.25rem; margin-bottom: 1rem; }
+.context-block h3 { font-family: Manrope, sans-serif; font-size: 13px; font-weight: 700; margin-bottom: .5rem; }
+.context-block p, .context-block li { color: var(--muted); font-size: 12.5px; margin-bottom: .25rem; }
+.context-block ul { padding-left: 1.25rem; }
+
+/* Layer separator */
+.layer-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); padding: .4rem .75rem; background: var(--card); border: 1px solid var(--border); border-radius: 4px; margin-bottom: .875rem; display: inline-block; }
+
+/* Dep graph */
+.dep-flow { display: flex; flex-wrap: wrap; gap: 1.5rem; align-items: center; }
+.dep-node { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: .4rem .75rem; font-family: var(--mono); font-size: 12px; color: var(--text); white-space: nowrap; }
+.dep-node.layer-b { border-color: #a78bfa40; color: #a78bfa; background: #a78bfa08; }
+.dep-node.layer-f { border-color: #60a5fa40; color: #60a5fa; background: #60a5fa08; }
+.dep-node.layer-c { border-color: #fb923c40; color: #fb923c; background: #fb923c08; }
+.dep-node.layer-p { border-color: #22c55e40; color: #22c55e; background: #22c55e08; }
+.dep-arrow { color: var(--muted); font-size: 16px; }
+.dep-row { display: flex; align-items: center; gap: .75rem; margin-bottom: .625rem; flex-wrap: wrap; }
+
+/* Reuse table */
+table.reuse { width: 100%; border-collapse: collapse; }
+table.reuse th { text-align: left; padding: .5rem .75rem; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); background: var(--card); }
+table.reuse td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); font-size: 12.5px; vertical-align: top; }
+table.reuse tr:last-child td { border-bottom: none; }
+table.reuse code { font-family: var(--mono); font-size: 11px; color: var(--orange); background: #0d0b09; padding: .1rem .35rem; border-radius: 3px; }
+
+/* Footer */
+footer { text-align: center; padding: 2rem 0 1rem; color: var(--muted); font-size: 11px; border-top: 1px solid var(--border); margin-top: 3rem; }
+
+/* Responsive */
+@media (max-width: 720px) {
+  .sidebar { display: none; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .cmd-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="layout">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <nav class="sidebar-nav">
+    <div class="sidebar-title">Navegação</div>
+
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Visão Geral</div>
+      <a href="#overview" class="sidebar-link">📋 Contexto</a>
+      <a href="#commands" class="sidebar-link">⚡ Comandos</a>
+      <a href="#deps" class="sidebar-link">🔗 Dependências</a>
+    </div>
+
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Tarefas</div>
+      <a href="#backend" class="sidebar-link"><span class="sidebar-dot" style="background:#a78bfa"></span>Backend (1)</a>
+      <a href="#frontend" class="sidebar-link"><span class="sidebar-dot" style="background:#60a5fa"></span>Frontend (6)</a>
+      <a href="#cecilia" class="sidebar-link"><span class="sidebar-dot" style="background:#fb923c"></span>Cecilia (3)</a>
+      <a href="#polish" class="sidebar-link"><span class="sidebar-dot" style="background:#22c55e"></span>Polish (1)</a>
+    </div>
+
+    <div class="sidebar-group">
+      <div class="sidebar-group-label">Referências</div>
+      <a href="#reuse" class="sidebar-link">♻️ Reutilização</a>
+      <a href="#schema" class="sidebar-link">🗄️ Schema</a>
+    </div>
+  </nav>
+</aside>
+
+<!-- Main -->
+<main>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-top">
+    <span class="project-icon">📥</span>
+    <h1 class="project-name">import-controller</h1>
+  </div>
+  <p class="header-subtitle">Importação manual de processos no /controller via planilha CSV/XLSX → Cecilia → EPROC</p>
+  <div class="meta-row">
+    <span class="meta-chip"><span class="dot"></span>11 tarefas</span>
+    <span class="meta-chip">4 camadas</span>
+    <span class="meta-chip">0% concluído</span>
+    <span class="meta-chip">2026-04-05</span>
+    <span class="meta-chip">React 18 + Supabase + Cecilia</span>
+  </div>
+</header>
+
+<!-- Stats -->
+<div class="stats-grid">
+  <div class="stat-card">
+    <span class="stat-value">11</span>
+    <span class="stat-label">Tarefas Total</span>
+    <div class="stat-sub">1 Backend · 6 Frontend · 3 Cecilia · 1 Polish</div>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value">4</span>
+    <span class="stat-label">Camadas</span>
+    <div class="stat-sub">Backend → Frontend → Cecilia → Polish</div>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value" style="color:var(--info)">2</span>
+    <span class="stat-label">Tabelas Novas</span>
+    <div class="stat-sub">controller_importacoes · controller_importacao_itens</div>
+  </div>
+  <div class="stat-card">
+    <span class="stat-value" style="color:var(--orange)">4</span>
+    <span class="stat-label">Skills Cecilia Reutilizadas</span>
+    <div class="stat-sub">loginEproc · acessarProcesso · analisarIA · buildHash</div>
+  </div>
+</div>
+
+<!-- Context -->
+<section class="section" id="overview">
+  <div class="section-header">
+    <span class="section-icon">📋</span>
+    <h2 class="section-title">Contexto do Projeto</h2>
+  </div>
+
+  <div class="context-block">
+    <h3>Objetivo</h3>
+    <p>Criar mecanismo de importação manual de processos no <code style="font-family:var(--mono);font-size:11px;color:var(--primary);background:#0d0b09;padding:.1rem .35rem;border-radius:3px;">/controller</code>. O usuário faz upload de planilhas (CSV/XLSX) com CNJs, associa a um advogado (OAB), seleciona data de corte, e a Cecilia acessa o EPROC, analisa com IA e alimenta o controller com movimentações relevantes (classes B–G).</p>
+  </div>
+
+  <div class="context-block" style="border-left-color: var(--warn)">
+    <h3>Motivação</h3>
+    <p>O cron autônomo da Cecilia está instável. Este mecanismo é o <strong>backup definitivo</strong> — quando o cron falhar, o usuário importa a lista exportada do software jurídico e o sistema processa completamente sem intervenção adicional.</p>
+  </div>
+
+  <div class="context-block" style="border-left-color: var(--info)">
+    <h3>Mecanismo de Filas</h3>
+    <ul>
+      <li>Sem n8n — usa <strong>Supabase queue</strong> (tabela <code style="font-family:var(--mono);font-size:11px;color:var(--orange);background:#0d0b09;padding:.1rem .35rem;border-radius:3px;">controller_importacoes</code> como fila)</li>
+      <li>Cecilia faz <strong>poll a cada 30s</strong> via <code style="font-family:var(--mono);font-size:11px;color:var(--orange);background:#0d0b09;padding:.1rem .35rem;border-radius:3px;">start.mjs</code></li>
+      <li>Realtime Supabase → frontend atualiza em tempo real sem polling</li>
+      <li>Dedup via <code style="font-family:var(--mono);font-size:11px;color:var(--orange);background:#0d0b09;padding:.1rem .35rem;border-radius:3px;">signature_hash</code> (campo já existe em <code style="font-family:var(--mono);font-size:11px;color:var(--orange);background:#0d0b09;padding:.1rem .35rem;border-radius:3px;">intimacoes</code>)</li>
+    </ul>
+  </div>
+
+  <div class="context-block" style="border-left-color: var(--danger)">
+    <h3>Fora do Escopo</h3>
+    <ul>
+      <li>Corrigir cron autônomo (projeto separado: <code style="font-family:var(--mono);font-size:11px;color:var(--muted)">cecilia-autonomo</code>)</li>
+      <li>Modificar pipeline de IA (já funcional: Haiku triagem → Sonnet D/E/F)</li>
+      <li>Histórico de importações anteriores (v2)</li>
+      <li>Notificações Telegram (v2)</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Commands Quick Reference -->
+<section class="section" id="commands">
+  <div class="section-header">
+    <span class="section-icon">⚡</span>
+    <h2 class="section-title">Comandos — Copie e Execute</h2>
+  </div>
+
+  <!-- Plan all -->
+  <div class="card" style="margin-bottom:1.25rem">
+    <div class="card-title" style="margin-bottom:1rem;font-family:Manrope,sans-serif;font-size:15px;font-weight:700">Sequência Completa (na ordem correta)</div>
+    <table class="commands-table">
+      <thead>
+        <tr>
+          <th>Tarefa</th>
+          <th>Camada</th>
+          <th>Complexidade</th>
+          <th style="width:340px">Comando Plan</th>
+          <th style="width:340px">Comando Execute</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T01</span> Migration tabelas</td>
+          <td><span class="badge badge-backend">backend</span></td>
+          <td><span class="badge badge-s">S</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T01</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T01</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T02</span> useImportacaoProgress</td>
+          <td><span class="badge badge-frontend">frontend</span></td>
+          <td><span class="badge badge-s">S</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T02</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T02</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T03</span> Modal Step 1</td>
+          <td><span class="badge badge-frontend">frontend</span></td>
+          <td><span class="badge badge-m">M</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T03</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T03</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T04</span> Modal Step 2</td>
+          <td><span class="badge badge-frontend">frontend</span></td>
+          <td><span class="badge badge-m">M</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T04</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T04</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T05</span> Modal Step 3</td>
+          <td><span class="badge badge-frontend">frontend</span></td>
+          <td><span class="badge badge-s">S</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T05</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T05</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T06</span> ImportProgress panel</td>
+          <td><span class="badge badge-frontend">frontend</span></td>
+          <td><span class="badge badge-m">M</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T06</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T06</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T07</span> controller/index.tsx</td>
+          <td><span class="badge badge-frontend">frontend</span></td>
+          <td><span class="badge badge-s">S</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T07</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T07</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T08</span> skill_lote parte 1</td>
+          <td><span class="badge badge-cecilia">cecilia</span></td>
+          <td><span class="badge badge-m">M</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T08</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T08</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T09</span> skill_lote parte 2</td>
+          <td><span class="badge badge-cecilia">cecilia</span></td>
+          <td><span class="badge badge-m">M</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T09</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T09</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T10</span> start.mjs poll</td>
+          <td><span class="badge badge-cecilia">cecilia</span></td>
+          <td><span class="badge badge-s">S</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T10</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T10</span></td>
+        </tr>
+        <tr>
+          <td><span class="task-id" style="font-size:11px">T11</span> Polish + tipos</td>
+          <td><span class="badge badge-polish">polish</span></td>
+          <td><span class="badge badge-s">S</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller plan T11</span></td>
+          <td><span class="cmd-inline" onclick="copyCmd(this)" title="Clique para copiar">/projeto import-controller execute T11</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Quick shortcuts -->
+  <div class="cmd-grid">
+    <div class="cmd-card">
+      <div class="cmd-card-title">🚀 Próxima tarefa disponível</div>
+      <div class="cmd-block">
+        <code>/projeto import-controller next</code>
+        <button class="copy-btn" onclick="copyBlock(this, '/projeto import-controller next')">copiar</button>
+      </div>
+    </div>
+    <div class="cmd-card">
+      <div class="cmd-card-title">📊 Status do projeto</div>
+      <div class="cmd-block">
+        <code>/projeto import-controller status</code>
+        <button class="copy-btn" onclick="copyBlock(this, '/projeto import-controller status')">copiar</button>
+      </div>
+    </div>
+    <div class="cmd-card">
+      <div class="cmd-card-title">⚡ Primeira tarefa (T01)</div>
+      <div class="cmd-block">
+        <code>/projeto import-controller plan T01</code>
+        <button class="copy-btn" onclick="copyBlock(this, '/projeto import-controller plan T01')">copiar</button>
+      </div>
+    </div>
+    <div class="cmd-card">
+      <div class="cmd-card-title">🔄 Limpar contexto entre fases</div>
+      <div class="cmd-block">
+        <code>/clear</code>
+        <button class="copy-btn" onclick="copyBlock(this, '/clear')">copiar</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:1rem;padding:.75rem 1rem;background:var(--card);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--muted)">
+    💡 <strong style="color:var(--text)">Dica:</strong> Clique em qualquer comando da tabela para copiar. Use <code style="font-family:var(--mono);font-size:11px">/clear</code> entre cada fase (plan → execute). Para tarefas <span class="badge badge-m" style="font-size:10px">M</span>, considere /clear entre plan e execute.
+  </div>
+</section>
+
+<!-- Dependency Map -->
+<section class="section" id="deps">
+  <div class="section-header">
+    <span class="section-icon">🔗</span>
+    <h2 class="section-title">Mapa de Dependências</h2>
+  </div>
+  <div class="card">
+    <div class="dep-row">
+      <span class="dep-node layer-b">T01</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-f">T02</span>
+      <span class="dep-node layer-f">T03</span>
+      <span class="dep-node layer-c">T08</span>
+    </div>
+    <div class="dep-row">
+      <span class="dep-node layer-f">T03</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-f">T04</span>
+    </div>
+    <div class="dep-row">
+      <span class="dep-node layer-f">T02</span>
+      <span class="dep-node layer-f">T04</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-f">T05</span>
+    </div>
+    <div class="dep-row">
+      <span class="dep-node layer-f">T02</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-f">T06</span>
+    </div>
+    <div class="dep-row">
+      <span class="dep-node layer-f">T03</span>
+      <span class="dep-node layer-f">T04</span>
+      <span class="dep-node layer-f">T05</span>
+      <span class="dep-node layer-f">T06</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-f">T07</span>
+    </div>
+    <div class="dep-row">
+      <span class="dep-node layer-c">T08</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-c">T09</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-c">T10</span>
+    </div>
+    <div class="dep-row">
+      <span class="dep-node layer-f">T05</span>
+      <span class="dep-node layer-f">T06</span>
+      <span class="dep-node layer-f">T07</span>
+      <span class="dep-arrow">→</span>
+      <span class="dep-node layer-p">T11</span>
+    </div>
+    <div style="margin-top:1rem;display:flex;flex-wrap:wrap;gap:.75rem;font-size:11px;">
+      <span><span style="display:inline-block;width:10px;height:10px;background:#a78bfa;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Backend</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#60a5fa;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Frontend</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#fb923c;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Cecilia</span>
+      <span><span style="display:inline-block;width:10px;height:10px;background:#22c55e;border-radius:2px;margin-right:4px;vertical-align:middle"></span>Polish</span>
+    </div>
+    <div style="margin-top:1rem;padding:.625rem .875rem;background:#0d0b09;border-radius:6px;font-size:12px;color:var(--muted)">
+      ⚡ <strong style="color:var(--text)">T01 desbloqueia tudo.</strong> Frontend e Cecilia podem correr em paralelo após T01 (terminais separados). T08→T09→T10 pode ser feito enquanto T02-T07 ainda estão em andamento.
+    </div>
+  </div>
+</section>
+
+<!-- Backend -->
+<section class="section" id="backend">
+  <div class="section-header">
+    <span class="section-icon">🗄️</span>
+    <h2 class="section-title">Backend</h2>
+    <span class="section-count">1 tarefa</span>
+  </div>
+
+  <div class="layer-label" style="color:#a78bfa;background:#a78bfa08;border-color:#a78bfa30">Backend — Supabase MCP</div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T01</span>
+      <span class="card-title">Migration: controller_importacoes + controller_importacao_itens</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-backend">backend</span>
+      <span class="badge badge-s">S — pequena</span>
+      <span class="badge badge-neutral">sem dependências</span>
+    </div>
+    <div class="card-body">
+      <p>DDL completo via Supabase MCP. Inclui 2 tabelas, RLS Modelo A em ambas, 7 índices e trigger <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">set_updated_at</code> em <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">controller_importacoes</code>.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-create">CRIAR</span>supabase/migrations/[timestamp]_controller_importacoes.sql</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Desbloqueia:</span>
+      <span class="dep-chip">T02</span>
+      <span class="dep-chip">T03</span>
+      <span class="dep-chip">T04</span>
+      <span class="dep-chip">T08</span>
+    </div>
+
+    <div style="margin-top:1rem;background:#0d0b09;border-radius:6px;padding:.875rem 1rem;font-size:12px;">
+      <div style="color:var(--muted);margin-bottom:.5rem;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em">Schema Resumido</div>
+      <div style="font-family:var(--mono);font-size:11px;color:#a78bfa;line-height:1.7">
+        controller_importacoes:<br>
+        &nbsp;&nbsp;id · organizacao_id · status TEXT CHECK · total · processados · sem_movimentacao · ja_existentes · erros · data_inicio · criado_por · created_at · updated_at · deleted_at<br><br>
+        controller_importacao_itens:<br>
+        &nbsp;&nbsp;id · importacao_id · organizacao_id · cnj · oab · tribunal · status TEXT CHECK · intimacao_id · erro_mensagem · processado_at · created_at
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Frontend -->
+<section class="section" id="frontend">
+  <div class="section-header">
+    <span class="section-icon">⚛️</span>
+    <h2 class="section-title">Frontend</h2>
+    <span class="section-count">6 tarefas</span>
+  </div>
+
+  <div class="layer-label" style="color:#60a5fa;background:#60a5fa08;border-color:#60a5fa30">Frontend — React + TypeScript + shadcn/ui</div>
+
+  <!-- T02 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T02</span>
+      <span class="card-title">Hook useImportacaoProgress</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-frontend">frontend</span>
+      <span class="badge badge-s">S — pequena</span>
+    </div>
+    <div class="card-body">
+      <p>Realtime subscription em <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">controller_importacoes</code> filtrando por <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">organizacao_id</code>. Retorna job ativo (status IN pendente/processando nas últimas 2h) + contadores + isLoading. <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">staleTime: 30_000</code>.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-create">CRIAR</span>src/pages/controller/hooks/useImportacaoProgress.ts</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T01</span>
+      <span class="deps-label" style="margin-left:.5rem">Desbloqueia:</span><span class="dep-chip">T05</span><span class="dep-chip">T06</span>
+    </div>
+  </div>
+
+  <!-- T03 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T03</span>
+      <span class="card-title">ControllerImportModal — Step 1: Upload + OAB + Data</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-frontend">frontend</span>
+      <span class="badge badge-m">M — média</span>
+    </div>
+    <div class="card-body">
+      <p>Criar arquivo modal 3-step (base). Step 1: drag-drop upload múltiplos CSV/XLSX, parse e normalização CNJ para formato canônico, dropdown OAB por arquivo (lista de <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">jarbas_accounts</code>), date picker corte (default: hoje−30d, datas futuras bloqueadas). "Continuar" desabilitado até todos com OAB selecionado.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-create">CRIAR</span>src/pages/controller/ControllerImportModal.tsx</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T01</span>
+      <span class="deps-label" style="margin-left:.5rem">Desbloqueia:</span><span class="dep-chip">T04</span>
+    </div>
+  </div>
+
+  <!-- T04 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T04</span>
+      <span class="card-title">ControllerImportModal — Step 2: Preview + Iniciar</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-frontend">frontend</span>
+      <span class="badge badge-m">M — média</span>
+    </div>
+    <div class="card-body">
+      <p>Step 2 no mesmo arquivo. Preview CNJs válidos/inválidos agrupados por OAB, estimativa de tempo (~12s × total), botão "Iniciar Análise" (desabilitado se 0 válidos) → INSERT <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">controller_importacoes</code> + itens em lote, depois avança para Step 3.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>src/pages/controller/ControllerImportModal.tsx</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T01</span><span class="dep-chip">T03</span>
+      <span class="deps-label" style="margin-left:.5rem">Desbloqueia:</span><span class="dep-chip">T05</span>
+    </div>
+  </div>
+
+  <!-- T05 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T05</span>
+      <span class="card-title">ControllerImportModal — Step 3: Progress em Tempo Real</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-frontend">frontend</span>
+      <span class="badge badge-s">S — pequena</span>
+    </div>
+    <div class="card-body">
+      <p>Step 3 (progress): barra alimentada por <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">useImportacaoProgress</code>, contadores ✅⏭🔄❌ em tempo real, último CNJ processado, botão "Executar em background — Fechar". Badge conclusão com/sem erros. Spinner após 3min sem atualização.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>src/pages/controller/ControllerImportModal.tsx</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T02</span><span class="dep-chip">T04</span>
+      <span class="deps-label" style="margin-left:.5rem">Desbloqueia:</span><span class="dep-chip">T07</span><span class="dep-chip">T11</span>
+    </div>
+  </div>
+
+  <!-- T06 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T06</span>
+      <span class="card-title">ControllerImportProgress — Panel Inline no /controller</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-frontend">frontend</span>
+      <span class="badge badge-m">M — média</span>
+    </div>
+    <div class="card-body">
+      <p>Banner animado abaixo do header do /controller. Aparece quando há job ativo nas últimas 2h. Contadores coloridos em tempo real. Dismissível após <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">status='concluido'</code>. Clique em "❌ N erros" filtra /controller por <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">ia_status=erro</code>.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-create">CRIAR</span>src/pages/controller/ControllerImportProgress.tsx</div>
+    </div>
+    <div style="margin-top:.875rem;background:#0d0b09;border-radius:5px;padding:.625rem .75rem;font-family:var(--mono);font-size:10.5px;color:#60a5fa;line-height:1.6">
+      📥 Importação em andamento &nbsp;&nbsp;&nbsp;&nbsp;[====&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;] 156/247 &nbsp;&nbsp;[⌄] [X]<br>
+      ✅ 89 · ⏭ 52 sem mov · 🔄 14 já exist · ❌ 1 erro
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T02</span>
+      <span class="deps-label" style="margin-left:.5rem">Desbloqueia:</span><span class="dep-chip">T07</span><span class="dep-chip">T11</span>
+    </div>
+  </div>
+
+  <!-- T07 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T07</span>
+      <span class="card-title">controller/index.tsx — Integração Final</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-frontend">frontend</span>
+      <span class="badge badge-s">S — pequena</span>
+    </div>
+    <div class="card-body">
+      <p>Modificar <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">src/pages/controller/index.tsx</code>: state <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">importOpen</code>, botão "Importar" no header (ao lado de "Exportar"), <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">&lt;ControllerImportModal&gt;</code> e <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">&lt;ControllerImportProgress /&gt;</code> abaixo do header, acima dos KPIs.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>src/pages/controller/index.tsx</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T03</span><span class="dep-chip">T04</span><span class="dep-chip">T05</span><span class="dep-chip">T06</span>
+      <span class="deps-label" style="margin-left:.5rem">Desbloqueia:</span><span class="dep-chip">T11</span>
+    </div>
+  </div>
+</section>
+
+<!-- Cecilia -->
+<section class="section" id="cecilia">
+  <div class="section-header">
+    <span class="section-icon">🤖</span>
+    <h2 class="section-title">Cecilia Skills</h2>
+    <span class="section-count">3 tarefas</span>
+  </div>
+
+  <div class="layer-label" style="color:#fb923c;background:#fb923c08;border-color:#fb923c30">Cecilia — Mac Mini · Node.js ESM · SSH Deploy</div>
+
+  <div class="card" style="margin-bottom:.875rem;border-color:#fb923c20">
+    <div style="font-size:12px;color:var(--muted)">
+      ⚠️ <strong style="color:var(--text)">Deploy via SSH:</strong> Arquivos gerados localmente → <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">scp</code> para Mac Mini → <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">sudo chown cecilia</code> → reiniciar processo. T08/T09 editam o mesmo arquivo (<code style="font-family:var(--mono);font-size:11px;color:var(--orange)">skill_importar_lote.mjs</code>) em partes.
+    </div>
+  </div>
+
+  <!-- T08 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T08</span>
+      <span class="card-title">skill_importar_lote.mjs — Parte 1: Poll + Login + Navegar</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-cecilia">cecilia</span>
+      <span class="badge badge-m">M — média</span>
+    </div>
+    <div class="card-body">
+      <p>Poll <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">controller_importacoes</code> (status=pendente), UPDATE status=processando, SELECT itens pendentes, agrupar por OAB, <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">loginEproc(oab)</code> por grupo, <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">skillAcessarProcesso(page, {cnj, desdeTimestamp})</code> por CNJ, UPDATE counters sem_movimentacao/ja_existente.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-create">CRIAR</span>/Users/cecilia/cecilia-skills/src/skills/skill_importar_lote.mjs</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T01</span>
+      <span class="deps-label" style="margin-left:.5rem">Reutiliza:</span>
+      <span class="dep-chip" style="color:var(--orange)">skill_login_eproc.mjs</span>
+      <span class="dep-chip" style="color:var(--orange)">skill_acessar_processo.mjs</span>
+    </div>
+  </div>
+
+  <!-- T09 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T09</span>
+      <span class="card-title">skill_importar_lote.mjs — Parte 2: IA + Dedup + INSERT</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-cecilia">cecilia</span>
+      <span class="badge badge-m">M — média</span>
+    </div>
+    <div class="card-body">
+      <p>Dedup por <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">signature_hash</code>, <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">skillAnalisarIA</code> para eventos novos, skip classe A, INSERT <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">intimacoes</code> com <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">fonte='importacao_manual'</code>, UPDATE counters processados/erros, fallback erro EPROC (INSERT com <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">ia_status='erro'</code>), delays anti-bot (800–2500ms), delay 5s entre OABs, UPDATE status='concluido' ao final.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>/Users/cecilia/cecilia-skills/src/skills/skill_importar_lote.mjs</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T08</span>
+      <span class="deps-label" style="margin-left:.5rem">Reutiliza:</span>
+      <span class="dep-chip" style="color:var(--orange)">skill_analisar_ia.mjs</span>
+      <span class="dep-chip" style="color:var(--orange)">buildSignatureHash</span>
+    </div>
+  </div>
+
+  <!-- T10 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T10</span>
+      <span class="card-title">start.mjs — Poll Interval 30s</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-cecilia">cecilia</span>
+      <span class="badge badge-s">S — pequena</span>
+    </div>
+    <div class="card-body">
+      <p>Modificar <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">start.mjs</code>: importar <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">pollImportacoes</code> de <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">skill_importar_lote.mjs</code>, adicionar <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">setInterval(async () =&gt; &#123; await pollImportacoes(); &#125;, 30_000)</code> no startup.</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>/Users/cecilia/cecilia-skills/src/start.mjs</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T09</span>
+    </div>
+  </div>
+</section>
+
+<!-- Polish -->
+<section class="section" id="polish">
+  <div class="section-header">
+    <span class="section-icon">✨</span>
+    <h2 class="section-title">Polish</h2>
+    <span class="section-count">1 tarefa</span>
+  </div>
+
+  <div class="layer-label" style="color:#22c55e;background:#22c55e08;border-color:#22c55e30">Polish — estados, tipos, responsividade</div>
+
+  <!-- T11 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="task-id">T11</span>
+      <span class="card-title">Estados + Tipos TypeScript + Responsividade Mobile</span>
+    </div>
+    <div class="card-badges">
+      <span class="badge badge-polish">polish</span>
+      <span class="badge badge-s">S — pequena</span>
+    </div>
+    <div class="card-body">
+      <p>Empty states nos 3 steps (0 arquivos, 0 CNJs válidos, Cecilia offline &gt;3min). Loading states (spinner durante upload/parse, skeleton durante INSERT). Tipos explícitos: <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">ImportacaoRow</code>, <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">ImportacaoItemRow</code>, <code style="font-family:var(--mono);font-size:11px;color:var(--orange)">ImportacaoStatus</code>. Modal responsivo em mobile (&lt;640px: steps colapsam em accordion).</p>
+    </div>
+    <div class="files-list">
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>src/pages/controller/ControllerImportModal.tsx</div>
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>src/pages/controller/ControllerImportProgress.tsx</div>
+      <div class="file-item"><span class="file-action file-modify">MODIF</span>src/pages/controller/hooks/useImportacaoProgress.ts</div>
+    </div>
+    <div class="dep-row" style="margin-top:.75rem">
+      <span class="deps-label">Depende de:</span><span class="dep-chip">T05</span><span class="dep-chip">T06</span><span class="dep-chip">T07</span>
+    </div>
+  </div>
+</section>
+
+<!-- Reuse -->
+<section class="section" id="reuse">
+  <div class="section-header">
+    <span class="section-icon">♻️</span>
+    <h2 class="section-title">Skills Cecilia Reutilizadas</h2>
+  </div>
+  <div class="card">
+    <table class="reuse">
+      <thead>
+        <tr>
+          <th>Skill existente</th>
+          <th>Arquivo</th>
+          <th>Como usar</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>loginEproc</code></td>
+          <td><code>skill_login_eproc.mjs</code></td>
+          <td>Login com TOTP para a OAB do grupo</td>
+        </tr>
+        <tr>
+          <td><code>skillAcessarProcesso</code></td>
+          <td><code>skill_acessar_processo.mjs</code></td>
+          <td>CNJ + desdeTimestamp → retorna eventos desde data_inicio</td>
+        </tr>
+        <tr>
+          <td><code>skillAnalisarIA</code></td>
+          <td><code>skill_analisar_ia.mjs</code></td>
+          <td>Evento + contexto → classificação A–G (Haiku triagem + Sonnet D/E/F)</td>
+        </tr>
+        <tr>
+          <td><code>buildSignatureHash</code></td>
+          <td>utils interno</td>
+          <td>SHA256(cnj|evento|data) → dedup contra <code>intimacoes.signature_hash</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:1rem">
+    <div class="section-header">
+      <span class="section-icon">📋</span>
+      <h2 class="section-title" style="font-size:15px">Padrões Frontend a Reutilizar</h2>
+    </div>
+    <div class="card">
+      <table class="reuse">
+        <thead>
+          <tr><th>Componente</th><th>Arquivo</th><th>O que copiar</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>ControllerExportDialog</code></td>
+            <td><code>src/pages/controller/ControllerExportDialog.tsx</code></td>
+            <td>Padrão de Dialog no /controller (estrutura, botão no header)</td>
+          </tr>
+          <tr>
+            <td><code>ImportacaoModal</code></td>
+            <td><code>src/pages/clientes/modals/ImportacaoModal.tsx</code></td>
+            <td>Padrão de modal multi-step com steps e drag-drop</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Schema -->
+<section class="section" id="schema">
+  <div class="section-header">
+    <span class="section-icon">🗄️</span>
+    <h2 class="section-title">Schema — Tabelas Novas</h2>
+  </div>
+
+  <div class="cmd-grid">
+    <div class="cmd-card">
+      <div class="cmd-card-title">controller_importacoes</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8;background:#0d0b09;padding:.75rem;border-radius:6px;margin-top:.5rem">
+        <span style="color:#a78bfa">id</span>               UUID PK<br>
+        <span style="color:#a78bfa">organizacao_id</span>   UUID NOT NULL<br>
+        <span style="color:#a78bfa">status</span>           TEXT CHECK (pendente|processando|concluido|erro_fatal)<br>
+        <span style="color:#a78bfa">total</span>            INT DEFAULT 0<br>
+        <span style="color:#a78bfa">processados</span>      INT DEFAULT 0<br>
+        <span style="color:#a78bfa">sem_movimentacao</span> INT DEFAULT 0<br>
+        <span style="color:#a78bfa">ja_existentes</span>    INT DEFAULT 0<br>
+        <span style="color:#a78bfa">erros</span>            INT DEFAULT 0<br>
+        <span style="color:#a78bfa">data_inicio</span>      DATE NOT NULL<br>
+        <span style="color:#a78bfa">criado_por</span>       UUID → auth.users<br>
+        <span style="color:#a78bfa">created_at</span>       TIMESTAMPTZ<br>
+        <span style="color:#a78bfa">updated_at</span>       TIMESTAMPTZ<br>
+        <span style="color:#a78bfa">deleted_at</span>       TIMESTAMPTZ (soft delete)
+      </div>
+    </div>
+    <div class="cmd-card">
+      <div class="cmd-card-title">controller_importacao_itens</div>
+      <div style="font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.8;background:#0d0b09;padding:.75rem;border-radius:6px;margin-top:.5rem">
+        <span style="color:#60a5fa">id</span>              UUID PK<br>
+        <span style="color:#60a5fa">importacao_id</span>   UUID → controller_importacoes<br>
+        <span style="color:#60a5fa">organizacao_id</span>  UUID NOT NULL<br>
+        <span style="color:#60a5fa">cnj</span>             TEXT NOT NULL (formato canônico)<br>
+        <span style="color:#60a5fa">oab</span>             TEXT NOT NULL (ex: RS116571)<br>
+        <span style="color:#60a5fa">tribunal</span>        TEXT (TJRS|TJSC|TJSP)<br>
+        <span style="color:#60a5fa">status</span>          TEXT CHECK (pendente|processando|concluido|sem_movimentacao|ja_existente|erro)<br>
+        <span style="color:#60a5fa">intimacao_id</span>    UUID → intimacoes<br>
+        <span style="color:#60a5fa">erro_mensagem</span>   TEXT<br>
+        <span style="color:#60a5fa">processado_at</span>   TIMESTAMPTZ<br>
+        <span style="color:#60a5fa">created_at</span>      TIMESTAMPTZ
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  📥 import-controller — Plano de Tarefas · MdFlow · MdLab LegalTech · 2026-04-05
+</footer>
+
+</main>
+</div>
+
+<script>
+function copyCmd(el) {
+  const text = el.textContent.trim();
+  navigator.clipboard.writeText(text).then(() => {
+    const orig = el.style.color;
+    el.style.color = '#22c55e';
+    el.style.background = '#22c55e18';
+    setTimeout(() => {
+      el.style.color = orig;
+      el.style.background = '';
+    }, 1200);
+  });
+}
+function copyBlock(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ copiado';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'copiar';
+      btn.classList.remove('copied');
+    }, 1500);
+  });
+}
+
+// Highlight active sidebar link on scroll
+const sections = document.querySelectorAll('section[id]');
+const links = document.querySelectorAll('.sidebar-link[href^="#"]');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 80) current = s.id;
+  });
+  links.forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+  });
+}, { passive: true });
+</script>
+</body>
+</html>

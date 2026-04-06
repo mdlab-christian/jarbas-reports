@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Backend Test — /clientes — v3 — 2026-04-06</title>
+<style>
+:root {
+  --bg: #12100e; --surface: #1a1815; --card: #201d1a; --border: #2d2925;
+  --primary: #20c997; --primary-dim: #20c99720;
+  --text: #e8e0d8; --muted: #8a7f78;
+  --red: #ef4444; --yellow: #f59e0b; --green: #22c55e; --blue: #60a5fa;
+  --mono: 'JetBrains Mono', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; padding: 24px; max-width: 1200px; margin: 0 auto; }
+h1 { font-family: Manrope, sans-serif; font-size: 1.8rem; font-weight: 800; margin-bottom: 8px; }
+h2 { font-family: Manrope, sans-serif; font-size: 1.2rem; font-weight: 700; margin: 32px 0 12px; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+h3 { font-size: 1rem; font-weight: 600; margin: 20px 0 8px; }
+.subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.kpi { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+.kpi .label { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+.kpi .value { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; }
+.kpi.green .value { color: var(--green); }
+.kpi.red .value { color: var(--red); }
+.kpi.yellow .value { color: var(--yellow); }
+.kpi.blue .value { color: var(--blue); }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+.mono { font-family: var(--mono); font-size: 0.8rem; }
+.p0 { color: var(--red); font-weight: 700; }
+.p1 { color: var(--yellow); font-weight: 600; }
+.p2 { color: var(--blue); }
+.status-ok { color: var(--green); }
+.status-fail { color: var(--red); }
+.finding { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 10px 0; }
+.finding-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.finding-id { font-family: var(--mono); font-size: 0.8rem; color: var(--primary); background: var(--primary-dim); padding: 2px 8px; border-radius: 4px; }
+.finding-title { font-weight: 600; }
+.finding-body { font-size: 0.85rem; color: var(--muted); line-height: 1.6; }
+.finding-body code { font-family: var(--mono); font-size: 0.8rem; background: var(--surface); padding: 1px 4px; border-radius: 3px; }
+.section-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; margin: 10px 0; }
+.footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.75rem; text-align: center; }
+</style>
+</head>
+<body>
+
+<h1>Backend Test — /clientes</h1>
+<p class="subtitle">v3 • 2026-04-06 • Ciclo 3 (page-loop)</p>
+
+<div class="kpi-row">
+  <div class="kpi red"><div class="label">P0 Críticos</div><div class="value">3</div></div>
+  <div class="kpi yellow"><div class="label">P1 Importantes</div><div class="value">4</div></div>
+  <div class="kpi blue"><div class="label">P2 Melhorias</div><div class="value">2</div></div>
+  <div class="kpi green"><div class="label">RPCs Testadas</div><div class="value">3</div></div>
+</div>
+
+<h2>Inventário Backend</h2>
+<div class="section-card">
+  <table>
+    <tr><th style="width:160px">Item</th><th>Detalhes</th></tr>
+    <tr><td>Tabela</td><td><code class="mono">clientes</code> — 59 colunas, 4.359 registros (4.350 ativos), ~7 MB</td></tr>
+    <tr><td>RPCs</td><td><code class="mono">get_clientes_paginados</code>, <code class="mono">get_clientes_kpis</code>, <code class="mono">get_cliente_by_cpf</code>, <code class="mono">update_cliente_dados</code>, +10 auxiliares</td></tr>
+    <tr><td>Triggers</td><td>4 — audit, histórico on insert, updated_at, sync execuções nome</td></tr>
+    <tr><td>Indexes</td><td>20 — PK + 19 operacionais (GIN trigram nome, partial deleted_at, unique cpf_org)</td></tr>
+    <tr><td>RLS</td><td>Habilitada — 4 policies tenant + 2 portal</td></tr>
+    <tr><td>Constraints</td><td>4 CHECK (engajamento, estado_civil, prioridade, sexo) + 1 CHECK ia_score + 1 CHECK tipo_doc + 5 FK</td></tr>
+  </table>
+</div>
+
+<h2>Achados</h2>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-001</span>
+    <span class="p0">P0</span>
+    <span class="finding-title">Webhook excluir roteado para nó Criar Cliente (wiring invertido no n8n)</span>
+  </div>
+  <div class="finding-body">
+    No workflow <code>[GUSTAVO] CLIENTES-CRUD</code> (id <code>6Z_tuZgOH5JuZr8gGcVyX</code>), o nó Switch Acao tem outputs invertidos. Payload com <code>acao = 'excluir'</code> é roteado para o nó <code>Criar Cliente</code> e retorna <code>INSERT_FALHOU: null value in column "nome"</code>. Resultado: <strong>deleção de clientes completamente quebrada em produção</strong>. Confirmado via execução real (#202639).
+    <br><br><strong>Fix:</strong> Corrigir wiring no n8n editor — swapear conexões output 0/1 do Switch Acao, ou verificar condições do switch.
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-002</span>
+    <span class="p0">P0</span>
+    <span class="finding-title">65 CPFs duplicados em produção — unique index não normaliza formato</span>
+  </div>
+  <div class="finding-body">
+    Campo <code>cpf_cnpj</code> armazena formatos mistos: 3.285 com máscara (<code>046.961.519-21</code>) e 204 sem (<code>04696151921</code>). O unique index <code>idx_clientes_cpf_org_unique</code> é <code>UNIQUE(organizacao_id, cpf_cnpj)</code> sem normalização. <strong>65 CPFs já existem duplicados</strong> com formatos diferentes para o mesmo cliente na mesma org.
+    <br><br><strong>Fix:</strong> Trigger BEFORE INSERT/UPDATE para normalizar cpf_cnpj para dígitos-only + recriar unique como expression index <code>UNIQUE(organizacao_id, regexp_replace(cpf_cnpj, '\D', '', 'g'))</code> + data cleanup dos 65 duplicados.
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-003</span>
+    <span class="p0">P0</span>
+    <span class="finding-title">n8n Criar Cliente não persiste captador_id (silent drop)</span>
+  </div>
+  <div class="finding-body">
+    O frontend envia <code>captador_id</code> no payload de criação (campo no formulário <code>NovoClienteModal</code>). O nó <code>Criar Cliente</code> no n8n monta <code>insertData</code> sem incluir <code>captador_id</code>. Campo silenciosamente descartado — clientes criados via modal sempre têm <code>captador_id = NULL</code>.
+    <br><br><strong>Fix:</strong> Adicionar <code>if (data.captador_id) insertData.captador_id = data.captador_id</code> no nó Criar Cliente do n8n.
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-004</span>
+    <span class="p1">P1</span>
+    <span class="finding-title">KPI total_clientes diverge da lista por 343 CNPJs</span>
+  </div>
+  <div class="finding-body">
+    <code>get_clientes_kpis</code> retorna <code>total_clientes: 4.350</code> (todos sem deleted_at), mas <code>get_clientes_paginados</code> com <code>p_excluir_cnpj: true</code> (default) lista <code>4.007</code>. Diferença: 343 CNPJs. KPI no topo mostra número que não corresponde ao que o usuário vê na tabela.
+    <br><br><strong>Fix:</strong> Adicionar filtro <code>p_excluir_cnpj</code> no <code>get_clientes_kpis</code> ou usar contagem consistente.
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-005</span>
+    <span class="p1">P1</span>
+    <span class="finding-title">Busca por nome usa Seq Scan — índice GIN não aproveitado</span>
+  </div>
+  <div class="finding-body">
+    Índice é <code>GIN(nome gin_trgm_ops)</code> sobre campo cru. RPC usa <code>unaccent(lower(nome)) ILIKE '%term%'</code> — expressão diferente. PostgreSQL faz Seq Scan em toda a tabela a cada busca. Degradação com crescimento da base.
+    <br><br><strong>Fix:</strong> Criar <code>CREATE INDEX idx_clientes_nome_search ON clientes USING GIN (unaccent(lower(nome)) gin_trgm_ops)</code>.
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-006</span>
+    <span class="p1">P1</span>
+    <span class="finding-title">LEFT JOIN advogados com condição errada</span>
+  </div>
+  <div class="finding-body">
+    Em <code>get_clientes_paginados</code>: <code>LEFT JOIN advogados adv ON adv.id = c.advogado_responsavel_id AND c.deleted_at IS NULL</code>. A condição <code>c.deleted_at IS NULL</code> está no JOIN em vez do WHERE (já existe no WHERE). Bug latente — funciona acidentalmente, mas semanticamente incorreto.
+    <br><br><strong>Fix:</strong> Remover <code>AND c.deleted_at IS NULL</code> do JOIN condition.
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-007</span>
+    <span class="p1">P1</span>
+    <span class="finding-title">Toast duplicado na criação de cliente</span>
+  </div>
+  <div class="finding-body">
+    n8n retorna <code>action: 'close_modal'</code>. O <code>handleWebhookAction</code> mostra toast da message. Mas o <code>NovoClienteModal</code> já dispara <code>toast.success('Cliente criado com sucesso')</code> no callback de sucesso. Resultado: 2 toasts aparecem simultaneamente.
+    <br><br><strong>Fix:</strong> Remover um dos dois toasts (preferencialmente o do modal, mantendo o do action handler).
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-008</span>
+    <span class="p2">P2</span>
+    <span class="finding-title">Exportação CSV busca sem unaccent — inconsistente com lista</span>
+  </div>
+  <div class="finding-body">
+    Export usa <code>.or('nome.ilike.%search%')</code> sem normalização de acentos. Lista usa <code>unaccent(lower(nome))</code> na RPC. Buscar "João" na lista e exportar com mesmo filtro pode retornar conjuntos diferentes.
+  </div>
+</div>
+
+<div class="finding">
+  <div class="finding-header">
+    <span class="finding-id">BT-009</span>
+    <span class="p2">P2</span>
+    <span class="finding-title">update_cliente_dados não aceita cpf_cnpj nem origem_id</span>
+  </div>
+  <div class="finding-body">
+    Whitelist da RPC inclui <code>origem</code> (text) mas não <code>origem_id</code> (uuid FK) nem <code>cpf_cnpj</code>. Clientes com CPF errado não podem ser corrigidos via RPC de edição.
+  </div>
+</div>
+
+<h2>Testes de RPCs</h2>
+<table>
+  <thead><tr><th>RPC</th><th>Happy Path</th><th>RLS Isolation</th><th>SQL Injection</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="mono">get_clientes_paginados</td>
+      <td class="status-ok">✅ 4.007 PF / 4.350 total</td>
+      <td class="status-ok">✅ 0 registros (org fictícia)</td>
+      <td class="status-ok">✅ Parametrizado, imune</td>
+    </tr>
+    <tr>
+      <td class="mono">get_clientes_kpis</td>
+      <td class="status-ok">✅ Retorna 4.350 total</td>
+      <td class="status-ok">✅ Protegido por get_org_id()</td>
+      <td>N/A</td>
+    </tr>
+    <tr>
+      <td class="mono">get_cliente_by_cpf</td>
+      <td class="status-ok">✅ Retorna null para inexistente</td>
+      <td class="status-ok">✅ Protegido por get_org_id()</td>
+      <td class="status-ok">✅ Parametrizado</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Webhooks</h2>
+<table>
+  <thead><tr><th>Endpoint</th><th>Status</th><th>Detalhes</th></tr></thead>
+  <tbody>
+    <tr>
+      <td class="mono">clientes/criar</td>
+      <td class="status-ok">⚠️ Funcional (com ressalvas)</td>
+      <td>Funciona com payload completo. Ignora captador_id (BT-003). Toast duplicado (BT-007).</td>
+    </tr>
+    <tr>
+      <td class="mono">clientes/excluir</td>
+      <td class="status-fail">❌ QUEBRADO</td>
+      <td>Roteado para nó errado (BT-001). Retorna INSERT_FALHOU sempre.</td>
+    </tr>
+    <tr>
+      <td class="mono">clientes/importar</td>
+      <td class="status-ok">✅ OK</td>
+      <td>Validação correta quando storage_path ausente.</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Prioridades de Correção</h2>
+<table>
+  <thead><tr><th>ID</th><th>Prioridade</th><th>Tipo</th><th>Ação</th></tr></thead>
+  <tbody>
+    <tr><td class="mono">BT-001</td><td class="p0">P0</td><td>n8n</td><td>Corrigir wiring Switch Acao no workflow CLIENTES-CRUD</td></tr>
+    <tr><td class="mono">BT-002</td><td class="p0">P0</td><td>Schema + Data</td><td>Normalizar cpf_cnpj via trigger + recriar unique index + cleanup 65 duplicados</td></tr>
+    <tr><td class="mono">BT-003</td><td class="p0">P0</td><td>n8n</td><td>Adicionar captador_id ao insertData no nó Criar Cliente</td></tr>
+    <tr><td class="mono">BT-004</td><td class="p1">P1</td><td>RPC</td><td>Alinhar contagem KPI com filtro da lista</td></tr>
+    <tr><td class="mono">BT-005</td><td class="p1">P1</td><td>Index</td><td>Criar GIN index com unaccent(lower(nome))</td></tr>
+    <tr><td class="mono">BT-006</td><td class="p1">P1</td><td>RPC</td><td>Corrigir JOIN condition em get_clientes_paginados</td></tr>
+    <tr><td class="mono">BT-007</td><td class="p1">P1</td><td>Frontend</td><td>Remover toast duplicado na criação</td></tr>
+    <tr><td class="mono">BT-008</td><td class="p2">P2</td><td>Frontend</td><td>Adicionar unaccent na exportação CSV</td></tr>
+    <tr><td class="mono">BT-009</td><td class="p2">P2</td><td>RPC</td><td>Adicionar cpf_cnpj e origem_id ao whitelist de update</td></tr>
+  </tbody>
+</table>
+
+<div class="footer">page-backend-tester v3.0 • beta-mdflow • 2026-04-06 • Ciclo 3 page-loop</div>
+</body>
+</html>

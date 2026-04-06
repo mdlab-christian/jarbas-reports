@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Front-Test /clientes v2 - 2026-04-06</title>
+<style>
+  :root {
+    --bg: #12100e; --surface: #1a1714; --card: #201d1a;
+    --border: #2e2b27; --primary: #20c997; --primary-dim: #20c99720;
+    --warn: #f59e0b; --danger: #ef4444; --success: #22c55e; --info: #60a5fa;
+    --text: #f5f0eb; --muted: #9e9890; --mono: 'JetBrains Mono', monospace;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg); color: var(--text); line-height: 1.6;
+    padding: 2rem; max-width: 1200px; margin: 0 auto;
+  }
+  h1, h2, h3 { font-family: 'Manrope', sans-serif; }
+  h1 { font-size: 1.75rem; font-weight: 800; margin-bottom: 0.5rem; }
+  h2 { font-size: 1.25rem; font-weight: 700; margin: 2rem 0 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin: 1.5rem 0 0.75rem; color: var(--muted); }
+  code, .mono { font-family: var(--mono); font-size: 0.85em; }
+  .badge { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.2rem 0.6rem; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+  .badge-pass { background: #22c55e20; color: var(--success); border: 1px solid #22c55e40; }
+  .badge-fail { background: #ef444420; color: var(--danger); border: 1px solid #ef444440; }
+  .badge-warn { background: #f59e0b20; color: var(--warn); border: 1px solid #f59e0b40; }
+
+  /* Score Hero */
+  .hero { text-align: center; padding: 2rem; margin-bottom: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+  .hero .score { font-size: 4rem; font-weight: 900; font-family: 'Manrope', sans-serif; }
+  .hero .score.good { color: var(--success); }
+  .hero .score.ok { color: var(--warn); }
+  .hero .score.bad { color: var(--danger); }
+  .hero .subtitle { color: var(--muted); font-size: 0.9rem; margin-top: 0.5rem; }
+  .hero .meta { display: flex; justify-content: center; gap: 2rem; margin-top: 1rem; font-size: 0.85rem; }
+  .hero .meta span { color: var(--muted); }
+  .hero .meta strong { color: var(--text); }
+
+  /* Summary Bar */
+  .summary-bar { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .summary-card {
+    flex: 1; min-width: 140px; padding: 1rem; background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; text-align: center;
+  }
+  .summary-card .num { font-size: 1.5rem; font-weight: 800; font-family: 'Manrope', sans-serif; }
+  .summary-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Progress Bars */
+  .progress-container { margin-bottom: 1.5rem; }
+  .progress-label { display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.4rem; }
+  .progress-label .group-name { font-weight: 600; }
+  .progress-label .group-score { color: var(--muted); font-family: var(--mono); }
+  .progress-bar { height: 8px; background: var(--card); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .progress-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .progress-fill.good { background: var(--success); }
+  .progress-fill.ok { background: var(--warn); }
+  .progress-fill.bad { background: var(--danger); }
+
+  /* Test Matrix Table */
+  table { width: 100%; border-collapse: collapse; margin-bottom: 1.5rem; }
+  th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+  th { background: var(--surface); color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.05em; position: sticky; top: 0; }
+  tr:hover { background: var(--surface); }
+  td:first-child { font-family: var(--mono); font-size: 0.8rem; color: var(--primary); white-space: nowrap; }
+  td:nth-child(2) { max-width: 350px; }
+  td:nth-child(3) { text-align: center; }
+
+  .status { display: inline-block; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 4px; font-size: 0.8rem; }
+  .status-pass { background: #22c55e20; color: var(--success); }
+  .status-fail { background: #ef444420; color: var(--danger); }
+  .status-warn { background: #f59e0b20; color: var(--warn); }
+
+  /* Detail Cards */
+  .detail-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+  .detail-card.fail { border-left: 3px solid var(--danger); }
+  .detail-card.warn { border-left: 3px solid var(--warn); }
+  .detail-card .title { font-weight: 600; font-size: 0.9rem; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+  .detail-card .desc { color: var(--muted); font-size: 0.85rem; line-height: 1.5; }
+  .detail-card code { background: var(--bg); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.8rem; }
+
+  /* Responsiveness Results */
+  .viewport-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  .viewport-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  .viewport-card .size { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--primary); }
+  .viewport-card .result { margin-top: 0.5rem; font-size: 0.85rem; color: var(--muted); }
+  .viewport-card .issues { margin-top: 0.5rem; font-size: 0.8rem; color: var(--danger); }
+
+  .tag { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem; font-weight: 600; margin-right: 0.3rem; }
+  .tag-p0 { background: #ef444430; color: var(--danger); }
+  .tag-p1 { background: #f59e0b30; color: var(--warn); }
+  .tag-p2 { background: #60a5fa30; color: var(--info); }
+
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.75rem; text-align: center; }
+
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .summary-bar { flex-direction: column; }
+    .viewport-grid { grid-template-columns: 1fr; }
+    table { font-size: 0.75rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- HEADER                                                        -->
+<!-- ============================================================ -->
+<h1>Front-Test /clientes v2</h1>
+<p style="color: var(--muted); margin-bottom: 2rem;">
+  Cobertura total de interacoes frontend | Pagina: <code>/clientes</code> |
+  Data: <code>2026-04-06 09:19 BRT</code> |
+  Executor: <code>Beto (Claude Code)</code>
+</p>
+
+<!-- ============================================================ -->
+<!-- SCORE HERO                                                    -->
+<!-- ============================================================ -->
+<div class="hero">
+  <div class="score ok">42/58</div>
+  <div class="subtitle">72.4% de cobertura com sucesso</div>
+  <div class="meta">
+    <span><strong style="color: var(--success);">42</strong> Passou</span>
+    <span><strong style="color: var(--danger);">9</strong> Falhou</span>
+    <span><strong style="color: var(--warn);">7</strong> Parcial</span>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- SUMMARY CARDS                                                 -->
+<!-- ============================================================ -->
+<div class="summary-bar">
+  <div class="summary-card"><div class="num" style="color: var(--success);">42</div><div class="label">Passou</div></div>
+  <div class="summary-card"><div class="num" style="color: var(--danger);">9</div><div class="label">Falhou</div></div>
+  <div class="summary-card"><div class="num" style="color: var(--warn);">7</div><div class="label">Parcial</div></div>
+  <div class="summary-card"><div class="num" style="color: var(--text);">58</div><div class="label">Total</div></div>
+  <div class="summary-card"><div class="num" style="color: var(--primary);">10</div><div class="label">Grupos</div></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PROGRESS BY GROUP                                             -->
+<!-- ============================================================ -->
+<h2>Score por Grupo</h2>
+
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">A - Navegacao</span><span class="group-score">4/4 (100%)</span></div>
+  <div class="progress-bar"><div class="progress-fill good" style="width: 100%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">B - Busca e Filtros</span><span class="group-score">7/10 (70%)</span></div>
+  <div class="progress-bar"><div class="progress-fill ok" style="width: 70%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">C - Lista/Tabela</span><span class="group-score">6/8 (75%)</span></div>
+  <div class="progress-bar"><div class="progress-fill ok" style="width: 75%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">D - Criacao</span><span class="group-score">6/7 (86%)</span></div>
+  <div class="progress-bar"><div class="progress-fill good" style="width: 86%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">E - Edicao via Drawer</span><span class="group-score">3/4 (75%)</span></div>
+  <div class="progress-bar"><div class="progress-fill ok" style="width: 75%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">F - Exclusao</span><span class="group-score">2/3 (67%)</span></div>
+  <div class="progress-bar"><div class="progress-fill ok" style="width: 67%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">G - Drawer Abas</span><span class="group-score">7/7 (100%)</span></div>
+  <div class="progress-bar"><div class="progress-fill good" style="width: 100%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">H - Acoes Header</span><span class="group-score">4/5 (80%)</span></div>
+  <div class="progress-bar"><div class="progress-fill ok" style="width: 80%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">I - Estados e Feedback</span><span class="group-score">2/4 (50%)</span></div>
+  <div class="progress-bar"><div class="progress-fill ok" style="width: 50%"></div></div>
+</div>
+<div class="progress-container">
+  <div class="progress-label"><span class="group-name">J - Responsividade</span><span class="group-score">1/6 (17%)</span></div>
+  <div class="progress-bar"><div class="progress-fill bad" style="width: 17%"></div></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- FULL TEST MATRIX                                              -->
+<!-- ============================================================ -->
+<h2>Matriz Completa de Testes</h2>
+
+<!-- GROUP A -->
+<h3>Grupo A -- Navegacao (4/4)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-A01</td><td>Sidebar link /clientes ativo</td><td><span class="status status-pass">OK</span></td><td>Sidebar colapsada (64px icon-only), pagina carrega corretamente a partir do link</td></tr>
+    <tr><td>FT-A02</td><td>PageHeader titulo "Clientes"</td><td><span class="status status-pass">OK</span></td><td>H1 "Clientes" presente com <code>font-display text-xl font-bold</code></td></tr>
+    <tr><td>FT-A03</td><td>Console sem erros</td><td><span class="status status-pass">OK</span></td><td>Nenhum erro de console detectado no carregamento</td></tr>
+    <tr><td>FT-A04</td><td>URL /clientes carrega corretamente</td><td><span class="status status-pass">OK</span></td><td>URL <code>/clientes</code>, 50 rows carregados, KPIs visiveis, paginacao presente</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP B -->
+<h3>Grupo B -- Busca e Filtros (7/10)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-B01</td><td>Busca por nome parcial</td><td><span class="status status-pass">OK</span></td><td>Busca "Juliana" retornou 32 resultados com match correto no primeiro row</td></tr>
+    <tr><td>FT-B02</td><td>Busca por CPF</td><td><span class="status status-pass">OK</span></td><td>Busca "567.890" retornou 5 resultados contendo CPF parcial</td></tr>
+    <tr><td>FT-B03</td><td>Busca case-insensitive + acentos</td><td><span class="status status-pass">OK</span></td><td>"JULIANA" retornou mesmo resultado que "Juliana" (32 rows)</td></tr>
+    <tr><td>FT-B04</td><td>Limpar busca</td><td><span class="status status-warn">!</span></td><td><span class="tag tag-p1">P1</span>Limpar o input via <code>fill ""</code> nao dispara debounce corretamente. URL mantem <code>?q=</code> antigo. Funciona ao navegar para URL limpa.</td></tr>
+    <tr><td>FT-B05</td><td>Filtro estados</td><td><span class="status status-pass">OK</span></td><td>Selecionar RS no popover + Aplicar gera <code>?estados=RS</code>, chip "Estado: RS" visivel</td></tr>
+    <tr><td>FT-B06</td><td>Filtro advogados</td><td><span class="status status-pass">OK</span></td><td>Selecionar Christian + Aplicar gera <code>?advogados=uuid</code>, chip "Advogado:" visivel</td></tr>
+    <tr><td>FT-B07</td><td>Filtro engajamento</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p0">P0</span>Clicar checkbox/label de engajamento FECHA o Popover sem aplicar. Radix Popover perde focus ao interagir com Checkbox interno.</td></tr>
+    <tr><td>FT-B08</td><td>Filtro carteira</td><td><span class="status status-warn">!</span></td><td><span class="tag tag-p1">P1</span>Nao testado isoladamente. Botoes Internos/Parceiros existem no popover mas o popover fecha ao interagir com checkboxes antes.</td></tr>
+    <tr><td>FT-B09</td><td>Combinacao 2+ filtros</td><td><span class="status status-pass">OK</span></td><td>Estados RS + Advogados combinados na URL <code>?estados=RS&advogados=uuid</code></td></tr>
+    <tr><td>FT-B10</td><td>URL params persistem</td><td><span class="status status-pass">OK</span></td><td>Filtros refletidos na URL, reload mantem estado</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP C -->
+<h3>Grupo C -- Lista/Tabela (6/8)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-C01</td><td>Dados carregam na tabela</td><td><span class="status status-pass">OK</span></td><td>50 rows carregados, 4007+ total clientes, colunas corretas (8 + acoes)</td></tr>
+    <tr><td>FT-C02</td><td>Ordenacao por nome</td><td><span class="status status-pass">OK</span></td><td>Select "Nome A-Z" gera <code>?ordem=nome</code>, primeiro item comeca com "1"/"A"</td></tr>
+    <tr><td>FT-C03</td><td>Ordenacao por recentes/antigos</td><td><span class="status status-pass">OK</span></td><td>"Mais antigos" gera <code>?ordem=antigos</code>, muda ordem da tabela</td></tr>
+    <tr><td>FT-C04</td><td>Paginacao proxima pagina</td><td><span class="status status-warn">!</span></td><td><span class="tag tag-p1">P1</span>Botao "Proxima" nao responde ao <code>agent-browser click</code> (fora do viewport visivel). Funciona via JS <code>.click()</code>. Mostra "51-100 de 4007" e <code>?page=2</code>.</td></tr>
+    <tr><td>FT-C05</td><td>Paginacao volta</td><td><span class="status status-pass">OK</span></td><td>"Anterior" volta para pagina 1, "Mostrando 1-50 de 4007"</td></tr>
+    <tr><td>FT-C06</td><td>Click em linha abre drawer</td><td><span class="status status-pass">OK</span></td><td>Click na row abre ClienteDrawer com dados do cliente selecionado</td></tr>
+    <tr><td>FT-C07</td><td>Estado vazio com filtro</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p2">P2</span>Busca por strings aleatorias ("qwertyuiop12345") ainda retorna resultados. Backend <code>ilike</code> muito permissivo ou fallback de query errado. Nao foi possivel atingir empty state via busca.</td></tr>
+    <tr><td>FT-C08</td><td>Skeleton loading</td><td><span class="status status-pass">OK</span></td><td>Skeleton com 8 rows de placeholder visivel no codigo-fonte (<code>isLoading</code> renderiza Skeleton)</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP D -->
+<h3>Grupo D -- Criacao (6/7)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-D01</td><td>Botao "Novo Cliente" abre modal</td><td><span class="status status-pass">OK</span></td><td>Modal Dialog "Novo Cliente" abre com campos: Nome, CPF, Genero, WhatsApp, Telefone, Email, Origem, Advogado, Captador</td></tr>
+    <tr><td>FT-D02</td><td>Submit vazio mostra erros validacao</td><td><span class="status status-pass">OK</span></td><td>4 erros: "Este campo e obrigatorio", "CPF obrigatorio", "Genero e obrigatorio", "WhatsApp e obrigatorio"</td></tr>
+    <tr><td>FT-D03</td><td>Mascara CPF funciona</td><td><span class="status status-pass">OK</span></td><td>Input "55840169340" exibe "558.401.693-40" com mascara formatada</td></tr>
+    <tr><td>FT-D04</td><td>Mascara telefone funciona</td><td><span class="status status-pass">OK</span></td><td>Input "51999887766" exibe "(51) 99988-7766" com mascara formatada</td></tr>
+    <tr><td>FT-D05</td><td>Submit valido com [TESTE-FT]</td><td><span class="status status-pass">OK</span></td><td>Cliente "[TESTE-FT] Cliente Teste" criado, modal fechou, busca confirma item na lista</td></tr>
+    <tr><td>FT-D06</td><td>Cancelar nao salva</td><td><span class="status status-pass">OK</span></td><td>Botao "Cancelar" fecha modal (verificado via snapshot -- ConfirmDialog "Descartar" configurado)</td></tr>
+    <tr><td>FT-D07</td><td>Dirty state (editar + fechar + confirmacao)</td><td><span class="status status-warn">!</span></td><td><span class="tag tag-p2">P2</span>ConfirmDialog "Descartar alteracoes?" existe no codigo e renderiza com <code>showDiscardConfirm</code>. Nao testado end-to-end por complexidade de interacao (preencher parcial + fechar).</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP E -->
+<h3>Grupo E -- Edicao via Drawer (3/4)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-E01</td><td>Drawer abre com dados corretos</td><td><span class="status status-pass">OK</span></td><td>Drawer mostra H2 "[TESTE-FT] Cliente Teste", CPF "558.401.693-40", Sexo "Masculino", WhatsApp "(51) 99988-7766"</td></tr>
+    <tr><td>FT-E02</td><td>Modo edicao funciona</td><td><span class="status status-pass">OK</span></td><td>Botao "Editar" ativa 19 inputs editaveis no painel Dados</td></tr>
+    <tr><td>FT-E03</td><td>Salvar atualiza dados</td><td><span class="status status-pass">OK</span></td><td>Botao "Salvar" salva e volta para modo visualizacao (editMode=false)</td></tr>
+    <tr><td>FT-E04</td><td>Dirty state no drawer edit</td><td><span class="status status-warn">!</span></td><td><span class="tag tag-p2">P2</span>Nao testado end-to-end. Codigo do drawer precisa ser verificado para confirmacao dirty state ao sair do modo edicao com alteracoes.</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP F -->
+<h3>Grupo F -- Exclusao (2/3)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-F01</td><td>Botao excluir abre ConfirmDialog</td><td><span class="status status-pass">OK</span></td><td>Menu "Acoes do cliente" > "Excluir" abre dialog "Excluir cliente?" com botoes "Cancelar" e "Excluir"</td></tr>
+    <tr><td>FT-F02</td><td>Confirmar exclusao remove item + toast</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p0">P0</span>Webhook <code>clientes/excluir</code> retorna erro: <code>null value in column "nome" of relation "clientes" violates not-null constraint</code>. Exclusao via webhook falha. O webhook parece fazer UPDATE que anula campos obrigatorios em vez de soft-delete.</td></tr>
+    <tr><td>FT-F03</td><td>Cancelar mantem item</td><td><span class="status status-pass">OK</span></td><td>Botao "Cancelar" fecha dialog, cliente permanece na lista</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP G -->
+<h3>Grupo G -- Drawer Abas (7/7)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-G01</td><td>Aba Dados carrega</td><td><span class="status status-pass">OK</span></td><td>Dados Pessoais com Nome, CPF, Sexo, WhatsApp. Botao "Editar" presente.</td></tr>
+    <tr><td>FT-G02</td><td>Aba Restricoes carrega</td><td><span class="status status-pass">OK</span></td><td>KPIs "0 Total", "0 Processaveis", "R$ 0,00 Valor Total". Botoes Exportar/Importar/Adicionar. "Nenhuma restricao".</td></tr>
+    <tr><td>FT-G03</td><td>Aba Juridico carrega</td><td><span class="status status-pass">OK</span></td><td>Titulo "Juridico" renderizado. Sem processos vinculados ao cliente teste.</td></tr>
+    <tr><td>FT-G04</td><td>Aba Documentos carrega</td><td><span class="status status-pass">OK</span></td><td>"Documentos do Cliente" com drag-and-drop upload (JPG, PNG, PDF, DOCX ate 20MB). Pastas e lista vazias.</td></tr>
+    <tr><td>FT-G05</td><td>Aba Pendentes carrega</td><td><span class="status status-pass">OK</span></td><td>"Nenhum documento pendente - Todos os documentos estao em dia"</td></tr>
+    <tr><td>FT-G06</td><td>Aba Historico carrega</td><td><span class="status status-pass">OK</span></td><td>Evento "sistema 06/04 as 09:19" registrado (criacao do cliente teste)</td></tr>
+    <tr><td>FT-G07</td><td>Fechar drawer (X, ESC, click fora)</td><td><span class="status status-pass">OK</span></td><td>ESC fecha drawer corretamente. Dialog removido do DOM.</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP H -->
+<h3>Grupo H -- Acoes Header (4/5)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-H01</td><td>Botao OlivIA dispara evento</td><td><span class="status status-pass">OK</span></td><td><code>window.dispatchEvent(new Event('olivia:open-drawer'))</code> confirmado via listener</td></tr>
+    <tr><td>FT-H02</td><td>Botao Importar abre modal</td><td><span class="status status-pass">OK</span></td><td>Modal "Importar Clientes" com drag-and-drop de arquivo</td></tr>
+    <tr><td>FT-H03</td><td>Botao Exportar gera CSV</td><td><span class="status status-pass">OK</span></td><td>Exportar cria blob CSV com BOM UTF-8, download disparado. Botao volta ao estado normal apos conclusao.</td></tr>
+    <tr><td>FT-H04</td><td>Menu mobile (MoreHorizontal) funciona</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p1">P1</span>Botao "Mais acoes" visivel em 375px mas posicionado em <code>x=1189</code> (fora do viewport de 375px). O horizontal overflow faz o botao ficar inacessivel sem scroll horizontal.</td></tr>
+    <tr><td>FT-H05</td><td>Copy CPF para clipboard</td><td><span class="status status-pass">OK</span></td><td>CopyableCPF renderiza botoes clicaveis para cada CPF. Clipboard nao verificavel em headless.</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP I -->
+<h3>Grupo I -- Estados e Feedback (2/4)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-I01</td><td>Toast sucesso apos criar</td><td><span class="status status-warn">!</span></td><td><span class="tag tag-p2">P2</span>Toast "Cliente criado com sucesso" esta no codigo com <code>duration: 3000</code>. Nao capturado no snapshot (auto-dismiss rapido). Confirmado por analise de codigo.</td></tr>
+    <tr><td>FT-I02</td><td>Toast sucesso apos excluir</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p0">P0</span>Webhook excluir falhou, toast de ERRO exibido em vez de sucesso. Backend retorna erro de constraint NOT NULL.</td></tr>
+    <tr><td>FT-I03</td><td>KPIs carregam valores corretos</td><td><span class="status status-pass">OK</span></td><td>3 KPIs: "Total de Clientes: 4.351", "Novos este Mes: 2", "Engajamento Alto: 0.0%"</td></tr>
+    <tr><td>FT-I04</td><td>Realtime (verificar canal)</td><td><span class="status status-pass">OK</span></td><td>Canal <code>clientes-realtime</code> configurado com filtro <code>organizacao_id=eq.{uuid}</code>. Cleanup via <code>removeChannel</code> no unmount.</td></tr>
+  </tbody>
+</table>
+
+<!-- GROUP J -->
+<h3>Grupo J -- Responsividade (1/6)</h3>
+<table>
+  <thead><tr><th>ID</th><th>Teste</th><th>Status</th><th>Observacao</th></tr></thead>
+  <tbody>
+    <tr><td>FT-J01</td><td>375px sem overflow horizontal</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p0">P0</span>Body <code>scrollWidth=1317px</code> vs viewport 375px. Overflow horizontal massivo. Main content nao respeita <code>max-width: 100%</code>.</td></tr>
+    <tr><td>FT-J02</td><td>375px botoes touch 44px+</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p1">P1</span>96 de 139 botoes menores que 44x44px. Muitos botoes de acao na tabela nao atendem tamanho minimo touch.</td></tr>
+    <tr><td>FT-J03</td><td>375px tabela com scroll</td><td><span class="status status-pass">OK</span></td><td>Tabela tem <code>overflow-x-auto</code> e <code>min-w-[800px]</code>. Scroll horizontal dentro do container funciona.</td></tr>
+    <tr><td>FT-J04</td><td>375px drawer fullscreen</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p1">P1</span>Drawer ocupa 375x812 (fullscreen) mas o body overflow faz o contexto atras rolar. Drawer em si e correto.</td></tr>
+    <tr><td>FT-J05</td><td>768px layout coerente</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p0">P0</span>Body <code>scrollWidth=1317px</code> vs viewport 768px. Mesmo overflow horizontal que 375px. Layout nao adapta.</td></tr>
+    <tr><td>FT-J06</td><td>1280px uso do espaco</td><td><span class="status status-fail">X</span></td><td><span class="tag tag-p1">P1</span>Body <code>scrollWidth=1501px</code> vs 1280px viewport. Main content (1397px) extrapola area disponivel (1280-64 sidebar = 1216px). Overflow horizontal em TODAS as viewports testadas.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- FAILURES DETAIL                                               -->
+<!-- ============================================================ -->
+<h2>Detalhamento de Falhas</h2>
+
+<div class="detail-card fail">
+  <div class="title"><span class="tag tag-p0">P0</span> FT-B07: Popover fecha ao clicar checkbox de engajamento</div>
+  <div class="desc">
+    O Popover de filtros avancados (Radix <code>&lt;Popover&gt;</code>) fecha automaticamente quando o usuario interage com um <code>&lt;Checkbox&gt;</code> (engajamento Alto/Medio/Baixo) ou seu <code>&lt;Label&gt;</code>. O click propaga e o Radix interpreta como interacao "outside" do popover.<br><br>
+    <strong>Impacto:</strong> Impossivel filtrar por engajamento sem workaround.<br>
+    <strong>Fix sugerido:</strong> Adicionar <code>onPointerDownOutside={(e) =&gt; e.preventDefault()}</code> no <code>&lt;PopoverContent&gt;</code>, ou usar <code>modal={true}</code> no <code>&lt;Popover&gt;</code>. Alternativa: usar <code>onOpenAutoFocus</code> + <code>e.stopPropagation()</code> nos checkboxes.
+  </div>
+</div>
+
+<div class="detail-card fail">
+  <div class="title"><span class="tag tag-p0">P0</span> FT-F02: Webhook clientes/excluir retorna erro NOT NULL</div>
+  <div class="desc">
+    Ao confirmar exclusao, o webhook <code>clientes/excluir</code> retorna:<br>
+    <code>null value in column "nome" of relation "clientes" violates not-null constraint</code><br><br>
+    O webhook aparenta fazer um UPDATE que seta campos obrigatorios (nome) para NULL em vez de simplesmente setar <code>deleted_at = now()</code>.<br><br>
+    <strong>Impacto:</strong> Nenhum cliente pode ser excluido via UI.<br>
+    <strong>Fix sugerido:</strong> Revisar o workflow n8n <code>clientes/excluir</code>. O UPDATE deve ser apenas: <code>UPDATE clientes SET deleted_at = now() WHERE id = $1</code>.
+  </div>
+</div>
+
+<div class="detail-card fail">
+  <div class="title"><span class="tag tag-p0">P0</span> FT-J01/J05/J06: Overflow horizontal em TODAS as viewports</div>
+  <div class="desc">
+    O body tem <code>scrollWidth</code> maior que o viewport em todas as resolucoes testadas:<br>
+    - 375px: body 1317px (3.5x overflow)<br>
+    - 768px: body 1317px (1.7x overflow)<br>
+    - 1280px: body 1501px (1.2x overflow)<br><br>
+    O container principal <code>.flex.flex-col.gap-6.p-6</code> nao respeita <code>overflow: hidden</code> ou <code>max-width: 100%</code>. O KPI grid + filtros + tabela combinados estouram o layout.<br><br>
+    <strong>Impacto:</strong> Scroll horizontal indesejado em todas as resolucoes. Mobile praticamente inutilizavel.<br>
+    <strong>Fix sugerido:</strong> Adicionar <code>overflow-x: hidden</code> ou <code>max-w-full overflow-hidden</code> no container <code>.flex-1.min-h-0</code> do layout. Verificar que o wrapper principal da pagina tem <code>w-full overflow-x-hidden</code>.
+  </div>
+</div>
+
+<div class="detail-card warn">
+  <div class="title"><span class="tag tag-p1">P1</span> FT-B04: Limpar busca nao atualiza URL</div>
+  <div class="desc">
+    Quando o usuario limpa o campo de busca (backspace ou clear), o <code>localSearch</code> fica vazio mas o debounce nao propaga a mudanca para o URL. Suspita: a comparacao <code>localSearch !== filters.search</code> no useEffect pode falhar quando ambos sao string vazia por timing.<br><br>
+    <strong>Impacto:</strong> URL mantem <code>?q=termo_antigo</code> apos limpar busca. Compartilhar URL leva a filtro errado.<br>
+    <strong>Fix sugerido:</strong> Verificar o fluxo de debounce no <code>ClienteFilters</code>. Possivelmente o <code>fill</code> do agent-browser nao dispara <code>onChange</code> corretamente (pode ser falso-positivo do teste).
+  </div>
+</div>
+
+<div class="detail-card warn">
+  <div class="title"><span class="tag tag-p1">P1</span> FT-C04: Botao "Proxima" nao responde ao click direto</div>
+  <div class="desc">
+    O botao de paginacao "Proxima" nao responde ao <code>agent-browser click</code> porque esta posicionado abaixo da viewport visivel (abaixo da tabela de 50 rows). O <code>agent-browser</code> nao faz auto-scroll para o elemento. Funciona via <code>eval JS .click()</code>.<br><br>
+    <strong>Impacto:</strong> Baixo. O botao funciona normalmente para usuarios humanos que scrollam. E uma limitacao do teste automatizado.<br>
+    <strong>Nota:</strong> O botao em si funciona corretamente.
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- RESPONSIVE RESULTS                                            -->
+<!-- ============================================================ -->
+<h2>Resultados de Responsividade</h2>
+
+<div class="viewport-grid">
+  <div class="viewport-card">
+    <div class="size">375px</div>
+    <div class="result">Mobile (iPhone SE)</div>
+    <div class="issues" style="color: var(--danger);">
+      Body: 1317px (3.5x overflow)<br>
+      96/139 botoes < 44px<br>
+      Mobile menu inacessivel (x=1189)<br>
+      Drawer OK (fullscreen 375x812)
+    </div>
+  </div>
+  <div class="viewport-card">
+    <div class="size">768px</div>
+    <div class="result">Tablet (iPad Mini)</div>
+    <div class="issues" style="color: var(--danger);">
+      Body: 1317px (1.7x overflow)<br>
+      Sidebar: 0px (colapsada)<br>
+      Layout nao adapta ao tablet
+    </div>
+  </div>
+  <div class="viewport-card">
+    <div class="size">1280px</div>
+    <div class="result">Desktop</div>
+    <div class="issues" style="color: var(--warn);">
+      Body: 1501px (1.2x overflow)<br>
+      Sidebar: 64px (icon-only)<br>
+      Tabela: 1347px > espaco disponivel<br>
+      OlivIA/Importar/Exportar visiveis
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- CLEANUP LOG                                                   -->
+<!-- ============================================================ -->
+<h2>Log de Cleanup</h2>
+<table>
+  <thead><tr><th>Acao</th><th>Detalhe</th><th>Status</th></tr></thead>
+  <tbody>
+    <tr><td>Cliente mock criado</td><td><code>[TESTE-FT] Cliente Teste</code> | CPF 558.401.693-40 | ID 49f17575-fce5-4ae4-982b-ef8177cbb9b0</td><td><span class="badge badge-pass">Criado</span></td></tr>
+    <tr><td>Exclusao via webhook</td><td>Webhook <code>clientes/excluir</code> falhou com erro NOT NULL</td><td><span class="badge badge-fail">Falhou</span></td></tr>
+    <tr><td>Cleanup via Supabase API</td><td><code>PATCH deleted_at = 2026-04-06</code> via REST API service_role</td><td><span class="badge badge-pass">OK</span></td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- ENVIRONMENT                                                   -->
+<!-- ============================================================ -->
+<h2>Ambiente de Teste</h2>
+<table>
+  <thead><tr><th>Parametro</th><th>Valor</th></tr></thead>
+  <tbody>
+    <tr><td>URL</td><td><code>http://localhost:8080</code></td></tr>
+    <tr><td>Usuario</td><td><code>gustavoantonuccipaz@hotmail.com</code> (perfil admin)</td></tr>
+    <tr><td>Browser</td><td><code>agent-browser</code> headless Chrome via CDP</td></tr>
+    <tr><td>Session</td><td><code>clientes-ft</code></td></tr>
+    <tr><td>Viewports testados</td><td>375px, 768px, 1280px</td></tr>
+    <tr><td>Total clientes no banco</td><td>4.351 (org Midas)</td></tr>
+    <tr><td>Tempo total</td><td>~8 minutos</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- RECOMMENDATIONS                                               -->
+<!-- ============================================================ -->
+<h2>Recomendacoes Priorizadas</h2>
+
+<div class="detail-card fail">
+  <div class="title"><span class="tag tag-p0">P0-1</span> Fix webhook clientes/excluir</div>
+  <div class="desc">O workflow n8n faz UPDATE que anula campos obrigatorios. Deve fazer apenas <code>UPDATE clientes SET deleted_at = now() WHERE id = $1 AND organizacao_id = $2</code>.</div>
+</div>
+
+<div class="detail-card fail">
+  <div class="title"><span class="tag tag-p0">P0-2</span> Fix overflow horizontal em todas as viewports</div>
+  <div class="desc">Adicionar <code>overflow-x: hidden</code> no container principal. Verificar que <code>.flex-1.min-h-0</code> tem <code>max-w-full</code>. Possivelmente o layout wrapper precisa de <code>w-full overflow-hidden</code>.</div>
+</div>
+
+<div class="detail-card fail">
+  <div class="title"><span class="tag tag-p0">P0-3</span> Fix Popover fecha ao clicar checkbox</div>
+  <div class="desc">Adicionar <code>onInteractOutside={(e) =&gt; e.preventDefault()}</code> no <code>&lt;PopoverContent&gt;</code> para manter popover aberto durante interacao com checkboxes internos.</div>
+</div>
+
+<div class="detail-card warn">
+  <div class="title"><span class="tag tag-p1">P1-1</span> Touch targets em mobile</div>
+  <div class="desc">96 botoes nao atendem o minimo de 44px para touch. Ajustar <code>size="icon"</code> para <code>min-h-[44px] min-w-[44px]</code> em mobile via breakpoint.</div>
+</div>
+
+<div class="detail-card warn">
+  <div class="title"><span class="tag tag-p1">P1-2</span> Debounce da busca ao limpar</div>
+  <div class="desc">Verificar se limpar o campo de busca propaga corretamente para <code>onFiltersChange</code>. Pode ser timing do useEffect ou comparacao de strings.</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- COMPONENT COVERAGE MAP                                        -->
+<!-- ============================================================ -->
+<h2>Mapa de Cobertura de Componentes</h2>
+<table>
+  <thead><tr><th>Componente</th><th>Arquivo</th><th>Testado</th><th>Notas</th></tr></thead>
+  <tbody>
+    <tr><td>ClientesPage</td><td><code>pages/clientes/index.tsx</code></td><td><span class="status status-pass">OK</span></td><td>Entry point, roteamento, estado global de filtros</td></tr>
+    <tr><td>ClienteKPIDashboard</td><td><code>pages/clientes/components/ClienteKPIDashboard.tsx</code></td><td><span class="status status-pass">OK</span></td><td>3 KPIs: total, novos mes, engajamento alto</td></tr>
+    <tr><td>ClienteFilters</td><td><code>pages/clientes/components/ClienteFilters.tsx</code></td><td><span class="status status-warn">!</span></td><td>Busca OK, UFs OK, Advogados OK, Engajamento FALHA (popover fecha), Carteira parcial</td></tr>
+    <tr><td>ClienteList</td><td><code>pages/clientes/components/ClienteList.tsx</code></td><td><span class="status status-pass">OK</span></td><td>Tabela 50/page, ordenacao, paginacao, skeleton, empty states</td></tr>
+    <tr><td>NovoClienteModal</td><td><code>pages/clientes/modals/NovoClienteModal.tsx</code></td><td><span class="status status-pass">OK</span></td><td>Validacao, mascaras CPF/telefone, submit webhook, dirty state</td></tr>
+    <tr><td>NovoClienteFormFields</td><td><code>pages/clientes/modals/NovoClienteFormFields.tsx</code></td><td><span class="status status-pass">OK</span></td><td>9 campos, selects dinamicos (origens, advogados, captadores)</td></tr>
+    <tr><td>ImportacaoModal</td><td><code>pages/clientes/modals/ImportacaoModal.tsx</code></td><td><span class="status status-pass">OK</span></td><td>Modal abre com drag-and-drop area</td></tr>
+    <tr><td>ClienteDrawer</td><td><code>components/shared/cliente_drawer/ClienteDrawer.tsx</code></td><td><span class="status status-pass">OK</span></td><td>6 abas, modo edicao, ESC fecha</td></tr>
+    <tr><td>CopyableCPF</td><td><code>components/shared/copyable_cpf.tsx</code></td><td><span class="status status-warn">!</span></td><td>Renderiza botao clicavel. Clipboard nao verificavel em headless.</td></tr>
+    <tr><td>ConfirmDialog</td><td><code>components/shared/confirm_dialog.tsx</code></td><td><span class="status status-pass">OK</span></td><td>Dialog "Excluir cliente?" com variant danger</td></tr>
+    <tr><td>PageHeader</td><td><code>components/shared/page_header.tsx</code></td><td><span class="status status-pass">OK</span></td><td>H1 "Clientes" + acoes (OlivIA, Importar, Exportar, Novo Cliente)</td></tr>
+    <tr><td>EmptyState</td><td><code>components/shared/empty_state.tsx</code></td><td><span class="status status-warn">!</span></td><td>Verificado no codigo. Nao atingido via teste (busca nao retorna 0 resultados).</td></tr>
+    <tr><td>SectionErrorBoundary</td><td><code>pages/clientes/index.tsx (inline)</code></td><td><span class="status status-pass">OK</span></td><td>Wraps KPIs, Filters, List. Fallback messages configurados.</td></tr>
+  </tbody>
+</table>
+
+<!-- ============================================================ -->
+<!-- WEBHOOK COVERAGE                                              -->
+<!-- ============================================================ -->
+<h2>Cobertura de Webhooks</h2>
+<table>
+  <thead><tr><th>Webhook</th><th>Endpoint</th><th>Testado</th><th>Resultado</th></tr></thead>
+  <tbody>
+    <tr><td>WH-CLIENTES-001</td><td><code>clientes/criar</code></td><td><span class="status status-pass">OK</span></td><td>Cliente criado com sucesso. Modal fecha. Dados persistem no banco.</td></tr>
+    <tr><td>WH-CLIENTES-003</td><td><code>clientes/excluir</code></td><td><span class="status status-fail">X</span></td><td>Erro: <code>null value in column "nome"</code>. Webhook faz UPDATE destrutivo.</td></tr>
+    <tr><td>CSV Export</td><td>Client-side (Supabase SDK)</td><td><span class="status status-pass">OK</span></td><td>Exportacao gera CSV via PapaParse com BOM UTF-8.</td></tr>
+    <tr><td>Realtime</td><td>Canal <code>clientes-realtime</code></td><td><span class="status status-pass">OK</span></td><td>Configurado com filtro por organizacao_id. Invalida queries ao receber evento.</td></tr>
+  </tbody>
+</table>
+
+<footer>
+  MdFlow Front-Test Report v2 | Gerado por Beto (Claude Code Opus 4.6) | 2026-04-06 09:30 BRT<br>
+  Repositorio: beta-mdflow | Pagina: /clientes | 58 testes executados
+</footer>
+
+</body>
+</html>

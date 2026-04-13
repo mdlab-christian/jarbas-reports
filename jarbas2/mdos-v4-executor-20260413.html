@@ -1,0 +1,1405 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdOs v4.0 + MIA — Executor de Tasks</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1714;
+  --card: #201d1a;
+  --card2: #252119;
+  --border: #2e2b27;
+  --primary: #20c997;
+  --primary-dim: rgba(32,201,151,0.12);
+  --primary-border: rgba(32,201,151,0.3);
+  --warn: #f59e0b;
+  --warn-dim: rgba(245,158,11,0.12);
+  --danger: #ef4444;
+  --success: #22c55e;
+  --info: #60a5fa;
+  --purple: #a78bfa;
+  --teal: #2dd4bf;
+  --orange: #fb923c;
+  --text: #f5f0eb;
+  --muted: #9e9890;
+  --mono: 'JetBrains Mono', monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:Inter,system-ui,sans-serif;font-size:14px;line-height:1.6;display:flex;min-height:100vh}
+/* SIDEBAR */
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;overflow-y:auto;padding:1.25rem 0;z-index:30;flex-shrink:0}
+.sidebar-logo{padding:0 1rem 1rem;border-bottom:1px solid var(--border);margin-bottom:0.75rem}
+.sidebar-logo h2{font-family:Manrope,sans-serif;font-size:15px;font-weight:700;color:var(--primary)}
+.sidebar-logo p{font-size:11px;color:var(--muted);margin-top:2px}
+.nav-wave{padding:0.25rem 0}
+.nav-wave-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:0.5rem 1rem 0.25rem;display:flex;align-items:center;gap:6px}
+.nav-wave-label .wave-num{background:var(--primary-dim);color:var(--primary);border-radius:4px;padding:1px 6px;font-size:9px;font-family:var(--mono)}
+.nav-link{display:flex;align-items:center;gap:8px;padding:0.3rem 1rem;font-size:12px;color:var(--muted);text-decoration:none;transition:all .15s;cursor:pointer;border-left:2px solid transparent}
+.nav-link:hover,.nav-link.active{color:var(--text);background:var(--primary-dim);border-left-color:var(--primary)}
+.nav-link .task-id{font-family:var(--mono);font-size:10px;color:var(--primary);opacity:.8}
+.nav-divider{height:1px;background:var(--border);margin:0.5rem 0}
+/* MAIN */
+.main{margin-left:220px;flex:1;padding:2rem;max-width:1100px}
+/* HEADER */
+.page-header{margin-bottom:2.5rem}
+.page-header h1{font-family:Manrope,sans-serif;font-size:28px;font-weight:800;color:var(--text)}
+.page-header h1 span{color:var(--primary)}
+.meta-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:0.75rem}
+.meta-chip{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;color:var(--muted)}
+.meta-chip b{color:var(--text)}
+/* LEGEND */
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2rem;padding:0.75rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:8px}
+.legend-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+/* WAVE SECTION */
+.wave-section{margin-bottom:2.5rem;scroll-margin-top:2rem}
+.wave-header{display:flex;align-items:center;gap:12px;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border)}
+.wave-badge{background:var(--primary);color:#000;font-family:Manrope,sans-serif;font-weight:700;font-size:12px;padding:3px 10px;border-radius:4px}
+.wave-title{font-family:Manrope,sans-serif;font-size:16px;font-weight:700}
+.wave-meta{font-size:11px;color:var(--muted);margin-left:auto;display:flex;gap:10px;align-items:center}
+.wave-parallel{background:var(--primary-dim);color:var(--primary);border:1px solid var(--primary-border);padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono)}
+.wave-seq{background:var(--warn-dim);color:var(--warn);border:1px solid rgba(245,158,11,.3);padding:2px 8px;border-radius:4px;font-size:10px;font-family:var(--mono)}
+.tasks-grid{display:flex;flex-direction:column;gap:10px}
+/* TASK CARD */
+.task-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;transition:border-color .2s}
+.task-card:hover{border-color:var(--primary-border)}
+.task-header{padding:0.85rem 1rem;display:flex;align-items:center;gap:10px;cursor:pointer}
+.task-id-badge{font-family:var(--mono);font-size:11px;font-weight:500;background:var(--primary-dim);color:var(--primary);border:1px solid var(--primary-border);border-radius:4px;padding:2px 8px;flex-shrink:0}
+.task-title{font-weight:500;flex:1;font-size:13px}
+.task-badges{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.badge-infra{background:rgba(245,158,11,.15);color:var(--warn)}
+.badge-soul{background:rgba(167,139,250,.15);color:var(--purple)}
+.badge-capabilities{background:rgba(34,197,94,.15);color:var(--success)}
+.badge-integration{background:rgba(45,212,191,.15);color:var(--teal)}
+.badge-docs{background:rgba(96,165,250,.15);color:var(--info)}
+.badge-tests{background:rgba(251,146,60,.15);color:var(--orange)}
+.complexity-S{background:rgba(34,197,94,.1);color:var(--success);border:1px solid rgba(34,197,94,.2)}
+.complexity-M{background:rgba(245,158,11,.1);color:var(--warn);border:1px solid rgba(245,158,11,.2)}
+.complexity-L{background:rgba(239,68,68,.1);color:var(--danger);border:1px solid rgba(239,68,68,.2)}
+.time-chip{font-size:10px;color:var(--muted);font-family:var(--mono)}
+.btn-group{display:flex;gap:6px;flex-shrink:0}
+.btn{padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;border:1px solid;cursor:pointer;transition:all .15s;font-family:Inter,sans-serif}
+.btn-plan{background:rgba(96,165,250,.1);color:var(--info);border-color:rgba(96,165,250,.25)}
+.btn-plan:hover{background:rgba(96,165,250,.2)}
+.btn-plan.active{background:rgba(96,165,250,.25);border-color:var(--info)}
+.btn-exec{background:var(--primary-dim);color:var(--primary);border-color:var(--primary-border)}
+.btn-exec:hover{background:rgba(32,201,151,.2)}
+.btn-exec.active{background:rgba(32,201,151,.25);border-color:var(--primary)}
+/* TASK BODY (expanded) */
+.task-body{border-top:1px solid var(--border);display:none}
+.task-body.open{display:block}
+.task-section{padding:0.85rem 1rem;border-bottom:1px solid var(--border)}
+.task-section:last-child{border-bottom:none}
+.task-section-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:0.5rem}
+.deps-row{display:flex;gap:6px;flex-wrap:wrap}
+.dep-chip{font-family:var(--mono);font-size:10px;background:var(--card2);border:1px solid var(--border);border-radius:4px;padding:1px 7px;color:var(--muted)}
+.docs-list{list-style:none;display:flex;flex-direction:column;gap:4px}
+.docs-list li{font-size:12px;color:var(--muted);padding:3px 8px;background:var(--card2);border-radius:4px;font-family:var(--mono);display:flex;align-items:flex-start;gap:6px}
+.docs-list li::before{content:"📖";flex-shrink:0;font-size:11px}
+.prompt-container{position:relative}
+.prompt-code{background:#0e0c0a;border:1px solid var(--border);border-radius:6px;padding:1rem;font-family:var(--mono);font-size:11px;line-height:1.7;color:#d4cfca;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto}
+.copy-btn{position:absolute;top:8px;right:8px;background:var(--card);border:1px solid var(--border);color:var(--muted);padding:3px 10px;border-radius:4px;font-size:10px;cursor:pointer;font-family:Inter,sans-serif;transition:all .15s}
+.copy-btn:hover{background:var(--primary-dim);color:var(--primary);border-color:var(--primary-border)}
+.copy-btn.copied{background:rgba(34,197,94,.15);color:var(--success);border-color:rgba(34,197,94,.3)}
+/* PROGRESS TRACKER */
+.progress-bar-wrap{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:2rem}
+.progress-bar-wrap h3{font-family:Manrope,sans-serif;font-size:13px;font-weight:600;margin-bottom:0.5rem}
+.progress-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-bottom:0.5rem}
+.progress-fill{height:100%;background:var(--primary);border-radius:4px;transition:width .3s;width:0%}
+.progress-stats{display:flex;gap:1rem;font-size:11px;color:var(--muted)}
+.progress-stats b{color:var(--primary)}
+/* CHECKBOX on card */
+.task-done-toggle{width:16px;height:16px;border-radius:4px;border:2px solid var(--border);cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.task-done-toggle.done{background:var(--primary);border-color:var(--primary)}
+.task-done-toggle.done::after{content:'✓';color:#000;font-size:10px;font-weight:700}
+.task-card.done-card{opacity:.5}
+.task-card.done-card .task-id-badge{background:rgba(34,197,94,.1);color:var(--success);border-color:rgba(34,197,94,.2)}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h2>🦊 MdOs v4.0 + MIA</h2>
+    <p>Executor de Tasks</p>
+  </div>
+  <div id="sidebar-nav"></div>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="page-header">
+    <h1>MdOs v4.0 + <span>MIA</span> — Planner de Execução</h1>
+    <div class="meta-row">
+      <span class="meta-chip"><b>23</b> tasks</span>
+      <span class="meta-chip"><b>8</b> waves</span>
+      <span class="meta-chip">até <b>6</b> terminais simultâneos</span>
+      <span class="meta-chip">gerado em <b>2026-04-13</b></span>
+    </div>
+  </div>
+
+  <!-- PROGRESS -->
+  <div class="progress-bar-wrap">
+    <h3>Progresso Geral</h3>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="progress-stats"><span><b id="done-count">0</b> concluídas</span><span><b>23</b> total</span><span id="pct-text">0%</span></div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--warn)"></div>infra</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>soul</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--success)"></div>capabilities</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--teal)"></div>integration</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--info)"></div>docs</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--orange)"></div>tests</div>
+    <div class="legend-item" style="margin-left:auto">
+      <span class="badge complexity-S">S</span> small &nbsp;
+      <span class="badge complexity-M">M</span> medium &nbsp;
+      <span class="badge complexity-L">L</span> large
+    </div>
+  </div>
+
+  <div id="waves-container"></div>
+</main>
+
+<script>
+const TASKS = [
+  // ── WAVE 0 ──────────────────────────────────────────────────────
+  {
+    id:"F01", wave:0, title:"Atualizar CLAUDE.md do MdOs vault → v4.0",
+    category:"docs", complexity:"S", estimated_minutes:15,
+    depends_on:[], parallel_with:["F02"],
+    docs_to_read:[
+      "~/Documents/MdOs-vault/CLAUDE.md (versão atual)",
+      "~/Documents/MdOs-vault/docs/convencoes-naming.md",
+      "~/Documents/MdOs-vault/docs/README.md"
+    ],
+    prompt:`# F01 — Atualizar CLAUDE.md do MdOs vault → v4.0
+# Abrir: cd ~/Documents/MdOs-vault && claude
+
+# Leia primeiro:
+cat ~/Documents/MdOs-vault/CLAUDE.md
+ls ~/Documents/MdOs-vault/skills/
+cat ~/Documents/MdOs-vault/docs/README.md
+
+# O que atualizar no CLAUDE.md:
+# - Versão: v2.0 → v4.0 e data → 2026-04-13
+# - Seção 'Grupos de Skills': adicionar 11 novos grupos:
+#   mdos-atividades, mdos-decisoes, mdos-processos, mdos-clientes,
+#   mdos-execucoes, mdos-audiencias, mdos-acordos, mdos-jurimetria,
+#   mdos-docs, mdos-relatorios, mdos-intimacoes, mdos-mia
+# - Adicionar seção 'Documentação' apontando para docs/ como SSOT
+# - Adicionar regra: 'Backend Integration — ALLOW_WRITE tem 10 tabelas'
+# - Adicionar referência: docs/como-criar-skill.md
+
+# Confirme que não quebrou nenhuma regra existente após editar.`
+  },
+  {
+    id:"F02", wave:0, title:"Atualizar AGENTS.md OpenClaw — adicionar MIA",
+    category:"docs", complexity:"S", estimated_minutes:10,
+    depends_on:[], parallel_with:["F01"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/AGENTS.md (versão atual)",
+      "~/Documents/MdOs-vault/docs/mia-conceito.md"
+    ],
+    prompt:`# F02 — Atualizar AGENTS.md OpenClaw — adicionar MIA
+# Abrir: cd ~/jarbas-vault && claude
+
+# Leia primeiro:
+cat ~/jarbas-vault/openclaw/AGENTS.md
+cat ~/Documents/MdOs-vault/docs/mia-conceito.md
+
+# Adicionar na tabela master (nova linha após Cecilia):
+# | MIA | SUPERAGENTE | @mia_mdbot | mia | 508 | Mac Mini M4 |
+#   ssh mac-mini-tail (sudo -u mia) |
+#   /Users/mia/.openclaw/workspace-mia/ | 18795 |
+#   ai.openclaw.mia.gateway.plist | 🚧 EM CONSTRUÇÃO — secretária |
+
+# Adicionar na seção de detalhes (novo bloco após Cecilia):
+# ### 🦊 MIA — @mia_mdbot
+# - Papel: Assistente geral do escritório — secretária digital 24/7
+# - Personalidade: Raposa calorosa, direta, pró-ativa
+# - Modelo: claude-sonnet-4-6 (interação) / claude-haiku-4-5-20251001 (crons)
+# - Token Telegram: 8612455212:AAEZ34JqDzkv087sAavdpAUantSbyYdnNCM
+# - Vault: MdOs-vault (symlink read-only)
+# - Capacidades: briefing 8h, resposta perguntas, cria atividades, D-0/D-1
+# - Integra com: OlivIA (:19100), Cecilia (LaunchAgent), Supabase (mdos-db.mjs)
+# - Leveling atual: L1 Observer
+
+# Salve o arquivo.`
+  },
+
+  // ── WAVE 1 ──────────────────────────────────────────────────────
+  {
+    id:"M01", wave:1, title:"Criar user mia no Mac Mini (UID 508)",
+    category:"infra", complexity:"M", estimated_minutes:20,
+    depends_on:[], parallel_with:["M08","M09","M10","M11","M12"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/INFRA.md",
+      "~/jarbas-vault/openclaw/AGENTS.md (seção UIDs)"
+    ],
+    prompt:`# M01 — Criar user mia no Mac Mini (UID 508)
+# Terminal local (MacBook Pro)
+
+# Verificar usuários existentes:
+ssh mac-mini-tail "dscl . -list /Users | grep -v '^_' | sort"
+
+# Verificar se mia já existe:
+ssh mac-mini-tail "id mia 2>/dev/null || echo 'user nao existe'"
+
+# Se não existir, criar (senha sudo: 010597):
+ssh mac-mini-tail "echo '010597' | sudo -S dscl . -create /Users/mia"
+ssh mac-mini-tail "echo '010597' | sudo -S dscl . -create /Users/mia UserShell /bin/zsh"
+ssh mac-mini-tail "echo '010597' | sudo -S dscl . -create /Users/mia RealName 'MIA Assistente'"
+ssh mac-mini-tail "echo '010597' | sudo -S dscl . -create /Users/mia UniqueID 508"
+ssh mac-mini-tail "echo '010597' | sudo -S dscl . -create /Users/mia PrimaryGroupID 20"
+ssh mac-mini-tail "echo '010597' | sudo -S dscl . -create /Users/mia NFSHomeDirectory /Users/mia"
+ssh mac-mini-tail "echo '010597' | sudo -S createhomedir -c -u mia"
+
+# Criar diretórios essenciais:
+ssh mac-mini-tail "echo '010597' | sudo -S mkdir -p /Users/mia/.ssh /Users/mia/Documents"
+ssh mac-mini-tail "echo '010597' | sudo -S chown -R mia:staff /Users/mia/"
+ssh mac-mini-tail "echo '010597' | sudo -S chmod 700 /Users/mia/.ssh"
+
+# Verificar:
+ssh mac-mini-tail "id mia"
+ssh mac-mini-tail "ls -la /Users/mia/"
+
+# NOTA: Se UID 508 já ocupado, usar 509 e anotar.`
+  },
+  {
+    id:"M08", wave:1, title:"Escrever SOUL.md da MIA (200+ linhas)",
+    category:"soul", complexity:"L", estimated_minutes:45,
+    depends_on:[], parallel_with:["M01","M09","M10","M11","M12"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/templates/SOUL-template.md",
+      "~/jarbas-vault/openclaw/profiles/SUPERAGENTE.md",
+      "~/jarbas-vault/openclaw/CURSO-CONHECIMENTO.md (seção SOUL.md)",
+      "~/Documents/MdOs-vault/docs/mia-conceito.md"
+    ],
+    prompt:`# M08 — Escrever SOUL.md da MIA (200+ linhas)
+# Terminal: cd ~/Documents/MdOs-vault && claude
+# (ou qualquer terminal com acesso ao vault)
+
+# Leia primeiro:
+cat ~/jarbas-vault/openclaw/templates/SOUL-template.md
+cat ~/jarbas-vault/openclaw/profiles/SUPERAGENTE.md
+cat ~/jarbas-vault/openclaw/CURSO-CONHECIMENTO.md | head -100
+cat ~/Documents/MdOs-vault/docs/mia-conceito.md
+
+# Contexto da MIA:
+# Nome: MIA — Minha Inteligência Assistente 🦊
+# Papel: Secretária digital do MP Advocacia (Midas)
+# Escritório: ~5.800 processos de negativação indevida (TJRS, TJSC, TJSP)
+# Interface: Telegram @mia_mdbot, voz e texto
+# Tom: calorosa, direta, profissional, pró-ativa
+# Leveling: L1 (começa)
+
+# O SOUL.md DEVE incluir (mínimo 200 linhas, ideal 300):
+# 1. Identidade — quem é a MIA, missão, metáfora da raposa
+# 2. Valores — direta, eficiente, confiável, nunca inventa
+# 3. Estilo de comunicação — Telegram, tamanho respostas
+# 4. O que pode fazer em L1 (consultas, briefings, criar atividades)
+# 5. O que NÃO pode fazer em L1 (sem autonomia para mudanças críticas)
+# 6. Dados sensíveis — CPF (só últimos 4), valores financeiros (mascarar)
+# 7. Protocolo de briefing matinal (o que agregar, como formatar)
+# 8. Protocolo de escalada (quando encaminhar para humano)
+# 9. Conhecimento do escritório (MP Advocacia, tribunais, advogados)
+# 10. Integração com OlivIA e Cecilia (quando acionar cada um)
+# 11. Protocolo de erros (reconhecer, não fingir que funcionou)
+# 12. Horários de atividade
+
+# Salve em /tmp/mia-soul.md e transfira:
+scp /tmp/mia-soul.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/mia-soul.md /Users/mia/.openclaw/workspace-mia/SOUL.md"
+ssh mac-mini-tail "echo '010597' | sudo -S chown mia:staff /Users/mia/.openclaw/workspace-mia/SOUL.md"
+
+# Confirme:
+ssh mac-mini-tail "echo '010597' | sudo -S wc -l /Users/mia/.openclaw/workspace-mia/SOUL.md"
+# Deve ser >= 200`
+  },
+  {
+    id:"M09", wave:1, title:"Escrever IDENTITY.md da MIA",
+    category:"soul", complexity:"S", estimated_minutes:20,
+    depends_on:[], parallel_with:["M01","M08","M10","M11","M12"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/templates/IDENTITY-template.md"
+    ],
+    prompt:`# M09 — Escrever IDENTITY.md da MIA
+# Terminal local
+
+# Leia o template:
+cat ~/jarbas-vault/openclaw/templates/IDENTITY-template.md
+
+# Crie /tmp/mia-identity.md com:
+# - Nome: MIA — Minha Inteligência Assistente
+# - User macOS: mia | UID: 508 | Máquina: Mac Mini M4
+# - SSH: ssh mac-mini-tail (sudo -u mia)
+# - Porta HTTP: 18795
+# - Workspace: /Users/mia/.openclaw/workspace-mia/
+# - LaunchAgent: ai.openclaw.mia.gateway.plist
+# - Leveling atual: L1 Observer
+# - Modelo principal: claude-sonnet-4-6
+# - Modelo crons: claude-haiku-4-5-20251001
+# - Bot: @mia_mdbot | Token: no .env (não colocar aqui!)
+# - DM Policy: allowlist (apenas equipe interna)
+# - Capacidades v1.0: briefing 08:00, resposta perguntas,
+#   criação atividades, notificações D-0/D-1
+# - Limites L1: sem editar processos/clientes, sem dados financeiros
+# - Supabase: qdivfairxhdihaqqypgb | ORG_ID: 55a0c7ba-1a23-4ae1-b69b-a13811324735
+# - ALLOW_WRITE em L1: atividades apenas
+# - OlivIA: http://localhost:19100/health
+# - MdOs vault: /Users/mia/Documents/MdOs-vault (symlink)
+
+# Transferir:
+scp /tmp/mia-identity.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/mia-identity.md /Users/mia/.openclaw/workspace-mia/IDENTITY.md"
+ssh mac-mini-tail "echo '010597' | sudo -S chown mia:staff /Users/mia/.openclaw/workspace-mia/IDENTITY.md"`
+  },
+  {
+    id:"M10", wave:1, title:"Escrever USER.md da MIA (400+ linhas)",
+    category:"soul", complexity:"L", estimated_minutes:60,
+    depends_on:[], parallel_with:["M01","M08","M09","M11","M12"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/templates/USER-template.md",
+      "~/Documents/MdOs-vault/docs/backend-schema.md",
+      "~/Documents/MdOs-vault/docs/arquitetura.md",
+      "~/Documents/MdOs-vault/CLAUDE.md",
+      "~/Documents/MdOs-vault/conhecimento/glossario-juridico.md (se existir)"
+    ],
+    prompt:`# M10 — Escrever USER.md da MIA (400+ linhas)
+# cd ~/Documents/MdOs-vault && claude
+
+# Leia primeiro:
+cat ~/jarbas-vault/openclaw/templates/USER-template.md
+cat ~/Documents/MdOs-vault/docs/backend-schema.md
+cat ~/Documents/MdOs-vault/docs/arquitetura.md
+cat ~/Documents/MdOs-vault/CLAUDE.md | head -80
+
+# Buscar dados reais:
+node _tools/mdos-db.mjs select advogados "id,nome,oab" "deleted_at=is.null" 2>/dev/null
+
+# O USER.md DEVE incluir (400+ linhas):
+# 1. O Escritório — MP Advocacia (Midas), negativação indevida
+# 2. Números — ~5.800 processos, TJRS/TJSC/TJSP, OABs
+# 3. A Equipe — Christian (RS116571/SC074025/SP535101),
+#    Heloísa (RS131163/SC075466), João Victor, Leonardo, Stefani
+# 4. Sistema MdFlow — SaaS jurídico, rotas principais
+# 5. MdOs — Claude Code, 19 grupos de skills
+# 6. OlivIA — gera petições (8-15min), pipeline analise+geracao+doc
+# 7. Cecilia — monitora EPROC 3x/dia, 5 OABs, taxonomia A-G
+# 8. Tipos de processo — negativação indevida, SPC/Serasa/SCPC
+# 9. Fluxo processual — distribuição → controller → decisão → execução → acordo
+# 10. Glossário jurídico — réplica, apelação, cumprimento, etc.
+# 11. Cegueira financeira — não exibir valores sem permissão
+# 12. Intimações e prazos — taxonomia A-G, D-0/D-1, urgência
+# 13. Supabase — tabelas principais, como buscar dados
+# 14. Comandos que MIA pode executar (mdos-db.mjs)
+# 15. Quando encaminhar para OlivIA (petições)
+# 16. Quando encaminhar para Cecilia (capturas EPROC)
+
+# Salvar e transferir:
+scp /tmp/mia-user.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/mia-user.md /Users/mia/.openclaw/workspace-mia/USER.md"
+ssh mac-mini-tail "echo '010597' | sudo -S chown mia:staff /Users/mia/.openclaw/workspace-mia/USER.md"
+
+# Confirme >= 400 linhas:
+ssh mac-mini-tail "echo '010597' | sudo -S wc -l /Users/mia/.openclaw/workspace-mia/USER.md"`
+  },
+  {
+    id:"M11", wave:1, title:"Escrever AGENTS.md operacional da MIA",
+    category:"soul", complexity:"S", estimated_minutes:20,
+    depends_on:[], parallel_with:["M01","M08","M09","M10","M12"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/templates/ (buscar AGENTS-template.md)",
+      "~/jarbas-vault/openclaw/REGRAS.md"
+    ],
+    prompt:`# M11 — Escrever AGENTS.md operacional da MIA
+# Terminal local
+
+# Leia:
+ls ~/jarbas-vault/openclaw/templates/ | grep -i agent
+cat ~/jarbas-vault/openclaw/REGRAS.md
+ssh mac-mini-tail "echo '010597' | sudo -S cat /Users/olivia/.openclaw/workspace-olivia/AGENTS.md 2>/dev/null | head -80"
+
+# Crie /tmp/mia-agents.md cobrindo:
+# - Protocolo de Resposta (máx 3 parágrafos no Telegram, markdown OK)
+# - Sempre confirmar ações de escrita
+# - Se não souber: dizer claramente, não inventar
+# - L1 — O que PODE fazer:
+#   Consultar processos/clientes/atividades/decisões
+#   Criar atividades (INSERT atividades)
+#   Enviar briefing matinal
+#   Notificar prazos
+#   Responder perguntas operacionais
+# - L1 — O que NÃO pode:
+#   Editar processos, clientes, decisões
+#   Acessar dados financeiros
+#   Enviar mensagens externas
+#   Modificar configurações do sistema
+# - Protocolo de Escalada:
+#   Petição → encaminhar para @olivia_mdbot ou /mdos-olivia:peticao
+#   EPROC → encaminhar para /mdos-cecilia:captura
+#   Dúvida técnica → "perguntar para o Christian"
+# - Privacidade:
+#   CPF: mostrar apenas últimos 4 (***.***.xxx-xx)
+#   Valores financeiros: apenas status (pago/pendente), não valores
+# - Crons: 08:00 briefing (Haiku), 09:00 check D-0
+
+# Transferir:
+scp /tmp/mia-agents.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/mia-agents.md /Users/mia/.openclaw/workspace-mia/AGENTS.md"
+ssh mac-mini-tail "echo '010597' | sudo -S chown mia:staff /Users/mia/.openclaw/workspace-mia/AGENTS.md"`
+  },
+  {
+    id:"M12", wave:1, title:"Escrever TOOLS.md — skills MdOs para MIA",
+    category:"soul", complexity:"S", estimated_minutes:20,
+    depends_on:[], parallel_with:["M01","M08","M09","M10","M11"],
+    docs_to_read:[
+      "~/Documents/MdOs-vault/docs/allowlists.md",
+      "~/Documents/MdOs-vault/docs/mdos-db-guia.md",
+      "~/Documents/MdOs-vault/docs/mdos-n8n-guia.md"
+    ],
+    prompt:`# M12 — Escrever TOOLS.md — skills MdOs para MIA
+# Terminal local
+
+# Leia:
+cat ~/Documents/MdOs-vault/docs/allowlists.md | head -60
+cat ~/Documents/MdOs-vault/docs/mdos-db-guia.md
+
+# Crie /tmp/mia-tools.md com:
+# ## mdos-db.mjs — Acesso ao banco
+# Localização: ~/Documents/MdOs-vault/_tools/mdos-db.mjs
+#
+# Leitura (tabelas disponíveis):
+# processos: id, numero_processo, status, fase_processual
+# clientes: id, nome, cpf_cnpj, email, telefone
+# atividades: id, titulo, status, prioridade, data_vencimento
+# decisoes: id, tipo_decisao, resultado (NÃO mostrar valores)
+# audiencias: id, tipo, modalidade, data_hora, status
+# intimacoes: id, numero_processo, classificacao, prazo, status
+#
+# Escrita em L1 (ALLOW_WRITE):
+# atividades: CREATE, UPDATE
+#
+# RPCs úteis:
+# get_intimacoes_pendentes — prazos urgentes
+# get_audiencias_semana — audiências da semana
+# fn_atividades_lista_com_leitura — atividades formatadas
+# search_processos — busca por texto livre
+#
+# ## Exemplos de uso
+# Intimações urgentes:
+# node _tools/mdos-db.mjs rpc get_intimacoes_pendentes '{"p_dias_urgencia":1}'
+#
+# Criar atividade:
+# node _tools/mdos-db.mjs insert atividades '{"titulo":"X","status":"pendente","prioridade":"alta"}'
+#
+# Audiências de hoje:
+# node _tools/mdos-db.mjs rpc get_audiencias_semana '{"p_semana_offset":0}'
+#
+# ## OlivIA
+# Health check: curl http://localhost:19100/health
+
+# Transferir:
+scp /tmp/mia-tools.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/mia-tools.md /Users/mia/.openclaw/workspace-mia/TOOLS.md"
+ssh mac-mini-tail "echo '010597' | sudo -S chown mia:staff /Users/mia/.openclaw/workspace-mia/TOOLS.md"`
+  },
+
+  // ── WAVE 2 ──────────────────────────────────────────────────────
+  {
+    id:"M02", wave:2, title:"Instalar OpenClaw e Claude Code no user mia",
+    category:"infra", complexity:"M", estimated_minutes:25,
+    depends_on:["M01"], parallel_with:["M03"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/INFRA.md",
+      "~/jarbas-vault/openclaw/README.md"
+    ],
+    prompt:`# M02 — Instalar OpenClaw e Claude Code no user mia
+# PRÉ-REQUISITO: M01 (user mia criado)
+# Verificar: ssh mac-mini-tail "id mia"
+
+# Leia:
+cat ~/jarbas-vault/openclaw/INFRA.md
+
+# Verificar Node.js para mia:
+ssh mac-mini-tail "echo '010597' | sudo -S su - mia -c 'which node || echo nao_tem'"
+ssh mac-mini-tail "echo '010597' | sudo -S su - mia -c 'node --version 2>/dev/null || echo sem_node'"
+
+# Verificar se node existe no sistema:
+ssh mac-mini-tail "which node"
+# Se existe no sistema (/opt/homebrew/bin/node), adicionar ao PATH do mia:
+ssh mac-mini-tail "echo '010597' | sudo -S su - mia -c 'echo export PATH=\"/opt/homebrew/bin:\$PATH\" >> ~/.zshrc'"
+
+# Instalar OpenClaw:
+ssh mac-mini-tail "echo '010597' | sudo -S su - mia -c 'source ~/.zshrc 2>/dev/null; npm install -g openclaw 2>&1 | tail -5'"
+# Verificar:
+ssh mac-mini-tail "echo '010597' | sudo -S su - mia -c 'openclaw --version 2>/dev/null || echo openclaw_nao_instalado'"
+
+# Se openclaw não disponível via npm, verificar como OlivIA foi instalada:
+ssh mac-mini-tail "echo '010597' | sudo -S su - olivia -c 'which openclaw && openclaw --version'"
+
+# Instalar Claude Code:
+ssh mac-mini-tail "echo '010597' | sudo -S su - mia -c 'source ~/.zshrc 2>/dev/null; npm install -g @anthropic-ai/claude-code 2>&1 | tail -5'"
+ssh mac-mini-tail "echo '010597' | sudo -S su - mia -c 'claude --version 2>/dev/null || echo cc_nao_instalado'"
+
+# Anote o método que funcionou.`
+  },
+  {
+    id:"M03", wave:2, title:"Criar estrutura de diretórios workspace-mia",
+    category:"infra", complexity:"S", estimated_minutes:10,
+    depends_on:["M01"], parallel_with:["M02"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/INFRA.md",
+      "~/jarbas-vault/openclaw/agents/olivia-mdbot.md (ver estrutura)"
+    ],
+    prompt:`# M03 — Criar estrutura workspace-mia
+# PRÉ-REQUISITO: M01 (user mia criado)
+
+# Ver como OlivIA está estruturada (referência):
+ssh mac-mini-tail "echo '010597' | sudo -S ls -la /Users/olivia/.openclaw/"
+ssh mac-mini-tail "echo '010597' | sudo -S ls -la /Users/olivia/.openclaw/workspace-olivia/"
+
+# Criar estrutura completa:
+ssh mac-mini-tail "echo '010597' | sudo -S mkdir -p /Users/mia/.openclaw/workspace-mia/memory"
+ssh mac-mini-tail "echo '010597' | sudo -S mkdir -p /Users/mia/.openclaw/logs"
+ssh mac-mini-tail "echo '010597' | sudo -S mkdir -p /Users/mia/Documents"
+
+# Localizar MdOs-vault no Mini:
+ssh mac-mini-tail "echo '010597' | sudo -S find /Users -name 'MdOs-vault' -type d 2>/dev/null | head -5"
+
+# Criar symlink (ajuste o path se necessário):
+ssh mac-mini-tail "echo '010597' | sudo -S ln -sf /Users/jarbas/Documents/MdOs-vault /Users/mia/Documents/MdOs-vault"
+
+# Definir permissões:
+ssh mac-mini-tail "echo '010597' | sudo -S chown -R mia:staff /Users/mia/.openclaw"
+ssh mac-mini-tail "echo '010597' | sudo -S chmod 700 /Users/mia/.openclaw"
+
+# Verificar:
+ssh mac-mini-tail "echo '010597' | sudo -S ls -la /Users/mia/.openclaw/"
+ssh mac-mini-tail "ls /Users/mia/Documents/MdOs-vault 2>/dev/null && echo 'vault OK' || echo 'symlink precisa ajuste'"
+
+# Anote o path real do MdOs-vault no Mini.`
+  },
+
+  // ── WAVE 3 ──────────────────────────────────────────────────────
+  {
+    id:"M04", wave:3, title:"Criar openclaw.json da MIA",
+    category:"infra", complexity:"S", estimated_minutes:15,
+    depends_on:["M03"], parallel_with:["M05"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/templates/openclaw-json-template.md",
+      "~/jarbas-vault/openclaw/agents/olivia-mdbot.md (ver openclaw.json da OlivIA)",
+      "~/jarbas-vault/openclaw/REGRAS.md"
+    ],
+    prompt:`# M04 — Criar openclaw.json da MIA
+# PRÉ-REQUISITO: M03 (diretórios criados)
+
+# Leia o template:
+cat ~/jarbas-vault/openclaw/templates/openclaw-json-template.md
+
+# Ver openclaw.json real da OlivIA (referência estrutural):
+ssh mac-mini-tail "echo '010597' | sudo -S cat /Users/olivia/.openclaw/openclaw.json"
+
+# Crie /tmp/mia-openclaw.json com (ajuste conforme template real):
+# {
+#   "port": 18795,
+#   "workspacePath": "/Users/mia/.openclaw/workspace-mia",
+#   "model": {
+#     "main": "claude-sonnet-4-6",
+#     "subagent": "claude-haiku-4-5-20251001"
+#   },
+#   "telegram": {
+#     "enabled": true,
+#     "token": "\${TELEGRAM_BOT_TOKEN}",
+#     "webhookPath": "/telegram/mia"
+#   },
+#   "dmPolicy": "allowlist",
+#   "http": { "enabled": true, "healthPath": "/health" }
+# }
+#
+# AJUSTE a estrutura conforme o template real do OpenClaw.
+
+# Transferir e instalar:
+scp /tmp/mia-openclaw.json mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/mia-openclaw.json /Users/mia/.openclaw/openclaw.json"
+ssh mac-mini-tail "echo '010597' | sudo -S chown mia:staff /Users/mia/.openclaw/openclaw.json"
+ssh mac-mini-tail "echo '010597' | sudo -S chmod 600 /Users/mia/.openclaw/openclaw.json"
+
+# Verificar:
+ssh mac-mini-tail "echo '010597' | sudo -S cat /Users/mia/.openclaw/openclaw.json | python3 -m json.tool | head -20"`
+  },
+  {
+    id:"M05", wave:3, title:"Criar .env da MIA com tokens secretos",
+    category:"infra", complexity:"S", estimated_minutes:10,
+    depends_on:["M03"], parallel_with:["M04"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/REGRAS.md (regra de credenciais)",
+      "~/jarbas-vault/04_claude-code/CREDENCIAIS.md"
+    ],
+    prompt:`# M05 — Criar .env da MIA
+# PRÉ-REQUISITO: M03 (diretórios criados)
+
+# TOKENS DA MIA:
+# TELEGRAM_BOT_TOKEN: 8612455212:AAEZ34JqDzkv087sAavdpAUantSbyYdnNCM
+# SUPABASE_URL: https://qdivfairxhdihaqqypgb.supabase.co
+# SUPABASE_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY
+# ORG_ID: 55a0c7ba-1a23-4ae1-b69b-a13811324735
+
+# Buscar ANTHROPIC_API_KEY (verificar onde OlivIA usa):
+ssh mac-mini-tail "echo '010597' | sudo -S su - olivia -c 'cat ~/.openclaw/.env' | grep ANTHROPIC | head -1"
+
+# Criar .env (NÃO mostrar em tela após criar):
+cat > /tmp/mia-env-tmp.txt << 'EOF'
+ANTHROPIC_API_KEY=SUBSTITUIR_PELO_REAL
+TELEGRAM_BOT_TOKEN=8612455212:AAEZ34JqDzkv087sAavdpAUantSbyYdnNCM
+SUPABASE_URL=https://qdivfairxhdihaqqypgb.supabase.co
+SUPABASE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFkaXZmYWlyeGhkaWhhcXF5cGdiIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTA3MzcwOCwiZXhwIjoyMDg2NjQ5NzA4fQ.zu_reCiKzCqLETOWxytYQmez1SIwFRDlOruzsLOpBeY
+ORG_ID=55a0c7ba-1a23-4ae1-b69b-a13811324735
+TEAM_MEMBER=mia
+EOF
+
+scp /tmp/mia-env-tmp.txt mac-mini-tail:/tmp/mia-env-scp.txt
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/mia-env-scp.txt /Users/mia/.openclaw/.env"
+ssh mac-mini-tail "echo '010597' | sudo -S chown mia:staff /Users/mia/.openclaw/.env"
+ssh mac-mini-tail "echo '010597' | sudo -S chmod 600 /Users/mia/.openclaw/.env"
+rm /tmp/mia-env-tmp.txt
+
+# Verificar (deve mostrar -rw------- 1 mia):
+ssh mac-mini-tail "echo '010597' | sudo -S ls -la /Users/mia/.openclaw/.env"
+
+# IMPORTANTE: antes de continuar, editar o .env no Mini para
+# substituir ANTHROPIC_API_KEY pelo valor real encontrado acima.`
+  },
+
+  // ── WAVE 4 ──────────────────────────────────────────────────────
+  {
+    id:"M06", wave:4, title:"Criar e registrar LaunchAgent da MIA",
+    category:"infra", complexity:"M", estimated_minutes:20,
+    depends_on:["M04","M05"], parallel_with:[],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/INFRA.md (seção LaunchAgents)",
+      "~/jarbas-vault/openclaw/MAINTENANCE.md (restart patterns)"
+    ],
+    prompt:`# M06 — Criar e registrar LaunchAgent da MIA
+# PRÉ-REQUISITO: M04 (openclaw.json) + M05 (.env)
+
+# Ver LaunchAgent real da OlivIA (referência):
+ssh mac-mini-tail "echo '010597' | sudo -S cat /Library/LaunchAgents/ai.openclaw.gateway.plist 2>/dev/null | head -40"
+
+# Verificar caminho do openclaw no sistema:
+ssh mac-mini-tail "echo '010597' | sudo -S su - olivia -c 'which openclaw'"
+
+# Crie o plist (ajuste ProgramArguments conforme caminho real):
+cat > /tmp/ai.openclaw.mia.gateway.plist << 'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>ai.openclaw.mia.gateway</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/openclaw</string>
+        <string>start</string>
+        <string>--config</string>
+        <string>/Users/mia/.openclaw/openclaw.json</string>
+    </array>
+    <key>UserName</key>
+    <string>mia</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/mia/mia-gateway.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/mia/mia-gateway-err.log</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>/Users/mia</string>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/mia</string>
+</dict>
+</plist>
+PLIST
+
+# Instalar (NÃO carregar ainda — fazer no M07):
+scp /tmp/ai.openclaw.mia.gateway.plist mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S cp /tmp/ai.openclaw.mia.gateway.plist /Library/LaunchAgents/"
+ssh mac-mini-tail "echo '010597' | sudo -S chmod 644 /Library/LaunchAgents/ai.openclaw.mia.gateway.plist"
+ssh mac-mini-tail "echo '010597' | sudo -S chown root:wheel /Library/LaunchAgents/ai.openclaw.mia.gateway.plist"
+
+# Verificar:
+ssh mac-mini-tail "echo '010597' | sudo -S ls -la /Library/LaunchAgents/ai.openclaw.mia.gateway.plist"
+rm /tmp/ai.openclaw.mia.gateway.plist`
+  },
+  {
+    id:"M07", wave:4, title:"Ativar daemon MIA e validar health check",
+    category:"infra", complexity:"S", estimated_minutes:20,
+    depends_on:["M06","M08","M09","M10"], parallel_with:[],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/MAINTENANCE.md",
+      "~/jarbas-vault/openclaw/INFRA.md"
+    ],
+    prompt:`# M07 — Ativar daemon MIA e validar health check
+# PRÉ-REQUISITO: M06 (LaunchAgent) + M08+M09+M10 (SOUL, IDENTITY, USER)
+
+# 1. Obter UID da mia:
+ssh mac-mini-tail "echo '010597' | sudo -S id -u mia"
+
+# 2. Carregar LaunchAgent (substitua 508 pelo UID real):
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl bootstrap gui/508 /Library/LaunchAgents/ai.openclaw.mia.gateway.plist"
+
+# 3. Aguardar 30 segundos:
+sleep 30
+
+# 4. Verificar processo:
+ssh mac-mini-tail "ps aux | grep 'mia' | grep openclaw | grep -v grep"
+
+# 5. Health check:
+ssh mac-mini-tail "curl -s http://localhost:18795/health 2>/dev/null | python3 -m json.tool || echo 'sem resposta ainda'"
+
+# 6. Ver logs de startup:
+ssh mac-mini-tail "echo '010597' | sudo -S tail -30 /Users/mia/mia-gateway.log 2>/dev/null || echo 'log vazio'"
+ssh mac-mini-tail "echo '010597' | sudo -S tail -20 /Users/mia/mia-gateway-err.log 2>/dev/null || echo 'sem erros'"
+
+# 7. Verificar launchctl:
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl list | grep mia"
+
+# 8. Testar porta:
+ssh mac-mini-tail "lsof -i :18795 | grep LISTEN"
+
+# Se não iniciou, ver erros e ajustar plist (caminho do openclaw).
+# Registre: MIA iniciou? (sim/não) + conteúdo do health check.`
+  },
+
+  // ── WAVE 5 ──────────────────────────────────────────────────────
+  {
+    id:"M13", wave:5, title:"Implementar briefing matinal (cron 08:00)",
+    category:"capabilities", complexity:"L", estimated_minutes:60,
+    depends_on:["M07","M08","M10"], parallel_with:["M14","M15","M16"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/REGRAS.md (regra de crons: SEMPRE isolated:true + agentTurn)",
+      "~/jarbas-vault/openclaw/CURSO-CONHECIMENTO.md (seção crons)",
+      "~/Documents/MdOs-vault/skills/mdos-relatorios/dia.md"
+    ],
+    prompt:`# M13 — Implementar briefing matinal (cron 08:00)
+# PRÉ-REQUISITO: M07 (daemon rodando) + M08+M10 (SOUL+USER)
+# REGRA INVIOLÁVEL: crons SEMPRE isolated:true + type:agentTurn (NUNCA systemEvent)
+
+# Leia:
+cat ~/jarbas-vault/openclaw/REGRAS.md
+cat ~/Documents/MdOs-vault/skills/mdos-relatorios/dia.md
+
+# Ver como OlivIA configura crons:
+ssh mac-mini-tail "echo '010597' | sudo -S cat /Users/olivia/.openclaw/openclaw.json"
+
+# O briefing deve:
+# 1. Rodar às 08:00 todos os dias
+# 2. Usar modelo Haiku (econômico)
+# 3. Consultar:
+#    - intimações D-0/D-1: rpc get_intimacoes_pendentes
+#    - audiências do dia: rpc get_audiencias_semana
+#    - atividades urgentes: select atividades (prioridade=urgente)
+#    - health OlivIA: curl http://localhost:19100/health
+# 4. Formatar mensagem:
+#    🦊 Bom dia! Briefing MP Advocacia — [DATA]
+#    📋 Intimações urgentes (D-0/D-1): N
+#    📅 Audiências hoje: N
+#    ⚡ Atividades urgentes: N
+#    🖥️ Sistema: OlivIA ✅ | Cecilia ✅
+# 5. Enviar via Telegram para equipe
+
+# Ler openclaw.json atual:
+ssh mac-mini-tail "echo '010597' | sudo -S cat /Users/mia/.openclaw/openclaw.json"
+
+# Adicionar cron via python3 no Mini (ajuste o prompt conforme formato real):
+ssh mac-mini-tail "echo '010597' | sudo -S python3 << 'PYEOF'
+import json
+with open('/Users/mia/.openclaw/openclaw.json') as f:
+    config = json.load(f)
+cron = {
+  'id': 'briefing-matinal',
+  'schedule': '0 8 * * *',
+  'isolated': True,
+  'type': 'agentTurn',
+  'model': 'claude-haiku-4-5-20251001',
+  'prompt': 'Execute o briefing matinal do MP Advocacia. Consulte: (1) node /Users/mia/Documents/MdOs-vault/_tools/mdos-db.mjs rpc get_intimacoes_pendentes \\'{\\"p_dias_urgencia\\":1}\\'; (2) rpc get_audiencias_semana \\'{\\"p_semana_offset\\":0}\\'; (3) select atividades com prioridade urgente. Depois verifique: curl http://localhost:19100/health. Formate e envie via Telegram para a equipe.'
+}
+config.setdefault('crons', []).append(cron)
+with open('/Users/mia/.openclaw/openclaw.json', 'w') as f:
+    json.dump(config, f, indent=2)
+print('Cron adicionado')
+PYEOF
+"
+
+# Reiniciar daemon:
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl kickstart -k gui/508/ai.openclaw.mia.gateway"
+sleep 10
+ssh mac-mini-tail "echo '010597' | sudo -S tail -20 /Users/mia/mia-gateway.log"`
+  },
+  {
+    id:"M14", wave:5, title:"Resposta conversacional via Telegram",
+    category:"capabilities", complexity:"M", estimated_minutes:45,
+    depends_on:["M07","M08","M10"], parallel_with:["M13","M15","M16"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/CURSO-CONHECIMENTO.md",
+      "~/Documents/MdOs-vault/docs/mdos-db-guia.md"
+    ],
+    prompt:`# M14 — Resposta conversacional via Telegram
+# PRÉ-REQUISITO: M07 (daemon) + M08+M10 (SOUL+USER)
+
+# 1. Verificar daemon:
+ssh mac-mini-tail "curl -s http://localhost:18795/health | python3 -m json.tool"
+
+# 2. Verificar bot Telegram:
+curl -s "https://api.telegram.org/bot8612455212:AAEZ34JqDzkv087sAavdpAUantSbyYdnNCM/getMe" | python3 -m json.tool
+
+# 3. Verificar se webhook está configurado:
+curl -s "https://api.telegram.org/bot8612455212:AAEZ34JqDzkv087sAavdpAUantSbyYdnNCM/getWebhookInfo" | python3 -m json.tool
+
+# 4. Testar via HTTP diretamente no Mini:
+ssh mac-mini-tail "curl -s -X POST http://localhost:18795/chat -H 'Content-Type: application/json' -d '{\"message\":\"quantas intimacoes temos pendentes?\",\"user\":\"christian\"}' 2>/dev/null | python3 -m json.tool || echo 'endpoint /chat nao disponivel'"
+
+# 5. Ver logs da interação:
+ssh mac-mini-tail "echo '010597' | sudo -S tail -30 /Users/mia/mia-gateway.log"
+
+# 6. Testar via Telegram (principal):
+# Abra o Telegram → procure @mia_mdbot → envie "oi"
+# MIA deve responder. Se não responder, verificar webhook e logs.
+
+# 7. Testar pergunta com dados:
+# No Telegram: "quantas intimações temos hoje?"
+# MIA deve executar query e responder com número real.
+
+# Documente: bot getMe OK? webhook configurado? MIA respondeu? (sim/não)`
+  },
+  {
+    id:"M15", wave:5, title:"Criação de atividades por texto e voz",
+    category:"capabilities", complexity:"M", estimated_minutes:30,
+    depends_on:["M07","M08","M10","M12"], parallel_with:["M13","M14","M16"],
+    docs_to_read:[
+      "~/Documents/MdOs-vault/skills/mdos-atividades/criar.md",
+      "~/Documents/MdOs-vault/docs/backend-schema.md (seção atividades)"
+    ],
+    prompt:`# M15 — Criação de atividades por texto e voz
+# PRÉ-REQUISITO: M07 (daemon) + M08+M10+M12 (SOUL, USER, TOOLS)
+
+# 1. Testar INSERT direto:
+cd ~/Documents/MdOs-vault
+node _tools/mdos-db.mjs insert atividades '{"titulo":"TESTE MIA — verificar e deletar","descricao":"Criado pela MIA via teste M15","status":"pendente","prioridade":"baixa"}'
+# Anote o ID retornado
+
+# 2. Verificar que criou:
+node _tools/mdos-db.mjs select atividades "id,titulo,status,created_at" "titulo=ilike.*TESTE MIA*" --limit 3
+
+# 3. Soft delete da atividade de teste:
+# Substitua [ID] pelo ID anotado:
+node _tools/mdos-db.mjs update atividades '{"deleted_at":"now()"}' "id=eq.[ID]"
+
+# 4. Testar via Telegram (se daemon rodando):
+# Envie para @mia_mdbot:
+# "cria atividade: ligar para João Victor sobre processo Serasa amanhã"
+# MIA deve:
+#   a) Entender a intenção (criar atividade)
+#   b) Extrair título e prazo
+#   c) Perguntar processo_id se necessário
+#   d) Executar INSERT
+#   e) Confirmar: "Atividade criada! ID: xxx"
+
+# 5. Verificar se criou no banco:
+node _tools/mdos-db.mjs select atividades "id,titulo,status,created_at" "created_at=gt.$(date -I)" --limit 5
+
+# Documente: INSERT direto funcionou? MIA criou via Telegram?`
+  },
+  {
+    id:"M16", wave:5, title:"Notificações D-0/D-1 (cron de prazos)",
+    category:"capabilities", complexity:"M", estimated_minutes:30,
+    depends_on:["M07","M08","M10"], parallel_with:["M13","M14","M15"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/REGRAS.md (crons isolated)",
+      "~/Documents/MdOs-vault/conhecimento/cecilia/taxonomia-A-G.md"
+    ],
+    prompt:`# M16 — Notificações D-0/D-1 (cron de prazos)
+# PRÉ-REQUISITO: M07 (daemon) + M13 (briefing já configurado — referência)
+# REGRA: isolated:true + agentTurn (nunca systemEvent)
+
+# Ler config atual:
+ssh mac-mini-tail "echo '010597' | sudo -S cat /Users/mia/.openclaw/openclaw.json"
+
+# Adicionar cron de prazos às 09:00 e 13:00:
+ssh mac-mini-tail "echo '010597' | sudo -S python3 << 'PYEOF'
+import json
+with open('/Users/mia/.openclaw/openclaw.json') as f:
+    config = json.load(f)
+
+alert_cron = {
+  'id': 'alerta-prazos',
+  'schedule': '0 9,13 * * *',
+  'isolated': True,
+  'type': 'agentTurn',
+  'model': 'claude-haiku-4-5-20251001',
+  'prompt': 'Verifique intimações D-0: node /Users/mia/Documents/MdOs-vault/_tools/mdos-db.mjs rpc get_intimacoes_pendentes \\'{\\"p_dias_urgencia\\":0}\\'. Verifique atividades vencendo hoje: select atividades status=pendente data_vencimento=hoje. SE houver itens urgentes, envie alerta via Telegram para a equipe. SE não houver nada urgente, fique em silêncio (não envie mensagem vazia).'
+}
+
+if 'crons' not in config:
+    config['crons'] = []
+# Evitar duplicar:
+if not any(c.get('id') == 'alerta-prazos' for c in config['crons']):
+    config['crons'].append(alert_cron)
+
+with open('/Users/mia/.openclaw/openclaw.json', 'w') as f:
+    json.dump(config, f, indent=2)
+print('Cron alerta-prazos adicionado')
+PYEOF
+"
+
+# Reiniciar daemon:
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl kickstart -k gui/508/ai.openclaw.mia.gateway"
+sleep 10
+ssh mac-mini-tail "echo '010597' | sudo -S tail -20 /Users/mia/mia-gateway.log"
+
+# Documente: cron adicionado? daemon reiniciou sem erros?`
+  },
+
+  // ── WAVE 6 ──────────────────────────────────────────────────────
+  {
+    id:"M17", wave:6, title:"Integração MIA ↔ OlivIA",
+    category:"integration", complexity:"M", estimated_minutes:30,
+    depends_on:["M14","M15"], parallel_with:["M18","M19"],
+    docs_to_read:[
+      "~/Documents/MdOs-vault/instrucoes/pipeline-tecnico.md",
+      "~/jarbas-vault/openclaw/agents/olivia-mdbot.md",
+      "~/Documents/MdOs-vault/skills/mdos-olivia/peticao.md"
+    ],
+    prompt:`# M17 — Integração MIA ↔ OlivIA
+# PRÉ-REQUISITO: M14+M15 (conversação + atividades funcionando)
+
+# Leia:
+cat ~/jarbas-vault/openclaw/agents/olivia-mdbot.md
+cat ~/Documents/MdOs-vault/skills/mdos-olivia/peticao.md | head -30
+
+# Health check da OlivIA:
+ssh mac-mini-tail "curl -s http://localhost:19100/health | python3 -m json.tool"
+
+# Adicionar ao SOUL.md da MIA o protocolo para petições:
+cat > /tmp/mia-olivia-addon.md << 'EOF'
+
+## Protocolo para Petições (OlivIA)
+Quando alguém pedir petição, réplica, recurso ou documento jurídico:
+1. NÃO tentar gerar diretamente
+2. Informar que isso é função da OlivIA
+3. Dar instruções:
+   - "Acesse @olivia_mdbot no Telegram"
+   - "Ou use /mdos-olivia:peticao no Claude Code do terminal"
+4. Perguntar se pode ajudar a buscar o processo antes
+
+## OlivIA — Status
+Para verificar se OlivIA está online:
+curl http://localhost:19100/health
+EOF
+
+scp /tmp/mia-olivia-addon.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S bash -c 'cat /tmp/mia-olivia-addon.md >> /Users/mia/.openclaw/workspace-mia/SOUL.md'"
+
+# Adicionar ao TOOLS.md:
+ssh mac-mini-tail "echo '010597' | sudo -S bash -c 'echo -e \"\n## OlivIA — Health Check\ncurl http://localhost:19100/health\" >> /Users/mia/.openclaw/workspace-mia/TOOLS.md'"
+
+# Reiniciar daemon para recarregar SOUL.md:
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl kickstart -k gui/508/ai.openclaw.mia.gateway"
+sleep 15
+
+# Testar via Telegram: "OlivIA está online?"
+# MIA deve verificar e responder com status.
+
+# Documente: OlivIA health OK? SOUL.md atualizado? MIA respondeu sobre OlivIA?`
+  },
+  {
+    id:"M18", wave:6, title:"Integração MIA ↔ Cecilia",
+    category:"integration", complexity:"M", estimated_minutes:30,
+    depends_on:["M14"], parallel_with:["M17","M19"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/agents/cecilia-mdbot.md",
+      "~/Documents/MdOs-vault/skills/mdos-cecilia/status.md"
+    ],
+    prompt:`# M18 — Integração MIA ↔ Cecilia
+# PRÉ-REQUISITO: M14 (conversação funcionando)
+
+# Leia:
+cat ~/jarbas-vault/openclaw/agents/cecilia-mdbot.md 2>/dev/null || echo "arquivo nao encontrado"
+cat ~/Documents/MdOs-vault/skills/mdos-cecilia/status.md
+
+# Verificar status da Cecilia:
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl list | grep cecilia"
+ssh mac-mini-tail "ps aux | grep cecilia | grep -v grep | head -3"
+ssh mac-mini-tail "echo '010597' | sudo -S tail -5 /Users/cecilia/cecilia-heartbeat.log 2>/dev/null || echo 'sem heartbeat'"
+
+# Adicionar ao SOUL.md o protocolo para EPROC/Cecilia:
+cat > /tmp/mia-cecilia-addon.md << 'EOF'
+
+## Protocolo para EPROC e Cecilia
+Quando perguntarem sobre intimações EPROC, captura de processos, prazos EPROC:
+- "A Cecilia monitora o EPROC automaticamente 3x por dia (0h, 12h, 18h)."
+- "Para captura imediata: use /mdos-cecilia:captura no Claude Code."
+- "Para verificar status: /mdos-cecilia:status"
+
+## Cecilia — Verificar status
+launchctl list | grep cecilia
+ps aux | grep cecilia
+EOF
+
+scp /tmp/mia-cecilia-addon.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S bash -c 'cat /tmp/mia-cecilia-addon.md >> /Users/mia/.openclaw/workspace-mia/SOUL.md'"
+
+# Reiniciar daemon:
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl kickstart -k gui/508/ai.openclaw.mia.gateway"
+sleep 15
+
+# Testar via Telegram: "Cecilia está rodando?"
+# Documente: Cecilia ativa? SOUL.md atualizado? MIA respondeu?`
+  },
+  {
+    id:"M19", wave:6, title:"Relatórios sob demanda via Telegram",
+    category:"capabilities", complexity:"M", estimated_minutes:30,
+    depends_on:["M14"], parallel_with:["M17","M18"],
+    docs_to_read:[
+      "~/Documents/MdOs-vault/skills/mdos-relatorios/dia.md"
+    ],
+    prompt:`# M19 — Relatórios sob demanda via Telegram
+# PRÉ-REQUISITO: M14 (conversação funcionando)
+
+# Testar queries dos relatórios:
+cd ~/Documents/MdOs-vault
+
+# 1. Intimações urgentes:
+node _tools/mdos-db.mjs rpc get_intimacoes_pendentes '{"p_dias_urgencia":2}' 2>/dev/null | python3 -m json.tool | head -30
+
+# 2. Audiências da semana:
+node _tools/mdos-db.mjs rpc get_audiencias_semana '{"p_semana_offset":0}' 2>/dev/null | python3 -m json.tool | head -20
+
+# 3. Atividades urgentes:
+node _tools/mdos-db.mjs select atividades "titulo,prioridade,data_vencimento" "status=eq.pendente&prioridade=eq.urgente" --limit 10 2>/dev/null
+
+# Adicionar ao SOUL.md queries de relatório:
+cat > /tmp/mia-relatorios-addon.md << 'EOF'
+
+## Relatórios sob demanda
+Quando pedirem "relatório", "briefing", "situação do dia", "como está o escritório":
+1. Consultar intimações: node _tools/mdos-db.mjs rpc get_intimacoes_pendentes '{"p_dias_urgencia":1}'
+2. Consultar audiências: node _tools/mdos-db.mjs rpc get_audiencias_semana '{"p_semana_offset":0}'
+3. Consultar atividades urgentes: select atividades status=pendente prioridade=urgente limit 10
+4. Formatar e enviar resumo organizado.
+EOF
+
+scp /tmp/mia-relatorios-addon.md mac-mini-tail:/tmp/
+ssh mac-mini-tail "echo '010597' | sudo -S bash -c 'cat /tmp/mia-relatorios-addon.md >> /Users/mia/.openclaw/workspace-mia/SOUL.md'"
+
+# Reiniciar daemon:
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl kickstart -k gui/508/ai.openclaw.mia.gateway"
+sleep 15
+
+# Testar via Telegram: "situação do dia"
+# Documente: queries retornaram dados? MIA gerou relatório?`
+  },
+
+  // ── WAVE 7 ──────────────────────────────────────────────────────
+  {
+    id:"F03", wave:7, title:"Teste básico das novas skills com dados reais",
+    category:"tests", complexity:"M", estimated_minutes:30,
+    depends_on:[], parallel_with:["M20"],
+    docs_to_read:[
+      "~/Documents/MdOs-vault/docs/mdos-db-guia.md",
+      "~/Documents/MdOs-vault/docs/allowlists.md"
+    ],
+    prompt:`# F03 — Teste básico das novas skills com dados reais
+# cd ~/Documents/MdOs-vault && claude
+
+# Leia:
+cat docs/mdos-db-guia.md | head -50
+node _tools/mdos-db.mjs tables
+
+# TESTE 1 — Leitura: Decisões
+node _tools/mdos-db.mjs select decisoes "id,tipo_decisao,status_analise,created_at" "deleted_at=is.null" --limit 3
+# → Deve retornar array com decisões
+
+# TESTE 2 — Leitura: Atividades
+node _tools/mdos-db.mjs select atividades "id,titulo,status,created_at" "status=eq.pendente" --limit 5
+# → Deve retornar atividades pendentes
+
+# TESTE 3 — Leitura: Execuções
+node _tools/mdos-db.mjs select execucoes "id,etapa,created_at" "deleted_at=is.null" --limit 3
+
+# TESTE 4 — Escrita: Criar atividade de teste
+node _tools/mdos-db.mjs insert atividades '{"titulo":"TESTE v4.0 — deletar","descricao":"Task de teste. Pode excluir.","status":"pendente","prioridade":"baixa"}'
+# Anote o ID retornado
+
+# TESTE 5 — Update: Marcar como concluída (substitua [ID]):
+node _tools/mdos-db.mjs update atividades '{"status":"concluida"}' "id=eq.[ID]"
+
+# TESTE 6 — RPC: Listar atividades (pode falhar se RPC não existir no banco)
+node _tools/mdos-db.mjs rpc fn_atividades_lista_com_leitura '{"p_status":"concluida","p_limit":3}'
+
+# TESTE 7 — Verificar intimações (RPC principal)
+node _tools/mdos-db.mjs rpc get_intimacoes_pendentes '{"p_dias_urgencia":7}'
+
+# Registre resultados: quais passaram ✅ e quais falharam ❌ com erro exato.`
+  },
+  {
+    id:"M20", wave:7, title:"Documentação final MIA e atualização registros",
+    category:"docs", complexity:"M", estimated_minutes:30,
+    depends_on:["M17","M18","M19"], parallel_with:["F03"],
+    docs_to_read:[
+      "~/jarbas-vault/openclaw/agents/olivia-mdbot.md (ver formato do arquivo de agente)"
+    ],
+    prompt:`# M20 — Documentação final MIA e atualização registros
+# PRÉ-REQUISITO: M17+M18+M19 (integrações concluídas)
+
+# Leia:
+cat ~/jarbas-vault/openclaw/agents/olivia-mdbot.md
+cat ~/Documents/MdOs-vault/docs/mia-conceito.md
+
+# 1. Criar ~/jarbas-vault/openclaw/agents/mia.md:
+cat > ~/jarbas-vault/openclaw/agents/mia.md << 'EOF'
+# MIA 🦊 — Minha Inteligência Assistente
+> Status: ATIVO | Criada: 2026-04-13 | Leveling: L1
+
+## Identidade
+- Bot Telegram: @mia_mdbot
+- User macOS: mia (UID 508) | Máquina: Mac Mini M4
+- Porta HTTP: 18795
+- Workspace: /Users/mia/.openclaw/workspace-mia/
+- LaunchAgent: ai.openclaw.mia.gateway.plist
+- Modelo: claude-sonnet-4-6 (main) / claude-haiku-4-5-20251001 (crons)
+- Leveling: L1 Observer
+
+## Papel
+Secretária digital do escritório. Assistente conversacional 24/7 via Telegram.
+
+## Capacidades (L1)
+- Briefing matinal (cron 08:00)
+- Resposta a perguntas operacionais
+- Criação de atividades (INSERT Supabase)
+- Notificações D-0/D-1 (crons 09:00 e 13:00)
+- Status de OlivIA e Cecilia
+- Encaminhamento para OlivIA (petições) e Cecilia (EPROC)
+
+## Manutenção
+ssh mac-mini-tail "echo '010597' | sudo -S tail -30 /Users/mia/mia-gateway.log"
+ssh mac-mini-tail "echo '010597' | sudo -S launchctl kickstart -k gui/508/ai.openclaw.mia.gateway"
+ssh mac-mini-tail "curl -s http://localhost:18795/health"
+EOF
+
+# 2. Atualizar AGENTS.md — mudar status para ATIVO:
+sed -i '' 's/🚧 EM CONSTRUÇÃO — secretária/🟢 ATIVO — secretária digital L1/' ~/jarbas-vault/openclaw/AGENTS.md
+
+# 3. Atualizar mia-conceito.md com status:
+cat >> ~/Documents/MdOs-vault/docs/mia-conceito.md << 'EOF'
+
+## Status de Implementação (2026-04-13)
+✅ Fase 0: Conceito documentado
+✅ Fase 1: Daemon ativo no Mac Mini (:18795)
+✅ Fase 2: SOUL.md + USER.md + IDENTITY.md criados
+✅ Fase 3: Briefing matinal + notificações
+✅ Fase 4: Integração OlivIA + Cecilia + relatórios
+EOF
+
+# 4. Confirme todos os arquivos:
+ls ~/jarbas-vault/openclaw/agents/mia.md
+grep 'ATIVO' ~/jarbas-vault/openclaw/AGENTS.md
+tail -8 ~/Documents/MdOs-vault/docs/mia-conceito.md
+
+echo "MIA v1.0 completa! 🦊"`
+  }
+];
+
+// ── WAVE METADATA ─────────────────────────────────────────────────
+const WAVES = [
+  {w:0, title:"Polish v4.0", subtitle:"Docs de suporte", type:"parallel", terminals:2},
+  {w:1, title:"Fundação MIA — Identidade", subtitle:"Infra + Soul (standalone)", type:"parallel", terminals:6},
+  {w:2, title:"OpenClaw + Workspace", subtitle:"Depende de M01", type:"parallel", terminals:2},
+  {w:3, title:"Configuração", subtitle:"openclaw.json + .env", type:"parallel", terminals:2},
+  {w:4, title:"LaunchAgent + Ativação", subtitle:"Sequencial: M06 → M07", type:"sequential", terminals:1},
+  {w:5, title:"Capacidades MIA", subtitle:"Briefing, Chat, Atividades, Alertas", type:"parallel", terminals:4},
+  {w:6, title:"Integrações", subtitle:"OlivIA + Cecilia + Relatórios", type:"parallel", terminals:3},
+  {w:7, title:"Finalização", subtitle:"Testes + Documentação final", type:"parallel", terminals:2}
+];
+
+// ── CATEGORY CONFIG ───────────────────────────────────────────────
+const CAT = {
+  infra:        {cls:"badge-infra",        label:"infra"},
+  soul:         {cls:"badge-soul",         label:"soul"},
+  capabilities: {cls:"badge-capabilities", label:"capabilities"},
+  integration:  {cls:"badge-integration",  label:"integration"},
+  docs:         {cls:"badge-docs",         label:"docs"},
+  tests:        {cls:"badge-tests",        label:"tests"}
+};
+
+// ── STATE ─────────────────────────────────────────────────────────
+const state = {};
+TASKS.forEach(t => state[t.id] = {done:false, planOpen:false, execOpen:false});
+
+function updateProgress(){
+  const done = Object.values(state).filter(s=>s.done).length;
+  const pct = Math.round((done/TASKS.length)*100);
+  document.getElementById('done-count').textContent = done;
+  document.getElementById('pct-text').textContent = pct+'%';
+  document.getElementById('progress-fill').style.width = pct+'%';
+}
+
+function toggleDone(id){
+  state[id].done = !state[id].done;
+  const card = document.getElementById('card-'+id);
+  card.classList.toggle('done-card', state[id].done);
+  const tog = document.getElementById('tog-'+id);
+  tog.classList.toggle('done', state[id].done);
+  updateProgress();
+  localStorage.setItem('mdos-executor', JSON.stringify(
+    Object.fromEntries(Object.entries(state).map(([k,v])=>[k,v.done]))
+  ));
+}
+
+function toggleSection(id, section){
+  const other = section === 'plan' ? 'exec' : 'plan';
+  if(state[id][section+'Open'] && !state[id][other+'Open']){
+    state[id][section+'Open'] = false;
+  } else {
+    state[id][section+'Open'] = !state[id][section+'Open'];
+  }
+  renderTaskBody(id);
+  const planBtn = document.getElementById('btn-plan-'+id);
+  const execBtn = document.getElementById('btn-exec-'+id);
+  planBtn.classList.toggle('active', state[id].planOpen);
+  execBtn.classList.toggle('active', state[id].execOpen);
+}
+
+function renderTaskBody(id){
+  const task = TASKS.find(t=>t.id===id);
+  const body = document.getElementById('body-'+id);
+  const isOpen = state[id].planOpen || state[id].execOpen;
+  body.className = 'task-body' + (isOpen ? ' open' : '');
+  let html = '';
+  // deps + parallel
+  if(task.depends_on.length || task.parallel_with.length){
+    html += '<div class="task-section"><div class="task-section-label">Relações</div><div class="deps-row">';
+    if(task.depends_on.length){
+      html += '<span style="font-size:10px;color:var(--danger);margin-right:4px">DEPENDE DE:</span>';
+      task.depends_on.forEach(d => html += `<span class="dep-chip" style="color:var(--danger)">${d}</span>`);
+    }
+    if(task.parallel_with.length){
+      html += '<span style="font-size:10px;color:var(--primary);margin-left:8px;margin-right:4px">PARALELO COM:</span>';
+      task.parallel_with.forEach(d => html += `<span class="dep-chip" style="color:var(--primary)">${d}</span>`);
+    }
+    html += '</div></div>';
+  }
+  if(state[id].planOpen){
+    html += '<div class="task-section"><div class="task-section-label">📖 Documentos para ler antes</div><ul class="docs-list">';
+    task.docs_to_read.forEach(d => html += `<li>${escHtml(d)}</li>`);
+    html += '</ul></div>';
+  }
+  if(state[id].execOpen){
+    html += `<div class="task-section"><div class="task-section-label">▶️ Prompt para o terminal Claude Code</div>
+    <div class="prompt-container">
+      <div class="prompt-code">${escHtml(task.prompt)}</div>
+      <button class="copy-btn" onclick="copyPrompt('${id}')">📋 Copiar</button>
+    </div></div>`;
+  }
+  body.innerHTML = html;
+}
+
+function copyPrompt(id){
+  const task = TASKS.find(t=>t.id===id);
+  navigator.clipboard.writeText(task.prompt).then(()=>{
+    const btn = document.querySelector(`#body-${id} .copy-btn`);
+    if(btn){btn.textContent='✓ Copiado';btn.classList.add('copied');setTimeout(()=>{btn.textContent='📋 Copiar';btn.classList.remove('copied')},2000);}
+  });
+}
+
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ── RENDER ────────────────────────────────────────────────────────
+function render(){
+  const container = document.getElementById('waves-container');
+  const nav = document.getElementById('sidebar-nav');
+  let navHTML = '';
+  let mainHTML = '';
+
+  WAVES.forEach(wv => {
+    const tasks = TASKS.filter(t=>t.w===undefined ? t.wave===wv.w : t.wave===wv.w);
+    if(!tasks.length) return;
+
+    navHTML += `<div class="nav-wave">
+      <div class="nav-wave-label"><span class="wave-num">W${wv.w}</span>${wv.title}</div>
+      ${tasks.map(t=>`<a class="nav-link" href="#wave-${wv.w}-${t.id}"><span class="task-id">${t.id}</span>${t.title.substring(0,28)}${t.title.length>28?'…':''}</a>`).join('')}
+    </div><div class="nav-divider"></div>`;
+
+    mainHTML += `<section class="wave-section" id="wave-${wv.w}">
+      <div class="wave-header">
+        <span class="wave-badge">W${wv.w}</span>
+        <span class="wave-title">${wv.title}</span>
+        <div class="wave-meta">
+          <span style="font-size:11px;color:var(--muted)">${wv.subtitle}</span>
+          <span class="${wv.type==='parallel'?'wave-parallel':'wave-seq'}">${wv.type==='parallel'?`⚡ ${wv.terminals} em paralelo`:'🔁 sequencial'}</span>
+        </div>
+      </div>
+      <div class="tasks-grid">
+        ${tasks.map(t => renderTaskCard(t)).join('')}
+      </div>
+    </section>`;
+  });
+
+  nav.innerHTML = navHTML;
+  container.innerHTML = mainHTML;
+}
+
+function renderTaskCard(task){
+  const cat = CAT[task.category] || {cls:'badge-docs',label:task.category};
+  return `<div class="task-card" id="card-${task.id}" scrollId="wave-${task.wave}-${task.id}">
+    <div class="task-header">
+      <div class="task-done-toggle" id="tog-${task.id}" onclick="toggleDone('${task.id}')" title="Marcar como concluída"></div>
+      <span class="task-id-badge" id="anchor-${task.id}">${task.id}</span>
+      <span class="task-title">${escHtml(task.title)}</span>
+      <div class="task-badges">
+        <span class="badge ${cat.cls}">${cat.label}</span>
+        <span class="badge complexity-${task.complexity}">${task.complexity}</span>
+        <span class="time-chip">${task.estimated_minutes}min</span>
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-plan" id="btn-plan-${task.id}" onclick="toggleSection('${task.id}','plan')">📋 Plan</button>
+        <button class="btn btn-exec" id="btn-exec-${task.id}" onclick="toggleSection('${task.id}','exec')">▶️ Execute</button>
+      </div>
+    </div>
+    <div class="task-body" id="body-${task.id}"></div>
+  </div>`;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+render();
+updateProgress();
+
+// Restore done state
+try{
+  const saved = JSON.parse(localStorage.getItem('mdos-executor')||'{}');
+  Object.entries(saved).forEach(([id,done])=>{
+    if(done && state[id]){
+      state[id].done = true;
+      document.getElementById('card-'+id)?.classList.add('done-card');
+      document.getElementById('tog-'+id)?.classList.add('done');
+    }
+  });
+  updateProgress();
+}catch(e){}
+</script>
+</body>
+</html>

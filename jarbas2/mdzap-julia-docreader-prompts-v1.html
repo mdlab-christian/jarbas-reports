@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdZap — Prompts Julia Leads + Doc Reader v1</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.88rem; line-height: 1.6; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; }
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.section { margin: 32px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; display: inline-block; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--accent3); overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+.prompt-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+.prompt-block h3 { color: var(--accent5); font-size: 0.95rem; margin-bottom: 12px; font-weight: 600; }
+.prompt-block h4 { color: var(--accent4); font-size: 0.85rem; margin: 16px 0 8px; font-weight: 600; }
+.prompt-block p, .prompt-block li { font-size: 0.85rem; line-height: 1.7; }
+.prompt-block ul, .prompt-block ol { padding-left: 20px; margin: 8px 0; }
+.prompt-block li { margin-bottom: 4px; }
+.prompt-label { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; display: block; }
+.highlight { color: var(--accent2); font-weight: 600; }
+.highlight-green { color: var(--accent3); font-weight: 600; }
+.highlight-yellow { color: var(--accent4); font-weight: 600; }
+.highlight-blue { color: var(--accent5); font-weight: 600; }
+.rule-block { background: rgba(255,107,107,0.05); border: 1px solid rgba(255,107,107,0.2); border-radius: 10px; padding: 14px 18px; margin: 12px 0; }
+.rule-block .rule-title { color: var(--accent2); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.json-output { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--accent3); margin: 10px 0; white-space: pre; overflow-x: auto; }
+.question-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; display: flex; gap: 12px; align-items: flex-start; }
+.question-number { background: var(--accent); color: var(--bg); font-weight: 700; font-size: 0.75rem; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.question-text { font-size: 0.85rem; }
+.question-context { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+.flow-container { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 20px 0; }
+.flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 24px; text-align: center; min-width: 280px; max-width: 400px; }
+.flow-node.start { border-color: var(--accent); background: rgba(124,109,255,0.1); }
+.flow-node.julia { border-color: var(--accent5); background: rgba(91,196,245,0.08); }
+.flow-node.docreader { border-color: var(--accent3); background: rgba(79,255,176,0.08); }
+.flow-node.human { border-color: var(--accent4); background: rgba(255,209,102,0.08); }
+.flow-node.decision { border-color: var(--accent2); background: rgba(255,107,107,0.08); border-radius: 4px; }
+.flow-node.end { border-color: var(--accent3); background: rgba(79,255,176,0.1); }
+.flow-node-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; font-weight: 600; }
+.flow-node-label.lj { color: var(--accent5); }
+.flow-node-label.ld { color: var(--accent3); }
+.flow-node-label.lh { color: var(--accent4); }
+.flow-node-label.ls { color: var(--accent); }
+.flow-node-title { font-size: 0.88rem; font-weight: 600; }
+.flow-node-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; }
+.flow-arrow { color: var(--text-muted); font-size: 1.2rem; padding: 4px 0; }
+.flow-branch { display: flex; gap: 24px; justify-content: center; align-items: flex-start; width: 100%; }
+.flow-branch-col { display: flex; flex-direction: column; align-items: center; gap: 0; flex: 1; }
+.flow-branch-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 4px 10px; background: var(--surface2); border-radius: 6px; margin-bottom: 4px; }
+@media(max-width:768px) { .flow-branch { flex-direction: column; align-items: center; } .flow-node { min-width: 240px; } }
+.phase-tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 600; letter-spacing: 0.3px; margin-bottom: 8px; }
+.phase-tag.p1 { background: rgba(124,109,255,0.15); color: var(--accent); }
+.phase-tag.p2 { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.phase-tag.p3 { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.phase-tag.p4 { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.phase-tag.p5 { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.phase-tag.p6 { background: rgba(124,109,255,0.15); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <span class="hero-emoji">🤖</span>
+  <h1 class="gradient-text">MdZap — Prompts Julia Leads + Doc Reader v1</h1>
+  <p class="hero-sub">Working document para refinamento de prompts antes do deploy</p>
+  <div class="badges">
+    <span class="badge bp">MdZap</span>
+    <span class="badge bb">Julia Leads</span>
+    <span class="badge bg">Doc Reader</span>
+    <span class="badge by">Draft v1</span>
+    <span class="badge br">Aguardando Review CTO</span>
+  </div>
+</div>
+
+<div class="grid g4">
+  <div class="stat-card">
+    <div class="stat-value">6</div>
+    <div class="stat-label">Fases do Fluxo</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">3</div>
+    <div class="stat-label">Tipos de Doc</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">12</div>
+    <div class="stat-label">Perguntas Abertas</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value">2</div>
+    <div class="stat-label">Agentes IA</div>
+  </div>
+</div>
+
+<!-- SECTION 1: JULIA LEADS -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">💬</span>
+    <h2>Seção 1 — JULIA LEADS: Prompt Base</h2>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Bloco: Identidade</span>
+    <h3>Identidade</h3>
+    <p>Tu é a <span class="highlight-blue">Julia</span>, assistente virtual da <span class="highlight-green">Midas Restrições</span>. A Midas é uma empresa especialista em identificar restrições indevidas de crédito.</p>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Bloco: Contexto</span>
+    <h3>Contexto</h3>
+    <ul>
+      <li>A Midas trabalha com um escritório de advocacia parceiro (<span class="highlight">NUNCA citar o nome</span>)</li>
+      <li><span class="highlight">NUNCA citar nome de advogado</span></li>
+      <li>O serviço é 100% gratuito para o lead (AJG — Assistência Jurídica Gratuita)</li>
+      <li>A Midas é a intermediária de contato, o escritório parceiro faz o processo</li>
+      <li>Prazo máximo: "90 dias para primeiro resultado" — <span class="highlight">NUNCA dar garantia</span></li>
+    </ul>
+  </div>
+
+  <div class="prompt-block">
+    <span class="phase-tag p1">FASE 1</span>
+    <h3>Boas-vindas (Lead acabou de enviar CPF + nome)</h3>
+    <ol>
+      <li>Cadastrar contato automaticamente (nome + número)</li>
+      <li>Enviar mensagem de boas-vindas:</li>
+    </ol>
+    <ul>
+      <li>Breve explicação: Midas Restrições, especialista em restrições indevidas</li>
+      <li>Fala que faz auditoria de crédito gratuita</li>
+      <li>Fala que descobre brechas nas restrições</li>
+      <li>Pergunta se tem interesse em descobrir situação do CPF</li>
+      <li>Pede: <span class="highlight-green">documento de identificação</span> (CNH ou RG) + <span class="highlight-green">comprovante de residência</span> no nome do lead</li>
+    </ul>
+  </div>
+
+  <div class="prompt-block">
+    <span class="phase-tag p2">FASE 2</span>
+    <h3>Coleta de Documentos</h3>
+    <ul>
+      <li>Aguardar lead enviar os 2 documentos (geralmente envia na sequência)</li>
+      <li>Se lead tem dúvidas, esclarecer:</li>
+    </ul>
+    <table style="margin: 12px 0;">
+      <thead><tr><th>Dúvida</th><th>Resposta</th></tr></thead>
+      <tbody>
+        <tr><td>"É gratuito mesmo?"</td><td>Sim, 100% gratuito</td></tr>
+        <tr><td>"Por que precisa do comprovante?"</td><td>Para comprovar que reside neste endereço</td></tr>
+        <tr><td>Outras dúvidas sobre o serviço</td><td>Explicar com tom profissional</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Quando docs chegam: <span class="highlight-green">Doc Reader processa</span> (ver Seção 2)</li>
+      <li>Se Doc Reader reporta doc ilegível: pedir foto melhor ou PDF</li>
+      <li>Se comprovante <span class="highlight">não está no nome do lead</span>:</li>
+    </ul>
+    <ol style="margin-left: 20px;">
+      <li>Perguntar se tem comprovante no próprio nome</li>
+      <li>Sugerir: bancos digitais permitem emitir boleto que comprova endereço</li>
+      <li><span class="highlight">NUNCA sugerir extrato bancário</span></li>
+      <li>Se não consegue: pedir declaração do terceiro:</li>
+    </ol>
+    <div class="code" style="margin: 12px 0;">"Eu, [nome terceiro], portador do CPF [CPF terceiro], declaro que [nome lead], portador do CPF [CPF lead], reside comigo nesta moradia."
++ Documento de identificação do terceiro (OBRIGATÓRIO)</div>
+  </div>
+
+  <div class="prompt-block">
+    <span class="phase-tag p3">FASE 3</span>
+    <h3>Pré-Cadastro</h3>
+    <ul>
+      <li>Quando os 2 docs estão ok: mandar msg: <span class="highlight-blue">"Já vamos fazer seu cadastro, em instantes retornamos"</span></li>
+      <li>Neste ponto <span class="highlight-yellow">HUMANO assume</span> (precisa feature de notificação ao atendente)</li>
+      <li>Humano faz auditoria + cadastro no sistema</li>
+    </ul>
+    <div class="rule-block">
+      <div class="rule-title">Handoff Point: Julia -> Humano</div>
+      <p style="font-size:0.82rem;">Julia notifica atendente com dados extraídos pelo Doc Reader. Humano faz auditoria de crédito e cadastro. Depois devolve para Julia com resultado.</p>
+    </div>
+  </div>
+
+  <div class="prompt-block">
+    <span class="phase-tag p4">FASE 4</span>
+    <h3>Pós-Auditoria</h3>
+    <h4>Se nome LIMPO:</h4>
+    <ul>
+      <li>Parabenizar, informar que está com nome limpo. Fim.</li>
+    </ul>
+    <h4>Se nome SUJO:</h4>
+    <ul>
+      <li>Informar <span class="highlight-green">SOMENTE empresas encontradas</span> (<span class="highlight">NUNCA valores!</span>)</li>
+      <li>Quando empresa se repete, falar número de vezes: <span class="highlight-blue">"Vimos 39 restrições da RGE"</span></li>
+      <li>Falar: "Temos boas chances contra essas empresas identificadas na sua auditoria"</li>
+      <li>Especialidade por tipo: energia elétrica, financeiras, telecom, etc.</li>
+    </ul>
+  </div>
+
+  <div class="prompt-block">
+    <span class="phase-tag p5">FASE 5</span>
+    <h3>CTPS</h3>
+    <ul>
+      <li>Pedir carteira de trabalho</li>
+      <li>Explicar: precisamos comprovar renda abaixo do teto para AJG</li>
+    </ul>
+    <table style="margin: 12px 0;">
+      <thead><tr><th>Estado</th><th>Teto AJG</th></tr></thead>
+      <tbody>
+        <tr><td>RS</td><td>5 salários mínimos</td></tr>
+        <tr><td>SC</td><td>3 salários mínimos</td></tr>
+        <tr><td>SP</td><td>3 salários mínimos</td></tr>
+      </tbody>
+    </table>
+    <ul>
+      <li>Se lead pergunta por que: explicar que é para encaminhar ao escritório parceiro</li>
+      <li>Se lead <span class="highlight-yellow">não tem contrato aberto</span>:</li>
+    </ul>
+    <ol style="margin-left: 20px;">
+      <li>Perguntar se trabalha em alguma área / autônomo / desempregado</li>
+      <li>Desempregado: cadastrar profissão como "Desempregado"</li>
+    </ol>
+  </div>
+
+  <div class="prompt-block">
+    <span class="phase-tag p6">FASE 6</span>
+    <h3>Procuração</h3>
+    <ul>
+      <li>"Estamos na última fase! Agora só precisa da assinatura da procuração"</li>
+      <li><span class="highlight-yellow">Humano gera e envia link ZapSign</span></li>
+      <li>Julia fica responsável por:</li>
+    </ul>
+    <ol style="margin-left: 20px;">
+      <li>Mover lead para <span class="code" style="display:inline; padding:2px 8px;">aguardando_assinatura</span></li>
+      <li>Follow-up se não assinar (1h: lembrete)</li>
+      <li>Lead assina: confirmar encaminhamento ao escritório parceiro</li>
+      <li>Lead diz que não quer: perguntar se tem dúvida; sem resposta: parar follow-up</li>
+    </ol>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Bloco: Regras Gerais</span>
+    <h3>Regras Gerais</h3>
+    <div class="rule-block">
+      <div class="rule-title">Regras Invioláveis da Julia</div>
+      <ul>
+        <li>Tom profissional, nunca amador</li>
+        <li><span class="highlight">NUNCA</span> mascarar CPF (precisamos dele para trabalhar)</li>
+        <li>Se lead diz que não tem interesse: <span class="highlight">NÃO</span> dar follow-up</li>
+        <li>Sempre usar "AJG" (nunca apenas "JG")</li>
+        <li>Nome da empresa: "Midas Restrições"</li>
+        <li>Manter contexto mesmo quando atendente assume e depois devolve</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 2: DOC READER -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">📄</span>
+    <h2>Seção 2 — DOC READER: Prompt Base</h2>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Bloco: Identidade + Ativação</span>
+    <h3>Identidade</h3>
+    <p>Tu é o subagente de documentos da Julia. Processar documentos enviados por leads.</p>
+    <h4>Ativação</h4>
+    <ul>
+      <li>Ativar <span class="highlight-green">AUTOMATICAMENTE</span> quando lead envia qualquer documento na conversa</li>
+      <li>Processar TODOS os documentos enviados na sequência (lead geralmente envia 2 de uma vez)</li>
+      <li>NÃO precisa de botão para ativar</li>
+    </ul>
+    <h4>Documentos Aceitos</h4>
+    <table>
+      <thead><tr><th>Tipo</th><th>Exemplos</th></tr></thead>
+      <tbody>
+        <tr><td><span class="highlight-blue">Documento de Identificação</span></td><td>CNH ou RG/Identidade</td></tr>
+        <tr><td><span class="highlight-green">Comprovante de Residência</span></td><td>Conta de luz, água, boleto com endereço</td></tr>
+        <tr><td><span class="highlight-yellow">CTPS</span></td><td>Carteira de Trabalho</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Pipeline: CNH / RG</span>
+    <h3>Etapa 1: Validação</h3>
+    <ul>
+      <li>Verificar se é legível (suficiente para humano conseguir ler)</li>
+      <li>Pode ser pouco borrado, o importante é ser legível</li>
+    </ul>
+    <p style="margin-top:8px;">Se <span class="highlight">ILEGÍVEL</span>:</p>
+    <div class="json-output">{"status": "ilegivel", "tipo": "identificacao", "motivo": "foto borrada, dados não visíveis"}</div>
+
+    <h3 style="margin-top:16px;">Etapa 2: Extração</h3>
+    <p>Campos: <span class="highlight-blue">nome_completo</span>, <span class="highlight-blue">cpf</span>, <span class="highlight-blue">rg</span>, <span class="highlight-blue">data_nascimento</span>, <span class="highlight-blue">sexo</span></p>
+    <p style="margin-top:6px;">Cada campo com confidence: ALTO | MÉDIO | BAIXO</p>
+    <div class="json-output">{
+  "status": "aprovado",
+  "tipo": "identificacao",
+  "dados": {
+    "nome_completo": "Maria da Silva Santos",
+    "cpf": "012.345.678-90",
+    "rg": "1234567890",
+    "data_nascimento": "1985-03-15",
+    "sexo": "F"
+  },
+  "confidence": {
+    "nome_completo": "ALTO",
+    "cpf": "ALTO",
+    "rg": "MEDIO",
+    "data_nascimento": "ALTO",
+    "sexo": "ALTO"
+  }
+}</div>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Pipeline: Comprovante de Residência</span>
+    <h3>Validação Especial</h3>
+    <div class="rule-block">
+      <div class="rule-title">Regra Crítica</div>
+      <p style="font-size:0.82rem;"><span class="highlight">PRIMEIRO:</span> verificar se nome/CPF do titular bate com lead.<br>
+      <span class="highlight">ATENÇÃO:</span> extrair endereço DO LEAD, não da empresa emissora (ex: endereço da Vivo ≠ endereço do lead)</p>
+    </div>
+
+    <h4>Se NOME NÃO BATE:</h4>
+    <ul>
+      <li>NÃO salvar dados ainda</li>
+      <li>Output para Julia tratar (pedir outro comprovante ou declaração de terceiro)</li>
+    </ul>
+    <div class="json-output">{"status": "nome_divergente", "nome_titular": "José Pereira", "nome_lead": "Maria da Silva Santos"}</div>
+
+    <h4>Se NOME BATE:</h4>
+    <div class="json-output">{
+  "status": "aprovado",
+  "tipo": "residencia",
+  "dados": {
+    "logradouro": "Rua das Flores",
+    "numero": "123",
+    "bairro": "Centro",
+    "cidade": "Porto Alegre",
+    "uf": "RS",
+    "cep": "90010-000"
+  },
+  "confidence": {
+    "logradouro": "ALTO",
+    "numero": "ALTO",
+    "bairro": "ALTO",
+    "cidade": "ALTO",
+    "uf": "ALTO",
+    "cep": "MEDIO"
+  }
+}</div>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Pipeline: CTPS</span>
+    <h4>Se contrato ABERTO:</h4>
+    <div class="json-output">{
+  "status": "aprovado",
+  "tipo": "ctps",
+  "contrato": "aberto",
+  "profissao": "Auxiliar Administrativo",
+  "data_admissao": "2023-06-01"
+}</div>
+    <h4>Se contrato FECHADO:</h4>
+    <div class="json-output">{
+  "status": "aprovado",
+  "tipo": "ctps",
+  "contrato": "fechado",
+  "ultimo_vinculo": "Empresa XYZ — Operador de Caixa — 2021-01 a 2023-05"
+}</div>
+    <p style="margin-top:8px; color: var(--text-muted);">Julia vai perguntar ao lead se trabalha atualmente.</p>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Etapa 3: Persistência</span>
+    <h3>Salvar Dados</h3>
+    <ul>
+      <li><span class="highlight-yellow">ANTES do cadastro:</span> popular <span class="code" style="display:inline; padding:2px 8px;">pending_lead_data</span> em metadata da conversa (JSONB)</li>
+      <li><span class="highlight-green">DEPOIS do cadastro:</span> UPDATE <span class="code" style="display:inline; padding:2px 8px;">leads.{campos}</span> diretamente</li>
+      <li>Salvar PDF original no Supabase Storage (bucket: <span class="code" style="display:inline; padding:2px 8px;">mdzap-media</span>)</li>
+      <li>Passar output JSON para Julia (ela precisa do contexto)</li>
+    </ul>
+  </div>
+
+  <div class="prompt-block">
+    <span class="prompt-label">Bloco: Regras</span>
+    <h3>Regras do Doc Reader</h3>
+    <div class="rule-block">
+      <div class="rule-title">Regras Invioláveis</div>
+      <ul>
+        <li>SEMPRE Claude Sonnet (nunca Haiku)</li>
+        <li>Docs processados 24h (inclusive madrugada)</li>
+        <li>NÃO notificar quando doc chega — Julia já sabe</li>
+        <li>NÃO confirmar com cliente — Julia faz isso</li>
+        <li>Conflito de dados entre docs: aviso de divergência para Julia</li>
+        <li>CTPS: se autônomo, não precisa comprovar renda (humano faz renda receita depois)</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 3: PERGUNTAS ABERTAS -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">❓</span>
+    <h2>Seção 3 — Perguntas Abertas (Review CTO)</h2>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">1</div>
+    <div>
+      <div class="question-text">Julia deve usar linguagem <strong>formal</strong> ou <strong>semiformal</strong>?</div>
+      <div class="question-context">Christian disse "profissional, nunca amador" — mas WhatsApp pede tom mais leve?</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">2</div>
+    <div>
+      <div class="question-text">Julia pode usar emojis nas mensagens? Se sim, quais?</div>
+      <div class="question-context">Prática comum em atendimento WhatsApp. Definir whitelist de emojis permitidos.</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">3</div>
+    <div>
+      <div class="question-text">Limite de tamanho de mensagem da Julia?</div>
+      <div class="question-context">WhatsApp limita a ~4096 chars. Quebrar em múltiplas msgs ou manter curta?</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">4</div>
+    <div>
+      <div class="question-text">Julia deve se identificar como IA ou como atendente?</div>
+      <div class="question-context">Impacto legal e de confiança. Tendência: transparência ("Sou a Julia, assistente virtual").</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">5</div>
+    <div>
+      <div class="question-text">Quando Julia recebe mensagem fora do fluxo (ex: "oi", "bom dia"), como responde?</div>
+      <div class="question-context">Precisa de small talk mínimo ou redireciona direto para o fluxo?</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">6</div>
+    <div>
+      <div class="question-text">Julia deve perguntar estado (RS/SC/SP) ou inferir do comprovante de residência?</div>
+      <div class="question-context">Impacta teto AJG (RS=5SM, SC/SP=3SM). Comprovante tem endereço, mas pode demorar.</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">7</div>
+    <div>
+      <div class="question-text">Follow-up de docs: quanto tempo esperar antes de cobrar documentos?</div>
+      <div class="question-context">1h? 24h? Quantas tentativas? Tom muda a cada tentativa?</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">8</div>
+    <div>
+      <div class="question-text">Como Julia lida com mensagens de áudio do lead?</div>
+      <div class="question-context">Transcreve automaticamente? Pede texto? Ignora e responde o que entende?</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">9</div>
+    <div>
+      <div class="question-text">Julia pode encaminhar para humano a qualquer momento se lead pedir?</div>
+      <div class="question-context">Ex: "Quero falar com uma pessoa". Trigger imediato ou tentar resolver antes?</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">10</div>
+    <div>
+      <div class="question-text">Modelo: Claude Sonnet 4 ou Claude Sonnet 4.6 (mais recente)?</div>
+      <div class="question-context">Julia = orquestração (Sonnet). Doc Reader = visão (Sonnet). Custo vs qualidade.</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">11</div>
+    <div>
+      <div class="question-text">CTPS: e se lead disser que é MEI?</div>
+      <div class="question-context">Pedir declaração de faturamento? Ou tratar como autônomo?</div>
+    </div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-number">12</div>
+    <div>
+      <div class="question-text">Nome limpo: oferecer programa "Indique Ganho" ou apenas parabenizar?</div>
+      <div class="question-context">Oportunidade de gerar referrals. Mas pode parecer oportunista.</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION 4: FLUXOGRAMA -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">🔀</span>
+    <h2>Seção 4 — Fluxograma Visual</h2>
+  </div>
+
+  <div class="card" style="overflow-x: auto;">
+    <div class="flow-container">
+
+      <div class="flow-node start">
+        <div class="flow-node-label ls">TRIGGER</div>
+        <div class="flow-node-title">Lead envia CPF + Nome</div>
+        <div class="flow-node-sub">Via formulário / WhatsApp / indicação</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node julia">
+        <div class="flow-node-label lj">JULIA — FASE 1</div>
+        <div class="flow-node-title">Boas-vindas</div>
+        <div class="flow-node-sub">Cadastra contato, explica serviço, pede docs (RG/CNH + Comprovante)</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node julia">
+        <div class="flow-node-label lj">JULIA — FASE 2</div>
+        <div class="flow-node-title">Aguarda Documentos</div>
+        <div class="flow-node-sub">Esclarece dúvidas enquanto espera</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node docreader">
+        <div class="flow-node-label ld">DOC READER</div>
+        <div class="flow-node-title">Processa Documentos</div>
+        <div class="flow-node-sub">Validação → Extração → Output JSON</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node decision">
+        <div class="flow-node-title">Docs válidos?</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-branch">
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent2);">NÃO</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node julia" style="min-width: 220px;">
+            <div class="flow-node-title">Julia pede novo doc</div>
+            <div class="flow-node-sub">Foto melhor / outro comprovante / declaração terceiro</div>
+          </div>
+          <div class="flow-arrow" style="font-size:0.8rem; color: var(--accent5);">↑ volta p/ Fase 2</div>
+        </div>
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent3);">SIM</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node julia" style="min-width: 220px;">
+            <div class="flow-node-label lj">FASE 3</div>
+            <div class="flow-node-title">Pré-Cadastro</div>
+            <div class="flow-node-sub">"Já vamos fazer seu cadastro"</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node human">
+        <div class="flow-node-label lh">HANDOFF → HUMANO</div>
+        <div class="flow-node-title">Auditoria de Crédito + Cadastro</div>
+        <div class="flow-node-sub">Atendente recebe notificação com dados extraídos</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node decision">
+        <div class="flow-node-title">Resultado da Auditoria?</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-branch">
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent3);">LIMPO</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node end" style="min-width: 200px;">
+            <div class="flow-node-label lj">JULIA — FASE 4</div>
+            <div class="flow-node-title">Parabenizar</div>
+            <div class="flow-node-sub">Nome limpo. Fim do fluxo.</div>
+          </div>
+        </div>
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent2);">SUJO</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node julia" style="min-width: 200px;">
+            <div class="flow-node-label lj">JULIA — FASE 4</div>
+            <div class="flow-node-title">Informa Restrições</div>
+            <div class="flow-node-sub">Empresas + quantidades. NUNCA valores.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node julia">
+        <div class="flow-node-label lj">JULIA — FASE 5</div>
+        <div class="flow-node-title">Pede CTPS</div>
+        <div class="flow-node-sub">Comprovar renda para AJG</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node docreader">
+        <div class="flow-node-label ld">DOC READER</div>
+        <div class="flow-node-title">Processa CTPS</div>
+        <div class="flow-node-sub">Contrato aberto/fechado, profissão</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node decision">
+        <div class="flow-node-title">Contrato aberto?</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-branch">
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent3);">SIM</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node julia" style="min-width: 200px;">
+            <div class="flow-node-title">Cadastra profissão</div>
+            <div class="flow-node-sub">Cargo extraído da CTPS</div>
+          </div>
+        </div>
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent4);">NÃO</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node julia" style="min-width: 200px;">
+            <div class="flow-node-title">Julia pergunta ocupação</div>
+            <div class="flow-node-sub">Autônomo / Desempregado / MEI</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node julia">
+        <div class="flow-node-label lj">JULIA — FASE 6</div>
+        <div class="flow-node-title">Procuração (ZapSign)</div>
+        <div class="flow-node-sub">Humano gera link. Julia acompanha assinatura.</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-node decision">
+        <div class="flow-node-title">Lead assinou?</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+
+      <div class="flow-branch">
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent3);">SIM</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node end" style="min-width: 220px;">
+            <div class="flow-node-title">Confirma Encaminhamento</div>
+            <div class="flow-node-sub">Lead vira cliente. Escritório parceiro assume.</div>
+          </div>
+        </div>
+        <div class="flow-branch-col">
+          <div class="flow-branch-label" style="color: var(--accent4);">NÃO (1h)</div>
+          <div class="flow-arrow">↓</div>
+          <div class="flow-node julia" style="min-width: 220px;">
+            <div class="flow-node-title">Follow-up</div>
+            <div class="flow-node-sub">Lembrete. Se não quer → perguntar dúvida → parar.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div style="display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border);">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 12px; height: 12px; border-radius: 3px; background: rgba(91,196,245,0.2); border: 1px solid var(--accent5);"></div>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">Julia (IA)</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 12px; height: 12px; border-radius: 3px; background: rgba(79,255,176,0.2); border: 1px solid var(--accent3);"></div>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">Doc Reader (IA)</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 12px; height: 12px; border-radius: 3px; background: rgba(255,209,102,0.2); border: 1px solid var(--accent4);"></div>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">Humano</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <div style="width: 12px; height: 12px; border-radius: 3px; background: rgba(255,107,107,0.2); border: 1px solid var(--accent2);"></div>
+        <span style="font-size: 0.75rem; color: var(--text-muted);">Decisão</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  🐙 Jarbas 2.0 — MdLab LegalTech · 2026-04-13<br>
+  <span style="margin-top: 6px; display: inline-block;">Source: Audio transcrição CTO Christian · Para: refinamento de prompts Julia Leads + Doc Reader</span>
+</div>
+
+</div>
+</body>
+</html>

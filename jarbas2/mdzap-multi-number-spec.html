@@ -1,0 +1,825 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdZap — Arquitetura Multi-Numero</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+  --green: #20c997;
+  --orange: #ff8c42;
+  --purple: #b06aff;
+  --blue: #5bc4f5;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.88rem; line-height: 1.6; padding: 24px; }
+.container { max-width: 1200px; margin: 0 auto; }
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } .arch-compare { grid-template-columns: 1fr !important; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.section { margin: 40px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.sp-major { background: rgba(255,107,107,0.15); color: var(--accent2); border: 1px solid rgba(255,107,107,0.3); }
+.sp-minor { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--accent3); overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+.arch-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; position: relative; overflow: hidden; }
+.arch-box::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.arch-atual::before { background: linear-gradient(90deg, var(--accent2), #ff8c42); }
+.arch-prop::before { background: linear-gradient(90deg, var(--accent), var(--accent3)); }
+.arch-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 16px; }
+.arch-atual .arch-label { color: var(--accent2); }
+.arch-prop .arch-label { color: var(--accent3); }
+.arch-route { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; display: flex; align-items: flex-start; gap: 10px; }
+.arch-route-path { color: var(--accent4); }
+.arch-route-desc { color: var(--text-muted); font-size: 0.7rem; }
+.arch-note { font-size: 0.78rem; color: var(--text-muted); margin-top: 12px; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 2px solid var(--border); }
+.arch-atual .arch-note { border-left-color: var(--accent2); }
+.arch-prop .arch-note { border-left-color: var(--accent3); }
+.vs-badge { display: flex; align-items: center; justify-content: center; padding-top: 100px; }
+.vs-circle { width: 44px; height: 44px; border-radius: 50%; background: var(--surface2); border: 2px solid var(--border); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; color: var(--text-muted); }
+.diff-file { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; background: rgba(0,0,0,0.3); border-radius: 6px; padding: 6px 10px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; border-left: 2px solid; }
+.diff-file-red { border-left-color: var(--accent2); }
+.diff-file-green { border-left-color: var(--accent3); }
+.agent-card { border-radius: 16px; padding: 20px; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.agent-card:hover { transform: translateY(-2px); }
+.agent-card-green { background: linear-gradient(135deg, rgba(32,201,151,0.12), rgba(32,201,151,0.04)); border: 1px solid rgba(32,201,151,0.25); }
+.agent-card-green:hover { box-shadow: 0 8px 32px rgba(32,201,151,0.12); }
+.agent-card-orange { background: linear-gradient(135deg, rgba(255,140,66,0.12), rgba(255,140,66,0.04)); border: 1px solid rgba(255,140,66,0.25); }
+.agent-card-orange:hover { box-shadow: 0 8px 32px rgba(255,140,66,0.12); }
+.agent-card-purple { background: linear-gradient(135deg, rgba(176,106,255,0.12), rgba(176,106,255,0.04)); border: 1px solid rgba(176,106,255,0.25); }
+.agent-card-purple:hover { box-shadow: 0 8px 32px rgba(176,106,255,0.12); }
+.agent-card-blue { background: linear-gradient(135deg, rgba(91,196,245,0.12), rgba(91,196,245,0.04)); border: 1px solid rgba(91,196,245,0.25); }
+.agent-card-blue:hover { box-shadow: 0 8px 32px rgba(91,196,245,0.12); }
+.agent-card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 12px; }
+.agent-icon-wrap { width: 46px; height: 46px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+.agent-icon-green { background: rgba(32,201,151,0.15); }
+.agent-icon-orange { background: rgba(255,140,66,0.15); }
+.agent-icon-purple { background: rgba(176,106,255,0.15); }
+.agent-icon-blue { background: rgba(91,196,245,0.15); }
+.agent-unread { min-width: 22px; height: 22px; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; padding: 0 6px; }
+.unread-green { background: var(--green); color: #000; }
+.unread-orange { background: var(--orange); color: #000; }
+.unread-purple { background: var(--purple); color: #fff; }
+.unread-blue { background: var(--blue); color: #000; }
+.agent-name { font-size: 1rem; font-weight: 600; margin-bottom: 2px; }
+.agent-name-green { color: var(--green); }
+.agent-name-orange { color: var(--orange); }
+.agent-name-purple { color: var(--purple); }
+.agent-name-blue { color: var(--blue); }
+.agent-subtitle { font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.agent-desc { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5; }
+.agent-footer { display: flex; align-items: center; justify-content: space-between; }
+.agent-status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-on { background: var(--accent3); box-shadow: 0 0 6px rgba(79,255,176,0.5); }
+.dot-off { background: var(--accent2); }
+.status-on { color: var(--accent3); }
+.status-off { color: var(--accent2); }
+.agent-route { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); }
+.hub-mockup { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.hub-topbar { background: var(--surface2); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); flex-wrap: wrap; gap: 10px; }
+.hub-topbar-left { display: flex; align-items: center; gap: 10px; }
+.hub-topbar-title { font-size: 1rem; font-weight: 600; }
+.hub-topbar-sub { font-size: 0.78rem; color: var(--text-muted); }
+.hub-topbar-actions { display: flex; gap: 8px; }
+.btn-mock { padding: 6px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 500; border: none; cursor: pointer; }
+.btn-primary-mock { background: rgba(124,109,255,0.2); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.btn-outline-mock { background: transparent; color: var(--text-muted); border: 1px solid var(--border); }
+.hub-content { padding: 20px; }
+.hub-search { background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; display: flex; align-items: center; gap: 8px; margin-bottom: 16px; color: var(--text-muted); font-size: 0.82rem; }
+.chat-mockup { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.chat-header { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+.chat-header-left { display: flex; align-items: center; gap: 10px; }
+.chat-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 700; flex-shrink: 0; }
+.avatar-green { background: rgba(32,201,151,0.2); color: var(--green); }
+.avatar-orange { background: rgba(255,140,66,0.2); color: var(--orange); }
+.avatar-purple { background: rgba(176,106,255,0.2); color: var(--purple); }
+.avatar-blue { background: rgba(91,196,245,0.2); color: var(--blue); }
+.chat-agent-name { font-size: 0.85rem; font-weight: 600; }
+.chat-agent-num { font-family: 'JetBrains Mono', monospace; font-size: 0.68rem; color: var(--text-muted); }
+.chat-status-badge { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; padding: 3px 8px; border-radius: 10px; }
+.csb-green { background: rgba(32,201,151,0.1); color: var(--green); }
+.csb-orange { background: rgba(255,140,66,0.1); color: var(--orange); }
+.csb-purple { background: rgba(176,106,255,0.1); color: var(--purple); }
+.csb-blue { background: rgba(91,196,245,0.1); color: var(--blue); }
+.chat-layout { display: grid; grid-template-columns: 190px 1fr; height: 255px; }
+.chat-sidebar { border-right: 1px solid var(--border); overflow: hidden; }
+.chat-conv-item { padding: 8px 10px; border-bottom: 1px solid rgba(42,47,74,0.4); display: flex; align-items: flex-start; gap: 7px; cursor: pointer; }
+.chat-conv-item.active { background: rgba(124,109,255,0.07); }
+.conv-avatar { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.62rem; font-weight: 600; flex-shrink: 0; }
+.conv-avatar-green { background: rgba(32,201,151,0.15); color: var(--green); }
+.conv-avatar-orange { background: rgba(255,140,66,0.15); color: var(--orange); }
+.conv-avatar-purple { background: rgba(176,106,255,0.15); color: var(--purple); }
+.conv-avatar-blue { background: rgba(91,196,245,0.15); color: var(--blue); }
+.conv-info { flex: 1; min-width: 0; }
+.conv-name { font-size: 0.73rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-preview { font-size: 0.66rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.conv-time { font-size: 0.6rem; color: var(--text-muted); white-space: nowrap; }
+.chat-main { display: flex; flex-direction: column; }
+.chat-messages { flex: 1; padding: 10px; overflow: hidden; display: flex; flex-direction: column; gap: 6px; }
+.msg { max-width: 82%; padding: 6px 10px; border-radius: 9px; font-size: 0.74rem; line-height: 1.4; }
+.msg-in { background: var(--surface2); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 3px; }
+.msg-out { align-self: flex-end; border-bottom-right-radius: 3px; }
+.msg-out-green { background: rgba(32,201,151,0.13); border: 1px solid rgba(32,201,151,0.2); }
+.msg-out-orange { background: rgba(255,140,66,0.11); border: 1px solid rgba(255,140,66,0.2); }
+.msg-out-purple { background: rgba(176,106,255,0.11); border: 1px solid rgba(176,106,255,0.2); }
+.msg-out-blue { background: rgba(91,196,245,0.11); border: 1px solid rgba(91,196,245,0.2); }
+.chat-input-area { padding: 8px 10px; border-top: 1px solid var(--border); display: flex; gap: 6px; align-items: center; }
+.chat-input-mock { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px; font-size: 0.73rem; color: var(--text-muted); }
+.chat-send-btn { width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; cursor: pointer; border: none; flex-shrink: 0; }
+.send-green { background: rgba(32,201,151,0.2); color: var(--green); }
+.send-orange { background: rgba(255,140,66,0.2); color: var(--orange); }
+.send-purple { background: rgba(176,106,255,0.2); color: var(--purple); }
+.send-blue { background: rgba(91,196,245,0.2); color: var(--blue); }
+.slug-pill { font-family: 'JetBrains Mono', monospace; font-size: 0.67rem; padding: 2px 7px; border-radius: 5px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); color: var(--text-muted); }
+.flow-diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; }
+.flow-row { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.flow-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; text-align: center; min-width: 100px; }
+.flow-node-title { font-size: 0.73rem; font-weight: 600; margin-bottom: 2px; }
+.flow-node-sub { font-size: 0.63rem; color: var(--text-muted); }
+.flow-arrow { color: var(--text-muted); font-size: 0.85rem; }
+.flow-section-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; margin-top: 20px; }
+.flow-section-label:first-child { margin-top: 0; }
+.flow-node-accent { border-color: rgba(124,109,255,0.4); }
+.flow-node-accent .flow-node-title { color: var(--accent); }
+.flow-node-green { border-color: rgba(32,201,151,0.3); }
+.flow-node-green .flow-node-title { color: var(--green); }
+.flow-node-blue { border-color: rgba(91,196,245,0.3); }
+.flow-node-blue .flow-node-title { color: var(--blue); }
+.flow-node-orange { border-color: rgba(255,140,66,0.3); }
+.flow-node-orange .flow-node-title { color: var(--orange); }
+.flow-divider { width: 100%; height: 1px; background: var(--border); margin: 16px 0; }
+.flow-note { font-size: 0.75rem; color: var(--text-muted); padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border-left: 2px solid var(--accent); margin-top: 12px; }
+.checklist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+@media(max-width:768px) { .checklist-grid { grid-template-columns: 1fr; } }
+.checklist-box { background: var(--surface); border-radius: 14px; overflow: hidden; border: 1px solid var(--border); }
+.checklist-header { padding: 14px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+.checklist-header-before { background: rgba(255,107,107,0.06); border-top: 3px solid var(--accent2); }
+.checklist-header-after { background: rgba(79,255,176,0.04); border-top: 3px solid var(--accent3); }
+.checklist-header-label { font-size: 0.85rem; font-weight: 600; }
+.checklist-header-sub { font-size: 0.72rem; color: var(--text-muted); }
+.checklist-body { padding: 16px 18px; }
+.check-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(42,47,74,0.5); }
+.check-item:last-child { border-bottom: none; }
+.check-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+.num-red { background: rgba(255,107,107,0.15); color: var(--accent2); border: 1px solid rgba(255,107,107,0.3); }
+.num-green { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.check-text { font-size: 0.81rem; }
+.check-note { font-size: 0.71rem; color: var(--text-muted); margin-top: 2px; }
+.check-badge { display: inline-block; font-size: 0.63rem; padding: 1px 5px; border-radius: 4px; margin-left: 5px; font-weight: 600; }
+.cb-code { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.cb-zero { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.comp-tag { display: inline-flex; align-items: center; font-size: 0.71rem; padding: 2px 6px; border-radius: 4px; background: var(--surface3); border: 1px solid var(--border); font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <span class="hero-emoji">&#128172;</span>
+    <h1 class="gradient-text">MdZap &#8212; Arquitetura Multi-Numero</h1>
+    <p class="hero-sub">Spec visual para revisao do Christian &#8212; Hub dinamico + rota parametrizada /mdzap/:agentSlug</p>
+    <div class="badges">
+      <span class="badge bp">Spec Visual</span>
+      <span class="badge bb">WhatsApp Multi-Numero</span>
+      <span class="badge by">Revisao Necessaria</span>
+      <span class="badge bg">4 Agentes</span>
+    </div>
+  </div>
+
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value">2</div>
+      <div class="stat-label">Numeros Hoje</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent3);">4+</div>
+      <div class="stat-label">Numeros Proposta</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent2);">6</div>
+      <div class="stat-label">Passos Add Numero (atual)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent3);">2</div>
+      <div class="stat-label">Passos Add Numero (proposta)</div>
+    </div>
+  </div>
+
+  <!-- Secao 1 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#127959;</span>
+      <h2>Secao 1 &#8212; Arquitetura Atual vs Proposta</h2>
+    </div>
+    <div class="arch-compare" style="display:grid; grid-template-columns: 1fr 52px 1fr; gap: 16px; align-items: start;">
+      <div class="arch-box arch-atual">
+        <div class="arch-label">Atual &#8212; Rotas Hardcoded</div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Rotas em App.tsx</div>
+          <div class="arch-route">
+            <span>&#128308;</span>
+            <div><div class="arch-route-path">/mdzap/leads</div><div class="arch-route-desc">src/pages/mdzap/leads/index.tsx</div></div>
+          </div>
+          <div class="arch-route">
+            <span>&#128309;</span>
+            <div><div class="arch-route-path">/mdzap/acordos-cp</div><div class="arch-route-desc">src/pages/mdzap/acordos-cp/index.tsx</div></div>
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">1 arquivo por agente</div>
+          <div class="diff-file diff-file-red"><span style="color:var(--text);">mdzap/leads/index.tsx</span><span style="font-size:0.68rem; color:var(--text-muted);">245 linhas</span></div>
+          <div class="diff-file diff-file-red"><span style="color:var(--text);">mdzap/acordos-cp/index.tsx</span><span style="font-size:0.68rem; color:var(--text-muted);">238 linhas</span></div>
+          <div class="diff-file" style="border-left:2px dashed var(--text-muted); opacity:0.4;"><span style="color:var(--text);">mdzap/novo-agente/index.tsx</span><span style="font-size:0.68rem; color:var(--text-muted);">+1 por numero</span></div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Hub &#8212; Cards Fixos</div>
+          <div class="code">// hub.tsx
+const AGENTES = [
+  { slug: 'leads', nome: 'Julia Leads' },
+  { slug: 'acordos-cp', nome: 'Julia CP' },
+  // novo? editar aqui manualmente
+]</div>
+        </div>
+        <div class="arch-note">&#9888;&#65039; Cada novo numero = novo arquivo + nova rota + novo card. Requer deploy completo.</div>
+      </div>
+
+      <div class="vs-badge"><div class="vs-circle">VS</div></div>
+
+      <div class="arch-box arch-prop">
+        <div class="arch-label">Proposta &#8212; Rota Parametrizada</div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Rota unica em App.tsx</div>
+          <div class="arch-route">
+            <span>&#9989;</span>
+            <div><div class="arch-route-path">/mdzap/:agentSlug</div><div class="arch-route-desc">src/pages/mdzap/[slug]/index.tsx</div></div>
+          </div>
+          <div class="arch-route" style="opacity:0.5;">
+            <span>&#128256;</span>
+            <div><div class="arch-route-path">/mdzap (hub)</div><div class="arch-route-desc">Lista dinamica do banco</div></div>
+          </div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">1 arquivo universal</div>
+          <div class="diff-file diff-file-green"><span style="color:var(--text);">mdzap/[slug]/index.tsx</span><span style="font-size:0.68rem; color:var(--text-muted);">1 arquivo</span></div>
+          <div class="diff-file diff-file-green"><span style="color:var(--text);">hooks/useMdzapAgent.ts</span><span style="font-size:0.68rem; color:var(--text-muted);">carrega por slug</span></div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:0.7rem; color:var(--text-muted); margin-bottom:6px; text-transform:uppercase; letter-spacing:0.5px;">Hub &#8212; Cards Dinamicos</div>
+          <div class="code">// hub.tsx
+const { data: agentes } = useQuery(
+  supabase
+    .from('mdzap_ai_modules')
+    .select('*, whatsapp_numeros(*)')
+    .eq('organizacao_id', orgId)
+    .eq('ativo', true)
+)</div>
+        </div>
+        <div class="arch-note">&#9989; Novo numero = 2 INSERTs no banco. Hub e rota sao automaticos. Zero deploy.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secao 2: Hub -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128194;</span>
+      <h2>Secao 2 &#8212; Hub do MdZap &#8212; Como ficaria</h2>
+    </div>
+    <div class="hub-mockup">
+      <div class="hub-topbar">
+        <div class="hub-topbar-left">
+          <span style="font-size:1.4rem;">&#128172;</span>
+          <div>
+            <div class="hub-topbar-title">MdZap &#8212; Agentes WhatsApp</div>
+            <div class="hub-topbar-sub">4 agentes ativos &middot; 3 conectados</div>
+          </div>
+        </div>
+        <div class="hub-topbar-actions">
+          <button class="btn-mock btn-outline-mock">Configuracoes</button>
+          <button class="btn-mock btn-primary-mock">+ Novo Agente</button>
+        </div>
+      </div>
+      <div class="hub-content">
+        <div class="hub-search">&#128269; Buscar agente ou numero...</div>
+        <div class="grid g4">
+          <div class="agent-card agent-card-green">
+            <div class="agent-card-header">
+              <div class="agent-icon-wrap agent-icon-green">&#127919;</div>
+              <div class="agent-unread unread-green">7</div>
+            </div>
+            <div class="agent-name agent-name-green">Julia Leads</div>
+            <div class="agent-subtitle">SDR Comercial</div>
+            <div class="agent-desc">Qualificacao automatica de leads via WhatsApp. Coleta dados e agenda consulta.</div>
+            <div class="agent-footer">
+              <div class="agent-status"><div class="status-dot dot-on"></div><span class="status-on">Conectado</span></div>
+              <div class="agent-route">/sdr_leads</div>
+            </div>
+          </div>
+          <div class="agent-card agent-card-orange">
+            <div class="agent-card-header">
+              <div class="agent-icon-wrap agent-icon-orange">&#9878;&#65039;</div>
+              <div class="agent-unread unread-orange">3</div>
+            </div>
+            <div class="agent-name agent-name-orange">Julia Acordos CP</div>
+            <div class="agent-subtitle">SDR Juridico</div>
+            <div class="agent-desc">Negociacao com partes contrarias. Proposta e contraproposta automatizadas.</div>
+            <div class="agent-footer">
+              <div class="agent-status"><div class="status-dot dot-on"></div><span class="status-on">Conectado</span></div>
+              <div class="agent-route">/sdr_acordos</div>
+            </div>
+          </div>
+          <div class="agent-card agent-card-purple">
+            <div class="agent-card-header">
+              <div class="agent-icon-wrap agent-icon-purple">&#128196;</div>
+              <div class="agent-unread unread-purple">12</div>
+            </div>
+            <div class="agent-name agent-name-purple">Julia Docs</div>
+            <div class="agent-subtitle">SDR Juridico</div>
+            <div class="agent-desc">Cobranca inteligente de documentos pendentes. Segue checklist por tipo de acao.</div>
+            <div class="agent-footer">
+              <div class="agent-status"><div class="status-dot dot-on"></div><span class="status-on">Conectado</span></div>
+              <div class="agent-route">/sdr_docs</div>
+            </div>
+          </div>
+          <div class="agent-card agent-card-blue">
+            <div class="agent-card-header">
+              <div class="agent-icon-wrap agent-icon-blue">&#9997;&#65039;</div>
+              <div style="width:22px;height:22px;border-radius:11px;background:rgba(255,107,107,0.15);display:flex;align-items:center;justify-content:center;border:1px solid rgba(255,107,107,0.3);font-size:0.7rem;color:var(--accent2);font-weight:700;">!</div>
+            </div>
+            <div class="agent-name agent-name-blue">Julia Acordos HM</div>
+            <div class="agent-subtitle">SDR Juridico</div>
+            <div class="agent-desc">Homologacao de acordos com clientes. Assinatura via ZapSign integrada.</div>
+            <div class="agent-footer">
+              <div class="agent-status"><div class="status-dot dot-off"></div><span class="status-off">Desconectado</span></div>
+              <div class="agent-route">/sdr_acordos_hm</div>
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:14px; text-align:center; font-size:0.75rem; color:var(--text-muted);">
+          Carregado de <span class="comp-tag">mdzap_ai_modules</span> + <span class="comp-tag">whatsapp_numeros</span> &#8212; dinamico, sem hardcode
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secao 3: Chat Mockups -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128172;</span>
+      <h2>Secao 3 &#8212; Tela de Chat por Agente &#8212; Mesma Pagina, Slug Diferente</h2>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:20px;font-size:0.82rem;color:var(--text-muted);">
+      &#9989; Os 4 mockups abaixo representam a <strong style="color:var(--text);">mesma pagina</strong>
+      <span class="comp-tag">src/pages/mdzap/[slug]/index.tsx</span> &#8212; so muda o
+      <span class="comp-tag" style="color:var(--accent4);">agentSlug</span> da URL e os dados carregados do banco.
+    </div>
+    <div class="grid g2">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div class="agent-name agent-name-green" style="font-size:0.85rem;">Julia Leads</div>
+          <span class="slug-pill">/mdzap/sdr_leads</span>
+        </div>
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <div class="chat-avatar avatar-green">JL</div>
+              <div><div class="chat-agent-name" style="color:var(--green);">Julia Leads &#8212; SDR Comercial</div><div class="chat-agent-num">+55 51 9 8855-1234 &middot; Midas Atendimento</div></div>
+            </div>
+            <div class="chat-status-badge csb-green"><div class="status-dot dot-on"></div> Conectado</div>
+          </div>
+          <div class="chat-layout">
+            <div class="chat-sidebar">
+              <div style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.67rem;color:var(--text-muted);">&#128269; Buscar...</div>
+              <div class="chat-conv-item active"><div class="conv-avatar conv-avatar-green">LC</div><div class="conv-info"><div class="conv-name">Lucas Costa</div><div class="conv-preview">Tenho interesse...</div></div><div class="conv-time">agora</div></div>
+              <div class="chat-conv-item"><div class="conv-avatar conv-avatar-green">AM</div><div class="conv-info"><div class="conv-name">Ana Martins</div><div class="conv-preview">Qual o proximo passo?</div></div><div class="conv-time">14:22</div></div>
+              <div class="chat-conv-item"><div class="conv-avatar conv-avatar-green">RF</div><div class="conv-info"><div class="conv-name">Ricardo F.</div><div class="conv-preview">Obrigado!</div></div><div class="conv-time">13:10</div></div>
+            </div>
+            <div class="chat-main">
+              <div class="chat-messages">
+                <div class="msg msg-in">Ola! Vi sobre negativacao indevida. Posso ajudar?</div>
+                <div class="msg msg-out msg-out-green">Sim, tenho nome sujo ha 2 anos, banco X</div>
+                <div class="msg msg-in">Entendido. Vou qualificar seu caso. Qual banco?</div>
+                <div class="msg msg-out msg-out-green">Banco Bradesco, limite de R$8.000</div>
+              </div>
+              <div class="chat-input-area"><div class="chat-input-mock">Digitar mensagem...</div><button class="chat-send-btn send-green">&#10148;</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div class="agent-name agent-name-orange" style="font-size:0.85rem;">Julia Acordos CP</div>
+          <span class="slug-pill">/mdzap/sdr_acordos</span>
+        </div>
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <div class="chat-avatar avatar-orange">AC</div>
+              <div><div class="chat-agent-name" style="color:var(--orange);">Julia Acordos CP &#8212; SDR Juridico</div><div class="chat-agent-num">+55 51 9 9988-5566 &middot; Christian Paz Adv.</div></div>
+            </div>
+            <div class="chat-status-badge csb-orange"><div class="status-dot dot-on"></div> Conectado</div>
+          </div>
+          <div class="chat-layout">
+            <div class="chat-sidebar">
+              <div style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.67rem;color:var(--text-muted);">&#128269; Buscar...</div>
+              <div class="chat-conv-item active"><div class="conv-avatar conv-avatar-orange">BS</div><div class="conv-info"><div class="conv-name">Banco Santander</div><div class="conv-preview">Contraproposta enviada</div></div><div class="conv-time">agora</div></div>
+              <div class="chat-conv-item"><div class="conv-avatar conv-avatar-orange">NF</div><div class="conv-info"><div class="conv-name">Nubank Fintech</div><div class="conv-preview">Aguardando aprovacao</div></div><div class="conv-time">11:45</div></div>
+              <div class="chat-conv-item"><div class="conv-avatar conv-avatar-orange">SE</div><div class="conv-info"><div class="conv-name">Serasa Experian</div><div class="conv-preview">Acordo fechado</div></div><div class="conv-time">Ontem</div></div>
+            </div>
+            <div class="chat-main">
+              <div class="chat-messages">
+                <div class="msg msg-in">Proposta recebida: R$1.200 em 3x</div>
+                <div class="msg msg-out msg-out-orange">Contraproposta: R$800 em 2x. Prazo: 48h.</div>
+                <div class="msg msg-in">Precisamos consultar nosso juridico interno</div>
+                <div class="msg msg-out msg-out-orange">Confirmado. Aguardamos retorno ate sexta.</div>
+              </div>
+              <div class="chat-input-area"><div class="chat-input-mock">Digitar mensagem...</div><button class="chat-send-btn send-orange">&#10148;</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div class="agent-name agent-name-purple" style="font-size:0.85rem;">Julia Docs</div>
+          <span class="slug-pill">/mdzap/sdr_docs</span>
+        </div>
+        <div class="chat-mockup">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <div class="chat-avatar avatar-purple">JD</div>
+              <div><div class="chat-agent-name" style="color:var(--purple);">Julia Docs &#8212; SDR Juridico</div><div class="chat-agent-num">+55 51 9 7766-3344 &middot; MdLab Documentos</div></div>
+            </div>
+            <div class="chat-status-badge csb-purple"><div class="status-dot dot-on"></div> Conectado</div>
+          </div>
+          <div class="chat-layout">
+            <div class="chat-sidebar">
+              <div style="padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.67rem;color:var(--text-muted);">&#128269; Buscar...</div>
+              <div class="chat-conv-item active"><div class="conv-avatar conv-avatar-purple">MO</div><div class="conv-info"><div class="conv-name">Maria Oliveira</div><div class="conv-preview">Documentos enviados!</div></div><div class="conv-time">agora</div></div>
+              <div class="chat-conv-item"><div class="conv-avatar conv-avatar-purple">JS</div><div class="conv-info"><div class="conv-name">Joao Silva</div><div class="conv-preview">Falta o FGTS</div></div><div class="conv-time">10:30</div></div>
+              <div class="chat-conv-item"><div class="conv-avatar conv-avatar-purple">CP</div><div class="conv-info"><div class="conv-name">Carla Pereira</div><div class="conv-preview">Ok, vou enviar agora</div></div><div class="conv-time">09:15</div></div>
+            </div>
+            <div class="chat-main">
+              <div class="chat-messages">
+                <div class="msg msg-in">Precisamos do extrato bancario dos ultimos 3 meses.</div>
+                <div class="msg msg-out msg-out-purple">Pode enviar aqui no WhatsApp?</div>
+                <div class="msg msg-in">Sim, envie como PDF ou foto legivel.</div>
+                <div class="msg msg-out msg-out-purple">[Arquivo: extrato_jan_mar.pdf]</div>
+              </div>
+              <div class="chat-input-area"><div class="chat-input-mock">Digitar mensagem...</div><button class="chat-send-btn send-purple">&#10148;</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <div class="agent-name agent-name-blue" style="font-size:0.85rem;">Julia Acordos HM</div>
+          <span class="slug-pill">/mdzap/sdr_acordos_hm</span>
+        </div>
+        <div class="chat-mockup" style="opacity:0.72;">
+          <div class="chat-header">
+            <div class="chat-header-left">
+              <div class="chat-avatar avatar-blue" style="opacity:0.6;">HM</div>
+              <div><div class="chat-agent-name" style="color:var(--blue);">Julia Acordos HM &#8212; SDR Juridico</div><div class="chat-agent-num">+55 51 9 5544-7788 &middot; Heloisa Miglipaz Adv.</div></div>
+            </div>
+            <div class="chat-status-badge" style="background:rgba(255,107,107,0.1);color:var(--accent2);"><div class="status-dot dot-off"></div> Desconectado</div>
+          </div>
+          <div style="height:255px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;background:var(--surface);">
+            <div style="font-size:2rem;opacity:0.3;">&#128565;</div>
+            <div style="font-size:0.82rem;color:var(--text-muted);text-align:center;line-height:1.6;">Numero desconectado.<br>Reconecte via configuracoes do agente.</div>
+            <button class="btn-mock btn-primary-mock" style="opacity:0.75;">Reconectar numero</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Secao 4: Fluxo -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128260;</span>
+      <h2>Secao 4 &#8212; Fluxo de Dados</h2>
+    </div>
+    <div class="flow-diagram">
+      <div class="flow-section-label">ENVIO &#8212; Frontend para WhatsApp</div>
+      <div class="flow-row">
+        <div class="flow-node flow-node-accent"><div class="flow-node-title">/mdzap</div><div class="flow-node-sub">Hub dinamico</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-accent"><div class="flow-node-title">/mdzap/:agentSlug</div><div class="flow-node-sub">MdzapChatPanel</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node"><div class="flow-node-title">conversa.numero_id</div><div class="flow-node-sub">FK whatsapp_numeros</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-orange"><div class="flow-node-title">n8n webhook</div><div class="flow-node-sub">Orquestracao</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-green"><div class="flow-node-title">Meta API</div><div class="flow-node-sub">Graph v18+</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node" style="border-color:rgba(32,201,151,0.4);"><div class="flow-node-title" style="color:var(--green);">&#128241; WhatsApp</div><div class="flow-node-sub">Destinatario</div></div>
+      </div>
+      <div class="flow-divider"></div>
+      <div class="flow-section-label">RECEBIMENTO &#8212; WhatsApp para Frontend</div>
+      <div class="flow-row">
+        <div class="flow-node" style="border-color:rgba(32,201,151,0.4);"><div class="flow-node-title" style="color:var(--green);">&#128241; WhatsApp</div><div class="flow-node-sub">Msg entrada</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-green"><div class="flow-node-title">Meta Webhook</div><div class="flow-node-sub">HTTP POST</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-blue"><div class="flow-node-title">Edge Function</div><div class="flow-node-sub">mdzap-webhook</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node"><div class="flow-node-title">match wa_instance_id</div><div class="flow-node-sub">&#8594; numero_id+slug</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-orange"><div class="flow-node-title">n8n orchestrator</div><div class="flow-node-sub">IA + resposta</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-accent"><div class="flow-node-title">Realtime</div><div class="flow-node-sub">Supabase channel</div></div>
+        <div class="flow-arrow">&#8594;</div>
+        <div class="flow-node flow-node-accent"><div class="flow-node-title">Frontend</div><div class="flow-node-sub">invalidateQueries</div></div>
+      </div>
+      <div class="flow-divider"></div>
+      <div class="flow-section-label">TABELAS CHAVE</div>
+      <div class="grid g3" style="margin-top:8px;">
+        <div class="flow-node" style="padding:14px 16px;text-align:left;">
+          <div class="flow-node-title" style="color:var(--accent4);margin-bottom:8px;font-size:0.78rem;">whatsapp_numeros</div>
+          <div class="code" style="font-size:0.66rem;padding:6px 10px;">id UUID
+agente_slug TEXT
+wa_instance_id TEXT
+nome_display TEXT
+numero_formatado TEXT
+metadata_ui JSONB
+  {cor, icone, descricao}</div>
+        </div>
+        <div class="flow-node" style="padding:14px 16px;text-align:left;">
+          <div class="flow-node-title" style="color:var(--accent4);margin-bottom:8px;font-size:0.78rem;">mdzap_ai_modules</div>
+          <div class="code" style="font-size:0.66rem;padding:6px 10px;">id UUID
+numero_id FK
+slug TEXT
+modo_padrao TEXT
+nome_agente TEXT
+descricao TEXT
+ativo BOOLEAN</div>
+        </div>
+        <div class="flow-node" style="padding:14px 16px;text-align:left;">
+          <div class="flow-node-title" style="color:var(--accent4);margin-bottom:8px;font-size:0.78rem;">whatsapp_conversas</div>
+          <div class="code" style="font-size:0.66rem;padding:6px 10px;">id UUID
+numero_id FK  &lt;-- pivot
+agente_slug TEXT
+contato_telefone TEXT
+status TEXT
+organizacao_id FK</div>
+        </div>
+      </div>
+      <div class="flow-note">
+        O campo <strong>numero_id</strong> em whatsapp_conversas e o pivot que liga cada conversa ao agente correto. O frontend filtra conversas por agentSlug da URL &#8212; sem nenhum hardcode.
+      </div>
+    </div>
+  </div>
+
+  <!-- Secao 5: Tabela -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128203;</span>
+      <h2>Secao 5 &#8212; O que Muda</h2>
+    </div>
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table>
+        <thead>
+          <tr><th>Componente</th><th>Atual</th><th>Proposta</th><th>Tipo</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="comp-tag">App.tsx routes</span></td>
+            <td style="color:var(--text-muted);">1 rota por agente &#8212; hardcoded</td>
+            <td style="color:var(--accent3);">1 rota parametrizada /mdzap/:slug</td>
+            <td><span class="status-pill sp-major">REDESIGN</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+          <tr>
+            <td><span class="comp-tag">Hub page</span></td>
+            <td style="color:var(--text-muted);">Cards hardcoded no JSX</td>
+            <td style="color:var(--accent3);">Cards do banco via useQuery</td>
+            <td><span class="status-pill sp-major">REDESIGN</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+          <tr>
+            <td><span class="comp-tag">Page component</span></td>
+            <td style="color:var(--text-muted);">1 arquivo por agente</td>
+            <td style="color:var(--accent3);">1 arquivo generico por slug</td>
+            <td><span class="status-pill sp-major">REDESIGN</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+          <tr>
+            <td><span class="comp-tag">primaryNumero</span></td>
+            <td style="color:var(--text-muted);">Global (estado unico)</td>
+            <td style="color:var(--accent3);">Per-conversa via numero_id</td>
+            <td><span class="status-pill sp-major">REDESIGN</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+          <tr>
+            <td><span class="comp-tag">SdrModeToggle</span></td>
+            <td style="color:var(--text-muted);">3 slugs fixos no array</td>
+            <td style="color:var(--accent3);">Dinamico &#8212; vem do modulo</td>
+            <td><span class="status-pill sp-minor">MINOR FIX</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+          <tr>
+            <td><span class="comp-tag">Edge Function</span></td>
+            <td style="color:var(--text-muted);">.single() &#8212; quebra se 0 resultados</td>
+            <td style="color:var(--accent3);">.maybeSingle() &#8212; graceful null</td>
+            <td><span class="status-pill sp-minor">MINOR FIX</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+          <tr>
+            <td><span class="comp-tag">n8n fallback</span></td>
+            <td style="color:var(--text-muted);">Hardcoded org Midas</td>
+            <td style="color:var(--accent3);">Throw error explicito</td>
+            <td><span class="status-pill sp-minor">MINOR FIX</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+          <tr>
+            <td><span class="comp-tag">whatsapp_numeros</span></td>
+            <td style="color:var(--text-muted);">Sem agente_slug</td>
+            <td style="color:var(--accent3);">Adicionar agente_slug + metadata_ui JSONB</td>
+            <td><span class="status-pill sp-minor">MINOR FIX</span></td>
+            <td><span class="status-pill sp-pend">&#9203; pendente</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Secao 6: Checklist -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9989;</span>
+      <h2>Secao 6 &#8212; Adicionar Novo Numero: Antes vs Depois</h2>
+    </div>
+    <div class="checklist-grid">
+      <div class="checklist-box">
+        <div class="checklist-header checklist-header-before">
+          <span style="font-size:1.2rem;">&#9888;&#65039;</span>
+          <div>
+            <div class="checklist-header-label" style="color:var(--accent2);">Antes &#8212; 6 Passos com Codigo</div>
+            <div class="checklist-header-sub">Requer developer + deploy</div>
+          </div>
+        </div>
+        <div class="checklist-body">
+          <div class="check-item">
+            <div class="check-num num-red">1</div>
+            <div>
+              <div class="check-text"><strong>INSERT</strong> em <span class="comp-tag">whatsapp_numeros</span></div>
+              <div class="check-note">Com wa_instance_id, numero, organizacao_id</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <div class="check-num num-red">2</div>
+            <div>
+              <div class="check-text"><strong>INSERT</strong> em <span class="comp-tag">mdzap_ai_modules</span></div>
+              <div class="check-note">Configuracao do agente IA</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <div class="check-num num-red">3</div>
+            <div>
+              <div class="check-text">Criar arquivo <span class="check-badge cb-code">CODIGO</span></div>
+              <div class="check-note">src/pages/mdzap/SLUG/index.tsx &#8212; copiar de outro, alterar slugs e cores</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <div class="check-num num-red">4</div>
+            <div>
+              <div class="check-text">Registrar rota em <span class="comp-tag">App.tsx</span> <span class="check-badge cb-code">CODIGO</span></div>
+              <div class="check-note">Importar componente + adicionar Route no JSX</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <div class="check-num num-red">5</div>
+            <div>
+              <div class="check-text">Adicionar card no <span class="comp-tag">hub.tsx</span> <span class="check-badge cb-code">CODIGO</span></div>
+              <div class="check-note">Hardcodar nome, cor, descricao, rota no JSX</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <div class="check-num num-red">6</div>
+            <div>
+              <div class="check-text"><strong>Deploy</strong> <span class="check-badge cb-code">DEPLOY</span></div>
+              <div class="check-note">Build + push + review + promover para producao</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="checklist-box">
+        <div class="checklist-header checklist-header-after">
+          <span style="font-size:1.2rem;">&#9989;</span>
+          <div>
+            <div class="checklist-header-label" style="color:var(--accent3);">Depois &#8212; 2 Passos, Zero Codigo</div>
+            <div class="checklist-header-sub">Qualquer pessoa com acesso ao banco</div>
+          </div>
+        </div>
+        <div class="checklist-body">
+          <div class="check-item">
+            <div class="check-num num-green">1</div>
+            <div>
+              <div class="check-text"><strong>INSERT</strong> em <span class="comp-tag">whatsapp_numeros</span> <span class="check-badge cb-zero">SEM CODIGO</span></div>
+              <div class="check-note">Com agente_slug, wa_instance_id, metadata_ui</div>
+              <div class="code" style="margin-top:8px;font-size:0.66rem;padding:7px 10px;">INSERT INTO whatsapp_numeros
+  (agente_slug, nome_display, metadata_ui)
+VALUES
+  ('sdr_novocliente', 'Julia Nova',
+   '{"cor":"#5bc4f5","icone":"target"}');</div>
+            </div>
+          </div>
+          <div class="check-item">
+            <div class="check-num num-green">2</div>
+            <div>
+              <div class="check-text"><strong>INSERT</strong> em <span class="comp-tag">mdzap_ai_modules</span> <span class="check-badge cb-zero">SEM CODIGO</span></div>
+              <div class="check-note">Com slug, modo_padrao, descricao, numero_id FK</div>
+              <div class="code" style="margin-top:8px;font-size:0.66rem;padding:7px 10px;">INSERT INTO mdzap_ai_modules
+  (numero_id, slug, nome_agente, ativo)
+VALUES
+  (:uuid_inserido, 'sdr_novocliente',
+   'Julia Nova', true);</div>
+            </div>
+          </div>
+          <div class="check-item" style="border-bottom:none;">
+            <div class="check-num num-green">&#10003;</div>
+            <div>
+              <div class="check-text" style="color:var(--accent3);"><strong>Pronto.</strong> Hub e rota sao automaticos. <span class="check-badge cb-zero">ZERO DEPLOY</span></div>
+              <div class="check-note">Card aparece no hub. Rota /mdzap/sdr_novocliente ja funciona. Nenhum arquivo criado ou editado.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Proximos passos -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9197;&#65039;</span>
+      <h2>Proximos Passos Sugeridos</h2>
+    </div>
+    <div class="grid g3">
+      <div class="card" style="border-left:3px solid var(--accent2);">
+        <div class="card-title">P0 &#8212; Banco</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;">Migration: adicionar <span class="comp-tag">agente_slug</span> e <span class="comp-tag">metadata_ui JSONB</span> em whatsapp_numeros. Fix .maybeSingle() na Edge Function mdzap-webhook.</div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--accent4);">
+        <div class="card-title">P1 &#8212; Frontend</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;">Refatorar hub para useQuery dinamico. Criar rota /mdzap/:agentSlug. Mover logica de primaryNumero para per-conversa via numero_id.</div>
+      </div>
+      <div class="card" style="border-left:3px solid var(--accent3);">
+        <div class="card-title">P2 &#8212; n8n</div>
+        <div style="font-size:0.82rem;color:var(--text-muted);line-height:1.6;">Remover fallback hardcoded para Midas. Tratar erro explicito quando org nao encontrada. Validar fluxo completo multi-numero.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    &#128025; Jarbas 2.0 &#8212; MdLab LegalTech &middot; Spec Visual MdZap Multi-Numero &middot; Abril 2026
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cecilia v5.0 — Self-Healing Pipeline | Implementation Report</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.88rem; line-height: 1.6; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; }
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.section { margin: 32px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; display: inline-block; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--accent3); overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+.detail-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+.detail-block h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 8px; color: var(--accent5); }
+.detail-block p { color: var(--text-muted); margin-bottom: 6px; font-size: 0.85rem; }
+.detail-block ul { list-style: none; padding: 0; }
+.detail-block ul li { padding: 4px 0; font-size: 0.85rem; color: var(--text); }
+.detail-block ul li::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin-right: 8px; vertical-align: middle; }
+.highlight { color: var(--accent4); font-weight: 600; }
+.highlight-red { color: var(--accent2); font-weight: 600; }
+.highlight-green { color: var(--accent3); font-weight: 600; }
+.highlight-blue { color: var(--accent5); font-weight: 600; }
+.highlight-purple { color: var(--accent); font-weight: 600; }
+.callout { background: rgba(124,109,255,0.08); border: 1px solid rgba(124,109,255,0.25); border-radius: 10px; padding: 16px 20px; margin: 16px 0; }
+.callout-warn { background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.25); }
+.callout-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent); margin-bottom: 6px; }
+.callout-warn .callout-title { color: var(--accent2); }
+.callout p { font-size: 0.85rem; color: var(--text-muted); }
+.file-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(42,47,74,0.5); }
+.file-row:last-child { border-bottom: none; }
+.file-path { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--text); }
+.file-meta { display: flex; gap: 10px; align-items: center; }
+.file-action { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.file-size { font-size: 0.72rem; color: var(--text-muted); }
+.step-list { counter-reset: step; list-style: none; padding: 0; }
+.step-list li { counter-increment: step; padding: 10px 0 10px 42px; position: relative; font-size: 0.85rem; border-bottom: 1px solid rgba(42,47,74,0.4); }
+.step-list li:last-child { border-bottom: none; }
+.step-list li::before { content: counter(step); position: absolute; left: 0; top: 10px; width: 28px; height: 28px; border-radius: 50%; background: var(--surface2); border: 1px solid var(--border); color: var(--accent); font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.wave-tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px; margin-right: 6px; }
+.wt-0 { background: rgba(255,107,107,0.15); color: var(--accent2); }
+.wt-1 { background: rgba(124,109,255,0.15); color: var(--accent); }
+.wt-2 { background: rgba(255,209,102,0.15); color: var(--accent4); }
+.wt-3 { background: rgba(91,196,245,0.15); color: var(--accent5); }
+.cost-bar { display: flex; align-items: center; gap: 12px; margin: 8px 0; }
+.cost-bar-fill { height: 8px; border-radius: 4px; background: linear-gradient(90deg, var(--accent3), var(--accent)); }
+.cost-bar-label { font-size: 0.75rem; color: var(--text-muted); white-space: nowrap; }
+.check-table td:first-child { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; }
+.severity { font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; }
+.sev-p0 { background: rgba(255,107,107,0.15); color: var(--accent2); }
+.sev-p1 { background: rgba(255,209,102,0.15); color: var(--accent4); }
+.sev-p2 { background: rgba(91,196,245,0.15); color: var(--accent5); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <span class="hero-emoji">🛡️</span>
+    <h1 class="gradient-text">Cecilia v5.0 — Self-Healing Pipeline</h1>
+    <p class="hero-sub">Implementation Report | 15 Abr 2026</p>
+    <div class="badges">
+      <span class="badge bg">15/15 TASKS COMPLETED</span>
+      <span class="badge bp">4 WAVES</span>
+      <span class="badge by">6 NOVOS ARQUIVOS</span>
+      <span class="badge bb">SELF-HEALING ATIVO</span>
+    </div>
+  </div>
+
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value">15</div>
+      <div class="stat-label">Tasks Completas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent3);">4</div>
+      <div class="stat-label">Waves Executadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent4);">$0.63</div>
+      <div class="stat-label">Custo por Ciclo</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent5);">5</div>
+      <div class="stat-label">Alternativas Avaliadas</div>
+    </div>
+  </div>
+
+  <!-- RESUMO EXECUTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📋</span>
+      <h2>Resumo Executivo</h2>
+    </div>
+    <div class="card">
+      <p style="margin-bottom: 12px;">O Cecilia v5.0 implementou um pipeline <span class="highlight-green">self-healing</span> que fortifica o Playwright — a unica opcao viavel para EPROC devido a CSRF hash em todas as URLs internas. 15 tasks foram executadas em 4 waves com terminais paralelos no Mac Mini.</p>
+      <div class="callout-warn callout">
+        <div class="callout-title">Decisao Arquitetural Critica</div>
+        <p>Apos deep research de <span class="highlight">5 alternativas</span> (Claude Managed Agents, Skyvern, Browser Use, Firecrawl, Computer Use), todas foram descartadas. EPROC usa CSRF hash em todas URLs internas — <span class="highlight-red">HTTP puro nao funciona</span>. Skyvern nao exporta cookies (Issues #3980, #1649). Playwright permanece como unico caminho viavel.</p>
+      </div>
+      <div class="grid g3" style="margin-top: 16px;">
+        <div class="detail-block" style="margin-bottom: 0;">
+          <h3>Wave 0</h3>
+          <p>Frontend Fixes — 8 tasks P0/P1/P2</p>
+        </div>
+        <div class="detail-block" style="margin-bottom: 0;">
+          <h3>Wave 1</h3>
+          <p>Self-Healing Modules — 3 novos modulos</p>
+        </div>
+        <div class="detail-block" style="margin-bottom: 0;">
+          <h3>Waves 2-3</h3>
+          <p>Integracao + Config + Cron + Datajud</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WAVE 0 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔧</span>
+      <h2>Wave 0 — Frontend Fixes</h2>
+    </div>
+    <div class="card" style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Severidade</th>
+            <th>Descricao</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-01</span></td>
+            <td><span class="severity sev-p0">P0</span></td>
+            <td>callWebhook → jarbas_tarefas em ControllerV4Intimacoes</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-02</span></td>
+            <td><span class="severity sev-p0">P0</span></td>
+            <td>Query keys v3 → v4 + callWebhook → jarbas_tarefas em ResumoAnaliseIA</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-03</span></td>
+            <td><span class="severity sev-p1">P1 SEC</span></td>
+            <td>organizacao_id em toggle urgente/importante (cross-tenant fix)</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-04</span></td>
+            <td><span class="severity sev-p1">P1</span></td>
+            <td>Dead code 'processada' verificado (nao critico, mantido)</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-05</span></td>
+            <td><span class="severity sev-p1">P1</span></td>
+            <td>Realtime alignment — verificado OK, frontend consistente com 'concluida'</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-06</span></td>
+            <td><span class="severity sev-p2">P2</span></td>
+            <td>Query keys v3 redundantes removidas de useControllerRealtime</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-07</span></td>
+            <td><span class="severity sev-p2">P2</span></td>
+            <td>Hardcoded color text-purple-400 → text-info em PainelJoaoAuditoria</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+          <tr>
+            <td><span class="wave-tag wt-0">FIX-08</span></td>
+            <td><span class="severity sev-p2">P2</span></td>
+            <td>tasks.md controller-v4 sincronizado (15/18 completed)</td>
+            <td><span class="status-pill sp-done">concluido</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="callout" style="margin-top: 16px; margin-bottom: 0;">
+        <div class="callout-title">Build Limpo</div>
+        <p>TypeScript build passou com <span class="highlight-green">0 erros</span> apos todas as correcoes da Wave 0.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- WAVE 1 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🧬</span>
+      <h2>Wave 1 — Self-Healing Modules</h2>
+    </div>
+
+    <div class="detail-block">
+      <h3>SH-01: Session Health Monitor</h3>
+      <p><span class="code" style="display: inline; padding: 2px 8px;">session-monitor.mjs</span> — 162 linhas</p>
+      <ul style="margin-top: 10px;">
+        <li>3 camadas de deteccao: URL patterns, selectors visiveis, texto no body</li>
+        <li><span class="highlight-purple">checkSessionHealth(page)</span> retorna { healthy, reason, url, ts }</li>
+        <li><span class="highlight-purple">ensureSession(page, reloginFn, checksLog)</span> — check + auto-relogin</li>
+        <li><span class="highlight-purple">buildHealthReport(checks)</span> — relatorio com uptime_pct</li>
+      </ul>
+    </div>
+
+    <div class="detail-block">
+      <h3>SH-02: Error Classifier</h3>
+      <p><span class="code" style="display: inline; padding: 2px 8px;">error-classifier.mjs</span> — 209 linhas</p>
+      <ul style="margin-top: 10px;">
+        <li><span class="highlight-purple">classifyError(error, stage)</span> → RETRY | SKIP | ABORT</li>
+        <li><span class="highlight-green">RETRY:</span> timeout, network, HTTP 429/500/529 com exponential backoff</li>
+        <li><span class="highlight">SKIP:</span> selector nao encontrado, documento vazio, iframe cross-origin</li>
+        <li><span class="highlight-red">ABORT:</span> login falhou 3x, budget excedido, conta bloqueada</li>
+        <li>9 testes automatizados passaram</li>
+      </ul>
+    </div>
+
+    <div class="detail-block">
+      <h3>SH-03: Schema Validator</h3>
+      <p><span class="code" style="display: inline; padding: 2px 8px;">schema-validator.mjs</span> — 304 linhas</p>
+      <ul style="margin-top: 10px;">
+        <li><span class="highlight-purple">validateTransition(from, to, data)</span> com schemas S2→S3, S5→S6, S6→S7</li>
+        <li>Valida campos obrigatorios entre stages (cnj, titulo, conteudo_completo, analise_ia)</li>
+        <li>Nunca lanca exception — retorna { valid, errors[], warnings[] }</li>
+        <li>8 testes passaram</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- WAVE 2 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔗</span>
+      <h2>Wave 2 — Integracao + Config</h2>
+    </div>
+
+    <div class="detail-block">
+      <h3>SH-04: Integracao Self-Healing</h3>
+      <p><span class="code" style="display: inline; padding: 2px 8px;">controller-agent.mjs</span> — 414 → 478 linhas</p>
+      <ul style="margin-top: 10px;">
+        <li>10 pontos de integracao cirurgicos, <span class="highlight-green">zero logica existente removida</span></li>
+        <li>Session checks antes de S2, S4 (por processo), S5</li>
+        <li>Error classification com retry+backoff no S4 e catch principal</li>
+        <li>Schema validation S5→S6 e S6→S7</li>
+        <li>Health report agregado no S9 (stats.selfHealing)</li>
+        <li>Backup salvo em <span style="color: var(--text-muted);">controller-agent.mjs.bak.20260415</span></li>
+      </ul>
+    </div>
+
+    <div class="detail-block">
+      <h3>CMD-01: cecilia_config (Supabase Migration)</h3>
+      <div class="code" style="margin-top: 10px;">CREATE TABLE cecilia_config (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  organizacao_id UUID NOT NULL REFERENCES organizacoes(id),
+  cron_ativo BOOLEAN DEFAULT true,
+  cron_hours TEXT[] DEFAULT '{06,13,19}',
+  budget_cap_usd NUMERIC DEFAULT 2.00,
+  max_processos_por_oab INT DEFAULT 200,
+  oabs_ativas TEXT[] DEFAULT '{RS116571,RS131163,SC074025,SC075466,SP535101}',
+  self_healing_enabled BOOLEAN DEFAULT true,
+  datajud_enabled BOOLEAN DEFAULT false
+);</div>
+      <ul style="margin-top: 10px;">
+        <li>RLS modelo A, trigger updated_at, unique constraint por org</li>
+        <li>Seed aplicado para Midas (org 55a0c7ba) com defaults</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- WAVE 3 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⏰</span>
+      <h2>Wave 3 — Cron Poll + Datajud</h2>
+    </div>
+
+    <div class="detail-block">
+      <h3>CMD-02: start-cron.mjs (Modificado)</h3>
+      <p>293 linhas — Cron dinamico via Supabase config</p>
+      <ul style="margin-top: 10px;">
+        <li><span class="highlight-purple">loadConfig()</span> faz GET na REST API Supabase com cache TTL 60s</li>
+        <li>Se <span class="highlight-red">cron_ativo === false</span>: skip trigger</li>
+        <li>Passa budget_cap_usd, max_processos, oabs_ativas como env vars ao controller-agent</li>
+        <li>Backward compat total: se query falhar, usa defaults hardcoded</li>
+      </ul>
+    </div>
+
+    <div class="detail-block">
+      <h3>CMD-03: datajud-client.mjs (Novo)</h3>
+      <p>259 linhas — Cliente Datajud CNJ integrado</p>
+      <ul style="margin-top: 10px;">
+        <li><span class="highlight-purple">queryDatajud(cnj, tribunal)</span> retorna metadados + movimentacoes</li>
+        <li><span class="highlight-purple">queryMovimentacoes(cnj, tribunal, desde)</span> com filtro por data</li>
+        <li>API Key CNJ atualizada (a anterior estava expirada)</li>
+        <li>Cache em memoria 30min, normalizacao de CNJ automatica</li>
+        <li>Testado com CNJ real do TJRS — <span class="highlight-green">67 movimentacoes retornadas</span></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- VERIFICACAO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">✅</span>
+      <h2>Verificacao Final</h2>
+    </div>
+    <div class="card" style="overflow-x: auto;">
+      <table class="check-table">
+        <thead>
+          <tr>
+            <th>Check</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>node --check session-monitor.mjs</td>
+            <td><span class="status-pill sp-done">OK</span></td>
+          </tr>
+          <tr>
+            <td>node --check error-classifier.mjs</td>
+            <td><span class="status-pill sp-done">OK</span></td>
+          </tr>
+          <tr>
+            <td>node --check schema-validator.mjs</td>
+            <td><span class="status-pill sp-done">OK</span></td>
+          </tr>
+          <tr>
+            <td>node --check datajud-client.mjs</td>
+            <td><span class="status-pill sp-done">OK</span></td>
+          </tr>
+          <tr>
+            <td>node --check start-cron.mjs</td>
+            <td><span class="status-pill sp-done">OK</span></td>
+          </tr>
+          <tr>
+            <td>node --check controller-agent.mjs</td>
+            <td><span class="status-pill sp-done">OK</span></td>
+          </tr>
+          <tr>
+            <td>npx tsc --noEmit (frontend)</td>
+            <td><span class="status-pill sp-done">OK — 0 erros</span></td>
+          </tr>
+          <tr>
+            <td>cecilia_config no Supabase</td>
+            <td><span class="status-pill sp-done">OK — seed verificado</span></td>
+          </tr>
+          <tr>
+            <td>git push origin main</td>
+            <td><span class="status-pill sp-done">OK</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- CUSTO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">💰</span>
+      <h2>Custo e Performance</h2>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-title">Custo por Ciclo</div>
+        <div class="cost-bar">
+          <div class="cost-bar-fill" style="width: 31.5%; min-width: 40px;"></div>
+          <div class="cost-bar-label"><span class="highlight">$0.63</span> / $2.00 cap</div>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 8px;">5 OABs ativas, vault on-demand. Budget cap configuravel via cecilia_config.</p>
+      </div>
+      <div class="card">
+        <div class="card-title">Custo Mensal Estimado</div>
+        <div style="font-size: 1.8rem; font-weight: 700; color: var(--accent4); margin-bottom: 4px;">~$57</div>
+        <p style="font-size: 0.82rem; color: var(--text-muted);">3 ciclos/dia x 30 dias = 90 ciclos x $0.63</p>
+      </div>
+    </div>
+    <div class="grid g3" style="margin-top: 16px;">
+      <div class="stat-card">
+        <div class="stat-value" style="font-size: 1.4rem; color: var(--accent3);">Auto</div>
+        <div class="stat-label">Re-login</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="font-size: 1.4rem; color: var(--accent);">Exp. Backoff</div>
+        <div class="stat-label">Retry Strategy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" style="font-size: 1.4rem; color: var(--accent5);">Smart Skip</div>
+        <div class="stat-label">Error Handling</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROXIMOS PASSOS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🚀</span>
+      <h2>Proximos Passos</h2>
+    </div>
+    <div class="card">
+      <ol class="step-list">
+        <li>Reiniciar daemon Cecilia no Mac Mini<br><span class="code" style="display: inline; padding: 2px 8px; margin-top: 4px;">launchctl asuser 506 sudo -u cecilia launchctl start com.cecilia.controller</span></li>
+        <li>Monitorar <span class="highlight">3 ciclos completos</span> com self-healing ativo</li>
+        <li>Verificar health reports nos logs (uptime_pct, re-logins, error classifications)</li>
+        <li>Habilitar Datajud apos validacao<br><span class="code" style="display: inline; padding: 2px 8px; margin-top: 4px;">UPDATE cecilia_config SET datajud_enabled = true</span></li>
+        <li>T06 (realtime alignment) e T08 (KPI acuracia) pendentes no controller-v4</li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- ARQUIVOS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📁</span>
+      <h2>Arquivos Criados / Modificados</h2>
+    </div>
+
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-title">Mac Mini (user cecilia)</div>
+      <div class="file-row">
+        <span class="file-path">lib/session-monitor.mjs</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent3);">CRIADO</span>
+          <span class="file-size">5.3 KB</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">lib/error-classifier.mjs</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent3);">CRIADO</span>
+          <span class="file-size">7.5 KB</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">lib/schema-validator.mjs</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent3);">CRIADO</span>
+          <span class="file-size">9.7 KB</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">lib/datajud-client.mjs</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent3);">CRIADO</span>
+          <span class="file-size">6.8 KB</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">controller-agent.mjs</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent4);">MODIFICADO</span>
+          <span class="file-size">21.6 KB</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">start-cron.mjs</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent4);">MODIFICADO</span>
+          <span class="file-size">10.7 KB</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-title">beta-mdflow (frontend)</div>
+      <div class="file-row">
+        <span class="file-path">src/pages/controller/ControllerV4Intimacoes.tsx</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent4);">MODIFICADO</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">src/pages/controller/ControllerResumoAnaliseIA.tsx</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent4);">MODIFICADO</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">src/hooks/useControllerRealtime.ts</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent4);">MODIFICADO</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">src/pages/controller/painel-joao/PainelJoaoAuditoria.tsx</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent4);">MODIFICADO</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">.projeto/controller-v4/tasks.md</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent4);">MODIFICADO</span>
+        </div>
+      </div>
+      <div class="file-row">
+        <span class="file-path">.projeto/cecilia-v5/</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent3);">CRIADO</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Supabase</div>
+      <div class="file-row">
+        <span class="file-path">Migration: create_cecilia_config</span>
+        <div class="file-meta">
+          <span class="file-action" style="color: var(--accent3);">APLICADA</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    🐙 Jarbas 2.0 — MdLab LegalTech · 15 Abr 2026
+  </div>
+
+</div>
+</body>
+</html>

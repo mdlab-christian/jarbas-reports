@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Make to n8n Migration: Gerar Contratos e Procuracoes</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+  --success: #20c997;
+  --warning: #f59e0b;
+  --error: #ef4444;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.88rem; line-height: 1.6; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; }
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg-badge { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } .gradient-text { font-size: 1.6rem; } body { padding: 12px; } .flow-node { min-width: 220px; max-width: 100%; } .loop-box { max-width: 100%; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.section { margin: 32px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; display: inline-block; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--accent3); overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+
+/* Flowchart styles */
+.flow { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 20px 0; }
+.flow-node { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; min-width: 280px; max-width: 500px; text-align: center; position: relative; }
+.flow-node.webhook { border-color: var(--accent); background: rgba(124,109,255,0.08); }
+.flow-node.db { border-color: var(--accent5); background: rgba(91,196,245,0.06); }
+.flow-node.code-node { border-color: var(--accent4); background: rgba(255,209,102,0.06); }
+.flow-node.loop { border-color: var(--accent3); background: rgba(79,255,176,0.06); }
+.flow-node.api { border-color: var(--success); background: rgba(32,201,151,0.06); }
+.flow-node.response { border-color: var(--accent); background: rgba(124,109,255,0.08); }
+.flow-node-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 4px; }
+.flow-node-title { font-weight: 600; font-size: 0.9rem; }
+.flow-node-desc { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+.flow-arrow { width: 2px; height: 28px; background: var(--border); position: relative; }
+.flow-arrow::after { content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid var(--border); }
+
+.loop-box { border: 2px dashed var(--accent3); border-radius: 14px; padding: 20px; margin: 0 auto; max-width: 540px; width: 100%; }
+.loop-box-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent3); font-weight: 600; margin-bottom: 12px; text-align: center; }
+
+.make-tree { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.make-node { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; font-size: 0.78rem; text-align: center; min-width: 120px; }
+.make-node.dup { border-color: var(--accent2); opacity: 0.7; }
+.make-node.root { border-color: var(--accent); background: rgba(124,109,255,0.1); }
+.make-node.router { border-color: var(--accent4); background: rgba(255,209,102,0.08); }
+.make-connector { width: 2px; height: 16px; background: var(--border); margin: 0 auto; }
+
+.compare-col { display: flex; flex-direction: column; gap: 12px; }
+.compare-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--surface2); border-radius: 8px; }
+.compare-label { color: var(--text-muted); font-size: 0.8rem; }
+.compare-val { font-weight: 700; font-size: 1rem; }
+.compare-val.bad { color: var(--accent2); }
+.compare-val.good { color: var(--accent3); }
+
+.subflow { border: 1px solid var(--accent); border-radius: 12px; padding: 16px; margin-top: 16px; background: rgba(124,109,255,0.03); }
+.subflow-title { font-size: 0.75rem; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; font-weight: 600; }
+
+.var-tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; background: rgba(124,109,255,0.12); color: var(--accent); padding: 2px 8px; border-radius: 4px; margin: 2px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <span class="hero-emoji">&#128195;</span>
+    <h1 class="gradient-text">Make &rarr; n8n Migration</h1>
+    <p class="hero-sub">Gerar Contratos e Procura&ccedil;&otilde;es &mdash; De 210 m&oacute;dulos para ~15 n&oacute;s</p>
+    <div class="badges">
+      <span class="badge bp">WH-DOC-01</span>
+      <span class="badge by">Make.com Legacy</span>
+      <span class="badge bg-badge">n8n Target</span>
+      <span class="badge bb">10 Templates</span>
+      <span class="badge br">210 &rarr; ~15 n&oacute;s</span>
+    </div>
+  </div>
+
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent2);">210</div>
+      <div class="stat-label">M&oacute;dulos Make</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent3);">~15</div>
+      <div class="stat-label">N&oacute;s n8n</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">10</div>
+      <div class="stat-label">Templates</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent4);">93%</div>
+      <div class="stat-label">Redu&ccedil;&atilde;o</div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: CENÁRIO MAKE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9888;&#65039;</span>
+      <h2>Cen&aacute;rio Make Original &mdash; Estrutura Duplicada</h2>
+    </div>
+
+    <div class="card" style="overflow-x: auto;">
+      <div class="card-title">&Aacute;rvore simplificada (210 m&oacute;dulos reais)</div>
+      <div class="make-tree">
+        <div class="make-node root">Webhook<br><small style="color:var(--text-muted)">lead_id, tipo</small></div>
+        <div class="make-connector"></div>
+        <div class="make-node" style="border-color:var(--accent5)">Supabase: Get Lead</div>
+        <div class="make-connector"></div>
+        <div class="make-node router">Router Principal (2 branches)</div>
+        <div class="make-connector"></div>
+        <div style="display:flex; gap: 24px; width: 100%; justify-content: center; flex-wrap: wrap;">
+
+          <div style="flex: 1; min-width: 280px; max-width: 420px;">
+            <div class="card" style="padding: 14px;">
+              <div class="card-title" style="color: var(--accent4);">Branch 1: Contrato Midas (geral)</div>
+              <div class="make-tree" style="gap: 8px;">
+                <div class="make-node">Get restricoes_orgao</div>
+                <div class="make-connector" style="height:10px"></div>
+                <div class="make-node" style="border-color:var(--success)">Gerar 1.1 Contrato Midas<br><small style="color:var(--text-muted)">Docs &rarr; PDF &rarr; Drive &rarr; Delete</small></div>
+                <div class="make-connector" style="height:10px"></div>
+                <div class="make-node router">Sub-Router: por advogado</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+                  <div class="make-node dup"><small>Christian</small><br>1.2 Termo</div>
+                  <div class="make-node dup"><small>Helo&iacute;sa</small><br>1.2 Termo</div>
+                  <div class="make-node dup"><small>Leonardo</small><br>1.2 Termo</div>
+                  <div class="make-node dup"><small>Stephanie</small><br>1.2 Termo</div>
+                  <div class="make-node dup"><small>Marcelo</small><br>1.2 Termo</div>
+                </div>
+                <div style="text-align:center;margin-top:8px;">
+                  <span class="status-pill sp-block">5x c&oacute;pia id&ecirc;ntica</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="flex: 1; min-width: 280px; max-width: 420px;">
+            <div class="card" style="padding: 14px;">
+              <div class="card-title" style="color: var(--accent4);">Branch 2: Per-Restriction Docs</div>
+              <div class="make-tree" style="gap: 8px;">
+                <div class="make-node router">Sub-Router: por advogado</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:8px;">
+                  <div class="make-node dup" style="min-width:80px"><small>Adv 1</small></div>
+                  <div class="make-node dup" style="min-width:80px"><small>Adv 2</small></div>
+                  <div class="make-node dup" style="min-width:80px"><small>Adv 3</small></div>
+                  <div class="make-node dup" style="min-width:80px"><small>Adv 4</small></div>
+                  <div class="make-node dup" style="min-width:80px"><small>Adv 5</small></div>
+                </div>
+                <div style="text-align:center;margin:8px 0 4px;">
+                  <span style="color:var(--text-muted);font-size:0.75rem;">Cada advogado tem 2 sub-branches:</span>
+                </div>
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+                  <div class="card" style="padding:10px;flex:1;min-width:150px;">
+                    <div style="font-size:0.7rem;color:var(--accent5);text-transform:uppercase;margin-bottom:6px;">&Oacute;rg&atilde;o (4 docs)</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">1.6 Contrato</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">1.7 Ci&ecirc;ncia</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">1.8 Veracidade</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">2.2 Procura&ccedil;&atilde;o</div>
+                  </div>
+                  <div class="card" style="padding:10px;flex:1;min-width:150px;">
+                    <div style="font-size:0.7rem;color:var(--accent4);text-transform:uppercase;margin-bottom:6px;">Empresa (4 docs)</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">1.3 Contrato</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">1.4 Ci&ecirc;ncia</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">1.5 Veracidade</div>
+                    <div class="make-node dup" style="margin:4px 0;min-width:auto;font-size:0.72rem;">2.1 Procura&ccedil;&atilde;o</div>
+                  </div>
+                </div>
+                <div style="text-align:center;margin-top:8px;">
+                  <span class="status-pill sp-block">5 adv &times; 2 tipos &times; 4 docs = 40 c&oacute;pias</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 16px; text-align: center;">
+          <div class="code" style="display:inline-block;">Padr&atilde;o repetido 46 vezes: Google Docs (create from template) &rarr; HTTP (export PDF) &rarr; Drive (upload) &rarr; Drive (delete temp)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: CENÁRIO N8N PROPOSTO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9889;</span>
+      <h2>Cen&aacute;rio n8n Proposto &mdash; WH-DOC-01</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Workflow principal: Gerar Contratos e Procura&ccedil;&otilde;es</div>
+      <div class="flow">
+
+        <div class="flow-node webhook">
+          <div class="flow-node-label">1. Webhook Trigger</div>
+          <div class="flow-node-title">POST /webhook/mdflow/doc/gerar-contratos</div>
+          <div class="flow-node-desc">Valida header <span class="var-tag">mdflow: MdL1501@</span><br>Recebe: lead_id, organizacao_id, tipo, restricao_id, actor_user_id</div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node db">
+          <div class="flow-node-label">2. Supabase</div>
+          <div class="flow-node-title">Get Lead Data</div>
+          <div class="flow-node-desc">SELECT * FROM leads WHERE id = lead_id<br><small>nome, cpf, rg, cep, cidade, estado, logradouro, numero_endereco, profissao, drive_cliente, codigo_advogado</small></div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node db">
+          <div class="flow-node-label">3. Supabase (paralelo)</div>
+          <div class="flow-node-title">Get Restri&ccedil;&otilde;es</div>
+          <div class="flow-node-desc">
+            <span class="var-tag">restricoes</span> WHERE lead_id = $1 (empresa)<br>
+            <span class="var-tag">restricoes_orgao</span> WHERE lead_id = $1 (&oacute;rg&atilde;o)
+          </div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node code-node">
+          <div class="flow-node-label">4. Code Node</div>
+          <div class="flow-node-title">Prepare Document Queue</div>
+          <div class="flow-node-desc">Monta array de docs baseado em <span class="var-tag">tipo</span><br>Cada item: { template_id, doc_name, variables, folder_id }</div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="loop-box">
+          <div class="loop-box-label">5. Loop &mdash; SplitInBatches (para cada documento na fila)</div>
+          <div class="flow" style="padding: 10px 0;">
+
+            <div class="flow-node api">
+              <div class="flow-node-label">5a. Google Docs API</div>
+              <div class="flow-node-title">Create from Template</div>
+              <div class="flow-node-desc">Template ID da fila &rarr; preenche vari&aacute;veis do lead + restri&ccedil;&atilde;o</div>
+            </div>
+            <div class="flow-arrow"></div>
+
+            <div class="flow-node api">
+              <div class="flow-node-label">5b. HTTP Request</div>
+              <div class="flow-node-title">Export as PDF</div>
+              <div class="flow-node-desc">GET exportLinks.application/pdf do documento criado</div>
+            </div>
+            <div class="flow-arrow"></div>
+
+            <div class="flow-node api">
+              <div class="flow-node-label">5c. Google Drive API</div>
+              <div class="flow-node-title">Upload PDF</div>
+              <div class="flow-node-desc">Upload para pasta do cliente <span class="var-tag">drive_cliente</span></div>
+            </div>
+            <div class="flow-arrow"></div>
+
+            <div class="flow-node api" style="border-color: var(--warning);">
+              <div class="flow-node-label">5d. Google Drive API</div>
+              <div class="flow-node-title">Delete Temp Doc</div>
+              <div class="flow-node-desc">Remove Google Doc tempor&aacute;rio (mant&eacute;m apenas PDF)</div>
+            </div>
+          </div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node api">
+          <div class="flow-node-label">6. Google Drive API</div>
+          <div class="flow-node-title">Rename Client Folder</div>
+          <div class="flow-node-desc">Padr&atilde;o: <span class="var-tag">{codigo_advogado} - {Nome} [{CPF}]</span></div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node db">
+          <div class="flow-node-label">7. Supabase</div>
+          <div class="flow-node-title">Update Lead</div>
+          <div class="flow-node-desc">SET contratos_gerados = true, updated_at = now()</div>
+        </div>
+        <div class="flow-arrow"></div>
+
+        <div class="flow-node response">
+          <div class="flow-node-label">8. Webhook Response</div>
+          <div class="flow-node-title">Action-Driven Response</div>
+          <div class="flow-node-desc">{ success: true, action: "toast_refresh", message: "X documentos gerados", data: { count, folder_url } }</div>
+        </div>
+
+      </div>
+
+      <div class="subflow">
+        <div class="subflow-title">Sub-Workflow Opcional: SW-DOC-GEN (Gerar Documento &Uacute;nico)</div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center;">
+          <div class="make-node" style="border-color: var(--accent);">Input:<br><small>template_id, variables,<br>folder_id, doc_name</small></div>
+          <span style="color: var(--text-muted);">&rarr;</span>
+          <div class="make-node" style="border-color: var(--success);">Create from<br>Template</div>
+          <span style="color: var(--text-muted);">&rarr;</span>
+          <div class="make-node" style="border-color: var(--success);">Export<br>PDF</div>
+          <span style="color: var(--text-muted);">&rarr;</span>
+          <div class="make-node" style="border-color: var(--success);">Upload<br>Drive</div>
+          <span style="color: var(--text-muted);">&rarr;</span>
+          <div class="make-node" style="border-color: var(--warning);">Delete<br>Temp</div>
+          <span style="color: var(--text-muted);">&rarr;</span>
+          <div class="make-node" style="border-color: var(--accent);">Output:<br><small>file_id, file_url</small></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 3: COMPARATIVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9878;&#65039;</span>
+      <h2>Comparativo Make vs n8n</h2>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-title" style="color: var(--accent2);">Make.com (atual)</div>
+        <div class="compare-col">
+          <div class="compare-item"><span class="compare-label">Total de m&oacute;dulos</span><span class="compare-val bad">210</span></div>
+          <div class="compare-item"><span class="compare-label">Duplica&ccedil;&atilde;o por advogado</span><span class="compare-val bad">5x</span></div>
+          <div class="compare-item"><span class="compare-label">Rotas</span><span class="compare-val bad">Est&aacute;ticas</span></div>
+          <div class="compare-item"><span class="compare-label">Adicionar advogado</span><span class="compare-val bad">+42 n&oacute;s</span></div>
+          <div class="compare-item"><span class="compare-label">Adicionar template</span><span class="compare-val bad">+5 branches</span></div>
+          <div class="compare-item"><span class="compare-label">Manutenibilidade</span><span class="compare-val bad">Baixa</span></div>
+          <div class="compare-item"><span class="compare-label">Tratamento de erro</span><span class="compare-val bad">Nenhum</span></div>
+          <div class="compare-item"><span class="compare-label">Logs / Audit</span><span class="compare-val bad">Nenhum</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color: var(--accent3);">n8n (proposto)</div>
+        <div class="compare-col">
+          <div class="compare-item"><span class="compare-label">Total de n&oacute;s</span><span class="compare-val good">~15</span></div>
+          <div class="compare-item"><span class="compare-label">Duplica&ccedil;&atilde;o</span><span class="compare-val good">Zero</span></div>
+          <div class="compare-item"><span class="compare-label">Rotas</span><span class="compare-val good">Din&acirc;micas</span></div>
+          <div class="compare-item"><span class="compare-label">Adicionar advogado</span><span class="compare-val good">0 n&oacute;s</span></div>
+          <div class="compare-item"><span class="compare-label">Adicionar template</span><span class="compare-val good">1 linha config</span></div>
+          <div class="compare-item"><span class="compare-label">Manutenibilidade</span><span class="compare-val good">Alta</span></div>
+          <div class="compare-item"><span class="compare-label">Tratamento de erro</span><span class="compare-val good">Try/Catch</span></div>
+          <div class="compare-item"><span class="compare-label">Logs / Audit</span><span class="compare-val good">webhook_requests</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">Detalhamento: por que 210 m&oacute;dulos no Make?</div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr><th>Componente</th><th>C&aacute;lculo</th><th>M&oacute;dulos</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Webhook + Get Lead</td><td>1 + 1</td><td>2</td></tr>
+            <tr><td>Router principal</td><td>1</td><td>1</td></tr>
+            <tr><td>1.1 Contrato Midas (4 steps)</td><td>1 &times; 4</td><td>4</td></tr>
+            <tr><td>Get restricoes_orgao</td><td>1</td><td>1</td></tr>
+            <tr><td>1.2 Termo Parceria (5 adv &times; 4 steps)</td><td>5 &times; 4</td><td>20</td></tr>
+            <tr><td>Rename folder (5 adv)</td><td>5</td><td>5</td></tr>
+            <tr><td>Sub-router + Get data (Branch 2)</td><td>5 &times; 3</td><td>15</td></tr>
+            <tr><td>Docs &oacute;rg&atilde;o (5 adv &times; 4 docs &times; 4 steps)</td><td>5 &times; 4 &times; 4</td><td>80</td></tr>
+            <tr><td>Docs empresa (5 adv &times; 4 docs &times; 4 steps)</td><td>5 &times; 4 &times; 4</td><td>80</td></tr>
+            <tr><td style="font-weight:700; color: var(--accent2);">Total</td><td></td><td style="font-weight:700; color: var(--accent2);">~208</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: TEMPLATES E VARIÁVEIS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128196;</span>
+      <h2>Templates e Vari&aacute;veis</h2>
+    </div>
+
+    <div class="card" style="overflow-x: auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nome</th>
+            <th>Fonte Dados</th>
+            <th>Vari&aacute;veis Extras</th>
+            <th>Tipo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="var-tag">1.1</span></td>
+            <td>Contrato Midas</td>
+            <td><span class="status-pill sp-run">leads</span></td>
+            <td>&mdash;</td>
+            <td><span class="status-pill sp-done">Geral</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">1.2</span></td>
+            <td>Termo de Parceria</td>
+            <td><span class="status-pill sp-run">leads</span></td>
+            <td>&mdash;</td>
+            <td><span class="status-pill sp-done">Geral</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">1.3</span></td>
+            <td>Contrato Empresa</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-pend">restricoes</span></td>
+            <td><span class="var-tag">VALOR</span> <span class="var-tag">EMPRESA</span> <span class="var-tag">CONTRATO</span></td>
+            <td><span class="status-pill sp-pend">Empresa</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">1.4</span></td>
+            <td>Termo de Ci&ecirc;ncia Empresa</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-pend">restricoes</span></td>
+            <td><span class="var-tag">NUMERO</span> <span class="var-tag">EMPRESA RESPONS&Aacute;VEL</span></td>
+            <td><span class="status-pill sp-pend">Empresa</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">1.5</span></td>
+            <td>Termo de Veracidade Empresa</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-pend">restricoes</span></td>
+            <td><span class="var-tag">EMPRESA RESPONS&Aacute;VEL</span></td>
+            <td><span class="status-pill sp-pend">Empresa</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">1.6</span></td>
+            <td>Contrato &Oacute;rg&atilde;o</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-block">restricoes_orgao</span></td>
+            <td>&mdash;</td>
+            <td><span class="status-pill sp-block">&Oacute;rg&atilde;o</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">1.7</span></td>
+            <td>Termo de Ci&ecirc;ncia &Oacute;rg&atilde;o</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-block">restricoes_orgao</span></td>
+            <td>&mdash;</td>
+            <td><span class="status-pill sp-block">&Oacute;rg&atilde;o</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">1.8</span></td>
+            <td>Termo de Veracidade &Oacute;rg&atilde;o</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-block">restricoes_orgao</span></td>
+            <td>&mdash;</td>
+            <td><span class="status-pill sp-block">&Oacute;rg&atilde;o</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">2.1</span></td>
+            <td>Procura&ccedil;&atilde;o Empresa</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-pend">restricoes</span></td>
+            <td><span class="var-tag">VALOR</span> <span class="var-tag">EMPRESA</span> <span class="var-tag">CONTRATO</span></td>
+            <td><span class="status-pill sp-pend">Empresa</span></td>
+          </tr>
+          <tr>
+            <td><span class="var-tag">2.2</span></td>
+            <td>Procura&ccedil;&atilde;o &Oacute;rg&atilde;o</td>
+            <td><span class="status-pill sp-run">leads</span> + <span class="status-pill sp-block">restricoes_orgao</span></td>
+            <td>&mdash;</td>
+            <td><span class="status-pill sp-block">&Oacute;rg&atilde;o</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">Vari&aacute;veis base (de leads &mdash; presentes em todos os templates)</div>
+      <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+        <span class="var-tag">NOME COMPLETO</span>
+        <span class="var-tag">CPF</span>
+        <span class="var-tag">RG</span>
+        <span class="var-tag">CEP</span>
+        <span class="var-tag">CIDADE</span>
+        <span class="var-tag">ESTADO</span>
+        <span class="var-tag">NOME DA RUA</span>
+        <span class="var-tag">N&Uacute;MERO DO ENDERE&Ccedil;O</span>
+        <span class="var-tag">PROFISS&Atilde;O</span>
+        <span class="var-tag">DATA</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: DADOS DE ENTRADA -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128229;</span>
+      <h2>Dados de Entrada &mdash; Webhook Request</h2>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-title">Request Body</div>
+        <div class="code">{
+  "request_id": "uuid",
+  "contexto": "documentos.gerar_contratos",
+  "organizacao_id": "uuid",
+  "actor_user_id": "uuid",
+  "origem_rota": "/pagina_cliente",
+  "data": {
+    "lead_id": "uuid",
+    "tipo": "all | contrato_midas | contrato_empresa
+            | contrato_orgao | procuracao_empresa
+            | procuracao_orgao",
+    "restricao_id": "uuid (opcional)"
+  }
+}</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Response Body</div>
+        <div class="code">{
+  "success": true,
+  "action": "toast_refresh",
+  "message": "12 documentos gerados",
+  "data": {
+    "count": 12,
+    "folder_url": "https://drive.google.com/...",
+    "documents": [
+      {
+        "name": "1.1 - Contrato Midas.pdf",
+        "file_id": "..."
+      }
+    ]
+  },
+  "error_code": null
+}</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">Par&acirc;metro "tipo" &mdash; Modos de gera&ccedil;&atilde;o</div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr><th>Valor</th><th>Documentos gerados</th><th>Requer restricao_id?</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><span class="var-tag">all</span></td><td>Todos os 10 tipos para todas as restri&ccedil;&otilde;es</td><td>N&atilde;o</td></tr>
+            <tr><td><span class="var-tag">contrato_midas</span></td><td>1.1 Contrato Midas + 1.2 Termo Parceria</td><td>N&atilde;o</td></tr>
+            <tr><td><span class="var-tag">contrato_empresa</span></td><td>1.3 + 1.4 + 1.5 para uma restri&ccedil;&atilde;o</td><td>Sim</td></tr>
+            <tr><td><span class="var-tag">contrato_orgao</span></td><td>1.6 + 1.7 + 1.8 para uma restri&ccedil;&atilde;o</td><td>Sim</td></tr>
+            <tr><td><span class="var-tag">procuracao_empresa</span></td><td>2.1 para uma restri&ccedil;&atilde;o</td><td>Sim</td></tr>
+            <tr><td><span class="var-tag">procuracao_orgao</span></td><td>2.2 para uma restri&ccedil;&atilde;o</td><td>Sim</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: INTEGRATIONS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128268;</span>
+      <h2>Integra&ccedil;&otilde;es Necess&aacute;rias</h2>
+    </div>
+
+    <div class="grid g3">
+      <div class="card">
+        <div class="card-title" style="color: var(--accent5);">Google Docs API</div>
+        <div style="margin-bottom: 12px;">
+          <span class="status-pill sp-run">OAuth2</span>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">Criar documentos a partir de templates e preencher vari&aacute;veis com dados do cliente.</p>
+        <div style="font-size: 0.78rem;">
+          <strong>Endpoints:</strong><br>
+          <span class="var-tag">documents.create</span><br>
+          <span class="var-tag">documents.batchUpdate</span><br>
+          <span class="var-tag">files.copy</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color: var(--accent3);">Google Drive API</div>
+        <div style="margin-bottom: 12px;">
+          <span class="status-pill sp-run">OAuth2</span>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">Upload PDFs para pasta do cliente, renomear pasta, deletar docs tempor&aacute;rios.</p>
+        <div style="font-size: 0.78rem;">
+          <strong>Endpoints:</strong><br>
+          <span class="var-tag">files.create (upload)</span><br>
+          <span class="var-tag">files.update (rename)</span><br>
+          <span class="var-tag">files.delete</span><br>
+          <span class="var-tag">files.export (PDF)</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="color: var(--accent4);">Supabase</div>
+        <div style="margin-bottom: 12px;">
+          <span class="status-pill sp-done">API Key</span>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 8px;">Buscar dados do lead e restri&ccedil;&otilde;es. Atualizar status de gera&ccedil;&atilde;o.</p>
+        <div style="font-size: 0.78rem;">
+          <strong>Tabelas:</strong><br>
+          <span class="var-tag">leads</span><br>
+          <span class="var-tag">restricoes</span><br>
+          <span class="var-tag">restricoes_orgao</span><br>
+          <span class="var-tag">webhook_requests</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 16px;">
+      <div class="card-title">Credenciais n8n necess&aacute;rias</div>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr><th>Credential</th><th>Tipo</th><th>Scope</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Google Docs / Drive</td>
+              <td>OAuth2</td>
+              <td>drive.file, documents</td>
+              <td><span class="status-pill sp-pend">Configurar</span></td>
+            </tr>
+            <tr>
+              <td>Supabase</td>
+              <td>API Key (service_role)</td>
+              <td>Full access</td>
+              <td><span class="status-pill sp-done">Existente</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 7: CODE NODE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128187;</span>
+      <h2>L&oacute;gica do Code Node &mdash; Document Queue Builder</h2>
+    </div>
+
+    <div class="card">
+      <div class="card-title">N&oacute; 4: Prepare Document Queue (pseudoc&oacute;digo)</div>
+      <div class="code">const lead = $input.first().json.lead;
+const restricoes = $input.first().json.restricoes;
+const restricoesOrgao = $input.first().json.restricoes_orgao;
+const tipo = $input.first().json.tipo || 'all';
+const restricaoId = $input.first().json.restricao_id;
+
+const TEMPLATES = {
+  '1.1': { name: 'Contrato Midas',           templateId: 'TMPL_1_1', source: 'lead' },
+  '1.2': { name: 'Termo de Parceria',        templateId: 'TMPL_1_2', source: 'lead' },
+  '1.3': { name: 'Contrato Empresa',         templateId: 'TMPL_1_3', source: 'restricao' },
+  '1.4': { name: 'Termo Ciencia Empresa',    templateId: 'TMPL_1_4', source: 'restricao' },
+  '1.5': { name: 'Termo Veracidade Empresa', templateId: 'TMPL_1_5', source: 'restricao' },
+  '1.6': { name: 'Contrato Orgao',           templateId: 'TMPL_1_6', source: 'restricao_orgao' },
+  '1.7': { name: 'Termo Ciencia Orgao',      templateId: 'TMPL_1_7', source: 'restricao_orgao' },
+  '1.8': { name: 'Termo Veracidade Orgao',   templateId: 'TMPL_1_8', source: 'restricao_orgao' },
+  '2.1': { name: 'Procuracao Empresa',       templateId: 'TMPL_2_1', source: 'restricao' },
+  '2.2': { name: 'Procuracao Orgao',         templateId: 'TMPL_2_2', source: 'restricao_orgao' },
+};
+
+const baseVars = {
+  'NOME COMPLETO': lead.nome,
+  'CPF': lead.cpf,
+  'RG': lead.rg,
+  'CEP': lead.cep,
+  'CIDADE': lead.cidade,
+  'ESTADO': lead.estado,
+  'NOME DA RUA': lead.logradouro,
+  'NUMERO DO ENDERECO': lead.numero_endereco,
+  'PROFISSAO': lead.profissao,
+  'DATA': new Date().toLocaleDateString('pt-BR'),
+};
+
+const queue = [];
+
+// Docs gerais (sem restricao)
+if (tipo === 'all' || tipo === 'contrato_midas') {
+  queue.push({
+    ...TEMPLATES['1.1'],
+    variables: baseVars,
+    doc_name: '1.1 - Contrato Midas'
+  });
+  queue.push({
+    ...TEMPLATES['1.2'],
+    variables: baseVars,
+    doc_name: '1.2 - Termo de Parceria'
+  });
+}
+
+// Docs por restricao (empresa)
+if (tipo === 'all' || tipo === 'contrato_empresa') {
+  for (const r of restricoes) {
+    if (restricaoId &amp;&amp; r.id !== restricaoId) continue;
+    const vars = {
+      ...baseVars,
+      VALOR: r.valor,
+      EMPRESA: r.empresa_re,
+      CONTRATO: r.codigo_contrato
+    };
+    ['1.3', '1.4', '1.5'].forEach(id =&gt; {
+      queue.push({
+        ...TEMPLATES[id],
+        variables: vars,
+        doc_name: `${id} - ${TEMPLATES[id].name} - ${r.empresa_re}`
+      });
+    });
+  }
+}
+
+// Procuracoes empresa
+if (tipo === 'all' || tipo === 'procuracao_empresa') {
+  for (const r of restricoes) {
+    if (restricaoId &amp;&amp; r.id !== restricaoId) continue;
+    queue.push({
+      ...TEMPLATES['2.1'],
+      variables: { ...baseVars, VALOR: r.valor, EMPRESA: r.empresa_re, CONTRATO: r.codigo_contrato },
+      doc_name: `2.1 - Procuracao - ${r.empresa_re}`
+    });
+  }
+}
+
+// Docs por restricao (orgao) + procuracoes orgao
+// Mesmo padrao com restricoesOrgao e templates 1.6, 1.7, 1.8, 2.2
+
+return queue.map(item =&gt; ({
+  json: { ...item, folder_id: lead.drive_cliente }
+}));</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    &#x1F419; Jarbas 2.0 &mdash; MdLab LegalTech &middot; 2026-04-15<br>
+    <span style="font-size: 0.72rem; margin-top: 4px; display: inline-block;">Make.com [MDFlow] Gerar Contratos &rarr; n8n WH-DOC-01 Migration Spec</span>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,822 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA Gerador W7 — Orquestracao 8 Terminais</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --card: #1a1714;
+    --surface: #221f1b;
+    --border: #332e28;
+    --text: #f0ebe3;
+    --muted: #8a8075;
+    --primary: #20c997;
+    --primary-dim: #1a9f79;
+    --p0: #ef4444;
+    --p1: #f59e0b;
+    --p2: #3b82f6;
+    --td: #8b5cf6;
+    --success: #22c55e;
+    --font-body: 'Inter', -apple-system, sans-serif;
+    --font-heading: 'Manrope', -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); line-height: 1.6; padding: 2rem; }
+
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  h1 { font-family: var(--font-heading); font-size: 2rem; font-weight: 800; margin-bottom: 0.5rem; }
+  h1 span { color: var(--primary); }
+  h2 { font-family: var(--font-heading); font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; }
+  h3 { font-family: var(--font-heading); font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--primary); }
+
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 2rem; }
+
+  /* Overview Grid */
+  .overview { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; text-align: center; }
+  .stat-card .value { font-family: var(--font-heading); font-size: 2rem; font-weight: 800; }
+  .stat-card .label { color: var(--muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-card.p0 .value { color: var(--p0); }
+  .stat-card.p1 .value { color: var(--p1); }
+  .stat-card.p2 .value { color: var(--p2); }
+  .stat-card.total .value { color: var(--primary); }
+
+  /* Flow Diagram */
+  .flow-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+  .flow-steps { display: flex; align-items: center; justify-content: center; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+  .flow-step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.6rem 1rem; font-size: 0.85rem; text-align: center; min-width: 120px; }
+  .flow-step.active { border-color: var(--primary); background: rgba(32,201,151,0.1); }
+  .flow-arrow { color: var(--muted); font-size: 1.2rem; }
+
+  /* Dependency Graph */
+  .dep-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem; }
+  .dep-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-top: 1rem; }
+  .dep-node { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0.75rem; font-size: 0.8rem; text-align: center; position: relative; }
+  .dep-node .tag { position: absolute; top: -8px; right: 8px; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+  .dep-node .tag.p0 { background: var(--p0); color: white; }
+  .dep-node .tag.p1 { background: var(--p1); color: #000; }
+  .dep-node .tag.p2 { background: var(--p2); color: white; }
+  .dep-node .tag.td { background: var(--td); color: white; }
+  .dep-node .title { font-weight: 600; margin-bottom: 4px; }
+  .dep-node .desc { color: var(--muted); font-size: 0.7rem; }
+  .dep-note { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 0.75rem; }
+
+  /* Terminal Cards */
+  .terminals { display: flex; flex-direction: column; gap: 1.5rem; }
+  .terminal-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .terminal-header { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); }
+  .terminal-number { font-family: var(--font-mono); font-size: 1.4rem; font-weight: 800; color: var(--primary); min-width: 50px; }
+  .terminal-title { font-family: var(--font-heading); font-weight: 700; font-size: 1.1rem; flex: 1; }
+  .terminal-badges { display: flex; gap: 0.5rem; }
+  .badge { font-size: 0.7rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; text-transform: uppercase; }
+  .badge.p0 { background: rgba(239,68,68,0.15); color: var(--p0); border: 1px solid rgba(239,68,68,0.3); }
+  .badge.p1 { background: rgba(245,158,11,0.15); color: var(--p1); border: 1px solid rgba(245,158,11,0.3); }
+  .badge.p2 { background: rgba(59,130,246,0.15); color: var(--p2); border: 1px solid rgba(59,130,246,0.3); }
+  .badge.td { background: rgba(139,92,246,0.15); color: var(--td); border: 1px solid rgba(139,92,246,0.3); }
+  .badge.dep { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+
+  .terminal-body { padding: 1.5rem; }
+  .terminal-info { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .info-block h4 { font-size: 0.75rem; text-transform: uppercase; color: var(--muted); margin-bottom: 0.25rem; letter-spacing: 0.5px; }
+  .info-block p { font-size: 0.85rem; }
+  .info-block code { font-family: var(--font-mono); font-size: 0.8rem; color: var(--primary); }
+
+  .phase { margin-bottom: 1.25rem; }
+  .phase-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+  .phase-number { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; color: var(--bg); background: var(--primary); padding: 2px 8px; border-radius: 4px; }
+  .phase-label { font-weight: 600; font-size: 0.9rem; }
+
+  .prompt-box { position: relative; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .prompt-content { padding: 1rem 1.25rem; padding-right: 4rem; font-family: var(--font-mono); font-size: 0.78rem; line-height: 1.7; white-space: pre-wrap; word-break: break-word; color: #d4d0c8; max-height: 400px; overflow-y: auto; }
+  .copy-btn { position: absolute; top: 8px; right: 8px; background: var(--primary); color: var(--bg); border: none; border-radius: 6px; padding: 6px 14px; font-size: 0.75rem; font-weight: 700; cursor: pointer; transition: all 0.2s; z-index: 2; font-family: var(--font-body); }
+  .copy-btn:hover { background: #2dd4a8; transform: translateY(-1px); }
+  .copy-btn.copied { background: var(--success); }
+
+  /* Test Section */
+  .test-section { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-top: 2rem; }
+  .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem; }
+  .test-item { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.85rem; padding: 0.5rem; background: var(--surface); border-radius: 6px; }
+  .test-item .check { color: var(--muted); font-family: var(--font-mono); }
+
+  /* Footer */
+  .footer { text-align: center; color: var(--muted); font-size: 0.75rem; margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); }
+  .footer span { color: var(--primary); }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    .overview { grid-template-columns: repeat(2, 1fr); }
+    .dep-grid { grid-template-columns: repeat(2, 1fr); }
+    .terminal-info { grid-template-columns: 1fr; }
+    .test-grid { grid-template-columns: 1fr; }
+    .terminal-header { flex-wrap: wrap; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- Header -->
+<h1>OlivIA Gerador <span>W7</span> — Orquestracao</h1>
+<p class="subtitle">8 terminais paralelos | Lapidacao cirurgica do pipeline de geracao | 2026-04-13</p>
+
+<!-- Overview -->
+<div class="overview">
+  <div class="stat-card p0"><div class="value">4</div><div class="label">Bugs P0</div></div>
+  <div class="stat-card p1"><div class="value">3+2</div><div class="label">Bugs P1 + TD</div></div>
+  <div class="stat-card p2"><div class="value">2</div><div class="label">Bugs P2</div></div>
+  <div class="stat-card total"><div class="value">8</div><div class="label">Terminais</div></div>
+</div>
+
+<!-- Flow -->
+<div class="flow-section">
+  <h3>Fluxo por Terminal</h3>
+  <div class="flow-steps">
+    <div class="flow-step active">1. Abrir terminal<br><small>cd ~/beta-mdflow</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step active">2. /projeto plan<br><small>Colar prompt PLAN</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">3. Revisar plano<br><small>Validar com CTO</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step active">4. /projeto execute<br><small>Colar prompt EXECUTE</small></div>
+    <div class="flow-arrow">&rarr;</div>
+    <div class="flow-step">5. Validar teste<br><small>Checklist da task</small></div>
+  </div>
+</div>
+
+<!-- Dependencies -->
+<div class="dep-section">
+  <h3>Mapa de Dependencias</h3>
+  <div class="dep-grid">
+    <div class="dep-node"><span class="tag p0">P0</span><div class="title">T1 — Juris Inline</div><div class="desc">Independente</div></div>
+    <div class="dep-node"><span class="tag p0">P0</span><div class="title">T2 — Placeholders</div><div class="desc">Independente</div></div>
+    <div class="dep-node"><span class="tag p0">P0</span><div class="title">T3 — Cleanup</div><div class="desc">Depende T2</div></div>
+    <div class="dep-node"><span class="tag p1">P1</span><div class="title">T4 — Cabecalho</div><div class="desc">Independente</div></div>
+    <div class="dep-node"><span class="tag p2">P2</span><div class="title">T5 — Estilos</div><div class="desc">Depende T4</div></div>
+    <div class="dep-node"><span class="tag p1">P1</span><div class="title">T6 — Logs</div><div class="desc">Independente</div></div>
+    <div class="dep-node"><span class="tag td">TD</span><div class="title">T7 — Tech Debt</div><div class="desc">Independente</div></div>
+    <div class="dep-node"><span class="tag p2">P2</span><div class="title">T8 — Docs</div><div class="desc">Independente</div></div>
+  </div>
+  <div class="dep-note">T1, T2, T4, T6, T7, T8 podem iniciar simultaneamente | T3 espera T2 | T5 espera T4</div>
+</div>
+
+<!-- ==================== TERMINAL 1 ==================== -->
+<div class="terminals">
+
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T1</div>
+    <div class="terminal-title">Prompt juris inline — posicionamento de jurisprudencias</div>
+    <div class="terminal-badges"><span class="badge p0">P0</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bug</h4><p>P0-1: Juris como bloco separado no inicio do DOCX</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>geracao.md</code> + <code>geracao.mjs</code> + <code>FORMATACAO-v2.md</code></p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Mac Mini: /Users/olivia/olivia-server/pipeline/ + vault/</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T01.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T01: Prompt juris inline (P0-1).
+
+## Contexto
+Jurisprudencias aparecem como bloco separado no INICIO do DOCX em vez de inline dentro dos topicos. Problema 100% no prompt — Claude gera juris fora de posicao.
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T01.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- ~/jarbas-vault/02_projetos/olivia-gerador/spec.md (decisoes D02/D07)
+- ~/jarbas-vault/02_projetos/olivia-gerador/MECANISMO.md (fluxo geracao)
+- ~/jarbas-vault/02_projetos/olivia-gerador/PAYLOADS.md (payload geracao)
+- ~/jarbas-vault/02_projetos/olivia-gerador/JURISPRUDENCIAS.md (Smart Juris v2)
+- ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html (root cause P0-1)
+
+## Investigar via SSH Mac Mini
+1. ssh mac-mini-tail "cat /Users/olivia/Documents/olivia-vault/03-prompts/geracao.md" — ler prompt COMPLETO
+2. ssh mac-mini-tail "sed -n '410,530p' /Users/olivia/olivia-server/pipeline/geracao.mjs" — ler buildPrompt()
+3. ssh mac-mini-tail "cat /Users/olivia/Documents/olivia-vault/agente/FORMATACAO-v2.md" — ler formatacao
+
+## O que validar no plan
+- Onde exatamente inserir a regra CRITICA de posicionamento em geracao.md
+- Onde exatamente inserir a instrucao no buildPrompt() instrucaoBody
+- Onde exatamente inserir em FORMATACAO-v2.md
+- Confirmar que a mudanca NAO altera logica de codigo, SOMENTE prompts/texto
+- Confirmar que o output JSON schema nao e afetado</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T01: Prompt juris inline (P0-1).
+
+## O que fazer (conforme W7-T01.md)
+1. SSH Mac Mini: editar geracao.md — inserir "REGRA CRITICA — Posicionamento de Jurisprudencia" na secao de regras
+2. SSH Mac Mini: editar geracao.mjs buildPrompt() ~L480-520 — inserir instrucao "POSICIONAMENTO DE JURIS" no instrucaoBody
+3. SSH Mac Mini: editar FORMATACAO-v2.md — inserir "Posicionamento — REGRA INVIOLAVEL" apos secao jurisprudencia
+
+## Checklist de Teste
+- [ ] geracao.md contem regra "REGRA CRITICA — Posicionamento de Jurisprudencia"
+- [ ] geracao.mjs buildPrompt() contem instrucao "POSICIONAMENTO DE JURIS"
+- [ ] FORMATACAO-v2.md contem regra "Posicionamento — REGRA INVIOLAVEL"
+- [ ] Nenhuma alteracao em logica de codigo (SOMENTE prompts/texto)
+- [ ] Output JSON schema nao foi alterado
+
+Apos executar, fazer /codex:review nos 3 arquivos modificados para validar consistencia.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TERMINAL 2 ==================== -->
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T2</div>
+    <div class="terminal-title">substituirCamposDados — completar mapa de placeholders</div>
+    <div class="terminal-badges"><span class="badge p0">P0</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bugs</h4><p>P0-2, P0-3, P0-4, P1-1: Placeholders literais, CNJ vazio, nome vazio, data vazia</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>geracao.mjs</code> funcao substituirCamposDados() ~L608-640</p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Mac Mini: /Users/olivia/olivia-server/pipeline/geracao.mjs</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T02.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T02: substituirCamposDados completo (P0-2, P0-3, P0-4, P1-1).
+
+## Contexto
+Mapa atual tem 10 placeholders. Faltam: {{enderecamento_vara}}, {{parte_apelante}}, {{parte_apelada}}, {{parte_re}}, {{comarca}}, {{uf_tribunal}}, etc. Fallbacks insuficientes para parte_autora (nao busca cliente.nome).
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T02.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- ~/jarbas-vault/02_projetos/olivia-gerador/spec.md (decisao D07)
+- ~/jarbas-vault/02_projetos/olivia-gerador/PAYLOADS.md (campos)
+- ~/jarbas-vault/02_projetos/olivia-gerador/BANCO-DE-DADOS.md (schema)
+- ~/jarbas-vault/02_projetos/olivia-gerador/SERVIDOR.md (pipeline)
+- ~/jarbas-vault/02_projetos/olivia-gerador/waves/W3/W3-T03.md (implementacao original)
+- ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html (root cause)
+
+## Investigar via SSH Mac Mini
+1. ssh mac-mini-tail "sed -n '600,660p' /Users/olivia/olivia-server/pipeline/geracao.mjs" — ler substituirCamposDados() atual
+2. Executar SQL via Supabase MCP: SELECT numero_cnj, autor_nome, cliente_nome, reu_nome, vara, comarca FROM processos WHERE numero_cnj = '5278072-30.2024.8.21.0001'
+3. Listar todos placeholders dos templates: SELECT DISTINCT regexp_matches(conteudo_template, '\{\{([a-z_]+)\}\}', 'g') FROM olivia_modelos_peticao WHERE conteudo_template IS NOT NULL
+
+## O que validar no plan
+- Mapa completo de TODOS placeholders necessarios (21+)
+- Para cada placeholder: fonte de dados + fallback chain
+- Confirmar que nao quebra placeholders existentes
+- Verificar se dados do processo teste estao populados no banco</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T02: substituirCamposDados completo (P0-2, P0-3, P0-4, P1-1).
+
+## O que fazer (conforme W7-T02.md)
+1. SSH Mac Mini: editar substituirCamposDados() em geracao.mjs — expandir mapa de 10 para 21+ placeholders
+2. Adicionar: {{enderecamento_vara}}, {{enderecamento_juizo}}, {{parte_apelante}}, {{parte_apelada}}, {{parte_re}}, {{parte_reu}}, {{comarca}}, {{uf_tribunal}}, {{tribunal_extenso}}, {{advogado_oab_uf}}, {{advogado_oab_numero}}
+3. Melhorar fallbacks: parte_autora agora busca proc.autor_nome || proc.cliente_nome || dadosBase.cliente?.nome
+4. Adicionar log WARN para campos criticos vazios (empresa_re, numero_processo, parte_autora)
+
+## Checklist de Teste
+- [ ] Todos 21+ placeholders no mapa
+- [ ] Fallbacks robustos (nunca retorna {{placeholder}} literal)
+- [ ] Log WARN para campos criticos vazios
+- [ ] Zero regressao em placeholders existentes
+
+Apos executar, fazer /codex:review em geracao.mjs para validar consistencia.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TERMINAL 3 ==================== -->
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T3</div>
+    <div class="terminal-title">Cleanup placeholders universal — regex em ambos caminhos</div>
+    <div class="terminal-badges"><span class="badge p0">P0</span><span class="badge dep">Depende T2</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bug</h4><p>P0-2 complementar: cleanup regex so roda no template assembly, nao na concatenacao</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>geracao.mjs</code> funcao parseAndPersist() ~L680-780</p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Mac Mini: /Users/olivia/olivia-server/pipeline/geracao.mjs</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T03.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T03: Cleanup placeholders universal (P0-2 complementar).
+IMPORTANTE: Esta task DEPENDE de W7-T02. Executar APOS T2 estar concluida.
+
+## Contexto
+O regex de cleanup `peticaoHtml.replace(/\{\{[a-z_][a-z0-9_]*\}\}/g, '')` so roda no caminho de template assembly. Se cai no fallback de concatenacao, placeholders de CONTEUDO (como {{relacao_juridica_contrato_conta_corrente}}) passam direto pro DOCX.
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T03.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- ~/jarbas-vault/02_projetos/olivia-gerador/spec.md
+- ~/jarbas-vault/02_projetos/olivia-gerador/PAYLOADS.md
+- ~/jarbas-vault/02_projetos/olivia-gerador/SERVIDOR.md (pipeline G8)
+- ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html (root cause)
+
+## Investigar via SSH Mac Mini
+1. ssh mac-mini-tail "sed -n '650,780p' /Users/olivia/olivia-server/pipeline/geracao.mjs" — ler parseAndPersist() COMPLETO
+2. Mapear: onde template assembly roda, onde concatenacao roda, onde cada transformacao acontece
+3. Confirmar que substituirCamposDados ja esta expandido (W7-T02 concluida)
+
+## O que validar no plan
+- Fluxo exato dos 2 caminhos (template vs concatenacao)
+- Confirmar que mover cleanup NAO quebra template assembly
+- Confirmar que substituirCamposDados roda ANTES do cleanup
+- Confirmar que formatarHTML roda DEPOIS do cleanup</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T03: Cleanup placeholders universal (P0-2 complementar).
+
+## O que fazer (conforme W7-T03.md)
+1. SSH Mac Mini: remover cleanup regex do caminho template assembly
+2. SSH Mac Mini: adicionar cleanup UNIVERSAL apos substituirCamposDados — com log de placeholders removidos
+3. Ordem final: substituirCamposDados → cleanup universal (com log) → formatarHTML
+
+## Checklist de Teste
+- [ ] Cleanup roda em AMBOS os caminhos (template e concatenacao)
+- [ ] Log mostra placeholders residuais removidos
+- [ ] substituirCamposDados roda ANTES do cleanup
+- [ ] formatarHTML roda DEPOIS do cleanup
+- [ ] Zero placeholders {{}} no output final
+
+Apos executar, fazer /codex:review em parseAndPersist() para validar a ordem das transformacoes.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TERMINAL 4 ==================== -->
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T4</div>
+    <div class="terminal-title">Cabecalho EXCELENTISSIMO + bloco assinatura no DOCX</div>
+    <div class="terminal-badges"><span class="badge p1">P1</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bugs</h4><p>P1-2: Sem enderecamento | P1-3: Sem assinatura | P1-4: Apelante/apelada vazios</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>criar-doc.mjs</code> funcao gerarDocxBuffer() ~L180</p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Mac Mini: /Users/olivia/olivia-server/pipeline/criar-doc.mjs</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T04.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T04: Cabecalho + Assinatura DOCX (P1-2, P1-3, P1-4).
+
+## Contexto
+DOCX comeca direto com conteudo sem "EXCELENTISSIMO..." e termina sem bloco de assinatura. Campos apelante/apelada vazios na apelacao. Precisamos criar gerarCabecalho() e gerarRodape() em criar-doc.mjs.
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T04.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- ~/jarbas-vault/02_projetos/olivia-gerador/spec.md (decisao D06)
+- ~/jarbas-vault/02_projetos/olivia-gerador/MECANISMO.md (fluxo criar-doc)
+- ~/jarbas-vault/02_projetos/olivia-gerador/SERVIDOR.md (criar-doc.mjs)
+- ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html (root cause P1-2/P1-3)
+
+## Investigar via SSH Mac Mini
+1. ssh mac-mini-tail "cat /Users/olivia/olivia-server/pipeline/criar-doc.mjs" — ler COMPLETO (~350 linhas)
+2. Mapear: signature de gerarDocxBuffer() — como advogado e dados sao passados
+3. Mapear: criarDoc() — como busca historico → advogado. Precisa TAMBEM buscar processo/cliente/empresa
+
+## O que validar no plan
+- Como passar dadosBase para gerarDocxBuffer() (precisa modificar criarDoc tambem)
+- Logica 1a instancia vs recursal para cabecalho
+- Deteccao "pede deferimento" para nao duplicar no rodape
+- Confirmar que nao quebra DOCX existente</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T04: Cabecalho + Assinatura DOCX (P1-2, P1-3, P1-4).
+
+## O que fazer (conforme W7-T04.md)
+1. SSH Mac Mini: criar funcao gerarCabecalho(tipoDoc, dadosBase, FONT)
+   - 1a instancia: "EXCELENTISSIMO(A)..." + CNJ
+   - Recursal: retorna [] (Claude ja gera "EGREGIO TRIBUNAL")
+2. SSH Mac Mini: criar funcao gerarRodape(tipoDoc, dadosBase, FONT, temDeferimento)
+   - "Nestes termos, pede deferimento." (se nao existe)
+   - Cidade, data por extenso
+   - Linha assinatura + nome + OAB
+3. SSH Mac Mini: modificar gerarDocxBuffer() para aceitar dadosBase
+4. SSH Mac Mini: modificar criarDoc() para buscar e passar dadosBase (processo, advogado, cliente, empresa)
+
+## Checklist de Teste
+- [ ] DOCX de replica comeca com "EXCELENTISSIMO(A)..."
+- [ ] DOCX de apelacao NAO duplica "EGREGIO TRIBUNAL"
+- [ ] DOCX termina com assinatura (nome + OAB)
+- [ ] Data por extenso correta
+- [ ] "Nestes termos" nao duplicado
+
+Apos executar, fazer /codex:review em criar-doc.mjs para validar.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TERMINAL 5 ==================== -->
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T5</div>
+    <div class="terminal-title">Estilos Word nomeados no DOCX</div>
+    <div class="terminal-badges"><span class="badge p2">P2</span><span class="badge dep">Depende T4</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bug</h4><p>P2-2: Todos paragrafos "NoStyle" no Word — sem TOC/temas/edicao consistente</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>criar-doc.mjs</code> Document() styles + associar blocos</p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Mac Mini: /Users/olivia/olivia-server/pipeline/criar-doc.mjs</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T05.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T05: Estilos Word nomeados (P2-2).
+IMPORTANTE: Esta task DEPENDE de W7-T04. Executar APOS T4 estar concluida.
+
+## Contexto
+Todos paragrafos do DOCX aparecem como "NoStyle" no Word. Formatacao inline funciona visualmente, mas sem estilos nomeados nao ha TOC, temas ou edicao consistente.
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T05.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- ~/jarbas-vault/02_projetos/olivia-gerador/SERVIDOR.md (criar-doc.mjs)
+- ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html (root cause P2-2)
+
+## Investigar via SSH Mac Mini
+1. ssh mac-mini-tail "cat /Users/olivia/olivia-server/pipeline/criar-doc.mjs" — ler Document() creation
+2. Pesquisar docx lib docs: como definir paragraphStyles e associar a Paragraph
+3. IMPORTANTE: manter formatacao inline como fallback (nao remover)
+
+## O que validar no plan
+- Definicao dos 3 estilos: TituloPeticao, CorpoJuridico, CitacaoJuris
+- Associar blocos: paraTitulo → TituloPeticao, paraNormal → CorpoJuridico, paraJuris → CitacaoJuris
+- Compatibilidade com lib docx
+- Formatacao visual identica a anterior</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T05: Estilos Word nomeados (P2-2).
+
+## O que fazer (conforme W7-T05.md)
+1. SSH Mac Mini: adicionar paragraphStyles ao Document() — TituloPeticao, CorpoJuridico, CitacaoJuris
+2. SSH Mac Mini: associar style em paraTitulo(), paraNormal(), paraJuris()
+3. Manter formatacao inline como fallback (NAO remover)
+
+## Checklist de Teste
+- [ ] DOCX abre com estilos nomeados no Word
+- [ ] Titulos de secao usam estilo 'TituloPeticao'
+- [ ] Paragrafos usam estilo 'CorpoJuridico'
+- [ ] Citacoes usam estilo 'CitacaoJuris'
+- [ ] Formatacao visual identica a anterior (nao regressao)
+
+Apos executar, fazer /codex:review em criar-doc.mjs para validar.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TERMINAL 6 ==================== -->
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T6</div>
+    <div class="terminal-title">Logs detalhados + validacao dados base criticos</div>
+    <div class="terminal-badges"><span class="badge p1">P1</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bugs</h4><p>P0-3/P0-4: CNJ e nome vazios — sem logs para diagnosticar se e dados ou codigo</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>geracao.mjs</code> fetchDadosBase() ~L170-230 + <code>criar-doc.mjs</code></p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Mac Mini: /Users/olivia/olivia-server/pipeline/</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T06.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T06: Logs + Validacao dados base (P0-3, P0-4).
+
+## Contexto
+CNJ e nome do autor vazios no DOCX. Root cause provavel: dados null no banco OU fetch incorreto. Sem logs detalhados em fetchDadosBase(), impossivel diagnosticar.
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T06.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- ~/jarbas-vault/02_projetos/olivia-gerador/BANCO-DE-DADOS.md (schema processos)
+- ~/jarbas-vault/02_projetos/olivia-gerador/SERVIDOR.md (fetchDadosBase)
+- ~/jarbas-vault/02_projetos/olivia-gerador/PAYLOADS.md (campos esperados)
+- ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html (root cause P0-3/P0-4)
+
+## Investigar via SSH Mac Mini
+1. ssh mac-mini-tail "sed -n '170,230p' /Users/olivia/olivia-server/pipeline/geracao.mjs" — ler fetchDadosBase()
+2. Executar SQL via Supabase MCP:
+   - SELECT id, numero_cnj, autor_nome, cliente_nome, reu_nome, vara, juizo, comarca, foro, empresa_id, cliente_id, advogado_id FROM processos WHERE numero_cnj = '5278072-30.2024.8.21.0001'
+   - SELECT COUNT(*) as total, COUNT(NULLIF(autor_nome, '')) as com_autor, COUNT(NULLIF(reu_nome, '')) as com_reu, COUNT(NULLIF(vara, '')) as com_vara, COUNT(NULLIF(comarca, '')) as com_comarca FROM processos WHERE deleted_at IS NULL AND organizacao_id = '55a0c7ba-1a23-4ae1-b69b-a13811324735'
+
+## O que validar no plan
+- Estado real dos dados do processo teste no banco
+- Quais campos estao null e precisam de backfill
+- Onde inserir logs em fetchDadosBase() (apos cada round)
+- Funcao validarDadosCriticos() — quais campos sao CRITICOS vs WARN</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T06: Logs + Validacao dados base (P0-3, P0-4).
+
+## O que fazer (conforme W7-T06.md)
+1. SSH Mac Mini: adicionar logs detalhados em fetchDadosBase() apos cada round:
+   - Round 1: processo + cnj + autor + reu + vara + comarca + modelo
+   - Round 2: advogado + nome + oab + empresa
+   - Round 3: cliente + nome + sexo
+2. SSH Mac Mini: criar funcao validarDadosCriticos(dadosBase) — CRITICO para cnj/autor/reu, WARN para vara/comarca/advogado
+3. SSH Mac Mini: injetar validarDadosCriticos apos fetchDadosBase em handleGeracao()
+4. Se dados do processo teste estiverem null no banco: criar script de backfill
+
+## Checklist de Teste
+- [ ] Logs detalhados aparecem no console do server.mjs
+- [ ] validarDadosCriticos() loga alertas para campos vazios
+- [ ] Campos criticos do processo teste estao populados no banco
+- [ ] Zero regressao no pipeline
+
+Apos executar, fazer /codex:review em geracao.mjs para validar.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TERMINAL 7 ==================== -->
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T7</div>
+    <div class="terminal-title">Tech debt aprendizado.mjs — multi-tenant + vault path</div>
+    <div class="terminal-badges"><span class="badge td">TD</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bugs</h4><p>TD-AP-01/02/03: Queries sem organizacao_id + sem deleted_at + vault path divergente</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>aprendizado.mjs</code> (~349 linhas)</p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Mac Mini: /Users/olivia/olivia-server/pipeline/aprendizado.mjs</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T07.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T07: Tech debt aprendizado (TD-AP-01, TD-AP-02, TD-AP-03, vault-path-bug).
+
+## Contexto
+aprendizado.mjs tem queries de processos/empresas sem .eq('organizacao_id', orgId) — falha multi-tenant. Fallback update sem organizacao_id. Queries sem .is('deleted_at', null). Vault path divergente entre aprendizado.mjs e treinamento.mjs.
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T07.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- ~/jarbas-vault/02_projetos/olivia-gerador/spec.md (decisao D04)
+- ~/jarbas-vault/02_projetos/olivia-gerador/TREINAMENTO.md (pipeline treinamento.mjs)
+- ~/jarbas-vault/02_projetos/olivia-gerador/OLIVIA-VAULT.md (estrutura vault)
+- ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html (tech debt section)
+
+## Investigar via SSH Mac Mini
+1. ssh mac-mini-tail "cat /Users/olivia/olivia-server/pipeline/aprendizado.mjs" — ler COMPLETO
+2. ssh mac-mini-tail "grep -n 'from(' /Users/olivia/olivia-server/pipeline/aprendizado.mjs" — listar todas queries
+3. ssh mac-mini-tail "grep -n 'VAULT_MEMORIA\|olivia-vault' /Users/olivia/olivia-server/pipeline/aprendizado.mjs" — verificar vault path
+4. ssh mac-mini-tail "grep -n 'VAULT_MEMORIA\|olivia-vault' /Users/olivia/olivia-server/pipeline/treinamento.mjs" — confirmar path correto
+
+## O que validar no plan
+- Quantas queries de processos/empresas existem
+- Quais JA tem organizacao_id e quais NAO tem
+- Qual e o path CORRETO do vault (treinamento.mjs e a referencia)
+- Onde esta o status degradation fix necessario</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T07: Tech debt aprendizado (TD-AP-01, TD-AP-02, TD-AP-03, vault-path-bug).
+
+## O que fazer (conforme W7-T07.md)
+1. SSH Mac Mini: corrigir VAULT_MEMORIA = olivia-vault/memoria/ (sem agente/)
+2. SSH Mac Mini: adicionar .eq('organizacao_id', orgId) em TODAS queries de processos/empresas
+3. SSH Mac Mini: adicionar .is('deleted_at', null) em TODAS queries
+4. SSH Mac Mini: corrigir status degradation — falha no aprendizado NAO deve alterar status CONCLUIDO
+
+## Checklist de Teste
+- [ ] VAULT_MEMORIA = olivia-vault/memoria/ (sem agente/)
+- [ ] TODAS queries de processos tem .eq('organizacao_id')
+- [ ] TODAS queries de empresas tem .eq('organizacao_id')
+- [ ] TODAS queries tem .is('deleted_at', null)
+- [ ] Falha no aprendizado NAO altera status de registro CONCLUIDO
+
+Apos executar, fazer /codex:review em aprendizado.mjs para validar.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== TERMINAL 8 ==================== -->
+<div class="terminal-card">
+  <div class="terminal-header">
+    <div class="terminal-number">T8</div>
+    <div class="terminal-title">Documentacao + projeto.json + FORMATACAO-v2 atualizada</div>
+    <div class="terminal-badges"><span class="badge p2">P2</span></div>
+  </div>
+  <div class="terminal-body">
+    <div class="terminal-info">
+      <div class="info-block"><h4>Bug</h4><p>projeto.json inflado (54/54 vs real 42/54), docs desatualizados</p></div>
+      <div class="info-block"><h4>Arquivos</h4><p><code>projeto.json</code> + <code>tasks.md</code> + docs vault</p></div>
+      <div class="info-block"><h4>Localizacao</h4><p>Local + Vault + Mac Mini (FORMATACAO-v2.md)</p></div>
+      <div class="info-block"><h4>Task Doc</h4><p><code>~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T08.md</code></p></div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 1</span><span class="phase-label">Plan</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto plan
+
+Estou executando W7-T08: Documentacao + projeto.json (P2).
+
+## Contexto
+projeto.json dizia 54/54 completas mas real era 42/54. Agora atualizado para 62 total (54+8 W7), 42 completas. Docs do vault precisam de atualizacao: MECANISMO.md falta secao cabecalho/assinatura, PAYLOADS.md falta mapa placeholders, SERVIDOR.md falta secao substituirCamposDados.
+
+## Task Doc
+Ler COMPLETO: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/W7-T08.md
+
+## Arquivos do Projeto a Consultar (jarbas-vault)
+- TODOS docs W7: ~/jarbas-vault/02_projetos/olivia-gerador/waves/W7/*.md
+- Parecer: ~/beta-mdflow/reports/olivia-gerador-lapidacao-v2.html
+- spec.md: ~/jarbas-vault/02_projetos/olivia-gerador/spec.md
+
+## O que validar no plan
+- projeto.json: total_tasks=62, completed_tasks=42, status=in_progress
+- tasks.md: W7 presente, W1 pendentes corretos
+- MECANISMO.md: onde inserir secao cabecalho/assinatura
+- PAYLOADS.md: onde inserir mapa de placeholders
+- SERVIDOR.md: onde inserir secao substituirCamposDados
+- FORMATACAO-v2.md (Mac Mini): onde inserir regra posicionamento juris</div>
+      </div>
+    </div>
+
+    <div class="phase">
+      <div class="phase-header"><span class="phase-number">PHASE 2</span><span class="phase-label">Execute</span></div>
+      <div class="prompt-box">
+        <button class="copy-btn" onclick="copyPrompt(this)">Copiar</button>
+        <div class="prompt-content">/projeto execute
+
+Executar W7-T08: Documentacao + projeto.json (P2).
+
+## O que fazer (conforme W7-T08.md)
+NOTA: projeto.json e tasks.md JA foram atualizados pelo terminal orquestrador. Verificar estado atual antes de editar.
+
+1. Verificar projeto.json: total_tasks=62, completed_tasks=42 (ja feito?)
+2. Verificar tasks.md: W7 presente, W1 pendentes (ja feito?)
+3. Atualizar MECANISMO.md — adicionar secao "Cabecalho e Assinatura (W7-T04)"
+4. Atualizar PAYLOADS.md — adicionar "Mapa Completo de Placeholders (substituirCamposDados)"
+5. Atualizar SERVIDOR.md — adicionar secao sobre substituirCamposDados completo
+6. SSH Mac Mini: verificar FORMATACAO-v2.md (pode ja ter sido atualizada por T1)
+7. Atualizar STATUS.md — fase W7 em andamento
+
+## Checklist de Teste
+- [ ] projeto.json: total_tasks=62, completed_tasks=42
+- [ ] tasks.md: W7 presente, W1 pendentes desmarcados
+- [ ] MECANISMO.md: secao cabecalho/assinatura presente
+- [ ] PAYLOADS.md: mapa de placeholders completo
+- [ ] SERVIDOR.md: secao substituirCamposDados presente
+
+Apos executar, fazer /codex:review nos docs atualizados para validar consistencia.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- terminals -->
+
+<!-- Validacao Final -->
+<div class="test-section">
+  <h2>Validacao Final (Este Terminal — Apos 8 Terminais)</h2>
+  <div class="test-grid">
+    <div class="test-item"><span class="check">[ ]</span> Gerar peticao REPLICA teste — juris inline nos topicos</div>
+    <div class="test-item"><span class="check">[ ]</span> Gerar peticao APELACAO teste — mesmas verificacoes</div>
+    <div class="test-item"><span class="check">[ ]</span> DOCX: zero placeholders {{}} literais</div>
+    <div class="test-item"><span class="check">[ ]</span> DOCX: CNJ preenchido, nome do autor preenchido</div>
+    <div class="test-item"><span class="check">[ ]</span> DOCX: cabecalho "EXCELENTISSIMO..." (replica)</div>
+    <div class="test-item"><span class="check">[ ]</span> DOCX: sem duplicar "EGREGIO TRIBUNAL" (apelacao)</div>
+    <div class="test-item"><span class="check">[ ]</span> DOCX: assinatura com nome + OAB no final</div>
+    <div class="test-item"><span class="check">[ ]</span> DOCX: estilos Word nomeados (TituloPeticao etc)</div>
+    <div class="test-item"><span class="check">[ ]</span> Logs detalhados aparecem no Mac Mini</div>
+    <div class="test-item"><span class="check">[ ]</span> aprendizado.mjs: multi-tenant + soft delete OK</div>
+    <div class="test-item"><span class="check">[ ]</span> projeto.json/tasks.md/spec corretos</div>
+    <div class="test-item"><span class="check">[ ]</span> Docs vault (MECANISMO/PAYLOADS/SERVIDOR) atualizados</div>
+  </div>
+</div>
+
+<!-- Footer -->
+<div class="footer">
+  <span>JARBAS 2.0</span> | OlivIA Gerador W7 — Orquestracao | Gerado: 2026-04-13 | 8 terminais, 11 bugs, 62 tasks
+</div>
+
+</div><!-- container -->
+
+<script>
+function copyPrompt(btn) {
+  const content = btn.parentElement.querySelector('.prompt-content').textContent;
+  navigator.clipboard.writeText(content).then(() => {
+    btn.textContent = 'Copiado!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'Copiar';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
+</body>
+</html>

@@ -404,6 +404,59 @@ await s5ReadDocs(page, paraLeitura, ...);  // tenta ler N docs DA PAGINA DO ULTI
       </div>
     </div>
 
+    <div class="tab-content" id="t6">
+      <div class="card" style="border-color:rgba(124,109,255,0.4);background:linear-gradient(180deg,rgba(124,109,255,0.05),var(--surface));">
+        <div class="card-title" style="color:var(--accent);">Codex Adversarial Review &mdash; 3 bugs cr&iacute;ticos n&atilde;o detectados na revis&atilde;o inicial</div>
+        <p style="font-size:0.86rem;margin-bottom:14px;">Codex (o4-mini) trabalhou na c&oacute;pia local do controller-agent e descobriu que <strong>mesmo aplicando os fixes 1-3</strong>, a pipeline ainda n&atilde;o entregaria documentos. Confirmei via SSH ao Mac Mini que os bugs s&atilde;o reais no c&oacute;digo ativo.</p>
+
+        <div class="card card-danger" style="margin-bottom:14px;">
+          <div class="card-title">Bug Codex #1 &mdash; Quebra de contrato de dados</div>
+          <p style="font-size:0.85rem;"><strong>Arquivo:</strong> <span class="file-path">controller-agent.mjs:568-571</span></p>
+          <div class="code-block">
+            <div class="code-label">S2 cria eventos com APENAS titulo (sem evento_texto)</div>
+            <div class="code">const eventos = (rawRows || []).map((e, i) =&gt; ({
+  cnj: e.cnj,
+  eventoId: e.evento_eproc || e.id,
+  titulo: e.titulo || '',     // &lt;-- so titulo
+  data: e.data_intimacao,
+  id: e.id,
+}));</div>
+          </div>
+          <p style="font-size:0.84rem;margin-top:10px;">Mesmo se o fix do S4&harr;S5 for aplicado e a <code class="inline">page</code> estiver no processo correto, S5 espera <code class="inline">evento_texto</code>. Como o campo n&atilde;o existe, <strong><code class="inline">toRead</code> zera</strong> antes de qualquer leitura ser tentada.</p>
+        </div>
+
+        <div class="card card-danger" style="margin-bottom:14px;">
+          <div class="card-title">Bug Codex #2 &mdash; Matcher busca campo inexistente (CONFIRMADO via SSH)</div>
+          <p style="font-size:0.85rem;"><strong>Arquivos:</strong> <span class="file-path">stages/s5-read-docs.mjs:277</span> e <span class="file-path">:352</span></p>
+          <div class="code-block">
+            <div class="code-label">navigateToDocumento e tryL3EventRowText</div>
+            <div class="code">// linha 277 - navigateToDocumento
+const eventoTexto = intimacao.evento_texto || intimacao.conteudo;
+//                                                ^^^ SEM fallback para titulo
+
+// linha 352 - tryL3EventRowText
+const eventoTexto = intimacao.evento_texto || intimacao.conteudo;
+//                                                ^^^ SEM fallback para titulo
+
+// linha 58-61 - detectTipoDoc TEM o fallback correto:
+const txt = (i.evento_texto || i.conteudo || i.titulo || '').toUpperCase();</div>
+          </div>
+          <p style="font-size:0.84rem;margin-top:10px;">Resultado: <code class="inline">detectTipoDoc</code> consegue inferir o tipo (porque tem fallback), mas <code class="inline">navigateToDocumento</code> e <code class="inline">tryL3</code> recebem string vazia e <strong>n&atilde;o conseguem casar com nenhuma linha de <code class="inline">#tblEventos</code></strong> &mdash; resultando em 0 docs lidos. Bug confirmado por mim via <code class="inline">grep -n</code> no Mac Mini.</p>
+        </div>
+
+        <div class="card card-warning">
+          <div class="card-title">Bug Codex #3 &mdash; S6 degrada silenciosamente sem documento</div>
+          <p style="font-size:0.85rem;">Quando S5 falha em popular <code class="inline">conteudo_completo</code>, S6 ANALYZE roda a IA recebendo conte&uacute;do vazio. A IA n&atilde;o falha &mdash; classifica como <strong>"G &mdash; ignor&aacute;vel"</strong> ou inventa classe A/B baseado s&oacute; no t&iacute;tulo, sem alertar.</p>
+          <p style="font-size:0.84rem;margin-top:10px;"><strong>Sintoma observado:</strong> 1.684 NULL + classes A=27, B=6 sufixadas com baixa confidence. A pipeline parece "funcionar" porque popula <code class="inline">ia_classificacao</code>, mas o resultado &eacute; <strong>lixo classificat&oacute;rio</strong>.</p>
+          <p style="font-size:0.84rem;margin-top:10px;"><strong>Fix sugerido:</strong> em S6, validar <code class="inline">if (!intimacao.conteudo_completo) throw new Error('S5_FAILED')</code> antes de chamar IA, e marcar <code class="inline">ia_status='erro_s5'</code>.</p>
+        </div>
+
+        <div class="callout danger" style="margin-top:14px;">
+          <strong>Conclus&atilde;o do Codex:</strong> "A causa raiz definitiva &eacute; dupla e interligada: <strong>Bug 1</strong> (contrato de dados) faz <code class="inline">toRead</code> zerar antes mesmo de S5 executar &mdash; S5 recebe lista vazia. <strong>Bug P1 original</strong> (S4&harr;S5 desacoplados) garantiria falha mesmo que o contrato fosse corrigido. Os dois bugs juntos explicam 100% do sintoma 'acessa EPROC, n&atilde;o acessa documentos'."
+        </div>
+      </div>
+    </div>
+
     <div class="tab-content" id="t5">
       <div class="card card-warning">
         <div class="card-title">P2 &mdash; Documenta&ccedil;&atilde;o contradiz a realidade</div>

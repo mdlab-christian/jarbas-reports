@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cecilia v3.0 -- Diagnostico de Pipeline</title>
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1815;
+  --surface2: #201e1b;
+  --surface3: #272421;
+  --border: #2e2b27;
+  --accent: #20c997;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --accent6: #ff9f43;
+  --text: #e8e4de;
+  --text-muted: #7a7268;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); font-size: 0.875rem; line-height: 1.65; padding: 24px; }
+.container { max-width: 1120px; margin: 0 auto; }
+.hero { text-align: center; padding: 52px 24px 40px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 14px; }
+.gradient-text { font-size: 2.1rem; font-weight: 700; background: linear-gradient(135deg, #20c997, #5bc4f5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; line-height: 1.25; }
+.hero-sub { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 14px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.4px; text-transform: uppercase; }
+.bp { background: rgba(32,201,151,0.12); color: var(--accent); border: 1px solid rgba(32,201,151,0.3); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.bo { background: rgba(255,159,67,0.1); color: var(--accent6); border: 1px solid rgba(255,159,67,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4,1fr); }
+.g5 { grid-template-columns: repeat(5,1fr); }
+@media(max-width:768px){.g2,.g3,.g4,.g5{grid-template-columns:1fr;}}
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px 20px; text-align: center; transition: border-color 0.2s; }
+.stat-card:hover { border-color: rgba(32,201,151,0.3); }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono','Fira Code',monospace; }
+.stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-sub { font-size: 0.74rem; color: var(--text-muted); margin-top: 4px; }
+.section { margin: 36px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 14px; flex-wrap: wrap; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.05rem; font-weight: 600; }
+.sec-badge { margin-left: auto; padding: 3px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.83rem; vertical-align: top; }
+tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+tr:hover td { background: rgba(255,255,255,0.03); }
+.table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; overflow-x: auto; }
+.pill { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; display: inline-block; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.sp-warn { background: rgba(255,159,67,0.1); color: var(--accent6); }
+.prio { padding: 3px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px; white-space: nowrap; display: inline-block; }
+.p0-tag { background: rgba(255,107,107,0.15); color: var(--accent2); border: 1px solid rgba(255,107,107,0.3); }
+.p1-tag { background: rgba(255,159,67,0.15); color: var(--accent6); border: 1px solid rgba(255,159,67,0.3); }
+.p2-tag { background: rgba(255,209,102,0.15); color: var(--accent4); border: 1px solid rgba(255,209,102,0.3); }
+code { font-family: 'JetBrains Mono','Fira Code','Consolas',monospace; font-size: 0.79rem; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; color: var(--accent4); }
+.codeblock { font-family: 'JetBrains Mono','Fira Code','Consolas',monospace; font-size: 0.78rem; background: rgba(0,0,0,0.55); border: 1px solid var(--border); border-radius: 10px; padding: 16px 18px; color: var(--accent3); overflow-x: auto; white-space: pre; line-height: 1.75; margin: 10px 0; }
+.c-comment { color: #4a4740; }
+.c-key { color: var(--accent5); }
+.c-str { color: var(--accent4); }
+.c-bad { color: var(--accent2); }
+.c-good { color: var(--accent3); }
+.accordion { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+.accordion-hdr { display: flex; align-items: center; gap: 10px; padding: 14px 18px; background: var(--surface); cursor: pointer; user-select: none; transition: background 0.15s; flex-wrap: wrap; }
+.accordion-hdr:hover { background: var(--surface2); }
+.acc-title { font-size: 0.88rem; font-weight: 600; flex: 1; min-width: 180px; }
+.acc-arrow { transition: transform 0.25s; font-size: 0.75rem; color: var(--text-muted); flex-shrink: 0; }
+.accordion-body { display: none; padding: 20px; background: var(--surface2); border-top: 1px solid var(--border); }
+.accordion.open .acc-arrow { transform: rotate(180deg); }
+.accordion.open .accordion-body { display: block; }
+.glass-card { background: rgba(255,255,255,0.03); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 20px; }
+.alert { border-radius: 10px; padding: 13px 16px; margin: 10px 0; font-size: 0.83rem; display: flex; gap: 10px; align-items: flex-start; line-height: 1.55; }
+.alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+.a-red { background: rgba(255,107,107,0.07); border: 1px solid rgba(255,107,107,0.2); color: #ffd0d0; }
+.a-yellow { background: rgba(255,209,102,0.07); border: 1px solid rgba(255,209,102,0.2); color: #fff0b3; }
+.a-green { background: rgba(32,201,151,0.07); border: 1px solid rgba(32,201,151,0.2); color: #b3f0e0; }
+.a-blue { background: rgba(91,196,245,0.07); border: 1px solid rgba(91,196,245,0.2); color: #c5e8fc; }
+ul.styled { list-style: none; padding: 0; }
+ul.styled li { padding: 7px 0 7px 18px; position: relative; border-bottom: 1px solid var(--border); font-size: 0.83rem; }
+ul.styled li:last-child { border-bottom: none; }
+ul.styled li::before { content: '›'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+.progress-wrap { margin: 8px 0; }
+.progress-label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.74rem; color: var(--text-muted); }
+.progress-bar { height: 6px; background: var(--surface3); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; }
+.flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 14px 0; }
+.flow-step { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 7px 13px; font-size: 0.77rem; font-weight: 600; white-space: nowrap; }
+.fs-ok { border-color: rgba(32,201,151,0.4); color: var(--accent3); background: rgba(32,201,151,0.05); }
+.fs-fail { border-color: rgba(255,107,107,0.4); color: var(--accent2); background: rgba(255,107,107,0.05); }
+.fs-partial { border-color: rgba(255,209,102,0.4); color: var(--accent4); background: rgba(255,209,102,0.05); }
+.flow-arrow { color: var(--text-muted); font-size: 0.85rem; }
+.layer-row { display: flex; margin-bottom: 8px; border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+.layer-lbl { background: var(--surface2); padding: 10px 12px; font-size: 0.78rem; font-weight: 700; color: var(--accent5); width: 48px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono',monospace; }
+.layer-txt { padding: 10px 14px; flex: 1; font-size: 0.81rem; background: var(--surface); line-height: 1.5; }
+.layer-st { padding: 10px 14px; display: flex; align-items: center; background: var(--surface); border-left: 1px solid var(--border); }
+.rec-box { background: linear-gradient(135deg,rgba(32,201,151,0.06),rgba(91,196,245,0.04)); border: 1px solid rgba(32,201,151,0.2); border-radius: 14px; padding: 22px; margin-top: 16px; }
+.rec-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 12px; font-weight: 600; }
+.step-box { background: linear-gradient(135deg,rgba(32,201,151,0.07),rgba(91,196,245,0.04)); border: 1px solid rgba(32,201,151,0.2); border-radius: 12px; padding: 15px 18px; display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+.step-num { font-size: 1.4rem; font-weight: 800; color: var(--accent); font-family: 'JetBrains Mono',monospace; flex-shrink: 0; line-height: 1; margin-top: 2px; }
+.step-txt { font-size: 0.83rem; line-height: 1.55; }
+.opt-hdr { font-size: 0.74rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 52px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <span class="hero-emoji">&#x1F991;</span>
+  <h1 class="gradient-text">Cecilia v3.0 &mdash; Diagnostico de Pipeline &amp; Plano de Correcao</h1>
+  <p class="hero-sub">Analise baseada em ciclo real 2026-04-16 &bull; 1591 intimacoes capturadas</p>
+  <div class="badges">
+    <span class="badge br">&#x26A0;&#xFE0F; 2 P0 Criticos</span>
+    <span class="badge bo">1 P1 Importante</span>
+    <span class="badge by">2 P2 Melhorias</span>
+    <span class="badge bp">DIAGNOSTICO 2026-04-16</span>
+    <span class="badge bb">Controller Agent v3.0</span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="grid g5">
+  <div class="stat-card">
+    <div class="stat-value">1591</div>
+    <div class="stat-label">Intimacoes capturadas</div>
+    <div class="stat-sub">ciclo real hoje</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--accent4)">1222</div>
+    <div class="stat-label">ia_status = pendente</div>
+    <div class="stat-sub">S6 nao processou</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--text-muted)">365</div>
+    <div class="stat-label">Classe A (ruido)</div>
+    <div class="stat-sub">~23% descartados</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--accent5)">4</div>
+    <div class="stat-label">Relevantes (S6)</div>
+    <div class="stat-sub">2x classe B + 2x classe G</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-value" style="color:var(--accent2)">0,25%</div>
+    <div class="stat-label">Taxa sinal/ruido</div>
+    <div class="stat-sub">4 relevantes / 1591</div>
+  </div>
+</div>
+
+<div class="alert a-red" style="margin-top:20px">
+  <span class="alert-icon">&#x1F534;</span>
+  <div><strong>Root cause do flood:</strong> A funcao <code>intimacaoEhMuitoAntiga(dataEvento)</code> retorna <code>false</code> quando <code>data_evento</code> e <code>null</code>. Grande parte das movimentacoes capturadas via Playwright nao tem data detectada corretamente, passam o filtro e sao inseridas mesmo sendo historicas.</div>
+</div>
+<div class="alert a-green" style="margin-top:8px">
+  <span class="alert-icon">&#x2705;</span>
+  <div><strong>Ponto positivo:</strong> Dados chegaram ao banco corretamente. Pre-classificacao S3 funcionou (~23% descartados). Os 4 itens relevantes chegaram ao S6 e foram classificados corretamente (B e G).</div>
+</div>
+
+<!-- SECAO 1 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4CA;</span>
+    <h2>Secao 1 &mdash; Insights do Ciclo Real</h2>
+    <span class="sec-badge badge bb">1591 intimacoes</span>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-title">Distribuicao do ciclo</div>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>ia_status = pendente</span><span>1222 (76,8%)</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:76.8%;background:var(--accent4)"></div></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Classe A &mdash; ruido automatico</span><span>365 (22,9%)</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:22.9%;background:var(--text-muted)"></div></div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label"><span>Relevantes (B + G)</span><span>4 (0,25%)</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:1%;background:var(--accent)"></div></div>
+      </div>
+      <div style="margin-top:16px;font-size:0.8rem;color:var(--text-muted)">Pre-classificacao descartou ~23% como ruido pelo titulo (classe A automatica). Taxa sinal/ruido real: ~0,25% (4 relevantes em 1591).</div>
+    </div>
+    <div class="card">
+      <div class="card-title">O que funcionou vs. o que falhou</div>
+      <ul class="styled">
+        <li><span class="pill sp-done">&#x2705; OK</span> &nbsp;Captura Playwright &mdash; 1591 registros no banco</li>
+        <li><span class="pill sp-done">&#x2705; OK</span> &nbsp;Estrutura de dados chegou corretamente ao Supabase</li>
+        <li><span class="pill sp-done">&#x2705; OK</span> &nbsp;S3 pre-classificacao &mdash; ~23% descartados como ruido</li>
+        <li><span class="pill sp-done">&#x2705; OK</span> &nbsp;S6 &mdash; 4 itens classificados B/G corretamente</li>
+        <li><span class="pill sp-block">&#x1F534; FALHA</span> &nbsp;Filtro de data &mdash; <code>null</code> passa como valido</li>
+        <li><span class="pill sp-block">&#x1F534; FALHA</span> &nbsp;S5 leitura de documentos &mdash; <code>conteudo_completo</code> = null 100%</li>
+        <li><span class="pill sp-warn">&#x26A0; PARCIAL</span> &nbsp;Vault do Joao &mdash; carregado mas subutilizado</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- SECAO 2 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F534;</span>
+    <h2>Secao 2 &mdash; Problema Critico: Acesso a Documentos (S5 sempre null)</h2>
+    <span class="sec-badge badge br">P0 CRITICO</span>
+  </div>
+  <div class="alert a-red">
+    <span class="alert-icon">&#x26A0;&#xFE0F;</span>
+    <div><strong>Sintoma:</strong> <code>conteudo_completo</code> permanece <code>null</code> em 100% dos processos. O S5 e executado mas nao consegue extrair o texto dos documentos em nenhuma das 5 camadas de extracao.</div>
+  </div>
+
+  <div style="margin-top:20px">
+    <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);padding:0 0 12px 0;border-bottom:1px solid var(--border);margin-bottom:14px">Diagnostico das 5 camadas de extracao (L1-L5)</div>
+
+    <div class="layer-row">
+      <div class="layer-lbl">L1</div>
+      <div class="layer-txt">
+        <strong>.infraAreaTexto</strong> &mdash; Seletor so existe na pagina do documento, nao na pagina do processo.
+        <code>navigateToDocumento()</code> usa <code>a[href*="documento"]</code> &mdash; seletor errado para EPROC.
+        Formato real: <code>controlador.php?acao=processo_evento_visualizar&amp;...</code>
+        <br><small style="color:var(--text-muted)">Resultado: navegacao nao ocorre, extracao tenta na pagina errada &rarr; null</small>
+      </div>
+      <div class="layer-st"><span class="pill sp-block">FALHA</span></div>
+    </div>
+
+    <div class="layer-row">
+      <div class="layer-lbl">L2</div>
+      <div class="layer-txt">
+        <strong>Multi-selector fallback</strong> &mdash; <code>#txtSentenca</code>, <code>#txtDespacho</code>, <code>#divConteudoDocumento</code> todos dependem de estar na pagina do documento.
+        Iframes EPROC: <code>iframe#ifrVisualizacao</code> com src cross-origin &rarr; <code>SecurityError</code> silencioso.
+        <br><small style="color:var(--text-muted)">Resultado: timeout ou "frame not found" &rarr; null</small>
+      </div>
+      <div class="layer-st"><span class="pill sp-block">FALHA</span></div>
+    </div>
+
+    <div class="layer-row">
+      <div class="layer-lbl" style="color:var(--accent4)">L3</div>
+      <div class="layer-txt">
+        <strong>Event row text</strong> &mdash; Extrai o TEXTO DA LINHA DA TABELA, nao o documento completo.
+        Seletores <code>#tblEventos tr</code> funcionam na pagina do processo.
+        Retorna titulo/descricao curta do evento, nao o conteudo do documento.
+        <br><small style="color:var(--text-muted)">Resultado: parcial &mdash; metadados, nao conteudo real</small>
+      </div>
+      <div class="layer-st"><span class="pill sp-warn">PARCIAL</span></div>
+    </div>
+
+    <div class="layer-row">
+      <div class="layer-lbl">L4</div>
+      <div class="layer-txt">
+        <strong>PDF download</strong> &mdash; EPROC nao serve PDFs via URL direta. Usa POST + redirect autenticado com token de sessao.
+        <code>a[href*=".pdf"]</code> raramente existe; links PDF usam <code>onclick</code> com funcao JavaScript.
+        <br><small style="color:var(--text-muted)">Resultado: 403 ou redirect para login &rarr; null</small>
+      </div>
+      <div class="layer-st"><span class="pill sp-block">FALHA</span></div>
+    </div>
+
+    <div class="layer-row">
+      <div class="layer-lbl" style="color:var(--text-muted)">L5</div>
+      <div class="layer-txt">
+        <strong>Vision OCR</strong> &mdash; Ultimo recurso, nunca ativado. Timeout de 30s por documento antes de tentar L5.
+        L1-L4 falham silenciosamente retornando null (sem acionar L5).
+        <br><small style="color:var(--text-muted)">Resultado: nunca executado em nenhum processo</small>
+      </div>
+      <div class="layer-st"><span class="pill sp-pend">INATIVO</span></div>
+    </div>
+  </div>
+
+  <div class="glass-card" style="margin-top:18px">
+    <div class="card-title">Root cause resumido &mdash; fluxo de falhas encadeadas</div>
+    <div class="flow">
+      <div class="flow-step fs-fail">navigateToDocumento() nao navega</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step fs-fail">Playwright na pagina do processo</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step fs-fail">L1/L2: sem .infraAreaTexto &rarr; null</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step fs-partial">L3: texto curto da linha</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step fs-fail">L4: URL invalida &rarr; null</div>
+      <span class="flow-arrow">&rarr;</span>
+      <div class="flow-step fs-fail">L5: nunca ativado</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECAO 3 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4DA;</span>
+    <h2>Secao 3 &mdash; Vault Training do Joao (esta sendo usado?)</h2>
+    <span class="sec-badge badge by">P1</span>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-title">Status do vault</div>
+      <ul class="styled">
+        <li><code>registry.json</code> corrigido: <code>evento.default</code> carrega 5 playbooks</li>
+        <li>Playbooks disponveis: <code>taxonomia</code>, <code>regras</code>, <code>ruido</code>, <code>gatilho</code>, <code>fases</code></li>
+        <li>11 arquivos incluindo <code>eventos-ruido.md</code>, <code>taxonomia-intimacoes.md</code></li>
+        <li>Vault carregado no inicio do S6 via <code>loadVaultForEvent()</code></li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-title">Por que o vault nao influencia a maioria?</div>
+      <div style="font-size:0.81rem;line-height:1.75">
+        <div>S3 pre-classifica &rarr; <span style="color:var(--accent2)">descarta 365 classe A imediatamente</span></div>
+        <div style="margin-top:6px">S6 deveria receber: <code>paraIA</code> + <code>preClassComDoc</code> (com doc lido)</div>
+        <div style="margin-top:6px">Como S5 nao le documentos: <code>preClassComDoc = 0</code></div>
+        <div style="margin-top:6px">S6 recebe apenas <code>paraIA</code> &rarr; vault injetado em 4 casos, nao em 1587</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert a-yellow" style="margin-top:14px">
+    <span class="alert-icon">&#x26A0;&#xFE0F;</span>
+    <div><strong>Problema estrutural:</strong> O <code>eventos-ruido.md</code> (playbook principal do Joao) contem regras de descarte que deveriam orientar o S6 &mdash; mas o S3 esta descartando com <strong>lista hardcoded</strong> (<code>IRRELEVANT_KEYWORDS</code>). O treinamento do Joao esta na camada errada: deveria ser fonte de verdade do S3, mas hoje e apenas input tardio do S6.</div>
+  </div>
+  <div class="alert a-blue" style="margin-top:8px">
+    <span class="alert-icon">&#x2139;&#xFE0F;</span>
+    <div><strong>Conclusao:</strong> Para os 4 itens que chegaram ao S6, o vault foi injetado corretamente. Para os outros 1587, o vault nunca foi consultado: 365 foram descartados no S3 e 1222 ficaram pendentes por falha do S5.</div>
+  </div>
+</div>
+
+<!-- SECAO 4 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F527;</span>
+    <h2>Secao 4 &mdash; Solucoes Detalhadas</h2>
+  </div>
+
+  <!-- FIX 1 -->
+  <div class="accordion open">
+    <div class="accordion-hdr" onclick="this.parentElement.classList.toggle('open')">
+      <span class="prio p0-tag">P0</span>
+      <span class="acc-title">Fix 1 &mdash; Filtro de data null no insert (URGENTE &mdash; RISCO ZERO)</span>
+      <span style="font-size:0.74rem;color:var(--text-muted)">skill_captura_intimacoes.mjs L86</span>
+      <span style="font-size:0.74rem;color:var(--accent);margin-left:8px;flex-shrink:0">5 min</span>
+      <span class="acc-arrow">&#x25BC;</span>
+    </div>
+    <div class="accordion-body">
+      <div class="alert a-red">
+        <span class="alert-icon">&#x1F534;</span>
+        <div><strong>Problema:</strong> <code>intimacaoEhMuitoAntiga(null)</code> retorna <code>false</code> &rarr; flood historico. Itens sem data passam o filtro e sao inseridos mesmo sendo historicos.</div>
+      </div>
+      <div class="codeblock"><span class="c-comment">// ANTES -- BUG:</span>
+<span class="c-key">function</span> <span class="c-good">intimacaoEhMuitoAntiga</span>(dataEvento) {
+  <span class="c-key">if</span> (!dataEvento) <span class="c-bad">return false;</span>  <span class="c-comment">// BUG: sem data = passa filtro</span>
+  <span class="c-key">const</span> d = <span class="c-key">new</span> Date(dataEvento);
+  <span class="c-key">const</span> cutoff = <span class="c-key">new</span> Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+  <span class="c-key">return</span> d &lt; cutoff;
+}
+
+<span class="c-comment">// DEPOIS -- CORRIGIDO:</span>
+<span class="c-key">function</span> <span class="c-good">intimacaoEhMuitoAntiga</span>(dataEvento) {
+  <span class="c-key">if</span> (!dataEvento) <span class="c-good">return true;</span>   <span class="c-comment">// sem data = descartar (historico nao confirmado)</span>
+  <span class="c-key">const</span> d = <span class="c-key">new</span> Date(dataEvento);
+  <span class="c-key">if</span> (isNaN(d.getTime())) <span class="c-good">return true;</span>  <span class="c-comment">// data invalida = descartar</span>
+  <span class="c-key">const</span> cutoff = <span class="c-key">new</span> Date();
+  cutoff.setDate(cutoff.getDate() - 7);
+  <span class="c-key">return</span> d &lt; cutoff;
+}</div>
+      <div class="alert a-green" style="margin-top:10px">
+        <span class="alert-icon">&#x2705;</span>
+        <div><strong>Impacto:</strong> Imediato. Previne o flood. Zero risco de regressao &mdash; itens sem data sao quase sempre historicos. Aplicar agora.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIX 2 -->
+  <div class="accordion">
+    <div class="accordion-hdr" onclick="this.parentElement.classList.toggle('open')">
+      <span class="prio p0-tag">P0</span>
+      <span class="acc-title">Fix 2 &mdash; Corrigir navegacao ao documento no EPROC</span>
+      <span style="font-size:0.74rem;color:var(--text-muted)">s5-read-docs.mjs ~L270</span>
+      <span style="font-size:0.74rem;color:var(--accent);margin-left:8px;flex-shrink:0">2h</span>
+      <span class="acc-arrow">&#x25BC;</span>
+    </div>
+    <div class="accordion-body">
+      <div class="alert a-red" style="margin-bottom:16px">
+        <span class="alert-icon">&#x1F534;</span>
+        <div>Sem este fix o pipeline nao tem valor real: S6 nao tem contexto para classificar com qualidade, analises ficam rasas e o vault do Joao e subutilizado.</div>
+      </div>
+
+      <div class="grid g2" style="margin-bottom:16px">
+        <div>
+          <div class="opt-hdr" style="color:var(--accent3)">&#x2714; Opcao A &mdash; Seletores EPROC corretos (RECOMENDADA)</div>
+          <div class="codeblock"><span class="c-comment">// Seletores corretos para EPROC:</span>
+<span class="c-str">'a[href*="acao=processo_evento_visualizar"]'</span>  <span class="c-comment">// TJRS/TJSC</span>
+<span class="c-str">'a[href*="acao=acessar_documento"]'</span>           <span class="c-comment">// variante</span>
+<span class="c-str">'a.infraLinkEvento'</span>                           <span class="c-comment">// classe CSS EPROC</span>
+<span class="c-str">'img[title*="Visualizar"]'</span>                    <span class="c-comment">// icone de visualizacao</span>
+
+<span class="c-comment">// Aguardar navegacao ANTES de extrair:</span>
+<span class="c-key">await</span> page.click(seletor);
+<span class="c-key">await</span> page.waitForNavigation({
+  waitUntil: <span class="c-str">'domcontentloaded'</span>,
+  timeout: 15000
+});</div>
+        </div>
+        <div>
+          <div class="opt-hdr" style="color:var(--accent4)">Opcao B &mdash; URL direta por padrao EPROC</div>
+          <div class="codeblock"><span class="c-comment">// Padrao de URL para eventos EPROC:</span>
+<span class="c-key">const</span> url = <span class="c-str">`controlador.php?</span>
+<span class="c-str">  acao=processo_evento_visualizar</span>
+<span class="c-str">  &amp;num_processo=${cnj}</span>
+<span class="c-str">  &amp;num_evento=${numEvento}`</span>;
+
+<span class="c-comment">// Se num_evento disponivel no HTML,</span>
+<span class="c-comment">// construir URL direta ao inves de clicar:</span>
+<span class="c-key">await</span> page.goto(url, {
+  waitUntil: <span class="c-str">'domcontentloaded'</span>
+});</div>
+        </div>
+      </div>
+
+      <div class="grid g2">
+        <div>
+          <div class="opt-hdr" style="color:var(--accent5)">Opcao C &mdash; L5 Vision OCR antecipado</div>
+          <div class="codeblock"><span class="c-comment">// Se L1-L3 falharem (texto &lt; 50 chars),</span>
+<span class="c-comment">// ativar L5 imediatamente sem esperar L4:</span>
+<span class="c-key">if</span> (!texto || texto.length &lt; 50) {
+  <span class="c-good">return await tryL5Vision(page);</span>
+}
+<span class="c-comment">// Custo: ~$0.001/doc via Claude Haiku</span></div>
+        </div>
+        <div>
+          <div class="opt-hdr" style="color:var(--accent6)">Opcao D &mdash; iframe cross-origin via waitForEvent</div>
+          <div class="codeblock"><span class="c-comment">// Playwright suporta frames cross-origin</span>
+<span class="c-comment">// se o contexto compartilhar cookies:</span>
+<span class="c-key">const</span> frame = <span class="c-key">await</span> page.waitForEvent(
+  <span class="c-str">'framenavigated'</span>,
+  { timeout: 10000 }
+);
+<span class="c-key">const</span> texto = <span class="c-key">await</span> frame
+  .locator(<span class="c-str">'body'</span>)
+  .innerText({ timeout: 8000 })
+  .catch(() =&gt; <span class="c-key">null</span>);</div>
+        </div>
+      </div>
+
+      <div class="alert a-green" style="margin-top:14px">
+        <span class="alert-icon">&#x1F3AF;</span>
+        <div><strong>Recomendacao:</strong> Implementar Opcao A primeiro (seletores corretos + waitForNavigation). Se falhar para iframes, adicionar Opcao D como fallback. Opcao C (L5 Vision) como ultima linha de defesa.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIX 3 -->
+  <div class="accordion">
+    <div class="accordion-hdr" onclick="this.parentElement.classList.toggle('open')">
+      <span class="prio p1-tag">P1</span>
+      <span class="acc-title">Fix 3 &mdash; Ativar vault do Joao no S3 (pre-classify)</span>
+      <span style="font-size:0.74rem;color:var(--text-muted)">pre-classify.mjs</span>
+      <span style="font-size:0.74rem;color:var(--accent);margin-left:8px;flex-shrink:0">3h</span>
+      <span class="acc-arrow">&#x25BC;</span>
+    </div>
+    <div class="accordion-body">
+      <div class="alert a-yellow" style="margin-bottom:16px">
+        <span class="alert-icon">&#x26A0;&#xFE0F;</span>
+        <div><strong>Dois sistemas concorrentes:</strong> Joao treinou com <code>eventos-ruido.md</code> e <code>taxonomia-intimacoes.md</code>, mas o S3 usa lista hardcoded <code>IRRELEVANT_KEYWORDS</code>. O treinamento do Joao nao esta guiando o descarte real.</div>
+      </div>
+      <div class="grid g3">
+        <div class="card">
+          <div class="opt-hdr" style="color:var(--accent3)">&#x2714; Opcao A (RECOMENDADA)</div>
+          <div style="font-size:0.81rem;line-height:1.6">Parsear <code>eventos-ruido.md</code> e sincronizar <code>IRRELEVANT_KEYWORDS</code> automaticamente no boot do S3. Menor impacto, sem alterar fluxo principal.</div>
+        </div>
+        <div class="card">
+          <div class="opt-hdr" style="color:var(--accent4)">Opcao B</div>
+          <div style="font-size:0.81rem;line-height:1.6">Mover toda a pre-classificacao para o S6. Eliminar S3 hardcode. Mais consistente mas aumenta carga do S6.</div>
+        </div>
+        <div class="card">
+          <div class="opt-hdr" style="color:var(--accent6)">Opcao C</div>
+          <div style="font-size:0.81rem;line-height:1.6">Exportar playbooks do Joao como JSON estruturado para S3 consumir via lookup O(1). Mais performatico mas requer ETL dos markdowns.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIX 4 -->
+  <div class="accordion">
+    <div class="accordion-hdr" onclick="this.parentElement.classList.toggle('open')">
+      <span class="prio p2-tag">P2</span>
+      <span class="acc-title">Fix 4 &mdash; Dedup + janela de data antes do INSERT</span>
+      <span style="font-size:0.74rem;color:var(--text-muted)">skill_captura_intimacoes.mjs ~L941</span>
+      <span style="font-size:0.74rem;color:var(--accent);margin-left:8px;flex-shrink:0">1h</span>
+      <span class="acc-arrow">&#x25BC;</span>
+    </div>
+    <div class="accordion-body">
+      <div style="font-size:0.83rem;line-height:1.7;margin-bottom:12px">Adicionar verificacao antes de inserir: confirmar que <code>signature_hash</code> nao existe E que <code>data_evento</code> esta dentro da janela de 7 dias. Hoje o dedup por hash existe mas nao previne insercao de historico com hash novo (historico sem data = hash unico = passa dedup).</div>
+      <div class="codeblock"><span class="c-comment">// Verificacao antes do INSERT:</span>
+<span class="c-key">async function</span> <span class="c-good">deveInserir</span>(intimacao) {
+  <span class="c-comment">// 1. Data valida na janela</span>
+  <span class="c-key">if</span> (intimacaoEhMuitoAntiga(intimacao.data_evento)) <span class="c-bad">return false;</span>
+
+  <span class="c-comment">// 2. Hash nao existente (dedup)</span>
+  <span class="c-key">const</span> { data } = <span class="c-key">await</span> supabase
+    .from(<span class="c-str">'intimacoes'</span>)
+    .select(<span class="c-str">'id'</span>)
+    .eq(<span class="c-str">'signature_hash'</span>, intimacao.signature_hash)
+    .maybeSingle();
+  <span class="c-key">if</span> (data) <span class="c-bad">return false;</span>  <span class="c-comment">// ja existe</span>
+
+  <span class="c-key">return true;</span>
+}</div>
+    </div>
+  </div>
+
+  <!-- FIX 5 -->
+  <div class="accordion">
+    <div class="accordion-hdr" onclick="this.parentElement.classList.toggle('open')">
+      <span class="prio p2-tag">P2</span>
+      <span class="acc-title">Fix 5 &mdash; L5 Vision OCR como fallback antecipado</span>
+      <span style="font-size:0.74rem;color:var(--text-muted)">s5-read-docs.mjs tryL5</span>
+      <span style="font-size:0.74rem;color:var(--accent);margin-left:8px;flex-shrink:0">30 min</span>
+      <span class="acc-arrow">&#x25BC;</span>
+    </div>
+    <div class="accordion-body">
+      <div style="font-size:0.83rem;line-height:1.7;margin-bottom:12px">Atualmente L5 so e tentado apos L1-L4 terem falhado com timeout de 30s cada. Ativar L5 imediatamente quando texto extraido for menor que 50 caracteres. Custo: ~$0.001/doc via Claude Haiku com screenshot.</div>
+      <div class="codeblock"><span class="c-comment">// Threshold para acionar L5 mais cedo:</span>
+<span class="c-key">const</span> MINIMO_TEXTO_UTIL = 50;
+
+<span class="c-key">async function</span> <span class="c-good">extrairConteudo</span>(page, evento) {
+  <span class="c-key">let</span> texto = <span class="c-key">await</span> tryL1(page);
+  <span class="c-key">if</span> (texto?.length &gt;= MINIMO_TEXTO_UTIL) <span class="c-good">return texto;</span>
+
+  texto = <span class="c-key">await</span> tryL2(page);
+  <span class="c-key">if</span> (texto?.length &gt;= MINIMO_TEXTO_UTIL) <span class="c-good">return texto;</span>
+
+  texto = <span class="c-key">await</span> tryL3(page);
+  <span class="c-key">if</span> (texto?.length &gt;= MINIMO_TEXTO_UTIL) <span class="c-good">return texto;</span>
+
+  <span class="c-comment">// Ir direto para Vision OCR (pular L4 PDF):</span>
+  <span class="c-good">return await tryL5Vision(page);</span>
+}</div>
+    </div>
+  </div>
+</div>
+
+<!-- SECAO 5 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F4CB;</span>
+    <h2>Secao 5 &mdash; Plano de Correcao Priorizado</h2>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Prio</th>
+          <th>Fix</th>
+          <th>Arquivo</th>
+          <th>Impacto</th>
+          <th>Risco</th>
+          <th>Estimativa</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="prio p0-tag">P0</span></td>
+          <td><strong>Fix 1</strong> &mdash; data null &rarr; descartar</td>
+          <td><code>skill_captura_intimacoes.mjs</code> L86</td>
+          <td>Para flood historico imediatamente</td>
+          <td><span class="pill sp-done">&#x1F7E2; Zero</span></td>
+          <td>5 min</td>
+        </tr>
+        <tr>
+          <td><span class="prio p0-tag">P0</span></td>
+          <td><strong>Fix 2A</strong> &mdash; seletores EPROC corretos em <code>navigateToDocumento</code></td>
+          <td><code>s5-read-docs.mjs</code> ~L270</td>
+          <td>Desbloqueia leitura de documentos</td>
+          <td><span class="pill sp-warn">&#x1F7E1; Medio</span></td>
+          <td>2h</td>
+        </tr>
+        <tr>
+          <td><span class="prio p1-tag">P1</span></td>
+          <td><strong>Fix 2D</strong> &mdash; iframe cross-origin via <code>waitForEvent</code></td>
+          <td><code>s5-read-docs.mjs</code> tryL2</td>
+          <td>Documentos em iframe EPROC</td>
+          <td><span class="pill sp-warn">&#x1F7E1; Medio</span></td>
+          <td>1h</td>
+        </tr>
+        <tr>
+          <td><span class="prio p1-tag">P1</span></td>
+          <td><strong>Fix 3A</strong> &mdash; sincronizar S3 com <code>eventos-ruido.md</code> do Joao</td>
+          <td><code>pre-classify.mjs</code></td>
+          <td>Vault do Joao passa a guiar descarte no S3</td>
+          <td><span class="pill sp-block">&#x1F534; Alto</span></td>
+          <td>3h</td>
+        </tr>
+        <tr>
+          <td><span class="prio p2-tag">P2</span></td>
+          <td><strong>Fix 5</strong> &mdash; L5 Vision OCR como fallback antecipado</td>
+          <td><code>s5-read-docs.mjs</code> tryL5</td>
+          <td>Garante extracao mesmo sem navegacao</td>
+          <td><span class="pill sp-done">&#x1F7E2; Baixo</span></td>
+          <td>30 min</td>
+        </tr>
+        <tr>
+          <td><span class="prio p2-tag">P2</span></td>
+          <td><strong>Fix 4</strong> &mdash; dedup + janela antes do INSERT</td>
+          <td><code>skill_captura_intimacoes.mjs</code> ~L941</td>
+          <td>Previne duplicatas historicas residuais</td>
+          <td><span class="pill sp-done">&#x1F7E2; Baixo</span></td>
+          <td>1h</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- SECAO 6 -->
+<div class="section">
+  <div class="section-header">
+    <span class="section-icon">&#x1F3AF;</span>
+    <h2>Secao 6 &mdash; Recomendacao CTO</h2>
+  </div>
+
+  <div class="grid g2">
+    <div>
+      <div class="card" style="border-color:rgba(32,201,151,0.25)">
+        <div class="card-title" style="color:var(--accent)">Fazer agora (esta sessao)</div>
+        <div class="step-box">
+          <div class="step-num">1</div>
+          <div class="step-txt"><strong style="color:var(--accent)">Fix 1 &mdash; 5 min, zero risco</strong><br>Mudar <code>return false</code> para <code>return true</code> quando <code>dataEvento</code> e null. Aplicar imediatamente.</div>
+        </div>
+        <div class="step-box">
+          <div class="step-num">2</div>
+          <div class="step-txt"><strong style="color:var(--accent)">Fix 2A &mdash; prioridade maxima</strong><br>Corrigir seletores EPROC em <code>navigateToDocumento()</code> e adicionar <code>waitForNavigation</code>. Sem isso o pipeline nao tem valor real.</div>
+        </div>
+        <div class="step-box">
+          <div class="step-num">3</div>
+          <div class="step-txt"><strong style="color:var(--accent)">Testar S5 com 1 processo real</strong><br>Validar extracao em desenvolvimento antes de religar o daemon completo.</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="border-color:rgba(255,209,102,0.2)">
+        <div class="card-title" style="color:var(--accent4)">Adiar para proxima sessao</div>
+        <ul class="styled">
+          <li><strong>Fix 3</strong> (sincronizar vault com S3) &mdash; importante mas nao bloqueia o pipeline funcionando</li>
+          <li><strong>Fix 4</strong> &mdash; o dedup por hash ja mitiga parcialmente o problema</li>
+          <li><strong>Fix 5</strong> (L5 Vision) &mdash; implementar apos Fix 2A confirmado</li>
+        </ul>
+      </div>
+      <div class="card" style="margin-top:16px;border-color:rgba(91,196,245,0.2)">
+        <div class="card-title" style="color:var(--accent5)">Diagnostico honesto</div>
+        <div style="font-size:0.83rem;line-height:1.7">O sistema Cecilia esta <strong>capturando dados corretamente</strong> e a pre-classificacao de ruido funciona. O unico bloqueador real e o S5: sem leitura de documentos, o S6 nao tem contexto suficiente para classificar com qualidade e as analises ficam rasas. O vault do Joao esta carregado mas subutilizado por conta do S5 nao alimentar o S6.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rec-box" style="margin-top:20px">
+    <div class="rec-title">&#x1F3AF; Proximo passo tecnico unico</div>
+    <div style="font-size:0.92rem;font-weight:600;color:var(--text);margin-bottom:8px">Corrigir <code>navigateToDocumento()</code> no <code>s5-read-docs.mjs</code> com os seletores EPROC corretos e aguardar navegacao antes de extrair.</div>
+    <div style="font-size:0.83rem;color:var(--text-muted)">Este e o fix que desbloqueia tudo: com S5 funcionando, o S6 recebe contexto completo dos documentos, o vault do Joao e consultado com dados ricos, e as classificacoes passam a ter qualidade real. Todo o restante e otimizacao sobre uma base funcionando.</div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  &#x1F991; Jarbas 2.0 &mdash; Cecilia v3.0 / Controller Agent &nbsp;&bull;&nbsp; MdLab LegalTech &nbsp;&bull;&nbsp; 2026-04-16
+</div>
+
+</div>
+<script>
+document.querySelectorAll('.accordion-hdr').forEach(function(hdr) {
+  hdr.addEventListener('click', function() {
+    this.parentElement.classList.toggle('open');
+  });
+});
+</script>
+</body>
+</html>

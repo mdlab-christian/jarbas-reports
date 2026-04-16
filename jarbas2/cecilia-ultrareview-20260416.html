@@ -604,6 +604,65 @@ model: 'claude-sonnet-4-6',</div>
         </ol>
       </div>
     </div>
+
+    <div class="layer-card" style="border-left:3px solid var(--accent);">
+      <div class="layer-num danger">6</div>
+      <div class="layer-body">
+        <div class="layer-title">Fix contrato de dados S2 &rarr; S5 (Codex #1) <span class="badge br">P0-CODE</span></div>
+        <div class="layer-desc">Garantir que eventos criados em S2 carreguem <code class="inline">evento_texto</code> (n&atilde;o apenas <code class="inline">titulo</code>).</div>
+        <p style="font-size:0.82rem;"><strong>Arquivo:</strong> <span class="file-path">controller-agent.mjs:568-571</span></p>
+        <div class="code-block">
+          <div class="code-label">Adicionar evento_texto ao mapeamento</div>
+          <div class="code">const eventos = (rawRows || []).map((e, i) =&gt; ({
+  cnj: e.cnj,
+  eventoId: e.evento_eproc || e.id,
+  titulo: e.titulo || '',
+  evento_texto: e.titulo || e.evento_texto || '',  // &lt;-- ADICIONAR
+  conteudo: e.conteudo || '',                       // &lt;-- ADICIONAR
+  data: e.data_intimacao,
+  id: e.id,
+}));</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="layer-card" style="border-left:3px solid var(--accent);">
+      <div class="layer-num danger">7</div>
+      <div class="layer-body">
+        <div class="layer-title">Fix matcher campo errado (Codex #2 &mdash; CONFIRMADO via SSH) <span class="badge br">P0-CODE</span></div>
+        <div class="layer-desc">Adicionar fallback para <code class="inline">titulo</code> em <code class="inline">navigateToDocumento</code> e <code class="inline">tryL3EventRowText</code>.</div>
+        <p style="font-size:0.82rem;"><strong>Arquivos:</strong> <span class="file-path">stages/s5-read-docs.mjs:277</span> e <span class="file-path">:352</span></p>
+        <div class="code-block">
+          <div class="code-label">2 substitui&ccedil;&otilde;es id&ecirc;nticas</div>
+          <div class="code">// ANTES (linha 277 e 352)
+const eventoTexto = intimacao.evento_texto || intimacao.conteudo;
+
+// DEPOIS
+const eventoTexto = intimacao.evento_texto || intimacao.conteudo || intimacao.titulo;</div>
+        </div>
+        <p style="font-size:0.82rem;color:var(--text-muted);margin-top:8px;">Este fix &eacute; <strong>at&ocirc;mico</strong> &mdash; 2 linhas mudadas, baixo risco. Deve ser aplicado <strong>junto</strong> com Camadas 2 e 6 para resolver definitivamente o sintoma "n&atilde;o acessa documentos".</p>
+      </div>
+    </div>
+
+    <div class="layer-card" style="border-left:3px solid var(--accent4);">
+      <div class="layer-num warn">8</div>
+      <div class="layer-body">
+        <div class="layer-title">Fail-fast em S6 (Codex #3) <span class="badge by">P1</span></div>
+        <div class="layer-desc">Impedir IA de classificar quando S5 falhou em popular conte&uacute;do &mdash; evita lixo classificat&oacute;rio.</div>
+        <p style="font-size:0.82rem;"><strong>Arquivo:</strong> <span class="file-path">stages/s6-analyze.mjs</span> (in&iacute;cio de <code class="inline">analyzeIntimacao</code>)</p>
+        <div class="code-block">
+          <div class="code-label">Validar conte&uacute;do antes de chamar IA</div>
+          <div class="code">async function analyzeIntimacao(intimacao, ctx) {
+  if (!intimacao.conteudo_completo || intimacao.conteudo_completo.length &lt; 50) {
+    log('S6', `SKIP - conteudo_completo vazio para ${intimacao.cnj} (S5 falhou)`);
+    await markAsError(intimacao.id, 'erro_s5_vazio');
+    return { skipped: true, reason: 'no_content' };
+  }
+  // ... resto do c&oacute;digo
+}</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="section">

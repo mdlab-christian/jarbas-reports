@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA — Geração por Tópico vs. Requisição Única</title>
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1714;
+  --surface2: #201d1a;
+  --surface3: #272320;
+  --border: #2e2a26;
+  --border2: #3a3530;
+  --accent: #20c997;
+  --accent-dim: rgba(32,201,151,0.12);
+  --accent-border: rgba(32,201,151,0.3);
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --purple: #7c6dff;
+  --text: #e8e4df;
+  --text-muted: #7a7268;
+  --text-sub: #9e9488;
+  --green: #4fffb0;
+  --yellow: #ffd166;
+  --red: #ff6b6b;
+  --green-bg: rgba(79,255,176,0.08);
+  --green-border: rgba(79,255,176,0.2);
+  --yellow-bg: rgba(255,209,102,0.08);
+  --yellow-border: rgba(255,209,102,0.2);
+  --red-bg: rgba(255,107,107,0.08);
+  --red-border: rgba(255,107,107,0.2);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  padding: 24px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+
+.hero {
+  text-align: center;
+  padding: 52px 24px 40px;
+  position: relative;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 50%; transform: translateX(-50%);
+  width: 600px; height: 300px;
+  background: radial-gradient(ellipse at center top, rgba(32,201,151,0.07) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 14px; }
+.gradient-text {
+  font-size: 2.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent5));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 10px;
+  letter-spacing: -0.5px;
+}
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 20px; max-width: 600px; margin-left: auto; margin-right: auto; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.bp { background: rgba(124,109,255,0.12); color: var(--purple); border: 1px solid rgba(124,109,255,0.25); }
+.bg { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.by { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+.br { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.22); }
+.ba { background: var(--accent-dim); color: var(--accent); border: 1px solid var(--accent-border); }
+
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr 1fr; } }
+@media(max-width:480px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.4;
+}
+.stat-value { font-size: 1.9rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+.stat-value.yellow { color: var(--yellow); }
+.stat-value.blue { color: var(--accent5); }
+.stat-value.purple { color: var(--purple); }
+.stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.6px; }
+.stat-sub { font-size: 0.75rem; color: var(--text-sub); margin-top: 2px; }
+
+.section { margin: 32px 0; }
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+.section-num {
+  font-size: 0.68rem;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+.card-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+  font-weight: 600;
+}
+
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.pipeline-step {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  flex: 1;
+  min-width: 140px;
+  text-align: center;
+}
+.pipeline-step .step-icon { font-size: 1.5rem; display: block; margin-bottom: 6px; }
+.pipeline-step .step-label { font-size: 0.78rem; font-weight: 600; color: var(--text); }
+.pipeline-step .step-detail { font-size: 0.7rem; color: var(--text-muted); margin-top: 3px; }
+.pipeline-arrow {
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+@media(max-width:600px) { .pipeline-arrow { display: none; } .pipeline-step { min-width: 100%; } }
+
+.compare-table { width: 100%; border-collapse: collapse; }
+.compare-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  border-bottom: 2px solid var(--border2);
+}
+.compare-table th:first-child { color: var(--text-sub); }
+.compare-table th.col-atual { color: var(--yellow); }
+.compare-table th.col-novo { color: var(--accent); }
+.compare-table td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.83rem;
+  vertical-align: top;
+}
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+.compare-table tr:hover td { background: rgba(255,255,255,0.03); }
+.compare-table td:first-child { font-weight: 500; color: var(--text-sub); font-size: 0.8rem; }
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.pill-green { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.pill-yellow { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+.pill-red { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+.pill-blue { background: rgba(91,196,245,0.08); color: var(--accent5); border: 1px solid rgba(91,196,245,0.2); }
+.val-mono {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  color: var(--text);
+}
+
+.pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 4px; }
+@media(max-width:768px) { .pros-cons { grid-template-columns: 1fr; } }
+.pros-card {
+  background: var(--surface);
+  border: 1px solid var(--green-border);
+  border-radius: 14px;
+  padding: 20px;
+}
+.cons-card {
+  background: var(--surface);
+  border: 1px solid var(--red-border);
+  border-radius: 14px;
+  padding: 20px;
+}
+.pros-card .card-header { color: var(--green); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.cons-card .card-header { color: var(--red); font-size: 0.85rem; font-weight: 700; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+.item-list { list-style: none; }
+.item-list li {
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+.item-list li:last-child { border-bottom: none; }
+.item-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  padding-top: 1px;
+  min-width: 18px;
+}
+.item-text strong { font-weight: 600; }
+.item-text .sub { color: var(--text-muted); font-size: 0.77rem; display: block; margin-top: 2px; }
+
+.phases { display: flex; flex-direction: column; gap: 12px; }
+.phase-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.phase-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.phase-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  flex-shrink: 0;
+}
+.phase-title { font-weight: 600; font-size: 0.9rem; }
+.phase-time { margin-left: auto; font-size: 0.75rem; color: var(--text-muted); background: var(--surface3); border: 1px solid var(--border); border-radius: 8px; padding: 2px 10px; white-space: nowrap; }
+.phase-body { padding: 16px 20px; }
+.task-list { list-style: none; display: flex; flex-direction: column; gap: 7px; }
+.task-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.task-list li::before { content: '·'; color: var(--accent); font-size: 1.2rem; line-height: 1.2; flex-shrink: 0; }
+.task-list li code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  background: rgba(0,0,0,0.35);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 5px;
+  color: var(--accent);
+}
+
+.rec-box {
+  background: linear-gradient(135deg, rgba(32,201,151,0.05), rgba(32,201,151,0.02));
+  border: 1px solid var(--accent-border);
+  border-left: 3px solid var(--accent);
+  border-radius: 14px;
+  padding: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.rec-box::before {
+  content: '';
+  position: absolute;
+  top: -50px; right: -50px;
+  width: 200px; height: 200px;
+  background: radial-gradient(circle, rgba(32,201,151,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.rec-header { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+.rec-verdict {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.rec-badge {
+  padding: 4px 14px;
+  background: var(--accent-dim);
+  color: var(--accent);
+  border: 1px solid var(--accent-border);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+.rec-points { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+.rec-point {
+  display: flex;
+  gap: 12px;
+  padding: 12px 16px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 0.83rem;
+  line-height: 1.6;
+}
+.rec-point-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.priority-order { margin-top: 4px; }
+.priority-order h4 { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+.priority-list { display: flex; flex-direction: column; gap: 8px; }
+.priority-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.15);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.82rem;
+}
+.priority-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+.p1 { background: var(--green-bg); color: var(--green); border: 1px solid var(--green-border); }
+.p2 { background: var(--yellow-bg); color: var(--yellow); border: 1px solid var(--yellow-border); }
+.p3 { background: rgba(91,196,245,0.08); color: var(--accent5); border: 1px solid rgba(91,196,245,0.2); }
+
+.info-box {
+  background: rgba(91,196,245,0.05);
+  border: 1px solid rgba(91,196,245,0.2);
+  border-radius: 10px;
+  padding: 14px 18px;
+  font-size: 0.82rem;
+  color: var(--text-sub);
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 14px 0;
+}
+.info-icon { font-size: 1rem; flex-shrink: 0; }
+.warning-box {
+  background: var(--yellow-bg);
+  border: 1px solid var(--yellow-border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.82rem;
+  color: var(--yellow);
+  display: flex;
+  gap: 10px;
+  margin: 12px 0;
+}
+
+.code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--accent);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 8px 0;
+}
+
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.flow-diagram {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.flow-box {
+  flex: 1;
+  min-width: 120px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  text-align: center;
+  position: relative;
+}
+.flow-box.highlight { border-color: var(--accent-border); background: var(--accent-dim); }
+.flow-box .flow-icon { font-size: 1.4rem; display: block; margin-bottom: 6px; }
+.flow-box .flow-label { font-size: 0.78rem; font-weight: 600; }
+.flow-box .flow-detail { font-size: 0.68rem; color: var(--text-muted); margin-top: 3px; }
+.flow-arrow { display: flex; align-items: center; color: var(--text-muted); font-size: 1rem; flex-shrink: 0; padding: 0 2px; }
+@media(max-width:600px) { .flow-arrow { display: none; } }
+
+.hl { color: var(--accent); font-weight: 600; }
+.hl-yellow { color: var(--yellow); font-weight: 600; }
+.hl-red { color: var(--red); font-weight: 600; }
+.hl-blue { color: var(--accent5); font-weight: 600; }
+
+.footer {
+  text-align: center;
+  padding: 32px 24px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+.footer-sub { margin-top: 6px; font-size: 0.72rem; color: var(--border2); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <span class="hero-emoji">🤖</span>
+    <h1 class="gradient-text">OlivIA — Geração por Tópico vs. Requisição Única</h1>
+    <p class="hero-sub">Análise técnica comparativa do pipeline de geração de petições: arquitetura atual vs. proposta de chamada única com Extended Output</p>
+    <div class="badges">
+      <span class="badge ba">OlivIA v3</span>
+      <span class="badge bp">geracao.mjs</span>
+      <span class="badge bg">Produção</span>
+      <span class="badge by">Análise de Custo</span>
+      <span class="badge bb">Sonnet 4.6</span>
+    </div>
+  </div>
+
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value">103.9s</div>
+      <div class="stat-label">Tempo médio atual</div>
+      <div class="stat-sub">paralelo cap=5</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value yellow">$0.52</div>
+      <div class="stat-label">Custo por petição</div>
+      <div class="stat-sub">150K input + 22K output</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value blue">7.6</div>
+      <div class="stat-label">Score médio</div>
+      <div class="stat-sub">últimos 30 dias</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value purple">6</div>
+      <div class="stat-label">Seções por petição</div>
+      <div class="stat-sub">~25K tokens/seção</div>
+    </div>
+  </div>
+
+  <!-- S-01 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⚙️</span>
+      <h2>Visão Geral do Sistema Atual</h2>
+      <span class="section-num">S-01</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pipeline G7 — Fluxo de Execução</div>
+      <div class="pipeline">
+        <div class="pipeline-step">
+          <span class="step-icon">📋</span>
+          <div class="step-label">G7: Tópicos Aprovados</div>
+          <div class="step-detail">N seções da petição</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <span class="step-icon">⚡</span>
+          <div class="step-label">pMapConcurrent</div>
+          <div class="step-detail">cap 5 / 3 / 1 por tipo</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <span class="step-icon">🧩</span>
+          <div class="step-label">buildPromptSecao()</div>
+          <div class="step-detail">1 chamada por tópico</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <span class="step-icon">🔍</span>
+          <div class="step-label">parseSecao()</div>
+          <div class="step-detail">JSON parse + regex fallback</div>
+        </div>
+        <div class="pipeline-arrow">→</div>
+        <div class="pipeline-step">
+          <span class="step-icon">📄</span>
+          <div class="step-label">Concat → peticao_html</div>
+          <div class="step-detail">N seções fundidas</div>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <span class="info-icon">📊</span>
+        <span>Exemplo real dos logs: <span class="hl">6 seções</span> × <span class="hl">~25K tokens de input</span> = <span class="hl-yellow">150K tokens duplicados</span>. Cada seção recebe o contexto completo do processo, mesmo que já tenha sido enviado nas chamadas anteriores. Output total: <span class="hl">22K tokens</span> em <span class="hl">103.9s</span> ao custo de <span class="hl-yellow">$0.524</span>.</span>
+      </div>
+
+      <div class="grid g3" style="margin-top:14px;">
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">Concorrência por tipo</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem;">
+            <div style="display:flex;justify-content:space-between;"><span>Réplica / Apelação</span><span class="hl">cap = 5</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Contra-razões</span><span class="hl-yellow">cap = 3</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Manifestação</span><span class="hl-red">cap = 1</span></div>
+          </div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">Tokens por chamada</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem;">
+            <div style="display:flex;justify-content:space-between;"><span>Input / seção</span><span class="hl">~25K</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Output / seção</span><span class="hl">~3-4K</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>max_tokens</span><span class="hl-yellow">16.000</span></div>
+          </div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:14px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;">Problemas conhecidos</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem;">
+            <div style="display:flex;gap:6px;align-items:flex-start;"><span>⚠️</span><span>JSON truncado quando output atinge max</span></div>
+            <div style="display:flex;gap:6px;align-items:flex-start;"><span>⚠️</span><span>Sem cross-context no modo paralelo</span></div>
+            <div style="display:flex;gap:6px;align-items:flex-start;"><span>⚠️</span><span>Contexto duplicado N vezes</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S-02 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">💡</span>
+      <h2>O que é "Requisição Única"</h2>
+      <span class="section-num">S-02</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Proposta: Single Request com Extended Output</div>
+
+      <div class="flow-diagram">
+        <div class="flow-box">
+          <span class="flow-icon">📋</span>
+          <div class="flow-label">G7: Tópicos</div>
+          <div class="flow-detail">N tópicos aprovados</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box highlight">
+          <span class="flow-icon">⚡</span>
+          <div class="flow-label">buildPromptCompleto()</div>
+          <div class="flow-detail">1 chamada, todos os tópicos</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box highlight">
+          <span class="flow-icon">🧠</span>
+          <div class="flow-label">Claude Sonnet 4.6</div>
+          <div class="flow-detail">Extended Output 64K</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <span class="flow-icon">🔍</span>
+          <div class="flow-label">parseSecaoUnica()</div>
+          <div class="flow-detail">1 JSON com N sections</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-box">
+          <span class="flow-icon">📄</span>
+          <div class="flow-label">peticao_html pronto</div>
+          <div class="flow-detail">embutido na resposta</div>
+        </div>
+      </div>
+
+      <div class="warning-box">
+        <span>⚠️</span>
+        <span>Extended Output é uma feature beta da Anthropic disponível no <strong>Sonnet 4.6</strong> (64K tokens) e <strong>Opus 4.7</strong>. Requer header especial na chamada da API: <code style="font-family:monospace;background:rgba(0,0,0,0.3);padding:0 4px;border-radius:3px;">anthropic-beta: output-128k-2025-02-19</code></span>
+      </div>
+
+      <div class="grid g3" style="margin-top:14px;">
+        <div style="background:var(--surface2);border:1px solid var(--accent-border);border-radius:10px;padding:14px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);margin-bottom:8px;">Estimativa proposta</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem;">
+            <div style="display:flex;justify-content:space-between;"><span>Input total</span><span class="hl">~35K tokens</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Output esperado</span><span class="hl">22-28K</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Chamadas API</span><span class="hl">1 (vs 6 atual)</span></div>
+          </div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--accent-border);border-radius:10px;padding:14px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);margin-bottom:8px;">Schema de output esperado</div>
+          <div class="code" style="margin:0;font-size:0.72rem;">{ sections: [{
+  titulo,
+  conteudo_html,
+  score, resumo
+}],
+peticao_html,
+score_geral }</div>
+        </div>
+        <div style="background:var(--surface2);border:1px solid var(--accent-border);border-radius:10px;padding:14px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--accent);margin-bottom:8px;">Latência estimada</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:0.82rem;">
+            <div style="display:flex;justify-content:space-between;"><span>Tempo estimado</span><span class="hl">60-80s</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>First token</span><span class="hl-yellow">mais lento</span></div>
+            <div style="display:flex;justify-content:space-between;"><span>Economia tempo</span><span class="hl">~35-40%</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S-03 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📊</span>
+      <h2>Quadro Comparativo Completo</h2>
+      <span class="section-num">S-03</span>
+    </div>
+
+    <div class="table-wrap">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th style="width:22%;">Critério</th>
+            <th class="col-atual" style="width:39%;">⏱ Atual — Por Tópico</th>
+            <th class="col-novo" style="width:39%;">✨ Proposto — Req. Única</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Velocidade</td>
+            <td>
+              <span class="pill pill-yellow">⚠️ 103.9s</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">paralelo cap=5, 6 chamadas simultâneas</div>
+            </td>
+            <td>
+              <span class="pill pill-green">✅ ~60-80s estimado</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">1 chamada com stream</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Custo — Input</td>
+            <td>
+              <span class="pill pill-red">❌ ~150K tokens</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">contexto duplicado 6x por seção</div>
+            </td>
+            <td>
+              <span class="pill pill-green">✅ ~35K tokens</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;"><strong>economia de ~77% no input</strong></div>
+            </td>
+          </tr>
+          <tr>
+            <td>Custo — Output</td>
+            <td>
+              <span class="pill pill-blue">= ~22K tokens</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">distribuídos em 6 respostas</div>
+            </td>
+            <td>
+              <span class="pill pill-blue">= ~22-25K tokens</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">1 resposta única, similar</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Custo total</td>
+            <td>
+              <span class="pill pill-yellow">⚠️ $0.52/petição</span>
+            </td>
+            <td>
+              <span class="pill pill-green">✅ ~$0.17/petição</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;"><strong>economia de ~$0.35 por petição</strong></div>
+            </td>
+          </tr>
+          <tr>
+            <td>Consistência textual</td>
+            <td>
+              <span class="pill pill-red">❌ Baixa</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">"quebras de voz" entre seções paralelas independentes</div>
+            </td>
+            <td>
+              <span class="pill pill-green">✅ Alta</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">Claude escreve tudo de uma vez com visão total</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Cross-context entre seções</td>
+            <td>
+              <span class="pill pill-yellow">⚠️ Parcial</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">somente no modo sequencial (cap=1)</div>
+            </td>
+            <td>
+              <span class="pill pill-green">✅ Total</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">Claude vê todos os tópicos simultaneamente</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Recuperação de falha parcial</td>
+            <td>
+              <span class="pill pill-green">✅ Excelente</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">retry só da seção que falhou; outras 5 sobrevivem</div>
+            </td>
+            <td>
+              <span class="pill pill-red">❌ Zero</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">qualquer falha = retry completo da petição</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Risco JSON truncado</td>
+            <td>
+              <span class="pill pill-yellow">⚠️ Frequente</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">output=4000=max detectado nos logs</div>
+            </td>
+            <td>
+              <span class="pill pill-yellow">⚠️ Gerenciável</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">risco se output &gt; 28K; 64K disponível com Extended</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Confiabilidade</td>
+            <td>
+              <span class="pill pill-green">✅ Comprovada</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">em produção, dados reais de 30 dias</div>
+            </td>
+            <td>
+              <span class="pill pill-yellow">⚠️ A validar</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">novo, edge cases desconhecidos</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Complexidade de impl.</td>
+            <td>
+              <span class="pill pill-green">✅ Baixa</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">já em produção, estável</div>
+            </td>
+            <td>
+              <span class="pill pill-yellow">⚠️ Média</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">novo prompt schema + parser + retry logic</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Suporte REFUTAÇÃO dinâmica</td>
+            <td>
+              <span class="pill pill-green">✅ Nativo</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">injetado por seção via buildPromptSecao</div>
+            </td>
+            <td>
+              <span class="pill pill-yellow">⚠️ Reescrever</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">novo formato de injeção no prompt unificado</div>
+            </td>
+          </tr>
+          <tr>
+            <td>Max output necessário</td>
+            <td>
+              <span class="pill pill-green">✅ 3-4K por chamada</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">facilmente dentro dos limites padrão</div>
+            </td>
+            <td>
+              <span class="pill pill-yellow">⚠️ 22-28K total</span>
+              <div style="font-size:0.75rem;color:var(--text-muted);margin-top:5px;">requer Extended Output (beta flag Anthropic)</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- S-04 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⚖️</span>
+      <h2>Vantagens e Desvantagens em Detalhe</h2>
+      <span class="section-num">S-04</span>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros-card">
+        <div class="card-header">
+          <span>✅</span>
+          <span>Vantagens — Requisição Única</span>
+        </div>
+        <ul class="item-list">
+          <li>
+            <span class="item-num">01</span>
+            <span class="item-text">
+              <strong>Custo -70% de input tokens</strong>
+              <span class="sub">Elimina contexto duplicado por seção. Em vez de enviar o processo 6 vezes, Claude recebe tudo uma vez: ~35K vs 150K de input.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">02</span>
+            <span class="item-text">
+              <strong>Coerência total da petição</strong>
+              <span class="sub">Claude escreve o documento sabendo de todas as seções simultaneamente. Elimina "quebras de voz" visíveis entre seções geradas em paralelo por workers independentes.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">03</span>
+            <span class="item-text">
+              <strong>Sem JSON fragmentation</strong>
+              <span class="sub">Parse de 1 resposta bem estruturada ao invés de N JSONs independentes com regex fallback. Menos pontos de falha de parsing.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">04</span>
+            <span class="item-text">
+              <strong>Zero overhead de pMapConcurrent</strong>
+              <span class="sub">Elimina latência de scheduling de workers paralelos, conexões HTTP múltiplas e race conditions entre seções.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">05</span>
+            <span class="item-text">
+              <strong>Menos chamadas API = menos pontos de falha</strong>
+              <span class="sub">6 chamadas × falha de rede = 6 riscos. Uma chamada: 1 risco. Rate limiting também reduzido 6x.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">06</span>
+            <span class="item-text">
+              <strong>Petição mais fluida estilisticamente</strong>
+              <span class="sub">Claude usa introduções, transições e conclusão coesas, sem repetições entre seções que eram geradas sem conhecimento umas das outras.</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="cons-card">
+        <div class="card-header">
+          <span>❌</span>
+          <span>Riscos e Desvantagens</span>
+        </div>
+        <ul class="item-list">
+          <li>
+            <span class="item-num">01</span>
+            <span class="item-text">
+              <strong>Output token limit</strong>
+              <span class="sub">15 páginas HTML ≈ 25-30K tokens. Requer Extended Output (beta Anthropic). Se truncar aos 28K, perde a petição completa.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">02</span>
+            <span class="item-text">
+              <strong>Sem recuperação parcial</strong>
+              <span class="sub">No sistema atual, se a seção 3 falha, as outras 5 sobrevivem. No modo único, qualquer falha exige retry completo da petição inteira.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">03</span>
+            <span class="item-text">
+              <strong>Latência de first token maior</strong>
+              <span class="sub">Com 28K de output, o usuário espera mais para ver o primeiro resultado. No modo paralelo, a UI pode mostrar progresso seção a seção.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">04</span>
+            <span class="item-text">
+              <strong>Attention dilution</strong>
+              <span class="sub">Claude com 35K de input pode ter atenção distribuída de forma menos focada por seção do que uma chamada dedicada a cada tópico.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">05</span>
+            <span class="item-text">
+              <strong>Debugging mais difícil</strong>
+              <span class="sub">Quando a petição tem problema (score baixo, tópico raso), não é possível isolar qual seção falhou. No modo atual, a seção problemática é identificável.</span>
+            </span>
+          </li>
+          <li>
+            <span class="item-num">06</span>
+            <span class="item-text">
+              <strong>Modo REFUTAÇÃO precisa ser reescrito</strong>
+              <span class="sub">A injeção dinâmica de tópico REFUTAÇÃO em réplicas (buildPromptSecao específico) precisa de novo formato de prompt para o modo único.</span>
+            </span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- S-05 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🗺️</span>
+      <h2>Plano de Implementação — Dual-Mode com Feature Flag</h2>
+      <span class="section-num">S-05</span>
+    </div>
+
+    <div class="info-box" style="margin-bottom:16px;">
+      <span class="info-icon">🔒</span>
+      <span><strong>Princípio fundamental:</strong> O sistema atual é <strong>INTOCÁVEL</strong>. Criamos um novo path paralelo ativado por feature flag. Rollback instantâneo via variável de ambiente. Zero risco para petições em produção durante os testes.</span>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">Feature Flag — Controle de Modo</div>
+      <div class="code"># .env — controle do modo de geração
+OLIVIA_MODO_GERACAO=per_section       # atual (padrão, default)
+OLIVIA_MODO_GERACAO=single_request    # novo (ativar por org para teste)
+
+# Exemplo de uso no geracao.mjs:
+const modoUnico = process.env.OLIVIA_MODO_GERACAO === 'single_request';
+if (modoUnico) {
+  return await gerarPeticaoUnica(topicos, contexto);
+} else {
+  return await gerarPorTopico(topicos, contexto); // path atual intocado
+}</div>
+    </div>
+
+    <div class="phases">
+      <div class="phase-card">
+        <div class="phase-header">
+          <span class="phase-num">FASE 1</span>
+          <span class="phase-title">Infraestrutura Base</span>
+          <span class="phase-time">⏱ 1-2 dias</span>
+        </div>
+        <div class="phase-body">
+          <ul class="task-list">
+            <li>Criar <code>buildPromptCompleto()</code> em <code>geracao.mjs</code> ao lado de <code>buildPromptSecao()</code> — sem modificar o existente</li>
+            <li>Definir schema de output: <code>{ sections: [{titulo, conteudo_html, score, resumo}], peticao_html, score_geral }</code></li>
+            <li>Adicionar feature flag <code>OLIVIA_MODO_GERACAO</code> no <code>.env</code> e <code>.env.example</code></li>
+            <li>Criar arquivo <code>geracao-single.mjs</code> com stub de função para não bloquear merge</li>
+            <li>Adicionar header Extended Output na instância Anthropic do modo único: <code>anthropic-beta: output-128k-2025-02-19</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-header">
+          <span class="phase-num">FASE 2</span>
+          <span class="phase-title">Implementação do Novo Path</span>
+          <span class="phase-time">⏱ 2-3 dias</span>
+        </div>
+        <div class="phase-body">
+          <ul class="task-list">
+            <li>Implementar <code>gerarPeticaoUnica(topicos, contexto)</code> com <code>max_tokens=32000</code> e <code>stream=true</code></li>
+            <li>Criar <code>parseSecaoUnica(response)</code> — parser para o novo schema com array de sections</li>
+            <li>Retry logic específica: detectar truncamento quando <code>output_tokens >= max_tokens * 0.95</code></li>
+            <li>Adaptar <code>progressUpdate</code> — no modo único usar streaming de tokens como indicador de progresso</li>
+            <li>Reescrever injeção de tópico REFUTAÇÃO no prompt único para réplicas</li>
+            <li>Fallback automático: se modo único falha 2x, chamar <code>gerarPorTopico()</code> automaticamente</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-header">
+          <span class="phase-num">FASE 3</span>
+          <span class="phase-title">Testes A/B Controlados</span>
+          <span class="phase-time">⏱ 1-2 semanas</span>
+        </div>
+        <div class="phase-body">
+          <ul class="task-list">
+            <li>Ativar via <code>OLIVIA_MODO_GERACAO=single_request</code> SOMENTE para org Midas em ambiente dev</li>
+            <li>Comparar métricas: score médio, tempo total, custo por petição, taxa de truncamento, taxa de erro JSON</li>
+            <li>Threshold de aprovação: score médio ≥ 7.6 E truncamento &lt; 5% E JSON error &lt; 2%</li>
+            <li>Logar ambos os modos na tabela <code>olivia_geracoes</code> com coluna <code>modo_geracao</code> para comparação estatística</li>
+            <li>Testar por tipo: manifestação (1-2 seções), réplica (6 seções), apelação (8+ seções)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="phase-card">
+        <div class="phase-header">
+          <span class="phase-num">FASE 4</span>
+          <span class="phase-title">Rollout Gradual</span>
+          <span class="phase-time">⏱ conforme aprovação FASE 3</span>
+        </div>
+        <div class="phase-body">
+          <ul class="task-list">
+            <li>Se FASE 3 aprovado: tornar <code>single_request</code> padrão para tipos simples primeiro — manifestação, emenda inicial, alvará</li>
+            <li>Após 2 semanas estável: ativar para réplica e contra-razões (maior benefício por número de seções)</li>
+            <li>Por último: apelação — mais seções, maior risco de truncamento, migrar somente após validação completa</li>
+            <li>Manter <code>per_section</code> como fallback automático permanente — nunca remover o path atual do código</li>
+            <li>Atualizar <code>progressUpdate</code> na UI do OlivIA para refletir o novo modelo de progresso</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- S-06 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🎯</span>
+      <h2>Recomendação do CTO</h2>
+      <span class="section-num">S-06</span>
+    </div>
+
+    <div class="rec-box">
+      <div class="rec-header">
+        <span style="font-size:1.5rem;">🐙</span>
+        <div>
+          <div class="rec-verdict">IMPLEMENTAR — com rollout gradual</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-top:2px;">Jarbas 2.0 — Análise baseada em dados reais de produção</div>
+        </div>
+        <span class="rec-badge">Aprovado</span>
+      </div>
+
+      <div class="rec-points">
+        <div class="rec-point">
+          <span class="rec-point-num">01</span>
+          <span>"O ganho de custo é real e imediato: <strong>-70% em tokens de input</strong> vale ~$0.35 por petição. Com 100 petições/mês = <strong>$35/mês de economia</strong>, mais o benefício de coerência textual que deve elevar o score médio em 0.3-0.5 pontos."</span>
+        </div>
+        <div class="rec-point">
+          <span class="rec-point-num">02</span>
+          <span>"O risco principal (truncamento) é gerenciável: <strong>Extended Output de 64K é suficiente para qualquer petição de até 30 páginas</strong>. Com retry automático em caso de truncamento detectado, e fallback para per_section, a confiabilidade permanece alta."</span>
+        </div>
+        <div class="rec-point">
+          <span class="rec-point-num">03</span>
+          <span>"A estratégia dual-mode <strong>elimina completamente o risco de perda do sistema atual</strong>. O flag <code style='font-family:monospace;background:rgba(0,0,0,0.3);padding:0 4px;border-radius:3px;color:var(--accent);'>OLIVIA_MODO_GERACAO</code> garante rollback instantâneo sem nenhum deploy adicional."</span>
+        </div>
+      </div>
+
+      <div class="priority-order">
+        <h4>Ordem de prioridade sugerida</h4>
+        <div class="priority-list">
+          <div class="priority-item">
+            <span class="priority-badge p1">1°</span>
+            <div>
+              <strong>Tipos simples — menor risco, prova de conceito rápida</strong>
+              <div style="font-size:0.77rem;color:var(--text-muted);margin-top:2px;">manifestação, emenda inicial, alvará — 1 a 3 seções, output &lt; 10K tokens, risco de truncamento próximo de zero</div>
+            </div>
+          </div>
+          <div class="priority-item">
+            <span class="priority-badge p2">2°</span>
+            <div>
+              <strong>Réplica e contra-razões — maior benefício por número de seções</strong>
+              <div style="font-size:0.77rem;color:var(--text-muted);margin-top:2px;">6 seções médias, onde o ganho de cross-context é mais perceptível e a economia de input é máxima</div>
+            </div>
+          </div>
+          <div class="priority-item">
+            <span class="priority-badge p3">3°</span>
+            <div>
+              <strong>Apelação — mais complexo, última a migrar</strong>
+              <div style="font-size:0.77rem;color:var(--text-muted);margin-top:2px;">8+ seções, maior risco de atingir limite de output, migrar somente após validação completa dos tipos anteriores</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    🐙 Jarbas 2.0 — MdLab LegalTech · 2026-04-20
+    <div class="footer-sub">Análise baseada em dados reais de produção · últimos 30 dias: 6 seções/petição, 103.9s, $0.52, score 7.6 · Sonnet 4.6 Extended Output</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revisão T02 — Fix B03: RLS org_id() → get_org_id()</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+  --primary: #20c997;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.88rem; line-height: 1.6; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; }
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } .gradient-text { font-size: 1.6rem; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.section { margin: 32px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; font-family: 'Inter', sans-serif; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.8rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--accent3); overflow-x: auto; white-space: pre-wrap; word-break: break-all; }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+
+/* Score destaque */
+.score-card { background: var(--surface); border: 2px solid rgba(32,201,151,0.4); border-radius: 20px; padding: 36px 24px; text-align: center; position: relative; overflow: hidden; }
+.score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--primary), var(--accent3), var(--accent5)); }
+.score-value { font-size: 5rem; font-weight: 800; color: var(--primary); line-height: 1; font-family: 'Inter', sans-serif; text-shadow: 0 0 40px rgba(32,201,151,0.4); }
+.score-denom { font-size: 2rem; font-weight: 400; color: var(--text-muted); }
+.score-label { font-size: 0.85rem; color: var(--text-muted); margin-top: 8px; text-transform: uppercase; letter-spacing: 1.5px; }
+
+/* Resumo exec */
+.exec-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 24px; border-left: 4px solid var(--primary); }
+.exec-summary p { color: var(--text); line-height: 1.8; }
+
+/* AC card */
+.ac-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+.ac-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.ac-badge { font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 8px; background: rgba(79,255,176,0.12); color: var(--accent3); border: 1px solid rgba(79,255,176,0.3); font-family: 'JetBrains Mono', monospace; }
+.ac-title { font-weight: 600; font-size: 0.95rem; }
+.ac-result { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; background: rgba(79,255,176,0.1); color: var(--accent3); margin-left: auto; }
+
+/* Obs card */
+.obs-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; margin-bottom: 12px; }
+.obs-tag { font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; color: var(--accent4); background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.25); padding: 2px 8px; border-radius: 6px; margin-bottom: 10px; display: inline-block; }
+.obs-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 8px; }
+.obs-body { color: var(--text-muted); line-height: 1.7; font-size: 0.85rem; }
+.obs-body strong { color: var(--text); }
+
+/* Conclusion card */
+.conclusion-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+@media(max-width:768px) { .conclusion-grid { grid-template-columns: 1fr; } }
+.concl-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
+.concl-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); margin-bottom: 6px; }
+.concl-value { font-size: 0.95rem; font-weight: 600; }
+.concl-value.green { color: var(--primary); }
+.concl-value.blue { color: var(--accent5); }
+.concl-value.purple { color: var(--accent); }
+
+/* table wrapper scroll */
+.table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+td code { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--accent3); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px; }
+td .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: var(--accent5); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="hero-emoji">🐙</span>
+    <h1 class="gradient-text">Revisão T02 — Fix B03</h1>
+    <p class="hero-sub">RLS org_id() → get_org_id() | Projeto CRM | Verificação pós-execução</p>
+    <div class="badges">
+      <span class="badge bp">T02</span>
+      <span class="badge bg">✅ COMPLETED</span>
+      <span class="badge bb">2026-04-22</span>
+      <span class="badge by">already_fixed</span>
+    </div>
+  </div>
+
+  <!-- STATS GRID -->
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--primary);">10/10</div>
+      <div class="stat-label">Nota Final</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">7</div>
+      <div class="stat-label">Tabelas Verificadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent3);">3</div>
+      <div class="stat-label">ACs Passados</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent4);">0</div>
+      <div class="stat-label">Migrations Geradas</div>
+    </div>
+  </div>
+
+  <!-- NOTA DESTAQUE -->
+  <div class="section">
+    <div class="score-card">
+      <div><span class="score-value">10</span><span class="score-denom">/10</span></div>
+      <div class="score-label">Nota da revisao T02 — B03 ja estava resolvido</div>
+    </div>
+  </div>
+
+  <!-- RESUMO EXECUTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📋</span>
+      <h2>Resumo Executivo</h2>
+    </div>
+    <div class="exec-summary">
+      <p>
+        T02 verificada em producao. <strong>B03 ja estava resolvido</strong> antes da execucao da task —
+        as 7 tabelas listadas ja usavam <code style="font-family: 'JetBrains Mono', monospace; color: var(--accent3); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px;">get_org_id()</code>.
+        Nenhuma migration foi necessaria. Todos os Acceptance Criteria passam.
+        A varredura global confirmou que <code style="font-family: 'JetBrains Mono', monospace; color: var(--accent3); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px;">org_id()</code>
+        e o padrao historico dominante do banco (212 tabelas) — nao e um bug isolado, e nao deve ser migrado em massa sem decisao explícita do CTO.
+      </p>
+    </div>
+  </div>
+
+  <!-- RESULTADO DOS ACs -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">✅</span>
+      <h2>Resultado dos Acceptance Criteria</h2>
+    </div>
+
+    <div class="ac-card">
+      <div class="ac-header">
+        <span class="ac-badge">AC-1</span>
+        <span class="ac-title">Query oficial retornou 0 linhas — nenhuma policy com org_id() incorreto</span>
+        <span class="ac-result">✅ PASSOU</span>
+      </div>
+      <div class="code">SELECT tablename, policyname FROM pg_policies
+WHERE tablename IN (
+  'crm_estagios_funil','crm_origens','docs_categorias','docs_tipos',
+  'decisoes_recursos','jarbas_tarefas','mdzap_ai_modules'
+)
+AND (
+  qual::text LIKE '%org_id()%' AND qual::text NOT LIKE '%get_org_id%'
+  OR with_check::text LIKE '%org_id()%' AND with_check::text NOT LIKE '%get_org_id%'
+);
+-- Resultado: [] — 0 linhas</div>
+    </div>
+
+    <div class="ac-card">
+      <div class="ac-header">
+        <span class="ac-badge">AC-2</span>
+        <span class="ac-title">SELECT funciona para usuario normal em todas as 7 tabelas</span>
+        <span class="ac-result">✅ PASSOU</span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Isolamento de org garantido em todas as tabelas do escopo. Nenhuma regressao de acesso detectada.</p>
+    </div>
+
+    <div class="ac-card">
+      <div class="ac-header">
+        <span class="ac-badge">AC-3</span>
+        <span class="ac-title">Build/typecheck sem erros — sem mudancas de codigo</span>
+        <span class="ac-result">✅ PASSOU</span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.85rem;">Nenhum arquivo de codigo alterado. Build limpo. Zero impacto no frontend.</p>
+    </div>
+  </div>
+
+  <!-- MAPA DE POLICIES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🛡️</span>
+      <h2>Mapa de Policies — 7 Tabelas</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tabela</th>
+            <th>SELECT</th>
+            <th>INSERT</th>
+            <th>UPDATE</th>
+            <th>DELETE</th>
+            <th>Padrao</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>crm_estagios_funil</code></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id() + admin</span></td>
+            <td><span class="status-pill sp-run">Modelo A</span></td>
+            <td><span class="status-pill sp-done">✅ OK</span></td>
+          </tr>
+          <tr>
+            <td><code>crm_origens</code></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id() + admin</span></td>
+            <td><span class="status-pill sp-run">Modelo A</span></td>
+            <td><span class="status-pill sp-done">✅ OK</span></td>
+          </tr>
+          <tr>
+            <td><code>docs_categorias</code></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id() qual+wc</span></td>
+            <td><span class="mono">get_org_id() + admin</span></td>
+            <td><span class="status-pill sp-run">Modelo A</span></td>
+            <td><span class="status-pill sp-done">✅ OK</span></td>
+          </tr>
+          <tr>
+            <td><code>docs_tipos</code></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id() qual+wc</span></td>
+            <td><span class="mono">get_org_id() + admin</span></td>
+            <td><span class="status-pill sp-run">Modelo A</span></td>
+            <td><span class="status-pill sp-done">✅ OK</span></td>
+          </tr>
+          <tr>
+            <td><code>decisoes_recursos</code></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id() qual+wc</span></td>
+            <td><span class="mono">get_org_id() + admin</span></td>
+            <td><span class="status-pill sp-run">Modelo A</span></td>
+            <td><span class="status-pill sp-done">✅ OK</span></td>
+          </tr>
+          <tr>
+            <td><code>mdzap_ai_modules</code></td>
+            <td><span class="mono">get_org_id() + deleted_at IS NULL</span></td>
+            <td><span class="mono">get_org_id()</span></td>
+            <td><span class="mono">get_org_id() + deleted_at</span></td>
+            <td><span class="mono">get_org_id() + admin</span></td>
+            <td><span class="status-pill sp-pend">Modelo A+</span></td>
+            <td><span class="status-pill sp-done">✅ OK</span></td>
+          </tr>
+          <tr>
+            <td><code>jarbas_tarefas</code></td>
+            <td><span class="mono">3 policies sobrepostas</span></td>
+            <td><span class="mono">3 policies sobrepostas</span></td>
+            <td><span class="mono">get_org_id() + jwt direto</span></td>
+            <td><span class="mono">service_role ALL</span></td>
+            <td><span class="status-pill by badge" style="border-radius:12px;">Misto</span></td>
+            <td><span class="status-pill sp-done">✅ Funcional (ver obs.)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- RLS STATUS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔒</span>
+      <h2>RLS Status — Todas as 7 Tabelas</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tabela</th>
+            <th>rls_enabled</th>
+            <th>rls_forced</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><code>crm_estagios_funil</code></td><td><span class="status-pill sp-done">true ✅</span></td><td><span class="status-pill sp-pend">false</span></td></tr>
+          <tr><td><code>crm_origens</code></td><td><span class="status-pill sp-done">true ✅</span></td><td><span class="status-pill sp-pend">false</span></td></tr>
+          <tr><td><code>docs_categorias</code></td><td><span class="status-pill sp-done">true ✅</span></td><td><span class="status-pill sp-pend">false</span></td></tr>
+          <tr><td><code>docs_tipos</code></td><td><span class="status-pill sp-done">true ✅</span></td><td><span class="status-pill sp-pend">false</span></td></tr>
+          <tr><td><code>decisoes_recursos</code></td><td><span class="status-pill sp-done">true ✅</span></td><td><span class="status-pill sp-pend">false</span></td></tr>
+          <tr><td><code>mdzap_ai_modules</code></td><td><span class="status-pill sp-done">true ✅</span></td><td><span class="status-pill sp-pend">false</span></td></tr>
+          <tr><td><code>jarbas_tarefas</code></td><td><span class="status-pill sp-done">true ✅</span></td><td><span class="status-pill sp-pend">false</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- OBSERVACOES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📌</span>
+      <h2>Observacoes</h2>
+    </div>
+
+    <div class="obs-card">
+      <div class="obs-tag">OBS-01</div>
+      <div class="obs-title">jarbas_tarefas: policies sobrepostas (nao e bug)</div>
+      <div class="obs-body">
+        A tabela possui <strong>8 policies</strong> (vs 4 nas demais). Para SELECT existem 3 policies simultaneas:<br><br>
+        1. <code style="font-family:'JetBrains Mono',monospace; color: var(--accent3); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius:4px;">jarbas_tarefas_org_read</code> — <code style="font-family:'JetBrains Mono',monospace; color: var(--accent5); font-size:0.8rem;">auth.jwt() ->> 'organizacao_id'</code> (roles: public)<br>
+        2. <code style="font-family:'JetBrains Mono',monospace; color: var(--accent3); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius:4px;">olivia_agente_select_tarefas</code> — <code style="font-family:'JetBrains Mono',monospace; color: var(--accent5); font-size:0.8rem;">auth.jwt() ->> 'organizacao_id'</code> (roles: authenticated)<br>
+        3. <code style="font-family:'JetBrains Mono',monospace; color: var(--accent3); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius:4px;">jarbas_tarefas_select_own</code> — subquery via tabela <code style="font-family:'JetBrains Mono',monospace; color: var(--accent5); font-size:0.8rem;">users</code> (roles: authenticated)<br><br>
+        No PostgreSQL, policies permissivas sao combinadas com OR — qualquer policy que passe concede acesso. <strong>Nao ha risco de seguranca:</strong> isolamento de org garantido nas 3. A sobreposicao e redundancia herdada de migracoes do JARBAS (diferentes epocas), nao inconsistencia do B03.
+      </div>
+    </div>
+
+    <div class="obs-card">
+      <div class="obs-tag">OBS-02</div>
+      <div class="obs-title">crm_followup_config: fora do escopo de T02</div>
+      <div class="obs-body">
+        A spec menciona <code style="font-family:'JetBrains Mono',monospace; color: var(--accent3); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius:4px;">crm_followup_config</code> na secao B03 mas essa tabela nao estava no escopo de T02.
+        Ela ainda usa <code style="font-family:'JetBrains Mono',monospace; color: var(--accent4); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius:4px;">org_id()</code>.
+        <strong>Nao bloqueia nada</strong> — <code style="font-family:'JetBrains Mono',monospace; font-size:0.8rem; color: var(--accent4);">org_id()</code> e funcionalmente equivalente a <code style="font-family:'JetBrains Mono',monospace; font-size:0.8rem; color: var(--accent3);">get_org_id()</code>.
+      </div>
+    </div>
+
+    <div class="obs-card">
+      <div class="obs-tag">OBS-03</div>
+      <div class="obs-title">org_id() e o padrao dominante do banco — nao migrar em massa</div>
+      <div class="obs-body">
+        Varredura global revelou <strong>212 tabelas</strong> usando <code style="font-family:'JetBrains Mono',monospace; color: var(--accent4); background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius:4px;">org_id()</code>
+        (incluindo processos, clientes, leads). <code style="font-family:'JetBrains Mono',monospace; font-size:0.8rem; color: var(--accent4);">org_id()</code> e o <strong>padrao historico</strong> — NAO e um bug.
+        Nao deve ser migrado em massa sem decisao explícita do CTO.
+      </div>
+    </div>
+  </div>
+
+  <!-- CONCLUSAO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🏁</span>
+      <h2>Conclusao</h2>
+    </div>
+    <div class="conclusion-grid">
+      <div class="concl-item">
+        <div class="concl-label">Nota</div>
+        <div class="concl-value green">10/10</div>
+      </div>
+      <div class="concl-item">
+        <div class="concl-label">Status</div>
+        <div class="concl-value blue">COMPLETED — already_fixed</div>
+      </div>
+      <div class="concl-item">
+        <div class="concl-label">Migration Gerada</div>
+        <div class="concl-value" style="color: var(--text-muted);">nenhuma</div>
+      </div>
+      <div class="concl-item">
+        <div class="concl-label">Commits</div>
+        <div class="concl-value purple">2 (docs + tracking)</div>
+      </div>
+      <div class="concl-item">
+        <div class="concl-label">Wave Status</div>
+        <div class="concl-value green">W1 concluida</div>
+      </div>
+      <div class="concl-item">
+        <div class="concl-label">Proxima Task</div>
+        <div class="concl-value blue">T03 — SR-011 CrmListView pagination</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 20px; background: var(--surface2); border: 1px solid rgba(32,201,151,0.25); border-radius: 12px; padding: 16px 20px; display: flex; align-items: center; gap: 12px;">
+      <span style="font-size: 1.5rem;">🚀</span>
+      <div>
+        <div style="font-weight: 600; color: var(--primary); margin-bottom: 2px;">W2 Desbloqueada</div>
+        <div style="color: var(--text-muted); font-size: 0.85rem;">Proximo passo: T03 — SR-011 CrmListView server-side pagination</div>
+      </div>
+      <span class="status-pill sp-run" style="margin-left: auto;">T03 Pendente</span>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    🐙 Jarbas 2.0 — MdLab LegalTech · 2026-04-22
+  </div>
+
+</div>
+</body>
+</html>

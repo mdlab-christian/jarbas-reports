@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM ↔ MdZap — Integração Julia Leads</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --teal: #20c997;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding: 24px;
+}
+.container { max-width: 1100px; margin: 0 auto; }
+
+/* Hero */
+.hero {
+  text-align: center;
+  padding: 48px 24px 36px;
+}
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text {
+  font-size: 2.2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #20c997, #5bc4f5);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(32,201,151,0.12); color: var(--teal); border: 1px solid rgba(32,201,151,0.3); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+
+/* Grid */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+.card-title {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+/* Stat cards */
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+}
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--teal); }
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Section */
+.section { margin: 32px 0; }
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; }
+th {
+  background: var(--surface2);
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+}
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* Status pills */
+.status-pill {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.sp-done { background: rgba(32,201,151,0.12); color: var(--teal); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+
+/* Code */
+.code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.8rem;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--accent3);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+/* Gap cards with severity */
+.gap-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.gap-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  border-radius: 14px 0 0 14px;
+}
+.gap-p0::before { background: var(--accent2); }
+.gap-p1::before { background: var(--accent4); }
+.gap-p2::before { background: var(--text-muted); }
+.gap-card .gap-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.gap-card .gap-title { font-weight: 600; font-size: 0.9rem; }
+.gap-card .gap-desc { color: var(--text-muted); font-size: 0.83rem; }
+.sev-p0 {
+  background: rgba(255,107,107,0.15);
+  color: var(--accent2);
+  border: 1px solid rgba(255,107,107,0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.sev-p1 {
+  background: rgba(255,209,102,0.12);
+  color: var(--accent4);
+  border: 1px solid rgba(255,209,102,0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+.sev-p2 {
+  background: rgba(122,130,168,0.15);
+  color: var(--text-muted);
+  border: 1px solid rgba(122,130,168,0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* Task columns */
+.task-col {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+}
+.task-col-header {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.task-col-header.col-exec { color: var(--teal); }
+.task-col-header.col-block { color: var(--accent2); }
+.task-col-header.col-low { color: var(--accent5); }
+.task-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+.task-item:last-child { margin-bottom: 0; }
+.task-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.task-name { font-weight: 600; font-size: 0.85rem; margin-bottom: 4px; }
+.task-meta { font-size: 0.78rem; color: var(--text-muted); }
+.task-pills { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+/* Decision cards */
+.decision-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+.decision-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent4);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.decision-title { font-weight: 600; font-size: 0.92rem; margin-bottom: 10px; }
+.decision-options { margin-bottom: 10px; }
+.decision-opt {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  font-size: 0.83rem;
+  color: var(--text-muted);
+}
+.decision-opt .opt-label {
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  padding: 1px 6px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.opt-a { background: rgba(32,201,151,0.12); color: var(--teal); }
+.opt-b { background: rgba(122,130,168,0.15); color: var(--text-muted); }
+.decision-rec {
+  font-size: 0.8rem;
+  padding: 8px 12px;
+  background: rgba(32,201,151,0.07);
+  border: 1px solid rgba(32,201,151,0.2);
+  border-radius: 8px;
+  color: var(--teal);
+}
+.decision-rec strong { font-weight: 600; }
+
+/* Reason block */
+.reason-block {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-top: 16px;
+}
+.reason-block ul {
+  padding-left: 18px;
+  color: var(--text-muted);
+}
+.reason-block ul li { margin-bottom: 6px; font-size: 0.85rem; }
+.reason-block ul li strong { color: var(--accent2); }
+
+/* Steps */
+.steps { counter-reset: step; }
+.step-item {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.step-num {
+  counter-increment: step;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(32,201,151,0.15);
+  color: var(--teal);
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid rgba(32,201,151,0.3);
+}
+.step-content { flex: 1; }
+.step-content strong { color: var(--text); font-size: 0.88rem; }
+.step-content p { color: var(--text-muted); font-size: 0.82rem; margin-top: 3px; }
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  border-top: 1px solid var(--border);
+  margin-top: 48px;
+}
+
+/* Connection table wrapper */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- Hero -->
+  <div class="hero">
+    <span class="hero-emoji">🔗</span>
+    <h1 class="gradient-text">CRM ↔ MdZap — Integração Julia Leads</h1>
+    <p class="hero-sub">Spec v1.0 — 2026-04-22</p>
+    <div class="badges">
+      <span class="badge bp">7 tasks</span>
+      <span class="badge bg">3 executáveis agora</span>
+      <span class="badge br">4 bloqueadas</span>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value">8</div>
+      <div class="stat-label">Conexões Ativas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent2)">4</div>
+      <div class="stat-label">Gaps Identificados</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--teal)">3</div>
+      <div class="stat-label">Executável Agora</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent4)">4</div>
+      <div class="stat-label">Decisões Pendentes</div>
+    </div>
+  </div>
+
+  <!-- Por que isso importa -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">💡</span>
+      <h2>Por que isso importa</h2>
+    </div>
+    <div class="card">
+      <p style="margin-bottom:12px;font-size:0.9rem;">CRM e MdZap são um sistema único. Lead nasce no MdZap (WhatsApp → Julia), vive no CRM, volta ao MdZap. Gaps na integração causam:</p>
+      <div class="reason-block" style="margin-top:0;">
+        <ul>
+          <li><strong>Leads fantasma</strong> na lista de conversas (leads deletados visíveis)</li>
+          <li><strong>Métricas de dashboard zeradas</strong> — tempo_médio e taxa_handoff retornam 0 sempre</li>
+          <li><strong>Atendentes sem notificação</strong> quando auditoria CRM conclui</li>
+          <li><strong>Risco de segurança</strong> — whatsapp_mensagens sem RLS (mensagens visíveis entre organizações)</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Conexoes ativas -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">✅</span>
+      <h2>Conexões Ativas — funcionando</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>De</th>
+            <th>Para</th>
+            <th>Mecanismo</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C1</span></td>
+            <td>CrmLeadCard</td>
+            <td>MdzapBadgeStatus</td>
+            <td>Badge WA no kanban</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C2</span></td>
+            <td>CrmPage</td>
+            <td>MdzapConnectionIndicator</td>
+            <td>Header do CRM</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C3</span></td>
+            <td>CrmKanban</td>
+            <td>Filtro awaiting_human</td>
+            <td>Coluna kanban dedicada</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C4</span></td>
+            <td>ClienteDrawerTabMdzap</td>
+            <td>useMdzapConversas(lead_id)</td>
+            <td>Hook com filtro lead_id</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C5</span></td>
+            <td>CRM Lead Card</td>
+            <td>/mdzap?lead=X</td>
+            <td>Deep-link navigate</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C6</span></td>
+            <td>Frontend</td>
+            <td>whatsapp_conversas</td>
+            <td>Realtime mdzap-leads-rt-${orgId}</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C7</span></td>
+            <td>CRM + MdZap</td>
+            <td>apifull_115</td>
+            <td>Bureau unificado compartilhado</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+          <tr>
+            <td><span class="code" style="padding:2px 6px;font-size:0.75rem;">C8</span></td>
+            <td>Frontend</td>
+            <td>whatsapp_conversas</td>
+            <td>fn_mdzap_conversas p_agente_slug server-side</td>
+            <td><span class="status-pill sp-done">ativo</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Gaps -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⚠️</span>
+      <h2>Gaps Identificados</h2>
+    </div>
+    <div class="grid g2">
+
+      <div class="gap-card gap-p0">
+        <div class="gap-header">
+          <span class="sev-p0">P0</span>
+          <span class="gap-title">Assumir/Devolver n8n — status desconhecido</span>
+        </div>
+        <p class="gap-desc">Frontend implementado (botões assumir/devolver presentes na UI) mas n8n não verificado. Bloqueia handoff humano↔Julia. Se o webhook não existe no n8n, os botões não funcionam silenciosamente.</p>
+      </div>
+
+      <div class="gap-card gap-p1">
+        <div class="gap-header">
+          <span class="sev-p1">P1</span>
+          <span class="gap-title">fn_mdzap_conversas sem deleted_at</span>
+        </div>
+        <p class="gap-desc">A função server-side que alimenta a lista de conversas do MdZap não filtra leads com deleted_at. Leads deletados no CRM aparecem como conversas fantasma no MdZap.</p>
+      </div>
+
+      <div class="gap-card gap-p1">
+        <div class="gap-header">
+          <span class="sev-p1">P1</span>
+          <span class="gap-title">fn_mdzap_stats — hardcoded zeros</span>
+        </div>
+        <p class="gap-desc">A função de estatísticas do dashboard MdZap retorna tempo_médio=0 e taxa_handoff=0 em todos os casos. Nenhum KPI real é exibido para o time.</p>
+      </div>
+
+      <div class="gap-card gap-p1">
+        <div class="gap-header">
+          <span class="sev-p1">P1</span>
+          <span class="gap-title">whatsapp_mensagens sem RLS</span>
+        </div>
+        <p class="gap-desc">A tabela whatsapp_mensagens não possui Row Level Security ativa. Mensagens de diferentes organizações ficam expostas entre si — risco de segurança direto em produção.</p>
+      </div>
+
+      <div class="gap-card gap-p2">
+        <div class="gap-header">
+          <span class="sev-p2">P2</span>
+          <span class="gap-title">pending_lead_data = 0 registros</span>
+        </div>
+        <p class="gap-desc">O Doc Reader deveria popular dados pré-cadastro na tabela pending_lead_data, mas não há nenhum registro. O fluxo de enriquecimento antes do cadastro não está funcionando.</p>
+      </div>
+
+      <div class="gap-card gap-p2">
+        <div class="gap-header">
+          <span class="sev-p2">P2</span>
+          <span class="gap-title">Sem notificação auditoria → MdZap</span>
+        </div>
+        <p class="gap-desc">Quando uma auditoria CRM conclui, o atendente no MdZap não recebe nenhuma notificação. O atendente precisa verificar manualmente se a auditoria foi concluída.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Tasks -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📋</span>
+      <h2>Tasks — 7 no total</h2>
+    </div>
+    <div class="grid g3">
+
+      <!-- Executavel -->
+      <div class="task-col">
+        <div class="task-col-header col-exec">Executável Agora (3)</div>
+
+        <div class="task-item">
+          <div class="task-id">A01</div>
+          <div class="task-name">fn_mdzap_conversas + deleted_at</div>
+          <div class="task-meta">Adicionar LEFT JOIN leads com filtro deleted_at IS NULL</div>
+          <div class="task-pills">
+            <span class="sev-p1">P1</span>
+            <span class="badge bg" style="font-size:0.7rem;padding:2px 8px;">ZERO risco</span>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <div class="task-id">A02</div>
+          <div class="task-name">fn_mdzap_stats reais</div>
+          <div class="task-meta">Calcular tempo_médio e taxa_handoff com dados reais da tabela</div>
+          <div class="task-pills">
+            <span class="sev-p1">P1</span>
+            <span class="badge by" style="font-size:0.7rem;padding:2px 8px;">BAIXO risco</span>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <div class="task-id">C01</div>
+          <div class="task-name">Notificação auditoria → MdZap</div>
+          <div class="task-meta">Badge via realtime quando auditoria CRM conclui</div>
+          <div class="task-pills">
+            <span class="sev-p2">P2</span>
+            <span class="badge bg" style="font-size:0.7rem;padding:2px 8px;">ZERO risco</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bloqueadas -->
+      <div class="task-col">
+        <div class="task-col-header col-block">Bloqueadas por Decisão (4)</div>
+
+        <div class="task-item">
+          <div class="task-id">A03</div>
+          <div class="task-name">RLS whatsapp_mensagens</div>
+          <div class="task-meta">Habilitar RLS com política tenant isolation</div>
+          <div class="task-pills">
+            <span class="sev-p1">P1</span>
+            <span class="badge br" style="font-size:0.7rem;padding:2px 8px;">aguarda D-02</span>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <div class="task-id">B01</div>
+          <div class="task-name">Webhook assumir-conversa</div>
+          <div class="task-meta">Verificar e criar no n8n o webhook de assumir handoff</div>
+          <div class="task-pills">
+            <span class="sev-p0">P0</span>
+            <span class="badge br" style="font-size:0.7rem;padding:2px 8px;">aguarda D-01</span>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <div class="task-id">B02</div>
+          <div class="task-name">Webhook devolver-julia</div>
+          <div class="task-meta">Verificar e criar no n8n o webhook de devolução para Julia</div>
+          <div class="task-pills">
+            <span class="sev-p0">P0</span>
+            <span class="badge br" style="font-size:0.7rem;padding:2px 8px;">aguarda D-01</span>
+          </div>
+        </div>
+
+        <div class="task-item">
+          <div class="task-id">C02</div>
+          <div class="task-name">pending_lead_data flow</div>
+          <div class="task-meta">Configurar Doc Reader para popular dados pré-cadastro</div>
+          <div class="task-pills">
+            <span class="sev-p2">P2</span>
+            <span class="badge br" style="font-size:0.7rem;padding:2px 8px;">aguarda D-03</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Coluna extra vazia para mostrar cards de risco -->
+      <div class="task-col">
+        <div class="task-col-header col-low">Resumo de Risco</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
+          <div style="background:rgba(32,201,151,0.07);border:1px solid rgba(32,201,151,0.2);border-radius:10px;padding:12px 14px;">
+            <div style="color:var(--teal);font-weight:700;font-size:0.8rem;margin-bottom:4px;">A01 + C01 — ZERO risco</div>
+            <div style="color:var(--text-muted);font-size:0.8rem;">Apenas SQL e realtime. Nenhuma alteração de schema existente.</div>
+          </div>
+          <div style="background:rgba(255,209,102,0.07);border:1px solid rgba(255,209,102,0.2);border-radius:10px;padding:12px 14px;">
+            <div style="color:var(--accent4);font-weight:700;font-size:0.8rem;margin-bottom:4px;">A02 — BAIXO risco</div>
+            <div style="color:var(--text-muted);font-size:0.8rem;">Reescrita da função stats. Testar em dev antes de produção.</div>
+          </div>
+          <div style="background:rgba(255,107,107,0.07);border:1px solid rgba(255,107,107,0.2);border-radius:10px;padding:12px 14px;">
+            <div style="color:var(--accent2);font-weight:700;font-size:0.8rem;margin-bottom:4px;">A03 — MÉDIO risco</div>
+            <div style="color:var(--text-muted);font-size:0.8rem;">Habilitar RLS em produção pode quebrar queries sem organizacao_id. Requer aprovação.</div>
+          </div>
+          <div style="background:rgba(124,109,255,0.07);border:1px solid rgba(124,109,255,0.2);border-radius:10px;padding:12px 14px;">
+            <div style="color:var(--accent);font-weight:700;font-size:0.8rem;margin-bottom:4px;">B01 + B02 — P0 latente</div>
+            <div style="color:var(--text-muted);font-size:0.8rem;">Botões na UI podem estar silenciosamente quebrados. Verificar n8n imediatamente.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Decisoes -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🤔</span>
+      <h2>Decisões Pendentes</h2>
+    </div>
+    <div class="grid g2">
+
+      <div class="decision-card">
+        <div class="decision-id">D-01</div>
+        <div class="decision-title">Assumir/Devolver n8n — os webhooks existem?</div>
+        <div class="decision-options">
+          <div class="decision-opt">
+            <span class="opt-label opt-a">A</span>
+            <span>Christian verifica no n8n se os webhooks assumir-conversa e devolver-julia já existem, Beto os conecta ao frontend</span>
+          </div>
+          <div class="decision-opt">
+            <span class="opt-label opt-b">B</span>
+            <span>Beto cria os dois webhooks do zero no n8n sem verificar primeiro</span>
+          </div>
+        </div>
+        <div class="decision-rec">
+          <strong>Recomendacao:</strong> Opcao A — Christian verifica no n8n, Beto cria se nao existirem. Evita duplicacao de workflows.
+        </div>
+      </div>
+
+      <div class="decision-card">
+        <div class="decision-id">D-02</div>
+        <div class="decision-title">RLS whatsapp_mensagens — habilitar em producao?</div>
+        <div class="decision-options">
+          <div class="decision-opt">
+            <span class="opt-label opt-a">A</span>
+            <span>Habilitar RLS com politica padrao (organizacao_id = get_org_id()), testar em staging antes</span>
+          </div>
+          <div class="decision-opt">
+            <span class="opt-label opt-b">B</span>
+            <span>Adiar — manter sem RLS ate proxima janela de manutencao planejada</span>
+          </div>
+        </div>
+        <div class="decision-rec">
+          <strong>Recomendacao:</strong> Opcao A — SIM, habilitar. Risco de segurança P1 ativo em producao. Testar antes do deploy.
+        </div>
+      </div>
+
+      <div class="decision-card">
+        <div class="decision-id">D-03</div>
+        <div class="decision-title">pending_lead_data — Doc Reader antes ou depois do cadastro?</div>
+        <div class="decision-options">
+          <div class="decision-opt">
+            <span class="opt-label opt-a">A</span>
+            <span>Doc Reader antes do cadastro — popula pending_lead_data e CRM usa os dados enriquecidos no formulario</span>
+          </div>
+          <div class="decision-opt">
+            <span class="opt-label opt-b">B</span>
+            <span>Doc Reader depois do cadastro — enriquece lead ja criado via webhook pos-criacao</span>
+          </div>
+        </div>
+        <div class="decision-rec">
+          <strong>Recomendacao:</strong> Opcao A — antes do cadastro. Experiencia melhor para o atendente, formulario ja pre-preenchido.
+        </div>
+      </div>
+
+      <div class="decision-card">
+        <div class="decision-id">D-04</div>
+        <div class="decision-title">Notificacao auditoria — como avisar o atendente?</div>
+        <div class="decision-options">
+          <div class="decision-opt">
+            <span class="opt-label opt-a">A</span>
+            <span>Badge via realtime na thread MdZap — evento postgres_changes em auditorias quando status = 'concluida'</span>
+          </div>
+          <div class="decision-opt">
+            <span class="opt-label opt-b">B</span>
+            <span>Toast/notificacao global no header do sistema quando qualquer auditoria conclui</span>
+          </div>
+        </div>
+        <div class="decision-rec">
+          <strong>Recomendacao:</strong> Opcao A — badge na thread. Contextual, sem poluir o sistema inteiro. Zero novas tabelas.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Proximos Passos -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🚀</span>
+      <h2>Proximos Passos</h2>
+    </div>
+    <div class="steps">
+
+      <div class="step-item">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <strong>Christian revisa e responde D-01, D-02, D-03</strong>
+          <p>Verificar no n8n se assumir/devolver existem (D-01), aprovar RLS em producao (D-02), definir fluxo Doc Reader (D-03).</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <strong>Beto executa A01 + A02 sem aprovacao</strong>
+          <p>fn_mdzap_conversas com deleted_at (ZERO risco) e fn_mdzap_stats com calculos reais (BAIXO risco). Pode comecar agora.</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <strong>Beto verifica n8n para assumir/devolver</strong>
+          <p>Inspecionar workflows existentes. Se nao existirem, criar B01 + B02. Registrar resultado antes de mexer no frontend.</p>
+        </div>
+      </div>
+
+      <div class="step-item">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <strong>Deploy A03 (RLS whatsapp_mensagens) com aprovacao</strong>
+          <p>Apos D-02 aprovada por Christian. Testar em ambiente dev, verificar todas as queries usam organizacao_id, deploy em producao.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    🐙 Jarbas 2.0 — MdLab LegalTech · CRM ↔ MdZap Spec v1.0 · 2026-04-22
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MdZap — Diagnostico Brutal: Por que tudo da erro?</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+  --p0: #ff6b6b;
+  --p1: #ff9142;
+  --p2: #ffd166;
+  --p3: #7a82a8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.88rem; line-height: 1.6; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; }
+
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2.2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } .gradient-text { font-size: 1.6rem; } }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.section { margin: 32px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.85rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.table-wrap { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); overflow-x: auto; }
+
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 500; white-space: nowrap; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.2); }
+.sp-open { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.2); }
+.sp-warn { background: rgba(255,145,66,0.1); color: var(--p1); border: 1px solid rgba(255,145,66,0.2); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.2); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.2); }
+
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; color: var(--accent3); overflow-x: auto; white-space: pre; line-height: 1.7; }
+
+.sev-card { border-radius: 14px; padding: 20px; margin-bottom: 16px; }
+.sev-p0 { background: rgba(255,107,107,0.07); border: 1px solid rgba(255,107,107,0.35); border-left: 4px solid var(--p0); }
+.sev-p1 { background: rgba(255,145,66,0.07); border: 1px solid rgba(255,145,66,0.3); border-left: 4px solid var(--p1); }
+.sev-p2 { background: rgba(255,209,102,0.07); border: 1px solid rgba(255,209,102,0.25); border-left: 4px solid var(--p2); }
+.sev-p3 { background: rgba(122,130,168,0.07); border: 1px solid rgba(122,130,168,0.25); border-left: 4px solid var(--p3); }
+.sev-header { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+.sev-tag { padding: 3px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; }
+.tag-p0 { background: rgba(255,107,107,0.2); color: var(--p0); }
+.tag-p1 { background: rgba(255,145,66,0.2); color: var(--p1); }
+.tag-p2 { background: rgba(255,209,102,0.2); color: var(--p2); }
+.tag-p3 { background: rgba(122,130,168,0.2); color: var(--p3); }
+.sev-title { font-size: 1rem; font-weight: 600; }
+.sev-body { color: var(--text); font-size: 0.86rem; line-height: 1.7; }
+.sev-body p { margin-bottom: 10px; }
+.sev-body ul { padding-left: 20px; }
+.sev-body li { margin-bottom: 6px; }
+.sev-body h4 { margin: 12px 0 6px; color: var(--text-muted); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.exec-summary { background: var(--surface2); border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 32px; }
+.exec-summary h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 16px; color: var(--accent4); text-transform: uppercase; letter-spacing: 0.5px; }
+.exec-bullet { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.exec-bullet:last-child { border-bottom: none; padding-bottom: 0; }
+.exec-num { font-size: 1.1rem; font-weight: 700; color: var(--accent2); min-width: 28px; }
+.exec-text { color: var(--text); font-size: 0.88rem; line-height: 1.5; }
+.exec-text strong { color: var(--accent4); }
+
+.ascii-wrap { background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 10px; padding: 16px 20px; overflow-x: auto; }
+.ascii { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent5); white-space: pre; line-height: 1.8; }
+
+.timeline { position: relative; padding-left: 28px; }
+.timeline::before { content: ''; position: absolute; left: 8px; top: 4px; bottom: 4px; width: 2px; background: var(--border); }
+.tl-item { position: relative; margin-bottom: 20px; }
+.tl-item::before { content: ''; position: absolute; left: -24px; top: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface2); border: 2px solid var(--border); }
+.tl-item.done::before { background: var(--accent3); border-color: var(--accent3); }
+.tl-item.open::before { background: var(--accent2); border-color: var(--accent2); }
+.tl-date { font-size: 0.72rem; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 4px; }
+.tl-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; }
+.tl-desc { font-size: 0.83rem; color: var(--text-muted); line-height: 1.5; }
+
+.flow-step { display: flex; gap: 14px; padding: 10px 0; border-bottom: 1px solid rgba(42,47,74,0.5); }
+.flow-time { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent5); min-width: 80px; padding-top: 2px; }
+.flow-desc { font-size: 0.85rem; }
+.flow-fail { color: var(--accent2); font-size: 0.78rem; display: block; margin-top: 2px; }
+.flow-ok { color: var(--accent3); font-size: 0.78rem; display: block; margin-top: 2px; }
+
+.warn-box { background: rgba(255,209,102,0.06); border: 1px solid rgba(255,209,102,0.25); border-radius: 10px; padding: 14px 16px; margin: 12px 0; font-size: 0.85rem; color: var(--accent4); }
+.info-box { background: rgba(91,196,245,0.06); border: 1px solid rgba(91,196,245,0.2); border-radius: 10px; padding: 14px 16px; margin: 12px 0; font-size: 0.85rem; color: var(--accent5); }
+
+code { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; background: rgba(124,109,255,0.12); color: var(--accent); padding: 1px 6px; border-radius: 4px; }
+.comp-yes { color: var(--accent3); font-weight: 600; }
+.comp-no { color: var(--accent2); font-weight: 600; }
+
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="hero-emoji">&#128293;</span>
+    <h1 class="gradient-text">MdZap &#8212; Diagnostico Brutal</h1>
+    <p class="hero-sub">Por que tudo da erro? Uma analise impiedosa de 5 camadas de falha independentes</p>
+    <div class="badges">
+      <span class="badge bp">MdFlow v7</span>
+      <span class="badge br">2 Bugs P0 Abertos</span>
+      <span class="badge by">2 Bugs P1 Abertos</span>
+      <span class="badge bg">3 Bugs Corrigidos em 2026-04-22</span>
+      <span class="badge bb">Auditoria 2026-04-22</span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent2);">2</div>
+      <div class="stat-label">Bugs P0 Abertos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--p1);">2</div>
+      <div class="stat-label">Bugs P1 Abertos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent3);">3</div>
+      <div class="stat-label">Corrigidos Hoje</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent4);">5</div>
+      <div class="stat-label">Camadas de Falha</div>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE SUMMARY -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9889;</span>
+      <h2>Resumo Executivo &#8212; 5 Verdades que Doem</h2>
+    </div>
+    <div class="exec-summary">
+      <h3>Antes de qualquer detalhe, saiba isto:</h3>
+      <div class="exec-bullet">
+        <div class="exec-num">01</div>
+        <div class="exec-text"><strong>Nenhuma mensagem enviada pelo sistema sabe se foi entregue.</strong> O campo <code>wa_message_id</code> nunca e gravado apos o envio. Webhooks de status da Meta procuram um ID que nao existe no banco. O sistema inteiro simula confirmacao de entrega.</div>
+      </div>
+      <div class="exec-bullet">
+        <div class="exec-num">02</div>
+        <div class="exec-text"><strong>O sistema falha silenciosamente para contatos frios sem avisar o usuario de forma clara.</strong> A janela de 24h da Meta e ignorada. O frontend mostra erro generico enquanto a razao real e uma regra conhecida e documentada da API.</div>
+      </div>
+      <div class="exec-bullet">
+        <div class="exec-num">03</div>
+        <div class="exec-text"><strong>Row Level Security esta desabilitado na tabela de mensagens.</strong> <code>whatsapp_mensagens</code> e a unica tabela critica do sistema sem RLS. Dados de todos os tenants dependem exclusivamente da disciplina do codigo frontend para nao vazar.</div>
+      </div>
+      <div class="exec-bullet">
+        <div class="exec-num">04</div>
+        <div class="exec-text"><strong>O n8n e um Single Point of Failure sem circuit breaker, sem DLQ real e sem redundancia.</strong> Se o Railway cair, nenhuma mensagem e enviada, Julia para de responder e o frontend nao sabe imediatamente.</div>
+      </div>
+      <div class="exec-bullet">
+        <div class="exec-num">05</div>
+        <div class="exec-text"><strong>O MdZap foi construido task-a-task (~39 tasks) sem revisao sistemica.</strong> Cada task resolvia um problema pontual. Bugs que nao eram visiveis na task viravam "funciona, proxima feature". O resultado e um sistema com alta complexidade acidental acumulada.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 1: CONTEXTO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128241;</span>
+      <h2>Secao 1 &#8212; O que e o MdZap e por que e complexo</h2>
+    </div>
+    <div class="card">
+      <p style="margin-bottom: 14px;">O MdZap e o modulo de mensageria WhatsApp do MdFlow &#8212; SaaS Legal Ops que gerencia ~5.800 processos do escritorio Midas. Integra <strong>Meta Business Cloud API</strong> + <strong>n8n no Railway</strong> + <strong>Claude Sonnet (Julia)</strong> numa arquitetura de 5 camadas com 3 numeros de WhatsApp com comportamentos radicalmente diferentes.</p>
+      <div style="padding: 4px 0 10px; font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Fluxo completo de mensagens &#8212; ida e volta:</div>
+      <div class="ascii-wrap">
+        <pre class="ascii">SAIDA (frontend &rarr; WhatsApp)
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+[Usuario] &rarr; [React Frontend] &rarr; [n8n-proxy Edge Fn] &rarr; [n8n Railway] &rarr; [Meta Graph API] &rarr; [WhatsApp]
+                    |                      |                    |                  |
+               INSERT otimista        valida header         executa workflow   wamid retornado
+               status: pending        SSRF whitelist        chama Meta API     &larr; AQUI O WAMID SOME
+               wa_message_id: null                                              nunca volta pro banco
+
+ENTRADA (WhatsApp &rarr; sistema)
+&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;
+[WhatsApp] &rarr; [Meta Graph API] &rarr; [mdzap-webhook Edge Fn] &rarr; [whatsapp_mensagens]
+                                             |                           |
+                                     ~1000 linhas de codigo        RLS DESABILITADO
+                                     2 parsers (Meta + Z-API)       organizacao_id: depende do frontend
+                                     normaliza payload
+                                             |
+                                             &rarr; [n8n Orchestrator] &rarr; [Claude Sonnet] &rarr; [Julia responde]
+                                                    Railway              4-8s de latencia</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 2: CAUSA RAIZ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128300;</span>
+      <h2>Secao 2 &#8212; A Causa Raiz Real: Complexidade Acidental</h2>
+    </div>
+    <div class="card" style="margin-bottom: 16px;">
+      <p style="margin-bottom: 12px;">O MdZap tem <strong>5 camadas de falha independentes</strong>. Um erro em qualquer ponto nao e necessariamente visivel para as outras camadas. O sistema foi construido iterativamente (~39 tasks documentadas), e cada task adicionou complexidade sem revisao sistemica.</p>
+      <div class="ascii-wrap">
+        <pre class="ascii">Camada 1: React Frontend
+  &rarr; INSERT otimista | Action-Driven UI | guards de slug | optimistic updates
+     FALHA: data consistency, guards esquecidos, race conditions JSONB
+
+Camada 2: Edge Functions Supabase (n8n-proxy + mdzap-webhook)
+  &rarr; n8n-proxy: valida header, roteia para n8n Railway
+  &rarr; mdzap-webhook: ~1000 linhas, 2 parsers, normaliza, persiste, dispara orchestrator
+     FALHA: SSRF [corrigido], OOM em midia grande [corrigido], RLS ausente [ABERTO]
+
+Camada 3: n8n Railway
+  &rarr; MDZAP-ENVIAR-MENSAGEM | Orchestrator Julia | Templates | Campanhas
+     FALHA: single point of failure, sem DLQ real, wa_message_id nunca gravado [P0 ABERTO]
+
+Camada 4: Meta Graph API
+  &rarr; POST /messages | GET /media | webhooks delivered/read/failed
+     FALHA: janela 24h [P0 ABERTO], wamid lifecycle, rate limiting, MIME types inconsistentes
+
+Camada 5: PostgreSQL / Supabase
+  &rarr; whatsapp_conversas, whatsapp_mensagens, whatsapp_numeros, mdzap_ai_modules
+     FALHA: RLS desabilitado em mensagens [P1 ABERTO], JSONB race conditions [corrigido]</pre>
+      </div>
+    </div>
+    <div class="info-box">A Meta Graph API para WhatsApp Business e conhecida como uma das APIs mais complexas do ecossistema de mensageria. A janela de 24h, o ciclo de vida dos wamids, os rate limits por numero e as restricoes de MIME type sao armadilhas que a maioria dos times descobre em producao, nao na documentacao.</div>
+  </div>
+
+  <!-- SECTION 3: BUGS CRITICOS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128680;</span>
+      <h2>Secao 3 &#8212; Bugs Criticos (P0)</h2>
+    </div>
+
+    <!-- BUG P0 #1 -->
+    <div class="sev-card sev-p0">
+      <div class="sev-header">
+        <span class="sev-tag tag-p0">P0 &#8212; BLOQUEANTE</span>
+        <span class="sev-title">Bug #1: wa_message_id nunca gravado apos envio</span>
+        <span class="status-pill sp-open">ABERTO</span>
+      </div>
+      <div class="sev-body">
+        <p><strong>Sintoma:</strong> Mensagens enviadas pelo sistema nunca mostram entregue ou lido. Status fica preso em "enviado" para sempre, independentemente do que aconteceu com a mensagem.</p>
+        <h4>Fluxo de falha passo a passo:</h4>
+        <div class="card" style="background: rgba(0,0,0,0.3); padding: 16px; margin-bottom: 12px;">
+          <div class="flow-step">
+            <span class="flow-time">[0ms]</span>
+            <span class="flow-desc">Frontend faz INSERT em <code>whatsapp_mensagens</code>
+              <span class="flow-ok">status: 'pending', wa_message_id: null, id: 'abc-123-uuid'</span>
+            </span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-time">[50ms]</span>
+            <span class="flow-desc">Frontend chama n8n <code>MDZAP-ENVIAR-MENSAGEM</code> passando <code>mensagem_id: 'abc-123-uuid'</code></span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-time">[500ms]</span>
+            <span class="flow-desc">n8n chama Meta Graph API POST /messages
+              <span class="flow-ok">Meta retorna: {"messages": [{"id": "wamid.HBgN5...XXXX"}]}</span>
+            </span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-time">[501ms]</span>
+            <span class="flow-desc">n8n recebe o wamid da Meta
+              <span class="flow-fail">n8n NAO faz PATCH em whatsapp_mensagens com wa_message_id = wamid. O wamid some.</span>
+            </span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-time">[minutos]</span>
+            <span class="flow-desc">Meta dispara webhook de status: delivered
+              <span class="flow-fail">Webhook busca WHERE wa_message_id = 'wamid.HBgN5...' &#8212; 0 linhas encontradas &#8212; UPDATE ignorado</span>
+            </span>
+          </div>
+          <div class="flow-step">
+            <span class="flow-time">[para sempre]</span>
+            <span class="flow-desc">Mensagem fica com status 'sent', wa_message_id NULL
+              <span class="flow-fail">Confirmacoes de entrega e leitura sao descartadas silenciosamente para 100% das mensagens enviadas</span>
+            </span>
+          </div>
+        </div>
+        <h4>Codigo do webhook que falha silenciosamente:</h4>
+        <div class="code">// supabase/functions/mdzap-webhook/index.ts linha ~638
+// Tenta atualizar status da mensagem ao receber webhook da Meta
+const { error } = await supabase
+  .from("whatsapp_mensagens")
+  .update({ status, updated_at: new Date().toISOString() })
+  .eq("wa_message_id", msgId)  // &larr; msgId EXISTE na Meta, NAO existe no banco
+  .select("id, conversa_id, status")
+  .single();
+
+// Ha ate um retry de 2s porque o codigo ja previu que o n8n poderia ser lento
+// O problema: o n8n simplesmente nunca grava o wamid.
+EdgeRuntime.waitUntil(
+  sleep(2000).then(() =&gt; updateStatusWithRetry(msgId, status))  // retry inutil
+);</div>
+        <h4>Fix necessario no workflow n8n MDZAP-ENVIAR-MENSAGEM:</h4>
+        <div class="code">// Apos o node "Chamar Meta API", adicionar node HTTP Request:
+// PATCH https://[supabase]/rest/v1/whatsapp_mensagens?id=eq.{{$node["Receber Input"].json["mensagem_id"]}}
+// Authorization: Bearer [service_role_key]
+// Content-Type: application/json
+{
+  "wa_message_id": "{{$node["Meta API"].json["messages"][0]["id"]}}",
+  "status": "sent",
+  "updated_at": "{{new Date().toISOString()}}"
+}</div>
+        <div class="warn-box">Este bug afeta 100% das mensagens enviadas pelo sistema desde o primeiro dia de producao. Nao e um bug raro &#8212; e o comportamento padrao. A confirmacao de entrega e uma ilusao no estado atual.</div>
+      </div>
+    </div>
+
+    <!-- BUG P0 #2 -->
+    <div class="sev-card sev-p0">
+      <div class="sev-header">
+        <span class="sev-tag tag-p0">P0 &#8212; BLOQUEANTE</span>
+        <span class="sev-title">Bug #2: Janela 24h da Meta nao tratada</span>
+        <span class="status-pill sp-open">ABERTO</span>
+      </div>
+      <div class="sev-body">
+        <p><strong>Sintoma:</strong> Mensagens para contatos que nao respondem ha mais de 24h falham com erro generico. Audio enviado nao chega. O usuario tenta repetir e recebe o mesmo erro sem entender o motivo real.</p>
+        <h4>Regra da Meta (documentada, ignorada pela implementacao):</h4>
+        <div class="info-box">A Meta rejeita qualquer mensagem de conteudo livre (texto, audio, imagem, documento) para contatos que nao enviaram uma mensagem nas ultimas 24 horas. Aceita APENAS HSM templates pre-aprovados. Codigo de erro: <code>131047</code> &#8212; "Re-engagement message".</div>
+        <h4>O que acontece hoje:</h4>
+        <div class="code">// Usuario tenta enviar audio para contato frio (&gt;24h sem resposta)
+// Meta retorna:
+{
+  "error": {
+    "message": "Message failed to send because there were one or more errors",
+    "type": "OAuthException",
+    "code": 131047,    // &larr; janela de 24h expirada -- causa real
+    "error_subcode": 2494044
+  }
+}
+
+// n8n retorna para o frontend:
+{ "success": false, "message": "Erro ao enviar mensagem" }  // &larr; generico, sem contexto
+
+// Frontend mostra: "Erro ao enviar mensagem" com icone de X vermelho
+// Usuario entende: "o sistema esta quebrado"
+// Realidade: e uma restricao conhecida e documentada da Meta</div>
+        <h4>Fix necessario no Orchestrator n8n:</h4>
+        <div class="code">// Antes de chamar Meta API, verificar ultima mensagem de entrada
+const { data } = await supabase.rpc('fn_mdzap_check_window', {
+  p_conversa_id: conversaId
+});
+// fn retorna { dentro_janela: boolean, ultima_entrada: timestamptz }
+
+if (!data.dentro_janela &amp;&amp; tipo !== 'template') {
+  return {
+    "success": false,
+    "action": "need_template",
+    "message": "Janela de 24h expirada. Use um template aprovado para reengajar este contato.",
+    "error_code": "WINDOW_EXPIRED"
+  };
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 4: BUGS P1 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9888;&#65039;</span>
+      <h2>Secao 4 &#8212; Bugs P1 (Impacto Direto no Usuario)</h2>
+    </div>
+
+    <div class="sev-card sev-p1">
+      <div class="sev-header">
+        <span class="sev-tag tag-p1">P1 &#8212; IMPACTO DIRETO</span>
+        <span class="sev-title">Bug #3: RLS desabilitado em whatsapp_mensagens</span>
+        <span class="status-pill sp-open">ABERTO</span>
+      </div>
+      <div class="sev-body">
+        <p><strong>Sintoma:</strong> Nao ha sintoma visivel em condicoes normais. Em condicoes de bug no frontend (filtro esquecido, query sem <code>.eq('organizacao_id', orgId)</code>), mensagens de outros tenants podem ser retornadas e exibidas.</p>
+        <div class="grid g2" style="margin: 14px 0;">
+          <div>
+            <h4>Estado atual no banco:</h4>
+            <div class="code">-- whatsapp_mensagens hoje
+SELECT relname, relrowsecurity
+FROM pg_class
+WHERE relname = 'whatsapp_mensagens';
+
+-- Resultado:
+-- relrowsecurity = FALSE  &larr; RLS DESABILITADO</div>
+          </div>
+          <div>
+            <h4>O que deveria existir:</h4>
+            <div class="code">ALTER TABLE whatsapp_mensagens
+  ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "tenant_isolation"
+  ON whatsapp_mensagens
+  USING (
+    conversa_id IN (
+      SELECT id FROM whatsapp_conversas
+      WHERE organizacao_id = get_org_id()
+    )
+  );</div>
+          </div>
+        </div>
+        <div class="warn-box">Todo o resto do sistema (leads, processos, acordos, clientes, financeiro) tem RLS habilitado. <code>whatsapp_mensagens</code> e a excecao critica. Numa auditoria de conformidade LGPD, este e o primeiro item a reprovar.</div>
+      </div>
+    </div>
+
+    <div class="sev-card sev-p1">
+      <div class="sev-header">
+        <span class="sev-tag tag-p1">P1 &#8212; IMPACTO DIRETO</span>
+        <span class="sev-title">Bug #4: fn_mdzap_conversas sem filtro deleted_at em leads</span>
+        <span class="status-pill sp-open">ABERTO</span>
+      </div>
+      <div class="sev-body">
+        <p><strong>Sintoma:</strong> Conversas aparecem vinculadas a leads que foram deletados (soft delete). O nome do lead aparece em branco ou como valor nulo dependendo de como o frontend trata a ausencia.</p>
+        <div class="code">-- fn_mdzap_conversas hoje (simplificado)
+LEFT JOIN leads l ON wc.lead_id = l.id
+-- Falta: AND l.deleted_at IS NULL
+-- Resultado: leads com deleted_at IS NOT NULL aparecem vinculados
+
+-- Fix: uma linha de SQL
+LEFT JOIN leads l ON wc.lead_id = l.id
+  AND l.deleted_at IS NULL  -- adicionar esta linha</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 5: BUGS CORRIGIDOS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9989;</span>
+      <h2>Secao 5 &#8212; Bugs Corrigidos em 2026-04-22</h2>
+    </div>
+
+    <div class="sev-card sev-p3" style="border-left-color: var(--accent3);">
+      <div class="sev-header">
+        <span class="sev-tag" style="background: rgba(79,255,176,0.15); color: var(--accent3);">CORRIGIDO</span>
+        <span class="sev-title">Race Condition JSONB &#8212; metadata da conversa corrompido sob concorrencia</span>
+        <span class="status-pill sp-done">CORRIGIDO 2026-04-22</span>
+      </div>
+      <div class="sev-body">
+        <p><strong>O que era:</strong> Toda atualizacao de metadata da conversa usava read-then-write no frontend, criando uma janela de concorrencia que corrompria dados com multiplos atores simultaneos (Julia + humano).</p>
+        <div class="grid g2" style="margin: 12px 0;">
+          <div>
+            <h4>Codigo antigo (race condition garantido):</h4>
+            <div class="code">// CODIGO ANTIGO -- race condition
+const { data } = await supabase
+  .from('whatsapp_conversas')
+  .select('metadata')
+  .eq('id', conversaId)
+  .single();           // snapshot stale!
+
+await supabase
+  .from('whatsapp_conversas')
+  .update({
+    metadata: {
+      ...data.metadata,  // spread do snapshot
+      mode: 'human'      // sobrescreve tudo!
+    }
+  });</div>
+          </div>
+          <div>
+            <h4>Cenario de corrupcao real:</h4>
+            <div class="code">// Em 200ms, dois eventos:
+
+// Julia responde:
+// metadata = { mode: 'julia', last_msg_preview: 'Ola!' }
+
+// Humano assume (leu snapshot antigo):
+// metadata = { mode: 'human' }
+//   ^ apagou o preview da Julia!
+
+// Resultado:
+// - conversa some da lista (preview null)
+// - modo incorreto exibido
+// - dados corrompidos sem erro visivel</div>
+          </div>
+        </div>
+        <h4>Solucao aplicada &#8212; 2 RPCs PostgreSQL com merge atomico:</h4>
+        <div class="code">-- fn_mdzap_update_conversa_saida: jsonb_set em cadeia, sem SELECT previo
+UPDATE whatsapp_conversas
+SET metadata = jsonb_set(
+  jsonb_set(metadata, '{mode}', '"human"'),
+  '{last_msg_preview}', to_jsonb(p_preview)
+)
+WHERE id = p_conversa_id;
+
+-- fn_mdzap_update_conversa_metadata: operador || para merge generico
+UPDATE whatsapp_conversas
+SET metadata = metadata || p_patch_jsonb  -- merge atomico, sem read previo
+WHERE id = p_conversa_id;</div>
+      </div>
+    </div>
+
+    <div class="sev-card sev-p3" style="border-left-color: var(--accent3); margin-top: 16px;">
+      <div class="sev-header">
+        <span class="sev-tag" style="background: rgba(79,255,176,0.15); color: var(--accent3);">CORRIGIDO</span>
+        <span class="sev-title">OOM Risk na Edge Function &#8212; downloads de midia carregavam arquivo inteiro na RAM</span>
+        <span class="status-pill sp-done">CORRIGIDO 2026-04-22</span>
+      </div>
+      <div class="sev-body">
+        <p><strong>O que era:</strong> Downloads de midia usavam <code>response.arrayBuffer()</code> que carrega o arquivo <strong>inteiro na RAM</strong>. Documentos Meta podem ter ate 100MB. Edge Functions tem ~150MB de RAM. Uma unica mensagem com documento pesado poderia derrubar a Edge Function e interromper o processamento de todos os webhooks em fila.</p>
+        <div class="code">// CODIGO ANTIGO -- OOM em arquivos grandes
+const buffer = await response.arrayBuffer();  // 100MB na RAM de uma vez
+
+// CODIGO NOVO -- safeReadBody() com streaming e limite 50MB
+async function safeReadBody(response, maxBytes = 50 * 1024 * 1024) {
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    totalBytes += value.length;
+    if (totalBytes &gt; maxBytes) {
+      reader.cancel();  // aborta e libera memoria
+      throw new Error(`Media excede limite de ${maxBytes / 1024 / 1024}MB`);
+    }
+    chunks.push(value);
+  }
+  return mergeChunks(chunks);
+}</div>
+      </div>
+    </div>
+
+    <div class="sev-card sev-p3" style="border-left-color: var(--accent3); margin-top: 16px;">
+      <div class="sev-header">
+        <span class="sev-tag" style="background: rgba(79,255,176,0.15); color: var(--accent3);">CORRIGIDO</span>
+        <span class="sev-title">SSRF no n8n-proxy &#8212; destinos internos do Railway alcancaveis</span>
+        <span class="status-pill sp-done">CORRIGIDO 2026-04-22</span>
+      </div>
+      <div class="sev-body">
+        <p><strong>O que era:</strong> O n8n-proxy validava o path com regex <code>^[a-z0-9/_-]+$</code> mas nao restringia os prefixos de destino. Qualquer path valido na regex podia ser chamado &#8212; incluindo paths internos do Railway, metadata endpoints do container ou outros servicos na rede privada.</p>
+        <div class="code">// CODIGO ANTIGO -- sem restricao de destino
+if (!/^[a-z0-9\/_-]+$/.test(path)) { return error(400); }
+// Qualquer path passava -- /internal/admin, /../etc tambem
+
+// CODIGO NOVO -- whitelist de prefixos
+const ALLOWED_PREFIXES = ['mdflow/', 'mdzap/', 'olivia/', 'jarbas/', 'ctrl/'];
+if (!ALLOWED_PREFIXES.some(p =&gt; path.startsWith(p))) {
+  return error(403, 'Destino nao permitido');
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 6: 3 MODULOS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#127913;</span>
+      <h2>Secao 6 &#8212; 3 Modulos com 3 Comportamentos: o Pesadelo de Guards</h2>
+    </div>
+    <div class="card" style="margin-bottom: 16px;">
+      <p style="margin-bottom: 16px;">Os 3 numeros tem comportamentos radicalmente diferentes. Cada componente React precisa de guards individuais. Um guard esquecido = identidade da Julia aparece onde nao deveria. <strong>Este bug estava presente em 6 lugares diferentes e foi descoberto em semanas de producao.</strong></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Comportamento</th>
+              <th>sdr_leads (Julia)</th>
+              <th>sdr_acordos (CP)</th>
+              <th>sdr_acordos_hm (HM)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>IA responde automaticamente?</td>
+              <td class="comp-yes">SIM</td>
+              <td class="comp-no">NAO</td>
+              <td class="comp-no">NAO</td>
+            </tr>
+            <tr>
+              <td>Badge Julia no header?</td>
+              <td class="comp-yes">SIM</td>
+              <td class="comp-no">NAO</td>
+              <td class="comp-no">NAO</td>
+            </tr>
+            <tr>
+              <td>Botao "Assumir controle"?</td>
+              <td class="comp-yes">SIM</td>
+              <td class="comp-no">NAO</td>
+              <td class="comp-no">NAO</td>
+            </tr>
+            <tr>
+              <td>Toggle modo Julia?</td>
+              <td class="comp-yes">SIM</td>
+              <td class="comp-no">NAO</td>
+              <td class="comp-no">NAO</td>
+            </tr>
+            <tr>
+              <td>Smart Replies?</td>
+              <td class="comp-yes">SIM</td>
+              <td class="comp-no">NAO</td>
+              <td class="comp-no">NAO</td>
+            </tr>
+            <tr>
+              <td>Placeholder do input</td>
+              <td><code>"Julia responde..."</code></td>
+              <td><code>"Mensagem..."</code></td>
+              <td><code>"Mensagem..."</code></td>
+            </tr>
+            <tr>
+              <td>Vincula a tabela</td>
+              <td><code>leads</code></td>
+              <td><code>acordos</code></td>
+              <td><code>acordos</code></td>
+            </tr>
+            <tr>
+              <td>Publico-alvo</td>
+              <td>Leads WhatsApp inbound</td>
+              <td>Escritorios de advocacia</td>
+              <td>Escritorios de advocacia</td>
+            </tr>
+            <tr>
+              <td>Campanha outbound?</td>
+              <td class="comp-no">NAO</td>
+              <td class="comp-yes">SIM (template)</td>
+              <td class="comp-yes">SIM (template)</td>
+            </tr>
+            <tr>
+              <td>Foto de perfil?</td>
+              <td class="comp-no">NAO (FRONT-010)</td>
+              <td class="comp-no">NAO (FRONT-010)</td>
+              <td class="comp-no">NAO (FRONT-010)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="sev-card sev-p2">
+      <div class="sev-header">
+        <span class="sev-tag tag-p2">P2 &#8212; DIVIDA TECNICA</span>
+        <span class="sev-title">Arquitetura: 3 modulos numa implementacao com condicionais espalhadas em 6+ pontos</span>
+      </div>
+      <div class="sev-body">
+        <div class="code">// Guards espalhados em 6+ pontos diferentes no codebase
+// Se um for esquecido, o modulo errado mostra comportamento da Julia
+
+// ThreadHeader.tsx
+{agente_slug === 'sdr_leads' &amp;&amp; &lt;JuliaBadge /&gt;}
+
+// ModoToggle.tsx
+{agente_slug === 'sdr_leads' &amp;&amp; &lt;ToggleModoJulia /&gt;}
+
+// MessageInput.tsx
+placeholder={agente_slug === 'sdr_leads' ? 'Julia responde...' : 'Mensagem...'}
+
+// SmartReplies.tsx
+{agente_slug === 'sdr_leads' &amp;&amp; &lt;SmartReplies /&gt;}
+
+// OrchestratorCall.ts
+if (agente_slug !== 'sdr_leads') return;  // nao chama Julia
+
+// VincularContato.tsx
+const tabela = agente_slug === 'sdr_leads' ? 'leads' : 'acordos';</div>
+        <p style="margin-top: 12px;">O ideal seria um <code>AgentConfig</code> centralizado que define o comportamento de cada slug, eliminando guards espalhados e tornando a adicao de novos modulos trivial sem risco de regressao.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 7: N8N SPOF -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9881;&#65039;</span>
+      <h2>Secao 7 &#8212; n8n Railway: Single Point of Failure</h2>
+    </div>
+    <div class="sev-card sev-p1">
+      <div class="sev-header">
+        <span class="sev-tag tag-p1">P1 &#8212; IMPACTO DIRETO</span>
+        <span class="sev-title">n8n sem redundancia, circuit breaker ou DLQ real</span>
+        <span class="status-pill sp-open">ABERTO</span>
+      </div>
+      <div class="sev-body">
+        <div class="grid g2">
+          <div>
+            <h4>O que NAO existe hoje:</h4>
+            <ul>
+              <li>Circuit breaker (se n8n cair, frontend nao sabe imediatamente)</li>
+              <li>Fila de retry persistente real</li>
+              <li>Health check ativo com alertas automaticos</li>
+              <li>Dead letter queue com reprocessamento automatico</li>
+              <li>Redundancia de container (single instance Railway)</li>
+              <li>Memory leak detection / auto-restart em OOM</li>
+            </ul>
+          </div>
+          <div>
+            <h4>Cenarios de falha e impacto:</h4>
+            <ul>
+              <li>Railway cai: zero envios, Julia para, sem aviso imediato</li>
+              <li>Leak de memoria: timeout crescente nos webhooks</li>
+              <li>Workflow trava: mensagem fica <code>pending</code> para sempre</li>
+              <li>Cold start apos inatividade: 2-3s de latencia extra</li>
+              <li>Deploy do n8n: janela de downtime sem rollback instantaneo</li>
+            </ul>
+          </div>
+        </div>
+        <div class="warn-box">O <code>useMdzapStatus</code> faz ping a cada ~30s. Em caso de queda, o usuario so percebe apos 30 segundos mais o tempo de tentativa. Mensagens enviadas nesse intervalo ficam <code>pending</code> sem feedback claro de que o sistema caiu.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 8: DOIS PROVEDORES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128256;</span>
+      <h2>Secao 8 &#8212; Dois Provedores no Mesmo Endpoint: Z-API + Meta</h2>
+    </div>
+    <div class="sev-card sev-p2">
+      <div class="sev-header">
+        <span class="sev-tag tag-p2">P2 &#8212; DIVIDA TECNICA</span>
+        <span class="sev-title">mdzap-webhook com ~1000 linhas e dois parsers distintos</span>
+      </div>
+      <div class="sev-body">
+        <p>O <code>mdzap-webhook</code> suporta dois formatos de payload distintos no mesmo endpoint. Um bug em qualquer parser afeta o processamento de todos os webhooks de todos os tenants.</p>
+        <div class="code">// mdzap-webhook/index.ts -- dois branches de normalizacao no mesmo endpoint
+
+// Formato Meta Cloud API (oficial):
+// entry[0].changes[0].value.messages[0].type
+// entry[0].changes[0].value.contacts[0].profile.name
+// Suporta: text, image, audio, video, document, sticker, reaction, interactive
+
+// Formato Z-API (legado):
+// phone, chatName, type, body, caption, fileName...
+// Suporta: text, image, audio, document
+
+function normalizePayload(body) {
+  if (isMetaFormat(body)) {
+    return parseMetaPayload(body);   // ~200 linhas de logica
+  } else if (isZApiFormat(body)) {
+    return parseZApiPayload(body);   // ~150 linhas de logica
+  } else {
+    throw new Error('Formato desconhecido');
+  }
+  // Total da funcao: ~1000 linhas com todos os tipos de midia
+  // Complexidade ciclomatica: muito alta -- teste unitario seria extenso
+}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 9: DUPLICACAO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128101;</span>
+      <h2>Secao 9 &#8212; INSERT Otimista + n8n INSERT = Mensagem Duplicada</h2>
+    </div>
+    <div class="sev-card sev-p2">
+      <div class="sev-header">
+        <span class="sev-tag tag-p2">P2 &#8212; LATENTE</span>
+        <span class="sev-title">Contrato frontend-n8n fragil: duplicacao silenciosa possivel</span>
+      </div>
+      <div class="sev-body">
+        <div class="code">// Fluxo esperado (contrato correto):
+// 1. Frontend INSERT &rarr; id: 'abc-123', status: 'pending'
+// 2. Frontend &rarr; n8n: { mensagem_id: 'abc-123', conteudo: '...' }
+// 3. n8n &rarr; Meta API &rarr; recebe wamid
+// 4. n8n PATCH whatsapp_mensagens?id=eq.abc-123  &larr; UPDATE, nao INSERT
+//    Body: { wa_message_id: wamid, status: 'sent' }
+
+// Fluxo de falha (workflow legado ou mal configurado):
+// 1. Frontend INSERT &rarr; id: 'abc-123', status: 'pending'
+// 2. Frontend &rarr; n8n: { mensagem_id: 'abc-123', conteudo: '...' }
+// 3. n8n ignora mensagem_id e faz INSERT proprio &rarr; id: 'xyz-789'
+// Resultado: 2 mensagens identicas na thread, IDs diferentes
+// Nao ha unique constraint em conteudo+timestamp que pegue isso</div>
+        <p style="margin-top: 12px;">O contrato <code>mensagem_id</code> e implicito &#8212; nao ha documentacao formal, nao ha validacao no n8n que garanta que o campo foi recebido e usado. Um workflow novo criado por qualquer desenvolvedor pode quebrar silenciosamente.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 10: LATENCIA -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#9201;</span>
+      <h2>Secao 10 &#8212; Timing e Latencia: o que o Usuario Realmente Ve</h2>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <div class="card-title">Envio de mensagem pelo operador</div>
+        <div class="flow-step">
+          <span class="flow-time">[0ms]</span>
+          <span class="flow-desc">INSERT otimista &#8212; bolha aparece (pending)
+            <span class="flow-ok">Experiencia: rapida, responsiva</span>
+          </span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[50ms]</span>
+          <span class="flow-desc">callWebhook &rarr; n8n-proxy Edge Function</span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[200-3000ms]</span>
+          <span class="flow-desc">n8n-proxy &rarr; n8n Railway
+            <span class="flow-fail">Cold start pode ser 2-3s apos inatividade</span>
+          </span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[500-3500ms]</span>
+          <span class="flow-desc">n8n &rarr; Meta Graph API
+            <span class="flow-ok">Meta confirma envio (wamid retornado)</span>
+          </span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[???]</span>
+          <span class="flow-desc">n8n deveria gravar wamid
+            <span class="flow-fail">NAO ACONTECE HOJE &#8212; wamid perdido</span>
+          </span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[para sempre]</span>
+          <span class="flow-desc">Webhooks delivered/read chegam da Meta
+            <span class="flow-fail">Ignorados &#8212; wa_message_id nao existe no banco</span>
+          </span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Julia respondendo mensagem inbound</div>
+        <div class="flow-step">
+          <span class="flow-time">[0ms]</span>
+          <span class="flow-desc">Meta &rarr; mdzap-webhook Edge Function
+            <span class="flow-ok">Retorna 200 OK imediato</span>
+          </span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[async]</span>
+          <span class="flow-desc">waitUntil &rarr; n8n Orchestrator disparado</span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[+200ms]</span>
+          <span class="flow-desc">n8n busca historico da conversa (Supabase query)</span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[+400ms]</span>
+          <span class="flow-desc">n8n busca dados do lead (Supabase query)</span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[+2000-4000ms]</span>
+          <span class="flow-desc">Claude Sonnet (rede + processamento)
+            <span class="flow-fail">Sem indicador "Julia digitando..." adequado durante espera</span>
+          </span>
+        </div>
+        <div class="flow-step">
+          <span class="flow-time">[4000-8000ms]</span>
+          <span class="flow-desc">Resposta da Julia chega ao usuario
+            <span class="flow-ok">Total percebido: 4-8s de latencia</span>
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 11: TIMELINE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128197;</span>
+      <h2>Secao 11 &#8212; Linha do Tempo de Descobertas</h2>
+    </div>
+    <div class="card">
+      <div class="timeline">
+        <div class="tl-item open">
+          <div class="tl-date">Em producao desde o inicio &#8212; descoberto em auditoria</div>
+          <div class="tl-title" style="color: var(--accent2);">wa_message_id nunca gravado</div>
+          <div class="tl-desc">O workflow n8n MDZAP-ENVIAR-MENSAGEM nunca incluiu o step de PATCH apos receber o wamid da Meta. O bug estava presente desde a primeira mensagem enviada pelo sistema. So foi identificado numa auditoria end-to-end que verificou o banco apos envio manual.</div>
+        </div>
+        <div class="tl-item open">
+          <div class="tl-date">Em producao desde o inicio &#8212; sem data de introducao registrada</div>
+          <div class="tl-title" style="color: var(--accent2);">RLS desabilitado em whatsapp_mensagens</div>
+          <div class="tl-desc">Provavelmente desabilitado durante desenvolvimento inicial para simplificar queries. Nunca foi reabilitado. Passou por todas as tasks (~39) sem ser detectado nas reviews de codigo.</div>
+        </div>
+        <div class="tl-item open">
+          <div class="tl-date">Semanas em producao &#8212; reportado por usuarios</div>
+          <div class="tl-title" style="color: var(--p1);">Guards de Julia apareciam em modulos errados</div>
+          <div class="tl-desc">Badge da Julia, toggle de modo, botao "assumir" e smart replies apareciam nos modulos sdr_acordos e sdr_acordos_hm. Descoberto em revisao de qualidade apos usuarios reportarem confusao ao ver elementos da Julia em atendimento de acordos.</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-date">2026-04-22 &#8212; T26</div>
+          <div class="tl-title" style="color: var(--accent3);">Guards de Julia corrigidos em todos os 6 pontos</div>
+          <div class="tl-desc">Cada componente agora verifica <code>agente_slug === 'sdr_leads'</code> antes de renderizar qualquer elemento relacionado a Julia.</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-date">2026-04-22 &#8212; T25/T26</div>
+          <div class="tl-title" style="color: var(--accent3);">Race condition JSONB corrigido</div>
+          <div class="tl-desc">fn_mdzap_update_conversa_saida e fn_mdzap_update_conversa_metadata substituem o padrao read-then-write do frontend com merge atomico via jsonb_set e operador ||.</div>
+        </div>
+        <div class="tl-item done">
+          <div class="tl-date">2026-04-22 &#8212; T25</div>
+          <div class="tl-title" style="color: var(--accent3);">OOM risk e SSRF corrigidos na Edge Function</div>
+          <div class="tl-desc">safeReadBody() com streaming e limite 50MB. Whitelist de prefixos no n8n-proxy eliminando risco de SSRF para servicos internos do Railway.</div>
+        </div>
+        <div class="tl-item open">
+          <div class="tl-date">Aberto &#8212; sem ETA</div>
+          <div class="tl-title" style="color: var(--accent2);">Janela 24h continua sem tratamento</div>
+          <div class="tl-desc">Requer mudanca no Orchestrator n8n. Verificar MAX(created_at) de mensagens inbound antes de chamar Meta API para conteudo livre. Responsavel: Mateus (n8n).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 12: PRIORIDADES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#127919;</span>
+      <h2>Secao 12 &#8212; Mapa de Prioridades</h2>
+    </div>
+    <div class="grid g2" style="margin-bottom: 16px;">
+      <div>
+        <div style="padding: 4px 0 10px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent2); font-weight: 600;">P0 &#8212; Bloqueante producao</div>
+        <div class="sev-card sev-p0" style="margin-bottom: 10px;">
+          <div class="sev-header" style="margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <span class="status-pill sp-open">ABERTO</span>
+            <strong>wa_message_id nao gravado</strong>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Responsavel: Mateus (n8n). Fix: adicionar PATCH apos chamada Meta no workflow MDZAP-ENVIAR-MENSAGEM. Impacto: 100% das mensagens enviadas sem confirmacao real.</p>
+        </div>
+        <div class="sev-card sev-p0">
+          <div class="sev-header" style="margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <span class="status-pill sp-open">ABERTO</span>
+            <strong>Janela 24h sem tratamento</strong>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Responsavel: Mateus (n8n). Fix: verificar ultima mensagem inbound antes de enviar conteudo livre. Retornar action: need_template ao inves de error generico.</p>
+        </div>
+      </div>
+      <div>
+        <div style="padding: 4px 0 10px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--p1); font-weight: 600;">P1 &#8212; Impacto direto usuario</div>
+        <div class="sev-card sev-p1" style="margin-bottom: 10px;">
+          <div class="sev-header" style="margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <span class="status-pill sp-open">ABERTO</span>
+            <strong>RLS desabilitado em mensagens</strong>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Responsavel: Christian (DBA). Habilitar RLS + criar policy tenant_isolation via conversa_id &rarr; organizacao_id. Migration simples, sem impacto em queries existentes.</p>
+        </div>
+        <div class="sev-card sev-p1">
+          <div class="sev-header" style="margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+            <span class="status-pill sp-open">ABERTO</span>
+            <strong>fn_mdzap_conversas sem deleted_at</strong>
+          </div>
+          <p style="font-size: 0.82rem; color: var(--text-muted);">Responsavel: Beto. Fix: adicionar AND l.deleted_at IS NULL no LEFT JOIN de leads na RPC. Uma linha de SQL.</p>
+        </div>
+      </div>
+    </div>
+    <div class="grid g2">
+      <div>
+        <div style="padding: 4px 0 10px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--accent4); font-weight: 600;">P2 &#8212; Experiencia degradada</div>
+        <div class="card" style="font-size: 0.83rem; color: var(--text-muted);">
+          <ul style="padding-left: 18px;">
+            <li style="margin-bottom: 8px;">Latencia Julia 4-8s sem feedback adequado de "digitando"</li>
+            <li style="margin-bottom: 8px;">Foto de perfil ausente (FRONT-010 &#8212; campo photo_url nao enviado no webhook)</li>
+            <li style="margin-bottom: 8px;">Risco de duplicacao de mensagem com workflows legados no n8n</li>
+            <li>3 modulos numa implementacao com guards espalhados em 6+ pontos</li>
+          </ul>
+        </div>
+      </div>
+      <div>
+        <div style="padding: 4px 0 10px; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--p3); font-weight: 600;">P3 &#8212; Divida tecnica</div>
+        <div class="card" style="font-size: 0.83rem; color: var(--text-muted);">
+          <ul style="padding-left: 18px;">
+            <li style="margin-bottom: 8px;">mdzap-webhook ~1000 linhas, dois parsers, alta complexidade ciclomatica</li>
+            <li style="margin-bottom: 8px;">n8n Railway sem redundancia, circuit breaker ou DLQ real</li>
+            <li style="margin-bottom: 8px;">Dois provedores (Z-API + Meta) no mesmo endpoint sem separacao de responsabilidades</li>
+            <li>Contrato mensagem_id implicito &#8212; sem documentacao formal ou validacao automatica</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECTION 13: POR QUE ACONTECEU -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">&#128128;</span>
+      <h2>Secao 13 &#8212; Por que tudo isso aconteceu: a verdade brutal</h2>
+    </div>
+
+    <div class="sev-card sev-p0" style="margin-bottom: 16px;">
+      <div class="sev-header">
+        <span class="sev-title">Razao 1: Construcao iterativa sem revisao sistemica</span>
+      </div>
+      <div class="sev-body">
+        <p>O MdZap foi construido task-a-task (~39 tasks documentadas). Cada task resolvia um problema pontual sem auditar o sistema inteiro. Bugs que nao eram visiveis na task viravam "funciona, proxima feature". O bug do <code>wa_message_id</code> e o exemplo perfeito: o workflow n8n funcionava (Meta recebia a mensagem), mas o feedback de volta para o banco nunca foi implementado. Passou por 39 tasks sem ser detectado porque nenhuma task verificou o banco apos o envio.</p>
+      </div>
+    </div>
+
+    <div class="sev-card sev-p1" style="margin-bottom: 16px;">
+      <div class="sev-header">
+        <span class="sev-title">Razao 2: Complexidade da Meta API subestimada desde o inicio</span>
+      </div>
+      <div class="sev-body">
+        <p>A API do WhatsApp Business e conhecida por ser complexa, com restricoes nao obvias: janela de 24h, wamid lifecycle, MIME types inconsistentes entre provedores, webhooks agressivos que podem chegar fora de ordem, rate limiting por numero de telefone e namespace de templates. Cada uma dessas restricoes foi descoberta quando quebrou em producao, nao na documentacao durante o design.</p>
+      </div>
+    </div>
+
+    <div class="sev-card sev-p1" style="margin-bottom: 16px;">
+      <div class="sev-header">
+        <span class="sev-title">Razao 3: n8n como caixa preta com contrato implicito</span>
+      </div>
+      <div class="sev-body">
+        <p>Os workflows n8n sao desenvolvidos separadamente (Mateus), testados separadamente, e o contrato de dados (frontend &rarr; n8n &rarr; banco) raramente e auditado end-to-end. O bug do <code>wa_message_id</code> so foi descoberto numa auditoria de integracao. Sem testes automatizados do contrato de dados, qualquer mudanca num workflow pode quebrar o pipeline silenciosamente e ninguem percebe ate verificar o banco manualmente.</p>
+      </div>
+    </div>
+
+    <div class="sev-card sev-p2" style="margin-bottom: 16px;">
+      <div class="sev-header">
+        <span class="sev-title">Razao 4: JSONB usado como document store em campos que mudam frequentemente</span>
+      </div>
+      <div class="sev-body">
+        <p>Usar <code>metadata JSONB</code> para campos que mudam frequentemente (<code>mode</code>, <code>agente_slug</code>, <code>last_msg_preview</code>) cria problemas de concorrencia que so aparecem sob carga real ou com multiplos atores simultaneos. O PostgreSQL tem operadores atomicos para JSONB, mas o padrao mais natural para desenvolvedores frontend (read-then-write) cria race conditions garantidas que corrompem dados silenciosamente.</p>
+      </div>
+    </div>
+
+    <div class="sev-card sev-p2">
+      <div class="sev-header">
+        <span class="sev-title">Razao 5: Tres modulos com uma implementacao &#8212; crescimento organico sem refatoracao</span>
+      </div>
+      <div class="sev-body">
+        <p>Em vez de 3 rotas distintas com componentes separados desde o inicio, o sistema cresceu com condicionais. O primeiro numero (sdr_leads) foi implementado completo com Julia. Os outros dois foram adicionados como "variantes" do mesmo componente. O resultado e um sistema onde adicionar um comportamento especifico para um slug exige lembrar de todos os pontos onde existe um conditional &#8212; que hoje sao 6+, e provavelmente existem mais nao detectados ainda.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    &#128025; Jarbas 2.0 &#8212; MdLab LegalTech &middot; Diagnostico MdZap &middot; 2026-04-22
+  </div>
+
+</div>
+</body>
+</html>

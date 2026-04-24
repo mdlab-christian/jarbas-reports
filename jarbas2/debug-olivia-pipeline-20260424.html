@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debugging Report — Pipeline OlivIA · 24/04/2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+
+  /* Warm Charcoal overlay tokens */
+  --wc-bg: #12100e;
+  --wc-card: #1a1714;
+  --wc-surface: #201d1a;
+  --wc-border: #2e2a26;
+  --primary: #20c997;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.6;
+  padding: 24px;
+}
+
+.container { max-width: 1100px; margin: 0 auto; }
+
+/* Hero */
+.hero {
+  text-align: center;
+  padding: 52px 24px 40px;
+}
+.hero-emoji {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 14px;
+  filter: drop-shadow(0 0 16px rgba(124,109,255,0.4));
+}
+.gradient-text {
+  font-size: 2.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent5));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+  line-height: 1.3;
+}
+.hero-sub {
+  color: var(--text-muted);
+  font-size: 1rem;
+  margin-bottom: 20px;
+}
+.badges {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+
+/* Stats grid */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width: 768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+}
+.stat-card.ok::before { background: linear-gradient(90deg, var(--accent3), rgba(79,255,176,0)); }
+.stat-card.err::before { background: linear-gradient(90deg, var(--accent2), rgba(255,107,107,0)); }
+.stat-card.warn::before { background: linear-gradient(90deg, var(--accent4), rgba(255,209,102,0)); }
+.stat-card.info::before { background: linear-gradient(90deg, var(--accent), rgba(124,109,255,0)); }
+
+.stat-value {
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-card.ok .stat-value { color: var(--accent3); }
+.stat-card.err .stat-value { color: var(--accent2); }
+.stat-card.warn .stat-value { color: var(--accent4); }
+.stat-card.info .stat-value { color: var(--accent); }
+
+.stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+.stat-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+}
+.card-title {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+/* Left-border cards */
+.issue-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 12px;
+  border-left: 4px solid transparent;
+  position: relative;
+}
+.issue-card.resolved { border-left-color: var(--accent3); }
+.issue-card.warning  { border-left-color: var(--accent4); }
+.issue-card.error    { border-left-color: var(--accent2); }
+.issue-card.info     { border-left-color: var(--accent); }
+.issue-card.blue     { border-left-color: var(--accent5); }
+
+.issue-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.issue-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+.issue-body {
+  color: var(--text-muted);
+  font-size: 0.84rem;
+  line-height: 1.65;
+}
+.issue-body p { margin-bottom: 8px; }
+.issue-body p:last-child { margin-bottom: 0; }
+
+/* Section */
+.section { margin: 36px 0; }
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 12px;
+}
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.05rem; font-weight: 600; }
+.section-number {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  letter-spacing: 0.5px;
+}
+
+/* Tables */
+.table-wrap {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+table { width: 100%; border-collapse: collapse; }
+th {
+  background: var(--surface2);
+  padding: 11px 16px;
+  text-align: left;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+td {
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.84rem;
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+tr:nth-child(even) td { background: rgba(255,255,255,0.015); }
+tr:hover td { background: rgba(124,109,255,0.04); }
+
+/* Status pills */
+.status-pill {
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.sp-done  { background: rgba(79,255,176,0.1);  color: var(--accent3); border: 1px solid rgba(79,255,176,0.2); }
+.sp-run   { background: rgba(91,196,245,0.1);  color: var(--accent5); border: 1px solid rgba(91,196,245,0.2); }
+.sp-pend  { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.2); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.2); }
+.sp-info  { background: rgba(124,109,255,0.12); color: var(--accent); border: 1px solid rgba(124,109,255,0.25); }
+
+/* Code blocks */
+.code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  color: var(--accent3);
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.7;
+  margin: 10px 0;
+}
+.code .c-comment { color: var(--text-muted); }
+.code .c-keyword  { color: var(--accent); }
+.code .c-string   { color: var(--accent4); }
+.code .c-num      { color: var(--accent5); }
+.code .c-fn       { color: var(--accent3); }
+.code .c-err      { color: var(--accent2); }
+.code .c-ok       { color: var(--accent3); }
+
+/* Inline code */
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  background: rgba(0,0,0,0.4);
+  color: var(--accent4);
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+}
+
+/* Diff block */
+.diff-block {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.diff-header {
+  background: var(--surface2);
+  padding: 8px 16px;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.diff-content { padding: 12px 16px; line-height: 1.7; }
+.diff-remove { color: var(--accent2); display: block; }
+.diff-add    { color: var(--accent3); display: block; }
+.diff-ctx    { color: var(--text-muted); display: block; }
+
+/* Log block */
+.log-block {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  background: #080a10;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin: 10px 0;
+}
+.log-header {
+  background: var(--surface2);
+  padding: 7px 14px;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.log-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent2);
+  display: inline-block;
+  box-shadow: 0 0 6px var(--accent2);
+}
+.log-dot.ok { background: var(--accent3); box-shadow: 0 0 6px var(--accent3); }
+.log-content {
+  padding: 12px 16px;
+  line-height: 1.75;
+  color: var(--text-muted);
+  white-space: pre;
+  overflow-x: auto;
+}
+.log-err  { color: var(--accent2); }
+.log-ok   { color: var(--accent3); }
+.log-info { color: var(--accent5); }
+.log-warn { color: var(--accent4); }
+
+/* Health card */
+.health-card {
+  background: var(--surface);
+  border: 1px solid rgba(79,255,176,0.25);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.health-dot {
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--accent3);
+  box-shadow: 0 0 10px rgba(79,255,176,0.6);
+  margin-top: 4px;
+  flex-shrink: 0;
+  animation: pulse-green 2s infinite;
+}
+@keyframes pulse-green {
+  0%,100% { box-shadow: 0 0 10px rgba(79,255,176,0.6); }
+  50%      { box-shadow: 0 0 18px rgba(79,255,176,0.9); }
+}
+.health-info h3 {
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+  color: var(--accent3);
+}
+.health-info p {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+/* Commit pill */
+.commit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  width: 100%;
+}
+.commit-hash {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.commit-msg {
+  font-size: 0.82rem;
+  color: var(--text);
+  flex: 1;
+}
+.commit-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--surface3);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+/* Timeline */
+.timeline { position: relative; padding-left: 24px; }
+.timeline::before {
+  content: '';
+  position: absolute;
+  left: 8px; top: 8px; bottom: 8px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent), var(--accent5));
+  border-radius: 2px;
+  opacity: 0.4;
+}
+.timeline-item {
+  position: relative;
+  padding-bottom: 20px;
+}
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: -20px;
+  top: 6px;
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--bg);
+  box-shadow: 0 0 8px rgba(124,109,255,0.4);
+}
+.timeline-item.ok::before { background: var(--accent3); box-shadow: 0 0 8px rgba(79,255,176,0.4); }
+.timeline-item.err::before { background: var(--accent2); box-shadow: 0 0 8px rgba(255,107,107,0.4); }
+.timeline-item.warn::before { background: var(--accent4); box-shadow: 0 0 8px rgba(255,209,102,0.4); }
+.timeline-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.timeline-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+.timeline-desc {
+  font-size: 0.81rem;
+  color: var(--text-muted);
+}
+
+/* Footer */
+.footer {
+  text-align: center;
+  padding: 36px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--border);
+  margin-top: 52px;
+}
+
+/* Divider */
+.divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+/* Highlight text */
+strong { color: var(--text); font-weight: 600; }
+.hl-green { color: var(--accent3); font-weight: 600; }
+.hl-red   { color: var(--accent2); font-weight: 600; }
+.hl-yellow{ color: var(--accent4); font-weight: 600; }
+.hl-blue  { color: var(--accent5); font-weight: 600; }
+.hl-purple{ color: var(--accent);  font-weight: 600; }
+
+/* Flex utils */
+.flex { display: flex; }
+.flex-col { flex-direction: column; }
+.gap-8 { gap: 8px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.items-center { align-items: center; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+
+/* Priority badge */
+.prio {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+  letter-spacing: 0.3px;
+}
+.prio-p0 { background: rgba(255,107,107,0.15); color: var(--accent2); border: 1px solid rgba(255,107,107,0.3); }
+.prio-p1 { background: rgba(255,209,102,0.12); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.prio-p2 { background: rgba(124,109,255,0.12); color: var(--accent); border: 1px solid rgba(124,109,255,0.25); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="hero-emoji">🐙</span>
+    <h1 class="gradient-text">Debugging Report — Pipeline OlivIA</h1>
+    <p class="hero-sub">Diagnóstico e correção de falhas no pipeline de geração de petições · Mac Mini</p>
+    <div class="badges">
+      <span class="badge bp">OlivIA v4.1</span>
+      <span class="badge bg">✅ 3 bugs corrigidos</span>
+      <span class="badge bb">Porta 19100</span>
+      <span class="badge by">24/04/2026</span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="grid g4">
+    <div class="stat-card ok">
+      <div class="stat-value">3</div>
+      <div class="stat-label">Problemas Corrigidos</div>
+      <div class="stat-sub">nesta + sessão anterior</div>
+    </div>
+    <div class="stat-card info">
+      <div class="stat-value">19100</div>
+      <div class="stat-label">Porta Pipeline</div>
+      <div class="stat-sub">server.mjs v4.1 live</div>
+    </div>
+    <div class="stat-card warn">
+      <div class="stat-value">19102</div>
+      <div class="stat-label">Chat Server</div>
+      <div class="stat-sub">movido de 19100</div>
+    </div>
+    <div class="stat-card ok">
+      <div class="stat-value">5ª</div>
+      <div class="stat-label">Tentativa JSON</div>
+      <div class="stat-sub">surgical repair ativo</div>
+    </div>
+  </div>
+
+  <!-- SECAO 1: RESUMO EXECUTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📋</span>
+      <h2>Resumo Executivo</h2>
+      <span class="section-number">SEÇÃO 01</span>
+    </div>
+
+    <div class="table-wrap mb-12">
+      <table>
+        <thead>
+          <tr>
+            <th>Componente</th>
+            <th>Estado Antes</th>
+            <th>Estado Depois</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>server.mjs</code> (pipeline)</td>
+            <td><span class="hl-red">EADDRINUSE — não subia</span></td>
+            <td><span class="hl-green">v4.1 rodando em :19100</span></td>
+            <td><span class="status-pill sp-done">✅ resolvido</span></td>
+          </tr>
+          <tr>
+            <td><code>olivia-chat-server.mjs</code></td>
+            <td><span class="hl-red">Ocupava porta 19100</span></td>
+            <td><span class="hl-green">Movido para :19102</span></td>
+            <td><span class="status-pill sp-done">✅ resolvido</span></td>
+          </tr>
+          <tr>
+            <td><code>parseSecao</code> JSON</td>
+            <td><span class="hl-yellow">4 tentativas, perdia score_topico</span></td>
+            <td><span class="hl-green">5ª tentativa surgical repair</span></td>
+            <td><span class="status-pill sp-done">✅ resolvido</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card mt-12">
+      <div class="card-title">Contexto da Sessão</div>
+      <div class="issue-body">
+        <p>O erro reportado superficialmente como <em>"Step 2 → Step 3 travado"</em> encobria dois problemas completamente distintos acumulados no ambiente do Mac Mini: um conflito de porta entre LaunchAgent e LaunchDaemon, e falhas silenciosas de JSON parse no gerenciador de seções jurídicas.</p>
+        <p>Esta sessão tratou o conflito de porta e implementou a correção definitiva do parser. A correção do <code>TAG is not defined</code> havia sido deployada na sessão anterior (commit <code>b7cdeb4d</code>).</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 2: CAUSA RAIZ -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔍</span>
+      <h2>Causa Raiz Real do Erro "Step 2 → Step 3"</h2>
+      <span class="section-number">SEÇÃO 02</span>
+    </div>
+
+    <!-- Problema 1 -->
+    <div class="issue-card info mb-12">
+      <div class="issue-header">
+        <span class="status-pill sp-info">Sessão anterior</span>
+        <span class="issue-title">Problema 1 — TAG is not defined</span>
+        <span class="status-pill sp-done">✅ já corrigido</span>
+      </div>
+      <div class="issue-body">
+        <p><strong>Commit:</strong> <code>b7cdeb4d fix(olivia): TAG is not defined no gerador + import quebrado em /feedback</code></p>
+        <p><strong>Causa:</strong> As funções <code>loadMemoriaFiles</code>, <code>buildPrompt</code> e <code>buildPromptSecao</code> chamavam <code>log(TAG, ...)</code> sem declarar <code>const TAG = 'geracao'</code> no escopo local do módulo. O erro lançava <code>ReferenceError: TAG is not defined</code> durante a fase de prompt assembly, impedindo qualquer geração de seção.</p>
+        <p><strong>Correção:</strong> Declaração de <code>TAG</code> adicionada no topo de <code>geracao.mjs</code> + import corrigido em <code>/feedback</code>. Deployado e confirmado antes desta sessão.</p>
+      </div>
+    </div>
+
+    <!-- Problema 2 -->
+    <div class="issue-card error">
+      <div class="issue-header">
+        <span class="status-pill sp-pend" style="background:rgba(91,196,245,0.1);color:var(--accent5);border-color:rgba(91,196,245,0.2);">Esta sessão</span>
+        <span class="issue-title">Problema 2 — EADDRINUSE: porta 19100 ocupada</span>
+        <span class="status-pill sp-done">✅ corrigido</span>
+      </div>
+      <div class="issue-body">
+        <p><strong>Causa raiz:</strong> O <code>LaunchAgent</code> do usuário <code>olivia</code> — arquivo <code>ai.olivia.chat-server.plist</code> — iniciava o <code>olivia-chat-server.mjs</code> <strong>sem variável de porta configurada</strong>, resultando em bind na porta padrão <code>19100</code>.</p>
+        <p>O <code>LaunchDaemon</code> <code>com.olivia.server</code> (responsável pelo <code>server.mjs</code>, pipeline de petições) tentava subir na mesma <code>19100</code> e falhava com <code>EADDRINUSE</code>. O processo entrava em loop: terminava com <code>SIGTERM (-15)</code> e reiniciava a cada 10 segundos indefinidamente.</p>
+        <p><strong>Evidência nos logs do Mac Mini:</strong></p>
+      </div>
+
+      <div class="log-block mt-8">
+        <div class="log-header">
+          <span class="log-dot"></span>
+          <span>/var/log/olivia/server.log · erro repetido a cada ~10s</span>
+        </div>
+        <div class="log-content"><span class="log-err">[OlivIA] listen EADDRINUSE: address already in use 0.0.0.0:19100</span>
+<span class="log-warn">[server] AVISO: OLIVIA_GATEWAY_TOKEN nao configurada. Endpoints de gateway sem autenticacao.</span>
+<span class="log-err">[OlivIA] listen EADDRINUSE: address already in use 0.0.0.0:19100</span>
+<span class="log-warn">[server] AVISO: OLIVIA_GATEWAY_TOKEN nao configurada. Endpoints de gateway sem autenticacao.</span></div>
+      </div>
+
+      <div class="issue-body mt-8">
+        <p><strong>Correção aplicada:</strong></p>
+      </div>
+
+      <div class="diff-block mt-8">
+        <div class="diff-header">ai.olivia.chat-server.plist — variável de porta adicionada</div>
+        <div class="diff-content"><span class="diff-ctx">  &lt;key&gt;EnvironmentVariables&lt;/key&gt;</span>
+<span class="diff-ctx">  &lt;dict&gt;</span>
+<span class="diff-add">+   &lt;key&gt;OLIVIA_HTTP_PORT&lt;/key&gt;</span>
+<span class="diff-add">+   &lt;string&gt;19102&lt;/string&gt;</span>
+<span class="diff-ctx">  &lt;/dict&gt;</span></div>
+      </div>
+
+      <div class="issue-body mt-8">
+        <p><strong>Sequência de recovery:</strong></p>
+        <div class="timeline mt-8">
+          <div class="timeline-item warn">
+            <div class="timeline-label">Passo 1</div>
+            <div class="timeline-title">Chat server parado via launchctl</div>
+            <div class="timeline-desc"><code>launchctl unload ~/Library/LaunchAgents/ai.olivia.chat-server.plist</code></div>
+          </div>
+          <div class="timeline-item info">
+            <div class="timeline-label">Passo 2</div>
+            <div class="timeline-title">plist editado com OLIVIA_HTTP_PORT=19102</div>
+            <div class="timeline-desc">Porta 19100 liberada para o pipeline de petições</div>
+          </div>
+          <div class="timeline-item ok">
+            <div class="timeline-label">Passo 3</div>
+            <div class="timeline-title">Chat server reloadado em :19102</div>
+            <div class="timeline-desc"><code>launchctl load ~/Library/LaunchAgents/ai.olivia.chat-server.plist</code></div>
+          </div>
+          <div class="timeline-item ok">
+            <div class="timeline-label">Passo 4</div>
+            <div class="timeline-title">server.mjs kickstart — v4.1 confirmado em :19100</div>
+            <div class="timeline-desc">Pipeline de petições respondendo normalmente</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 3: PARSESECAO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🛠️</span>
+      <h2>Problema Adicional — parseSecao JSON Parse Failures</h2>
+      <span class="section-number">SEÇÃO 03</span>
+    </div>
+
+    <div class="issue-card warning">
+      <div class="issue-header">
+        <span class="status-pill sp-pend">Falha silenciosa</span>
+        <span class="issue-title">JSON parse falha após 4 tentativas — score_topico zerado</span>
+        <span class="status-pill sp-done">✅ corrigido — tentativa 5</span>
+      </div>
+      <div class="issue-body">
+        <p><strong>Sintoma nos logs de produção:</strong></p>
+      </div>
+
+      <div class="log-block mt-8">
+        <div class="log-header">
+          <span class="log-dot"></span>
+          <span>/var/log/olivia/geracao.log · múltiplas ocorrências por geração</span>
+        </div>
+        <div class="log-content"><span class="log-err">[geracao] parseSecao: ERRO parsing "DA RESPONSABILIDADE OBJETIVA..." — JSON parse falhou após 4 tentativas.</span>
+<span class="log-warn">Primeiro: Expected ',' or '}' after property value in JSON at position 2091</span></div>
+      </div>
+
+      <div class="issue-body mt-8">
+        <p><strong>Causa identificada:</strong> Campos <code>conteudo_html</code> com <strong>aspas não escapadas</strong> no texto jurídico — citações diretas do autor, nomes de documentos entre aspas (ex: <em>"Contrato de Serviço"</em>), nomes de partes. O Claude retorna JSON válido semanticamente, mas com aspas literais dentro de strings JSON, violando a spec.</p>
+        <p><strong>Impacto:</strong> Seções ainda geravam HTML via fallback regex, mas os campos <code>score_topico</code>, <code>juris_usados</code> e <code>tags_usados</code> ficavam zerados/vazios — degradando métricas de qualidade RAG sem alertar explicitamente.</p>
+        <p><strong>Por que as 4 tentativas anteriores falhavam:</strong></p>
+      </div>
+
+      <div class="grid g2 mt-8">
+        <div class="card">
+          <div class="card-title">Tentativas 1–4 (insuficientes)</div>
+          <div class="issue-body">
+            <p><strong>T1:</strong> JSON.parse direto do raw</p>
+            <p><strong>T2:</strong> Extrair bloco <code>```json ... ```</code></p>
+            <p><strong>T3:</strong> Remoção de BOM + trailing chars</p>
+            <p><strong>T4:</strong> <code>escapeCtrlCharsEmStrings</code> (controles ASCII)</p>
+            <div class="mt-8" style="background:rgba(255,107,107,0.06);border:1px solid rgba(255,107,107,0.15);border-radius:8px;padding:10px 12px;">
+              <span class="hl-red">Nenhuma resolvia aspas literais em valores de string</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Tentativa 5 — Surgical Repair</div>
+          <div class="issue-body">
+            <p>Usa T4 como base, itera <strong>até 15x</strong> localiza a posição exata do erro de parse, busca a aspa não escapada mais próxima antes dessa posição, e a escapa cirurgicamente — sem tocar no restante da string.</p>
+            <div class="mt-8" style="background:rgba(79,255,176,0.06);border:1px solid rgba(79,255,176,0.15);border-radius:8px;padding:10px 12px;">
+              <span class="hl-green">Resolve aspas literais múltiplas iterativamente</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="issue-body mt-12">
+        <p><strong>Implementação da Tentativa 5:</strong></p>
+      </div>
+
+      <div class="code mt-8"><span class="c-comment">// geracao.mjs — parseJsonTolerante — Tentativa 5: Surgical Repair Iterativo</span>
+<span class="c-comment">// Aplica escapeCtrlCharsEmStrings como base, depois itera até 15x</span>
+<span class="c-comment">// localizando e escapando aspas não escapadas na posição do erro</span>
+<span class="c-keyword">let</span> repaired = <span class="c-fn">escapeCtrlCharsEmStrings</span>(raw);
+<span class="c-keyword">for</span> (<span class="c-keyword">let</span> _i = <span class="c-num">0</span>; _i &lt; <span class="c-num">15</span>; _i++) {
+  <span class="c-keyword">try</span> {
+    <span class="c-keyword">return</span> JSON.<span class="c-fn">parse</span>(repaired);
+  } <span class="c-keyword">catch</span> (eN) {
+    <span class="c-comment">// Extrair posição do erro da mensagem do engine V8</span>
+    <span class="c-keyword">const</span> m = eN.message.<span class="c-fn">match</span>(<span class="c-string">/position (\d+)/</span>);
+    <span class="c-keyword">if</span> (!m) <span class="c-keyword">break</span>;
+    <span class="c-keyword">const</span> errPos = <span class="c-fn">parseInt</span>(m[<span class="c-num">1</span>]);
+
+    <span class="c-comment">// Buscar " não escapado ANTES da posição do erro</span>
+    <span class="c-keyword">let</span> fixAt = -<span class="c-num">1</span>;
+    <span class="c-keyword">for</span> (<span class="c-keyword">let</span> p = errPos; p &gt;= <span class="c-num">0</span>; p--) {
+      <span class="c-keyword">if</span> (repaired[p] === <span class="c-string">'"'</span> &amp;&amp; (p === <span class="c-num">0</span> || repaired[p - <span class="c-num">1</span>] !== <span class="c-string">'\\'</span>)) {
+        fixAt = p; <span class="c-keyword">break</span>;
+      }
+    }
+    <span class="c-keyword">if</span> (fixAt &lt; <span class="c-num">0</span>) <span class="c-keyword">break</span>; <span class="c-comment">// nada para reparar</span>
+
+    <span class="c-comment">// Substituição cirúrgica: " → \" apenas na posição exata</span>
+    repaired = repaired.<span class="c-fn">slice</span>(<span class="c-num">0</span>, fixAt) + <span class="c-string">'\\"'</span> + repaired.<span class="c-fn">slice</span>(fixAt + <span class="c-num">1</span>);
+  }
+}
+<span class="c-keyword">return</span> JSON.<span class="c-fn">parse</span>(repaired); <span class="c-comment">// lança se ainda inválido após 15 iterações</span></div>
+    </div>
+  </div>
+
+  <!-- SECAO 4: ARQUIVOS MODIFICADOS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📁</span>
+      <h2>Arquivos Modificados</h2>
+      <span class="section-number">SEÇÃO 04</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Arquivo</th>
+            <th>Ambiente</th>
+            <th>Mudança</th>
+            <th>Impacto</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>olivia-server/pipeline/geracao.mjs</code></td>
+            <td><span class="status-pill sp-info">Mac Mini</span></td>
+            <td>Tentativa 5 no <code>parseJsonTolerante</code> — surgical repair iterativo de aspas</td>
+            <td><span class="hl-green">score_topico preservado em seções com texto jurídico com aspas</span></td>
+          </tr>
+          <tr>
+            <td><code>~/Library/LaunchAgents/ai.olivia.chat-server.plist</code></td>
+            <td><span class="status-pill sp-info">Mac Mini (user olivia)</span></td>
+            <td>Adicionado <code>OLIVIA_HTTP_PORT=19102</code> nas variáveis de ambiente</td>
+            <td><span class="hl-green">Chat server migrado para :19102, porta 19100 liberada para pipeline</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECAO 5: ESTADO FINAL -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">✅</span>
+      <h2>Estado Final do Sistema</h2>
+      <span class="section-number">SEÇÃO 05</span>
+    </div>
+
+    <div class="grid g2">
+      <div>
+        <div class="health-card mb-12">
+          <div class="health-dot"></div>
+          <div class="health-info">
+            <h3>Pipeline de Petições — server.mjs v4.1</h3>
+            <p>Porta: <strong>:19100</strong> · LaunchDaemon ativo</p>
+            <p>Pollers: <code>geracao</code> + <code>analise</code> + <code>criar_doc</code></p>
+            <p>Interval: 5s · Cutoff: 30min · DLQ: 60s</p>
+          </div>
+        </div>
+        <div class="code">GET http://localhost:19100/health
+
+→ {
+    <span class="c-string">"ok"</span>: <span class="c-keyword">true</span>,
+    <span class="c-string">"status"</span>: <span class="c-string">"live"</span>,
+    <span class="c-string">"agent"</span>: <span class="c-string">"OlivIA"</span>,
+    <span class="c-string">"version"</span>: <span class="c-string">"4.1"</span>,
+    <span class="c-string">"port"</span>: <span class="c-num">19100</span>,
+    <span class="c-string">"v2_enabled"</span>: <span class="c-keyword">true</span>
+  }</div>
+      </div>
+      <div>
+        <div class="health-card mb-12" style="border-color: rgba(124,109,255,0.25);">
+          <div class="health-dot" style="background: var(--accent); box-shadow: 0 0 10px rgba(124,109,255,0.6); animation: none;"></div>
+          <div class="health-info">
+            <h3 style="color: var(--accent);">Chat Server — olivia-chat-server.mjs</h3>
+            <p>Porta: <strong>:19102</strong> · LaunchAgent ativo</p>
+            <p>Version: 2.0.0 · Migrado de :19100</p>
+          </div>
+        </div>
+        <div class="code">GET http://localhost:19102/health
+
+→ {
+    <span class="c-string">"ok"</span>: <span class="c-keyword">true</span>,
+    <span class="c-string">"service"</span>: <span class="c-string">"olivia"</span>,
+    <span class="c-string">"version"</span>: <span class="c-string">"2.0.0"</span>,
+    <span class="c-string">"port"</span>: <span class="c-num">19102</span>
+  }</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 6: PENDENCIAS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⚠️</span>
+      <h2>Pendências Conhecidas — Não Bloqueantes</h2>
+      <span class="section-number">SEÇÃO 06</span>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Descrição</th>
+            <th>Prioridade</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>B-08</code></td>
+            <td><code>meta.instrucoes_chat</code> em <code>olivia_historico.meta</code> não é injetado no prompt Claude — field ignorado na construção do contexto</td>
+            <td><span class="prio prio-p2">P2</span></td>
+            <td><span class="status-pill sp-pend">⏳ pendente</span></td>
+          </tr>
+          <tr>
+            <td><code>CHAT-01</code></td>
+            <td>Roteamento <code>/olivia/chat</code> para porta <code>19102</code> via <code>olivia-proxy</code> EF pode precisar de atualização após migração de porta</td>
+            <td><span class="prio prio-p2">P2</span></td>
+            <td><span class="status-pill sp-pend">⏳ verificar</span></td>
+          </tr>
+          <tr>
+            <td><code>BORIS-01</code></td>
+            <td>Boris revisor com erro JSON esporádico — mesma família de aspas não escapadas. Parcialmente corrigido pelo surgical repair (compartilha parseJsonTolerante)</td>
+            <td><span class="prio prio-p2">P2</span></td>
+            <td><span class="status-pill sp-run">🔄 parcial</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECAO 7: COMMITS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔀</span>
+      <h2>Registro de Commits</h2>
+      <span class="section-number">SEÇÃO 07</span>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Esta sessão</div>
+      <div class="commit-pill mb-12">
+        <span class="commit-hash">1e6181d5</span>
+        <span class="commit-msg">fix(olivia/geracao): tentativa 5 no parseJsonTolerante — surgical repair iterativo</span>
+        <span class="commit-label">24/04/2026</span>
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="card-title mt-12">Sessão anterior (pré-requisito — já deployado)</div>
+      <div class="commit-pill">
+        <span class="commit-hash">b7cdeb4d</span>
+        <span class="commit-msg">fix(olivia): TAG is not defined no gerador + import quebrado em /feedback</span>
+        <span class="commit-label">sessão anterior</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    🐙 Jarbas 2.0 — MdLab LegalTech · Debugging Report OlivIA Pipeline · 24/04/2026
+  </div>
+
+</div>
+</body>
+</html>

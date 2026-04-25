@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cecilia — Análise Completa dos Playbooks v14 + Arquitetura</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+  --sidebar-width: 260px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.88rem; line-height: 1.6; }
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: var(--sidebar-width);
+  background: #0a0c14;
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  overflow-y: auto;
+  z-index: 30;
+  padding: 0 0 32px 0;
+}
+.sidebar-logo { padding: 20px 16px 16px; border-bottom: 1px solid var(--border); }
+.sidebar-logo strong { color: var(--accent); display: block; font-size: 0.95rem; margin-bottom: 2px; }
+.sidebar-logo span { font-size: 0.72rem; color: var(--text-muted); }
+.sidebar-section { padding: 14px 16px 4px; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); }
+.sidebar-link {
+  display: block; padding: 6px 16px 6px 20px;
+  color: var(--text-muted); text-decoration: none;
+  font-size: 0.8rem; transition: all 0.15s;
+  border-left: 2px solid transparent;
+}
+.sidebar-link:hover { color: var(--text); background: rgba(255,255,255,0.03); border-left-color: var(--accent); }
+.sidebar-link.sub { padding-left: 32px; font-size: 0.75rem; }
+.sidebar-link.active { color: var(--accent); border-left-color: var(--accent); background: rgba(124,109,255,0.05); }
+.main { margin-left: var(--sidebar-width); flex: 1; padding: 0 36px 64px; }
+.hero { text-align: center; padding: 56px 24px 40px; border-bottom: 1px solid var(--border); }
+.hero-emoji { font-size: 3.2rem; display: block; margin-bottom: 14px; }
+.gradient-text { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; line-height: 1.25; }
+.hero-sub { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 6px; }
+.hero-date { color: var(--text-muted); font-size: 0.78rem; margin-bottom: 18px; font-family: 'JetBrains Mono', monospace; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4,1fr); }
+.g5 { grid-template-columns: repeat(5,1fr); }
+@media(max-width:1100px) { .g5 { grid-template-columns: repeat(3,1fr); } .g4 { grid-template-columns: 1fr 1fr; } }
+@media(max-width:768px) {
+  .sidebar { display: none; }
+  .main { margin-left: 0; padding: 0 16px 48px; }
+  .g2,.g3,.g4,.g5 { grid-template-columns: 1fr; }
+  .gradient-text { font-size: 1.5rem; }
+}
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 1.9rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+.stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; line-height: 1.4; }
+.section { margin: 40px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.83rem; vertical-align: middle; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.table-wrap { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 500; white-space: nowrap; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.code { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.45); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; color: var(--accent3); overflow-x: auto; white-space: pre; }
+.alert { border-radius: 10px; padding: 14px 18px; margin: 14px 0; font-size: 0.84rem; display: flex; align-items: flex-start; gap: 10px; }
+.alert-orange { background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.3); color: var(--accent4); }
+.alert-green { background: rgba(79,255,176,0.07); border: 1px solid rgba(79,255,176,0.25); color: var(--accent3); }
+.alert-red { background: rgba(255,107,107,0.07); border: 1px solid rgba(255,107,107,0.25); color: var(--accent2); }
+.alert-blue { background: rgba(91,196,245,0.07); border: 1px solid rgba(91,196,245,0.25); color: var(--accent5); }
+.alert-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+.pb-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.pb-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+.pb-title { font-weight: 700; font-size: 1rem; }
+.pb-stars { color: var(--accent4); font-size: 0.85rem; margin-top: 3px; }
+.pb-meta { font-size: 0.78rem; color: var(--text-muted); margin-top: 4px; }
+.pb-rule { background: var(--surface2); border-radius: 8px; padding: 10px 14px; margin: 8px 0; font-size: 0.82rem; border-left: 3px solid var(--accent); }
+.pb-rule strong { color: var(--accent4); display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+.priority-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.priority-item:last-child { border-bottom: none; }
+.priority-tag { flex-shrink: 0; padding: 2px 8px; border-radius: 6px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px; margin-top: 1px; }
+.p0-tag { background: rgba(255,107,107,0.2); color: var(--accent2); border: 1px solid rgba(255,107,107,0.3); }
+.p1-tag { background: rgba(255,209,102,0.2); color: var(--accent4); border: 1px solid rgba(255,209,102,0.3); }
+.p2-tag { background: rgba(91,196,245,0.2); color: var(--accent5); border: 1px solid rgba(91,196,245,0.3); }
+.priority-content { flex: 1; }
+.priority-content strong { display: block; margin-bottom: 2px; }
+.priority-content span { font-size: 0.78rem; color: var(--text-muted); display: block; }
+.stage-row { display: flex; align-items: stretch; gap: 0; margin: 4px 0; }
+.stage-id { background: var(--surface2); border: 1px solid var(--border); border-right: none; border-radius: 8px 0 0 8px; padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; color: var(--accent); font-weight: 700; min-width: 58px; display: flex; align-items: center; justify-content: center; }
+.stage-body { flex: 1; background: var(--surface); border: 1px solid var(--border); border-left: none; border-radius: 0 8px 8px 0; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.stage-name { font-weight: 600; font-size: 0.85rem; }
+.stage-desc { font-size: 0.78rem; color: var(--text-muted); flex: 1; }
+.stage-pb { font-size: 0.72rem; color: var(--accent5); white-space: nowrap; }
+.checklist { list-style: none; }
+.checklist li { padding: 6px 0; border-bottom: 1px solid rgba(42,47,74,0.5); font-size: 0.83rem; display: flex; align-items: flex-start; gap: 8px; }
+.checklist li:last-child { border-bottom: none; }
+.tree-block { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 0.76rem; line-height: 2; color: var(--text-muted); }
+.tree-block .branch { color: var(--accent4); }
+.tree-block .action { color: var(--accent); }
+.tree-block .output { color: var(--accent3); }
+.vault-step { display: flex; gap: 16px; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.vault-step:last-child { border-bottom: none; }
+.step-num { background: var(--accent); color: #fff; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px; }
+.step-body strong { display: block; margin-bottom: 6px; }
+.step-body p { color: var(--text-muted); font-size: 0.82rem; }
+.missing-item { padding: 10px 14px; border-radius: 8px; background: var(--surface2); margin: 5px 0; font-size: 0.83rem; display: flex; align-items: center; gap: 12px; border: 1px solid var(--border); }
+.missing-num { color: var(--accent4); font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; flex-shrink: 0; }
+.layer-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface2); border-radius: 8px; margin: 5px 0; }
+.layer-num { background: rgba(124,109,255,0.2); color: var(--accent); border-radius: 6px; padding: 2px 8px; font-size: 0.72rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.layer-name { font-weight: 600; font-size: 0.85rem; min-width: 180px; }
+.layer-desc { font-size: 0.78rem; color: var(--text-muted); flex: 1; }
+.mono { font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+.highlight { background: rgba(124,109,255,0.12); color: var(--accent); padding: 1px 6px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; }
+.sep { height: 1px; background: var(--border); margin: 36px 0; }
+.mini-badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 8px; font-size: 0.72rem; font-weight: 600; }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- SIDEBAR -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <strong>🐙 Jarbas 2.0</strong>
+    <span>Cecilia — Playbooks v14 Deep Research</span>
+  </div>
+
+  <div class="sidebar-section">Visão Geral</div>
+  <a class="sidebar-link" href="#visao-geral">KPIs + Status Geral</a>
+
+  <div class="sidebar-section">Playbooks João</div>
+  <a class="sidebar-link" href="#pb1">PB1 — Triagem</a>
+  <a class="sidebar-link" href="#pb2">PB2 — Decisões</a>
+  <a class="sidebar-link" href="#pb3">PB3 — Despachos</a>
+  <a class="sidebar-link" href="#pb4">PB4 — Ações</a>
+  <a class="sidebar-link" href="#pb5">PB5 — Validação</a>
+  <a class="sidebar-link" href="#qualidade">Análise Qualidade</a>
+
+  <div class="sidebar-section">Playbook 6</div>
+  <a class="sidebar-link" href="#pb6">PB6 — Status</a>
+  <a class="sidebar-link sub" href="#pb6-mapa">Mapa 15 Etapas</a>
+  <a class="sidebar-link sub" href="#pb6-falta">O que Falta</a>
+
+  <div class="sidebar-section">Integração Vault</div>
+  <a class="sidebar-link" href="#integracao">Plano de Absorção</a>
+  <a class="sidebar-link sub" href="#registry">registry.json</a>
+  <a class="sidebar-link sub" href="#soul">SOUL.md</a>
+
+  <div class="sidebar-section">Arquitetura</div>
+  <a class="sidebar-link" href="#pipeline">Pipeline S0–S9</a>
+  <a class="sidebar-link sub" href="#camadas">Camadas do Prompt</a>
+
+  <div class="sidebar-section">Schema</div>
+  <a class="sidebar-link" href="#campos">Campos intimacoes</a>
+
+  <div class="sidebar-section">Ação</div>
+  <a class="sidebar-link" href="#pendencias">O que Falta</a>
+  <a class="sidebar-link" href="#acao">Plano de Ação</a>
+</nav>
+
+<!-- MAIN -->
+<main class="main">
+
+<!-- HERO -->
+<div class="hero">
+  <span class="hero-emoji">🦑</span>
+  <h1 class="gradient-text">Cecilia — Análise Completa dos Playbooks v14 + Arquitetura</h1>
+  <p class="hero-sub">Deep Research: 5 Playbooks João, Plano PB6, Integração Vault, Revisão Pipeline S0-S9</p>
+  <p class="hero-date">23/04/2026 · Jarbas 2.0 · MdLab LegalTech</p>
+  <div class="badges">
+    <span class="badge bp">v14 Final Consolidado</span>
+    <span class="badge bg">TF01 + TF05 Aplicados</span>
+    <span class="badge by">PB6 Em Construção</span>
+    <span class="badge br">Vault NÃO Atualizado</span>
+    <span class="badge bb">834 Embeddings Ativos</span>
+  </div>
+</div>
+
+<!-- VISAO GERAL -->
+<section class="section" id="visao-geral">
+  <div class="section-header">
+    <span class="section-icon">📊</span>
+    <h2>Visão Geral — KPIs</h2>
+  </div>
+
+  <div class="alert alert-orange">
+    <span class="alert-icon">⚠️</span>
+    <span><strong>AÇÃO URGENTE:</strong> Os 5 playbooks finais de João (v14) ainda não foram absorvidos ao vault do Mac Mini. A Cecilia opera com playbooks de versões anteriores — qualquer ciclo de análise usa regras desatualizadas.</span>
+  </div>
+
+  <div class="grid g5" style="margin-top:20px;">
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent3)">5</div>
+      <div class="stat-label">Playbooks Concluídos</div>
+      <div class="stat-sub">v14 Final · 135+ regras · 1.955 linhas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent4)">1</div>
+      <div class="stat-label">Em Construção</div>
+      <div class="stat-sub">PB6 Navegação · 389 linhas de direção</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent2)">0</div>
+      <div class="stat-label">Playbooks no Vault</div>
+      <div class="stat-sub">PB1–PB5 NÃO integrados ao Mac Mini</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent5)">834</div>
+      <div class="stat-label">Embeddings Ativos</div>
+      <div class="stat-sub">RAG pronto para receber novos casos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent)">26</div>
+      <div class="stat-label">Filtros de Ruído</div>
+      <div class="stat-sub">TF01 + TF05 aplicados em S3/S6</div>
+    </div>
+  </div>
+
+  <div class="grid g3" style="margin-top:20px;">
+    <div class="card">
+      <div class="card-title">Status por Playbook</div>
+      <div class="priority-item"><span class="status-pill sp-done">✅ v14</span><span style="margin-left:8px;font-size:0.83rem;">PB1 — Triagem de Eventos</span></div>
+      <div class="priority-item"><span class="status-pill sp-done">✅ v14</span><span style="margin-left:8px;font-size:0.83rem;">PB2 — Análise de Decisões</span></div>
+      <div class="priority-item"><span class="status-pill sp-done">✅ v14</span><span style="margin-left:8px;font-size:0.83rem;">PB3 — Análise de Despachos</span></div>
+      <div class="priority-item"><span class="status-pill sp-done">✅ v14</span><span style="margin-left:8px;font-size:0.83rem;">PB4 — Ações por Intimação</span></div>
+      <div class="priority-item"><span class="status-pill sp-done">✅ v14</span><span style="margin-left:8px;font-size:0.83rem;">PB5 — Validação e Zona Cinzenta</span></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="status-pill sp-pend">⏳ WIP</span><span style="margin-left:8px;font-size:0.83rem;">PB6 — Navegação EPROC</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Melhorias Técnicas</div>
+      <div class="priority-item"><span class="status-pill sp-done">✅ TF01</span><span style="margin-left:8px;font-size:0.83rem;">26 filtros de ruído em S3</span></div>
+      <div class="priority-item"><span class="status-pill sp-done">✅ TF05</span><span style="margin-left:8px;font-size:0.83rem;">RAG S6 com threshold 0.3</span></div>
+      <div class="priority-item"><span class="status-pill sp-pend">⏳ TF02</span><span style="margin-left:8px;font-size:0.83rem;">S5 timeout 30s → 120s</span></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="status-pill sp-pend">⏳ TF03</span><span style="margin-left:8px;font-size:0.83rem;">RS116571 — taxa 9% → 50%+</span></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Impacto Estimado da Absorção v14</div>
+      <div style="text-align:center;padding:12px 0;">
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent2);font-family:'JetBrains Mono',monospace;">~40%</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:8px;">Taxa atual de classificação correta</div>
+        <div style="font-size:1.4rem;color:var(--text-muted);">↓</div>
+        <div style="font-size:1.6rem;font-weight:700;color:var(--accent3);font-family:'JetBrains Mono',monospace;">~65%</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);">Estimativa após absorção v14 (sem mudança de código)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- PB1 -->
+<section class="section" id="pb1">
+  <div class="section-header">
+    <span class="section-icon">🔍</span>
+    <h2>PB1 — Triagem de Eventos</h2>
+  </div>
+
+  <div class="pb-card">
+    <div class="pb-header">
+      <div>
+        <div class="pb-title">Playbook 1 — Triagem</div>
+        <div class="pb-stars">★★★★★</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge bg">32+ regras · ~453 linhas</span>
+        <div class="pb-meta">Pronto para injeção no vault</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.84rem;margin-bottom:16px;"><strong style="color:var(--text);">Objetivo:</strong> Separar os eventos do EPROC em quatro categorias: ruído, ciência, urgente, estratégico.</p>
+
+    <div class="card-title">Regra-mãe — 4 Categorias</div>
+    <div class="grid g2" style="margin-bottom:16px;">
+      <div class="pb-rule"><strong>RUÍDO</strong>Eventos administrativos sem impacto jurídico. Ex: inclusão em pauta, juntada de proc físico, certidão de inteiro teor automática, remessa eletrônica de ofício.<span style="display:block;margin-top:6px;color:var(--accent3);font-size:0.78rem;">AÇÃO: descartar silenciosamente</span></div>
+      <div class="pb-rule" style="border-left-color:var(--accent4);"><strong style="color:var(--accent4);">CIÊNCIA SIMPLES</strong>Intimações que exigem apenas registro. Ex: despacho dando prazo ao réu, decisão interlocutória favorável sem resposta necessária.<span style="display:block;margin-top:6px;color:var(--accent3);font-size:0.78rem;">AÇÃO: registrar como ciência, sem atividade</span></div>
+      <div class="pb-rule" style="border-left-color:var(--accent2);"><strong style="color:var(--accent2);">URGENTE</strong>Requer ação imediata dentro de 5 dias úteis. Ex: citação inicial, penhora online, bloqueio SISBAJUD, prazo recursal aberto.<span style="display:block;margin-top:6px;color:var(--accent3);font-size:0.78rem;">AÇÃO: criar atividade urgente, notificar advogado</span></div>
+      <div class="pb-rule" style="border-left-color:var(--accent5);"><strong style="color:var(--accent5);">ESTRATÉGICO</strong>Decisões que moldam o destino do processo. Ex: sentença de mérito, acórdão, decisão sobre tutela antecipada.<span style="display:block;margin-top:6px;color:var(--accent3);font-size:0.78rem;">AÇÃO: análise aprofundada, criar registro de decisão</span></div>
+    </div>
+
+    <div class="card-title">33 Exemplos de Ruído (PB1)</div>
+    <div class="grid g2" style="margin-bottom:16px;">
+      <div style="font-size:0.81rem;color:var(--text-muted);">
+        • Certidão de prazo decorrido (automática)<br>
+        • Juntada de manifestação da parte contrária (sem prazo)<br>
+        • Pedido de vista ao MP (aguardar)<br>
+        • Remessa ao arquivo provisório<br>
+        • Conclusão dos autos ao juiz (aguardar decisão)<br>
+        • Ofício expedido ao DETRAN/Cartório<br>
+        • Vista dos autos ao promotor<br>
+        • Certidão de publicação de decisão
+      </div>
+      <div style="font-size:0.81rem;color:var(--text-muted);">
+        • Inclusão em pauta de audiência (sem prazo p/ advogado)<br>
+        • Juntada de procuração de advogado contrário<br>
+        • Carga dos autos (sem prazo)<br>
+        • Expedição de alvará (quando automática)<br>
+        • Retorno de carta precatória sem resposta<br>
+        • + 20 exemplos adicionais documentados no playbook completo
+      </div>
+    </div>
+
+    <div class="card-title">Checklist Operacional PB1</div>
+    <ul class="checklist">
+      <li><span style="color:var(--text-muted);">☐</span> O evento contém prazo explícito? → se sim, <span class="highlight">urgente</span></li>
+      <li><span style="color:var(--text-muted);">☐</span> O evento é do SISBAJUD/BACEN? → <span class="highlight">urgente_financeiro</span></li>
+      <li><span style="color:var(--text-muted);">☐</span> É sentença ou acórdão? → <span class="highlight">juridica_estrategica</span></li>
+      <li><span style="color:var(--text-muted);">☐</span> É movimentação processual sem consequência? → <span class="highlight">ruido</span></li>
+      <li><span style="color:var(--text-muted);">☐</span> Requer juntada de documento? → <span class="highlight">providencia_documental</span></li>
+    </ul>
+
+    <div class="alert alert-orange" style="margin-top:14px;">
+      <span class="alert-icon">📌</span>
+      <div><strong>Gaps identificados:</strong> Não cobre diferenças TJRS/TJSC/TJSP · Não menciona os 9 tipos_acao do SOUL.md · Exemplos precisam de CNJ real para RAG de qualidade</div>
+    </div>
+  </div>
+</section>
+
+<!-- PB2 -->
+<section class="section" id="pb2">
+  <div class="section-header">
+    <span class="section-icon">⚖️</span>
+    <h2>PB2 — Análise de Decisões</h2>
+  </div>
+
+  <div class="pb-card">
+    <div class="pb-header">
+      <div>
+        <div class="pb-title">Playbook 2 — Decisões</div>
+        <div class="pb-stars">★★★★★</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge bg">22+ regras · ~432 linhas</span>
+        <div class="pb-meta">Mais sofisticado · cobre edge cases</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.84rem;margin-bottom:16px;"><strong style="color:var(--text);">Objetivo:</strong> Analisar uma DECISÃO JUDICIAL em 3 camadas e classificar corretamente.</p>
+
+    <div class="grid g3" style="margin-bottom:16px;">
+      <div class="pb-rule"><strong>CAMADA 1 — CONTEÚDO</strong>O que a decisão diz? (literal)<br>Extrair: parte favorecida, pedido analisado, dispositivo</div>
+      <div class="pb-rule" style="border-left-color:var(--accent4);"><strong style="color:var(--accent4);">CAMADA 2 — EFEITO</strong>Qual o impacto prático?<br>Prazo gerado, atividade necessária, risco jurídico</div>
+      <div class="pb-rule" style="border-left-color:var(--accent3);"><strong style="color:var(--accent3);">CAMADA 3 — OUTPUT</strong>O que a Cecilia cria no MdFlow?<br>tipo_acao, atividade, documento pendente, registro</div>
+    </div>
+
+    <div class="card-title">10 Etapas do Roteiro de Leitura</div>
+    <div class="grid g2" style="margin-bottom:16px;">
+      <div style="font-size:0.82rem;">
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">01</span>Identificar se é decisão interlocutória, sentença ou acórdão</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">02</span>Verificar quem é o destinatário (autor/réu/ambos)</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">03</span>Extrair o dispositivo (manda/proíbe/defere/indefere)</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">04</span>Identificar prazos explícitos ("no prazo de X dias")</div>
+        <div style="padding:5px 0;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">05</span>Identificar prazos implícitos (recurso com prazo legal)</div>
+      </div>
+      <div style="font-size:0.82rem;">
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">06</span>Verificar se houve condenação em honorários</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">07</span>Verificar fixação de multa (art. 536, 537 CPC)</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">08</span>Identificar determinação ao advogado vs à parte</div>
+        <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">09</span>Classificar: favorável / desfavorável / neutro / parcial</div>
+        <div style="padding:5px 0;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;margin-right:8px;">10</span>Definir urgência: P0 (≤3d) / P1 (≤10d) / P2 (&gt;10d)</div>
+      </div>
+    </div>
+
+    <div class="card-title">Categorias MDFlow Oficiais — PB2</div>
+    <div class="grid g3" style="margin-bottom:14px;">
+      <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;border:1px solid var(--border);"><span class="highlight">juridica_estrategica</span><p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Sentença, acórdão, tutela antecipada deferida</p></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;border:1px solid var(--border);"><span class="highlight">juridica_simples</span><p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Despacho com prazo simples</p></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;border:1px solid var(--border);"><span class="highlight">urgente_financeiro</span><p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Penhora, bloqueio, SISBAJUD</p></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;border:1px solid var(--border);"><span class="highlight">decisao_favoravel</span><p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">Sentença/acórdão favorável sem recurso pendente</p></div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px 12px;border:1px solid var(--border);"><span class="highlight">prazo_recursal</span><p style="font-size:0.78rem;color:var(--text-muted);margin-top:4px;">15d corridos (apelação) / 15d úteis (agravo interno)</p></div>
+    </div>
+
+    <div class="alert alert-orange">
+      <span class="alert-icon">📌</span>
+      <div><strong>Gaps:</strong> Não diferencia prazos por tribunal · Não cobre cumprimento de sentença vs fase de conhecimento · Exemplos CNJ reais ausentes</div>
+    </div>
+  </div>
+</section>
+
+<!-- PB3 -->
+<section class="section" id="pb3">
+  <div class="section-header">
+    <span class="section-icon">📋</span>
+    <h2>PB3 — Análise de Despachos</h2>
+  </div>
+
+  <div class="pb-card">
+    <div class="pb-header">
+      <div>
+        <div class="pb-title">Playbook 3 — Despachos</div>
+        <div class="pb-stars">★★★★½</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge bp">27+ regras · ~351 linhas</span>
+        <div class="pb-meta">7 exemplos reais com CNJ simulados</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.84rem;margin-bottom:16px;"><strong style="color:var(--text);">Objetivo:</strong> Distinguir DESPACHO de DECISÃO — erro mais frequente de triagem da Cecilia.</p>
+
+    <div class="grid g2" style="margin-bottom:16px;">
+      <div style="background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);">
+        <div style="font-weight:700;color:var(--accent4);margin-bottom:8px;">DESPACHO</div>
+        <p style="font-size:0.82rem;color:var(--text-muted);">Ato de mero expediente. Não decide nada. Impulsiona o processo.</p>
+        <p style="font-size:0.82rem;margin-top:8px;">Palavras: <em>"Intime-se o réu"</em>, <em>"Defiro a juntada"</em>, <em>"Vista ao MP"</em></p>
+      </div>
+      <div style="background:var(--surface2);border-radius:10px;padding:16px;border:1px solid var(--border);">
+        <div style="font-weight:700;color:var(--accent2);margin-bottom:8px;">DECISÃO INTERLOCUTÓRIA</div>
+        <p style="font-size:0.82rem;color:var(--text-muted);">Resolve questão incidental. Tem carga decisória. Pode ser agravada.</p>
+        <p style="font-size:0.82rem;margin-top:8px;">Palavras: <em>"Decido"</em>, <em>"Defiro/Indefiro"</em> com motivação</p>
+      </div>
+    </div>
+
+    <div class="card-title">Regra-mãe — 4 Camadas de Identificação</div>
+    <div style="margin-bottom:16px;">
+      <div class="pb-rule"><strong>FORMA</strong>Tem "Decido" ou "Defiro/Indefiro" com motivação? → decisão, não despacho</div>
+      <div class="pb-rule"><strong>DESTINATÁRIO</strong>É direcionado ao réu ou ao MP? → provavelmente ciência simples</div>
+      <div class="pb-rule"><strong>PRAZO</strong>Gera prazo para o cliente? → urgente ou ciência com prazo</div>
+      <div class="pb-rule"><strong>CONSEQUÊNCIA</strong>O despacho tem efeito imediato sobre direito do cliente? → estratégico</div>
+    </div>
+
+    <div class="card-title">Tabela Rápida — Despacho vs Decisão</div>
+    <div class="table-wrap" style="margin-bottom:14px;">
+      <table>
+        <thead><tr><th>Indicador</th><th>Despacho</th><th>Decisão</th></tr></thead>
+        <tbody>
+          <tr><td>Palavra-chave</td><td style="color:var(--text-muted);">"Intime-se", "Vista", "Defiro juntada"</td><td style="color:var(--text-muted);">"Defiro", "Indefiro", "Condeno", "Determino"</td></tr>
+          <tr><td>Recorribilidade</td><td><span class="status-pill sp-pend">Irrecorrível (regra)</span></td><td><span class="status-pill sp-block">Agravo de instrumento</span></td></tr>
+          <tr><td>Prazo gerado</td><td style="color:var(--text-muted);">Às vezes</td><td style="color:var(--accent2);">Sempre</td></tr>
+          <tr><td>Peso jurídico</td><td style="color:var(--text-muted);">Baixo</td><td style="color:var(--accent2);">Alto</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="alert alert-orange">
+      <span class="alert-icon">📌</span>
+      <div><strong>Gaps:</strong> Cobertura TJSC e TJSP ausente · Faltam exemplos de despachos que PARECEM decisão · Sem mapeamento explícito ao tipo_acao</div>
+    </div>
+  </div>
+</section>
+
+<!-- PB4 -->
+<section class="section" id="pb4">
+  <div class="section-header">
+    <span class="section-icon">⚡</span>
+    <h2>PB4 — Ações por Tipo de Intimação</h2>
+  </div>
+
+  <div class="pb-card">
+    <div class="pb-header">
+      <div>
+        <div class="pb-title">Playbook 4 — Ações</div>
+        <div class="pb-stars">★★★★★</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge bg">30+ regras · ~390 linhas</span>
+        <div class="pb-meta">Mais operacional dos 5 — mapeamento completo</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.84rem;margin-bottom:16px;"><strong style="color:var(--text);">Objetivo:</strong> Mapa completo de OUTPUTS — o que a Cecilia cria no MdFlow para cada tipo de intimação.</p>
+
+    <div class="card-title">Outputs Oficiais MdFlow</div>
+    <div class="grid g3" style="margin-bottom:16px;">
+      <div style="background:rgba(124,109,255,0.08);border:1px solid rgba(124,109,255,0.2);border-radius:8px;padding:10px 12px;"><span style="color:var(--accent);font-weight:700;display:block;margin-bottom:4px;">1. ATIVIDADE</span><span style="font-size:0.78rem;color:var(--text-muted);">Task para advogado (deadline, responsável, tipo)</span></div>
+      <div style="background:rgba(255,209,102,0.08);border:1px solid rgba(255,209,102,0.2);border-radius:8px;padding:10px 12px;"><span style="color:var(--accent4);font-weight:700;display:block;margin-bottom:4px;">2. DOC PENDENTE</span><span style="font-size:0.78rem;color:var(--text-muted);">Alerta de documento a juntar</span></div>
+      <div style="background:rgba(91,196,245,0.08);border:1px solid rgba(91,196,245,0.2);border-radius:8px;padding:10px 12px;"><span style="color:var(--accent5);font-weight:700;display:block;margin-bottom:4px;">3. REG. DECISÃO</span><span style="font-size:0.78rem;color:var(--text-muted);">Log permanente na tab decisões</span></div>
+      <div style="background:rgba(79,255,176,0.08);border:1px solid rgba(79,255,176,0.2);border-radius:8px;padding:10px 12px;"><span style="color:var(--accent3);font-weight:700;display:block;margin-bottom:4px;">4. CIÊNCIA</span><span style="font-size:0.78rem;color:var(--text-muted);">Confirmação de leitura sem ação</span></div>
+      <div style="background:rgba(255,107,107,0.08);border:1px solid rgba(255,107,107,0.2);border-radius:8px;padding:10px 12px;"><span style="color:var(--accent2);font-weight:700;display:block;margin-bottom:4px;">5. DESCARTE</span><span style="font-size:0.78rem;color:var(--text-muted);">Ruído arquivado silenciosamente</span></div>
+    </div>
+
+    <div class="card-title">Árvore de Decisão PB4</div>
+    <div class="tree-block" style="margin-bottom:16px;">
+<span class="branch">É SISBAJUD/BACEN?</span>     → <span class="action">urgente_financeiro</span>     → <span class="output">criar atividade P0 + flag_sisbajud=true</span>
+<span class="branch">É sentença favorável?</span>   → <span class="action">decisao_favoravel</span>     → <span class="output">criar registro decisão + ciência</span>
+<span class="branch">É sentença desfavorável?</span> → <span class="action">prazo_recursal</span>        → <span class="output">criar atividade P0 (15 dias)</span>
+<span class="branch">É penhora/bloqueio?</span>    → <span class="action">urgente_financeiro</span>     → <span class="output">criar atividade P0 imediata</span>
+<span class="branch">É despacho com prazo?</span>   → <span class="action">juridica_simples</span>      → <span class="output">criar atividade com deadline</span>
+<span class="branch">É juntada de doc?</span>      → <span class="action">providencia_documental</span> → <span class="output">criar documento pendente</span>
+<span class="branch">É ruído?</span>              → <span class="action">ruido</span>                 → <span class="output">descartar silenciosamente</span></div>
+
+    <div class="card-title">Ordem de Prioridade</div>
+    <div class="grid g2" style="margin-bottom:14px;">
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);"><span class="p0-tag priority-tag">P0</span><span style="font-size:0.82rem;">SISBAJUD, citação, penhora, prazo ≤5 dias</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);"><span class="p1-tag priority-tag">P1</span><span style="font-size:0.82rem;">Sentença, acórdão, tutela antecipada</span></div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);"><span class="p2-tag priority-tag">P2</span><span style="font-size:0.82rem;">Despachos com prazo, providências documentais</span></div>
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 0;"><span style="color:var(--text-muted);font-size:0.72rem;font-weight:700;min-width:28px;">P3</span><span style="font-size:0.82rem;">Ciência sem ação / Descarte de ruído</span></div>
+      </div>
+    </div>
+
+    <div class="alert alert-orange">
+      <span class="alert-icon">📌</span>
+      <div><strong>Gaps:</strong> Não cobre combinações simultâneas (SISBAJUD + prazo recursal no mesmo evento) · Regras de responsável (qual advogado recebe a atividade) ausentes</div>
+    </div>
+  </div>
+</section>
+
+<!-- PB5 -->
+<section class="section" id="pb5">
+  <div class="section-header">
+    <span class="section-icon">✅</span>
+    <h2>PB5 — Validação Final e Zona Cinzenta</h2>
+  </div>
+
+  <div class="pb-card">
+    <div class="pb-header">
+      <div>
+        <div class="pb-title">Playbook 5 — Validação</div>
+        <div class="pb-stars">★★★★½</div>
+      </div>
+      <div style="text-align:right;">
+        <span class="badge bp">24 regras · ~214 linhas</span>
+        <div class="pb-meta">Conceito zona cinzenta como proteção</div>
+      </div>
+    </div>
+    <p style="color:var(--text-muted);font-size:0.84rem;margin-bottom:14px;"><strong style="color:var(--text);">Objetivo:</strong> Controle de qualidade. Quando a Cecilia tem dúvida, o que fazer.</p>
+
+    <div class="alert alert-blue" style="margin-bottom:14px;">
+      <span class="alert-icon">💡</span>
+      <div><strong>Conceito Zona Cinzenta:</strong> Quando a classificação não é clara e há risco de erro. Usado como PROTEÇÃO, não como desculpa. Regra: se zona cinzenta, manter como <span class="highlight">pendente_revisao</span> e registrar motivo exato.</div>
+    </div>
+
+    <div class="grid g2" style="margin-bottom:14px;">
+      <div>
+        <div class="card-title">24 Regras de Controle de Qualidade</div>
+        <div style="font-size:0.82rem;">
+          <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-size:0.72rem;font-family:'JetBrains Mono',monospace;margin-right:8px;">R01</span>Confiança &lt; 0.7 → classificar como zona cinzenta</div>
+          <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-size:0.72rem;font-family:'JetBrains Mono',monospace;margin-right:8px;">R02</span>Título e conteúdo contradizem → zona cinzenta</div>
+          <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-size:0.72rem;font-family:'JetBrains Mono',monospace;margin-right:8px;">R03</span>Não identifica OAB destinatária → zona cinzenta</div>
+          <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-size:0.72rem;font-family:'JetBrains Mono',monospace;margin-right:8px;">R04</span>Dois tipos de urgência simultâneos → escolher maior + registrar ambos</div>
+          <div style="padding:5px 0;border-bottom:1px solid var(--border);"><span style="color:var(--accent);font-size:0.72rem;font-family:'JetBrains Mono',monospace;margin-right:8px;">R05</span>SISBAJUD sempre P0, mesmo se conteúdo parece simples</div>
+          <div style="padding:5px 0;color:var(--text-muted);font-size:0.78rem;"><span style="color:var(--accent);font-size:0.72rem;font-family:'JetBrains Mono',monospace;margin-right:8px;">R06–24</span>19 regras adicionais no playbook completo</div>
+        </div>
+      </div>
+      <div>
+        <div class="card-title">Checklist de Confiança</div>
+        <ul class="checklist">
+          <li><span style="color:var(--text-muted);">☐</span> Identifiquei o tipo de ato (decisão/despacho/sentença/certidão)?</li>
+          <li><span style="color:var(--text-muted);">☐</span> Identifiquei o prazo (explícito ou implícito)?</li>
+          <li><span style="color:var(--text-muted);">☐</span> O tipo_acao é consistente com o SOUL.md?</li>
+          <li><span style="color:var(--text-muted);">☐</span> O output é adequado (atividade/documento/ciência/descarte)?</li>
+          <li><span style="color:var(--text-muted);">☐</span> Não há inconsistência entre urgencia e tipo_acao?</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card-title">Hierarquia de Prioridade Final (PB5)</div>
+    <div class="code" style="white-space:pre-wrap;word-break:break-all;font-size:0.77rem;">SISBAJUD > prazo_recursal > urgente_financeiro > juridica_estrategica > juridica_simples > providencia_documental > ciencia_simples > decisao_favoravel > ruido</div>
+  </div>
+</section>
+
+<!-- QUALIDADE -->
+<section class="section" id="qualidade">
+  <div class="section-header">
+    <span class="section-icon">📈</span>
+    <h2>Análise de Qualidade — 5 Playbooks</h2>
+  </div>
+
+  <div class="table-wrap" style="margin-bottom:20px;">
+    <table>
+      <thead><tr><th>Critério</th><th>PB1 Triagem</th><th>PB2 Decisões</th><th>PB3 Despachos</th><th>PB4 Ações</th><th>PB5 Validação</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Regras</strong></td><td>32+</td><td>22+</td><td>27+</td><td>30+</td><td>24</td></tr>
+        <tr><td><strong>Linhas</strong></td><td>~453</td><td>~432</td><td>~351</td><td>~390</td><td>~214</td></tr>
+        <tr><td><strong>Avaliação</strong></td><td style="color:var(--accent4);">★★★★★</td><td style="color:var(--accent4);">★★★★★</td><td style="color:var(--accent4);">★★★★½</td><td style="color:var(--accent4);">★★★★★</td><td style="color:var(--accent4);">★★★★½</td></tr>
+        <tr><td><strong>Exemplos reais</strong></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓ (7)</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-block">✗</span></td></tr>
+        <tr><td><strong>CNJ reais</strong></td><td><span class="status-pill sp-block">✗</span></td><td><span class="status-pill sp-block">✗</span></td><td><span class="status-pill sp-pend">simulados</span></td><td><span class="status-pill sp-block">✗</span></td><td><span class="status-pill sp-block">✗</span></td></tr>
+        <tr><td><strong>Cobertura TJRS</strong></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td></tr>
+        <tr><td><strong>Cobertura TJSC</strong></td><td><span class="status-pill sp-pend">parcial</span></td><td><span class="status-pill sp-pend">parcial</span></td><td><span class="status-pill sp-block">✗</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td></tr>
+        <tr><td><strong>Cobertura TJSP</strong></td><td><span class="status-pill sp-pend">parcial</span></td><td><span class="status-pill sp-block">✗</span></td><td><span class="status-pill sp-block">✗</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td></tr>
+        <tr><td><strong>Mapeado ao tipo_acao</strong></td><td><span class="status-pill sp-pend">parcial</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-block">✗</span></td><td><span class="status-pill sp-done">✓</span></td><td><span class="status-pill sp-done">✓</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="grid g2">
+    <div class="card">
+      <div class="card-title">O que está excelente</div>
+      <div class="priority-item"><span>✅</span><div><strong>Linguagem operacional clara</strong> — sem juridiquês desnecessário</div></div>
+      <div class="priority-item"><span>✅</span><div><strong>Estrutura REGRA/QUANDO/AÇÃO</strong> presente mesmo sem rótulo explícito</div></div>
+      <div class="priority-item"><span>✅</span><div><strong>Cobertura dos casos frequentes</strong> do escritório Midas (~5.800 processos)</div></div>
+      <div class="priority-item" style="border-bottom:none;"><span>✅</span><div><strong>PB4 mais completo</strong> — mapeamento de outputs integrado ao MdFlow</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Gaps Críticos (por severidade)</div>
+      <div class="priority-item"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>CNJ reais ausentes em todos os PBs</strong><span>Necessário para RAG de qualidade — exemplos simulados degradam recall e precisão</span></div></div>
+      <div class="priority-item"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>PB3 sem mapeamento ao tipo_acao</strong><span>Cecilia usa esses nomes no S6 — PB3 não referencia nenhum dos 9 tipos</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Diferenças por tribunal ausentes</strong><span>TJRS vs TJSC vs TJSP têm terminologias distintas — sem documentação</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Regras de responsável ausentes</strong><span>Qual advogado/OAB recebe cada tipo de atividade gerada</span></div></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="p2-tag priority-tag">P2</span><div class="priority-content"><strong>Processo arquivado/falido</strong><span>O que fazer com intimações de processos extintos — caso não coberto</span></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- PB6 -->
+<section class="section" id="pb6">
+  <div class="section-header">
+    <span class="section-icon">🗺️</span>
+    <h2>Playbook 6 — Navegação EPROC</h2>
+  </div>
+
+  <div class="alert alert-blue">
+    <span class="alert-icon">🔄</span>
+    <span><strong>Status:</strong> Em construção. João enviou 389 linhas de direção. O PB6 é crítico — define COMO a Cecilia percorre os tribunais antes de aplicar PB1–PB5.</span>
+  </div>
+
+  <div class="card" id="pb6-mapa" style="margin-top:16px;">
+    <div class="card-title">Mapa Operacional de 15 Etapas (do PB6)</div>
+    <div class="grid g2">
+      <div style="font-size:0.83rem;">
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">01</span><span>Login no EPROC (tribunal RS/SC/SP)</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">02</span><span>Acessar "Intimações Eletrônicas" ou equivalente por tribunal</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">03</span><span>Ordenar por data decrescente</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">04</span><span>Identificar intimações não lidas (badge/marcador visual)</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">05</span><span>Para cada intimação: capturar título, número CNJ, data</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">06</span><span>Abrir documento da intimação (se houver)</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">07</span><span>Aguardar carregamento do documento (iframe/PDF)</span></div>
+        <div style="padding:6px 0;display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">08</span><span>Extrair texto do documento</span></div>
+      </div>
+      <div style="font-size:0.83rem;">
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">09</span><span>Fechar documento, voltar à lista</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">10</span><span>Marcar intimação como lida (se não automático)</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">11</span><span>Aplicar PB1 (triagem inicial)</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">12</span><span>Se relevante: aplicar PB2/PB3 (análise do conteúdo)</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">13</span><span>Aplicar PB4 (definir outputs)</span></div>
+        <div style="padding:6px 0;border-bottom:1px solid var(--border);display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">14</span><span>Aplicar PB5 (validação final + zona cinzenta)</span></div>
+        <div style="padding:6px 0;display:flex;gap:10px;"><span style="color:var(--accent);font-family:'JetBrains Mono',monospace;font-size:0.72rem;flex-shrink:0;">15</span><span>Gravar no banco e avançar para próxima intimação</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="card-title">Regras de Compliance (PB6 — O que Cecilia NUNCA Faz)</div>
+    <div class="grid g2">
+      <div>
+        <div class="priority-item"><span style="color:var(--accent2);">⛔</span><span style="margin-left:6px;">NUNCA protocola petições</span></div>
+        <div class="priority-item" style="border-bottom:none;"><span style="color:var(--accent2);">⛔</span><span style="margin-left:6px;">NUNCA modifica dados do processo no EPROC</span></div>
+      </div>
+      <div>
+        <div class="priority-item"><span style="color:var(--accent2);">⛔</span><span style="margin-left:6px;">NUNCA assina documentos</span></div>
+        <div class="priority-item" style="border-bottom:none;"><span style="color:var(--accent2);">⛔</span><span style="margin-left:6px;">NUNCA acessa processos de outros escritórios</span></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;padding:8px 12px;background:rgba(79,255,176,0.07);border-radius:6px;font-size:0.82rem;color:var(--accent3);">Operação read-only total. Apenas lê e registra.</div>
+  </div>
+
+  <div class="card" id="pb6-falta" style="margin-top:14px;border-color:rgba(255,209,102,0.3);">
+    <div class="card-title" style="color:var(--accent4);">Para João Completar no PB6</div>
+    <div class="missing-item"><span class="missing-num">01</span>Seletores CSS/XPath exatos por tribunal (o que buscar na tela)</div>
+    <div class="missing-item"><span class="missing-num">02</span>Como identificar quando há documento vs só texto na intimação</div>
+    <div class="missing-item"><span class="missing-num">03</span>Como lidar com iframe cross-origin (PDF em janela separada)</div>
+    <div class="missing-item"><span class="missing-num">04</span>Fluxo de autenticação por tribunal (TJRS vs TJSC vs TJSP são diferentes)</div>
+    <div class="missing-item"><span class="missing-num">05</span>O que fazer quando o EPROC está fora do ar (timeout, retry, fallback)</div>
+    <div class="missing-item"><span class="missing-num">06</span>Como identificar o número OAB destinatária da intimação</div>
+    <div class="missing-item"><span class="missing-num">07</span>Diferenças de interface entre EPROC versões (2024 vs 2026)</div>
+    <div class="missing-item"><span class="missing-num">08</span>Screenshots anotados de cada tela relevante</div>
+    <div class="missing-item"><span class="missing-num">09</span>Como lidar com intimações em lote (vários no mesmo acesso)</div>
+    <div class="missing-item"><span class="missing-num">10</span>Processo de verificação (como saber se a captura foi correta)</div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- INTEGRAÇÃO VAULT -->
+<section class="section" id="integracao">
+  <div class="section-header">
+    <span class="section-icon">🗄️</span>
+    <h2>Integração ao Vault — Plano de Absorção</h2>
+  </div>
+
+  <div class="alert alert-blue">
+    <span class="alert-icon">📍</span>
+    <div><strong>Contexto:</strong> Os 5 playbooks v14 estão nos Downloads do MacBook Pro. O vault da Cecilia fica no Mac Mini em <span class="highlight">/Users/cecilia/Documents/cecilia-vault/playbooks/</span>. Os playbooks atuais no vault são versões anteriores — devem ser substituídos.</div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="vault-step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <strong>Criar arquivos no vault do Mac Mini (via SSH)</strong>
+        <div class="code" style="margin-top:8px;">ssh mac-mini-tail "ls /Users/cecilia/Documents/cecilia-vault/playbooks/"
+# Criar 5 arquivos novos com versão v14:
+# pb1-triagem-v14.md
+# pb2-decisoes-v14.md
+# pb3-despachos-v14.md
+# pb4-acoes-v14.md
+# pb5-validacao-v14.md</div>
+      </div>
+    </div>
+
+    <div class="vault-step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <strong>Formato de absorção — REGRA/QUANDO/AÇÃO/POR QUÊ/EXCEÇÃO</strong>
+        <div class="code" style="margin-top:8px;">## REGRA-001: Descarte de Ruído Automático
+QUANDO: Título contém palavras da lista de ruído
+AÇÃO: tipo_acao='ruido', pipeline_status='descartado', sem atividade
+POR QUÊ: 80%+ dos eventos são ruído — economiza LLM e tempo do advogado
+EXCEÇÃO: Certidão acompanhada de prazo explícito → não é ruído</div>
+      </div>
+    </div>
+
+    <div class="vault-step" id="registry">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <strong>Atualizar registry.json — referenciar playbooks v14</strong>
+        <div class="code" style="margin-top:8px;">{
+  "monitoring": {
+    "core": ["pb1-triagem-v14", "pb4-acoes-v14", "pb5-validacao-v14"],
+    "conditional": {
+      "sentenca": ["pb2-decisoes-v14"],
+      "despacho": ["pb3-despachos-v14"],
+      "sisbajud": ["pb4-acoes-v14"]
+    }
+  },
+  "deep_analysis": {
+    "core": [
+      "pb1-triagem-v14", "pb2-decisoes-v14",
+      "pb3-despachos-v14", "pb4-acoes-v14", "pb5-validacao-v14"
+    ]
+  }
+}</div>
+      </div>
+    </div>
+
+    <div class="vault-step" id="soul">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <strong>Atualizar SOUL.md — verificar alinhamento + referenciar v14</strong>
+        <p>Verificar se os 9 tipos_acao no SOUL.md estão alinhados com os tipos usados nos playbooks v14. Adicionar referência explícita aos playbooks v14 na seção "Fontes de Conhecimento". Qualquer tipo_acao que não exista no SOUL.md deve ser adicionado ou harmonizado antes da absorção.</p>
+      </div>
+    </div>
+
+    <div class="vault-step" style="border-bottom:none;">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <strong>Gerar embeddings para RAG</strong>
+        <p>Após absorção, rodar script de geração de embeddings para os novos casos e regras dos playbooks. Os 834 embeddings existentes são de casos históricos — os playbooks adicionam regras estruturadas que precisam estar indexadas. Threshold atual: 0.3 (TF05 aplicado).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- PIPELINE -->
+<section class="section" id="pipeline">
+  <div class="section-header">
+    <span class="section-icon">⚙️</span>
+    <h2>Arquitetura Pipeline S0–S9</h2>
+  </div>
+
+  <div class="stage-row"><div class="stage-id">S0</div><div class="stage-body"><div><div class="stage-name">Plan</div><div class="stage-desc">Consulta banco para backlog. Carrega config de execução.</div></div><span class="stage-pb">Playbooks: não usa</span><span class="status-pill sp-done">✅ OK</span></div></div>
+  <div class="stage-row"><div class="stage-id">S1</div><div class="stage-body"><div><div class="stage-name">Login</div><div class="stage-desc">Autenticação EPROC por OAB (RS/SC/SP). TOTP + credenciais.</div></div><span class="stage-pb">PB6 (quando existir)</span><span class="status-pill sp-done">✅ OK</span></div></div>
+  <div class="stage-row"><div class="stage-id">S2</div><div class="stage-body"><div><div class="stage-name">Scrape</div><div class="stage-desc">Captura lista de intimações do EPROC. RS116571 com 9% de taxa.</div></div><span class="stage-pb">PB6 parcial</span><span class="status-pill sp-pend">⚠️ TF03</span></div></div>
+  <div class="stage-row"><div class="stage-id">S3</div><div class="stage-body"><div><div class="stage-name">Filter</div><div class="stage-desc">Hard filter por palavras-chave de ruído — 26 padrões de eventos-ruido.md.</div></div><span class="stage-pb">PB1 aplicado (TF01)</span><span class="status-pill sp-done">✅ TF01</span></div></div>
+  <div class="stage-row"><div class="stage-id">S4</div><div class="stage-body"><div><div class="stage-name">Navigate</div><div class="stage-desc">Navega para a intimação específica na interface do tribunal.</div></div><span class="stage-pb">PB6 (em construção)</span><span class="status-pill sp-done">✅ OK</span></div></div>
+  <div class="stage-row"><div class="stage-id">S5</div><div class="stage-body"><div><div class="stage-name">Read Docs</div><div class="stage-desc">Abre e lê documento. Timeout atual: 30s. TF02 aumenta para 120s.</div></div><span class="stage-pb">PB6 (em construção)</span><span class="status-pill sp-pend">⏳ TF02</span></div></div>
+  <div class="stage-row"><div class="stage-id">S6</div><div class="stage-body"><div><div class="stage-name">Analyze</div><div class="stage-desc">Claude analisa com SOUL.md + playbooks + RAG. TF05 melhorou threshold.</div></div><span class="stage-pb">Todos PBs — v14 PENDENTE</span><span class="status-pill sp-block">⛔ Desatualizado</span></div></div>
+  <div class="stage-row"><div class="stage-id">S7</div><div class="stage-body"><div><div class="stage-name">Persist</div><div class="stage-desc">Salva resultado no banco. 20+ campos mapeados para tabela intimacoes.</div></div><span class="stage-pb">—</span><span class="status-pill sp-done">✅ OK</span></div></div>
+  <div class="stage-row"><div class="stage-id">S8</div><div class="stage-body"><div><div class="stage-name">Act</div><div class="stage-desc">Cria atividades, documentos pendentes, notificações no MdFlow.</div></div><span class="stage-pb">—</span><span class="status-pill sp-done">✅ OK</span></div></div>
+  <div class="stage-row"><div class="stage-id">S9</div><div class="stage-body"><div><div class="stage-name">Report</div><div class="stage-desc">Log do ciclo. Métricas de performance. Estatísticas por OAB.</div></div><span class="stage-pb">—</span><span class="status-pill sp-done">✅ OK</span></div></div>
+
+  <div id="camadas" style="margin-top:24px;">
+    <div class="card-title" style="margin-bottom:12px;">Camadas do Prompt em S6 — Como o Conhecimento Chega ao Claude</div>
+    <div class="layer-row"><span class="layer-num">C1</span><div class="layer-name">SOUL.md (CORE)</div><div class="layer-desc">7 regras douradas + 9 tipos_acao — injetado SEMPRE em todos os modos</div><span class="status-pill sp-done">✅ Ativo</span></div>
+    <div class="layer-row"><span class="layer-num">C2</span><div class="layer-name">instructions.md (MODO)</div><div class="layer-desc">Instructions específicas do modo operacional atual (monitoring / deep_analysis)</div><span class="status-pill sp-done">✅ Ativo</span></div>
+    <div class="layer-row"><span class="layer-num">C3</span><div class="layer-name">Playbooks (registry.json)</div><div class="layer-desc">PB1/PB2/PB3/PB4/PB5 carregados condicionalmente — AINDA VERSÕES ANTIGAS no vault</div><span class="status-pill sp-block">⛔ Desatualizado</span></div>
+    <div class="layer-row"><span class="layer-num">C4</span><div class="layer-name">Memória Tribunal</div><div class="layer-desc">TJRS.md, TJSC.md — carregado específico por tribunal do processo atual</div><span class="status-pill sp-done">✅ Ativo</span></div>
+    <div class="layer-row"><span class="layer-num">C5</span><div class="layer-name">RAG (match_rag_controller)</div><div class="layer-desc">Top-5 casos similares via embeddings. Threshold 0.3 (TF05 aplicado)</div><span class="status-pill sp-done">✅ TF05</span></div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- CAMPOS -->
+<section class="section" id="campos">
+  <div class="section-header">
+    <span class="section-icon">🗃️</span>
+    <h2>Campos da Tabela intimacoes — S7 Persist</h2>
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Campo</th><th>Tipo</th><th>Quem preenche</th><th>Playbook relacionado</th></tr></thead>
+      <tbody>
+        <tr><td><span class="mono">tipo_acao</span></td><td>TEXT</td><td>S6 (Claude)</td><td><span class="badge bp">PB1</span> <span class="badge by">PB4</span></td></tr>
+        <tr><td><span class="mono">classe_cecilia</span></td><td>TEXT</td><td>S6 (Claude)</td><td><span class="badge bp">PB1</span></td></tr>
+        <tr><td><span class="mono">urgencia</span></td><td>TEXT</td><td>S6 (Claude)</td><td><span class="badge by">PB4</span> <span class="badge bg">PB5</span></td></tr>
+        <tr><td><span class="mono">confianca_ia</span></td><td>FLOAT</td><td>S6 (Claude)</td><td><span class="badge bg">PB5</span></td></tr>
+        <tr><td><span class="mono">resumo_ia</span></td><td>TEXT</td><td>S6 (Claude)</td><td><span class="badge bp">PB2</span> <span class="badge br">PB3</span></td></tr>
+        <tr><td><span class="mono">analise_ia</span></td><td>JSONB</td><td>S6 (Claude)</td><td>todos os PBs</td></tr>
+        <tr><td><span class="mono">requer_atividade</span></td><td>BOOL</td><td>S6 (Claude)</td><td><span class="badge by">PB4</span></td></tr>
+        <tr><td><span class="mono">urgente</span></td><td>BOOL</td><td>S6 (Claude)</td><td><span class="badge by">PB4</span></td></tr>
+        <tr><td><span class="mono">data_prazo</span></td><td>DATE</td><td>S6 (Claude)</td><td><span class="badge bp">PB2</span> <span class="badge by">PB4</span></td></tr>
+        <tr><td><span class="mono">prazo_dias</span></td><td>INT</td><td>S6 (Claude)</td><td><span class="badge bp">PB2</span></td></tr>
+        <tr><td><span class="mono">ia_acao_recomendada</span></td><td>TEXT</td><td>S6 (Claude)</td><td><span class="badge by">PB4</span></td></tr>
+        <tr><td><span class="mono">flag_ciencia_renuncia</span></td><td>BOOL</td><td>S6 (Claude)</td><td><span class="badge bg">PB5</span></td></tr>
+        <tr><td><span class="mono">flag_sisbajud</span></td><td>BOOL</td><td>S6 (Claude)</td><td><span class="badge by">PB4</span></td></tr>
+        <tr><td><span class="mono">conteudo_completo</span></td><td>TEXT</td><td>S5</td><td>PB6</td></tr>
+        <tr><td><span class="mono">pipeline_status</span></td><td>TEXT</td><td>todos stages</td><td>—</td></tr>
+        <tr><td><span class="mono">modo_operacional</span></td><td>TEXT</td><td>S0</td><td>—</td></tr>
+        <tr><td><span class="mono">pre_classificado_completo</span></td><td>BOOL</td><td>S7</td><td>—</td></tr>
+        <tr><td><span class="mono">captura_status</span></td><td>TEXT</td><td>S2/S5</td><td>—</td></tr>
+        <tr><td><span class="mono">modelo_ia</span></td><td>TEXT</td><td>S6</td><td>—</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- PENDÊNCIAS -->
+<section class="section" id="pendencias">
+  <div class="section-header">
+    <span class="section-icon">📋</span>
+    <h2>O que a Equipe Ainda Precisa</h2>
+  </div>
+
+  <div class="grid g3">
+    <div class="card" style="border-color:rgba(255,209,102,0.3);">
+      <div class="card-title" style="color:var(--accent4);">Para João (Playbooks)</div>
+      <div class="priority-item"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>PB6 completo</strong><span>Seletores CSS/XPath, screenshots anotados, fluxo login por tribunal, tratamento de erros</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>CNJ reais anonimizados</strong><span>Para exemplos RAG de alta qualidade nos 5 playbooks — impacto direto na precisão</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Validação tipos_acao</strong><span>Confirmar alinhamento dos 9 tipos do SOUL.md com os nomes usados nos playbooks</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Regras por tribunal</strong><span>O que difere entre TJRS/TJSC/TJSP na linguagem dos atos processuais</span></div></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="p2-tag priority-tag">P2</span><div class="priority-content"><strong>Lista de ruído Midas-específica</strong><span>Os 33 do PB1 são genéricos — quais casos únicos do escritório com ~5.800 processos</span></div></div>
+    </div>
+
+    <div class="card" style="border-color:rgba(91,196,245,0.3);">
+      <div class="card-title" style="color:var(--accent5);">Para Christian (CTO)</div>
+      <div class="priority-item"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>Autorizar absorção v14</strong><span>Pode ser iniciada agora — vault atualização é reversível com git</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Janela para TF02 e TF03</strong><span>Requerem EPROC online — definir horário com menor carga</span></div></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="p2-tag priority-tag">P2</span><div class="priority-content"><strong>702 itens do João para RAG</strong><span>Quando processar? Prioridade vs custo de embedding</span></div></div>
+    </div>
+
+    <div class="card" style="border-color:rgba(124,109,255,0.3);">
+      <div class="card-title" style="color:var(--accent);">Para Carlos (Sub-agente Telegram)</div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Sistema /corrigir</strong><span>Permite que advogados corrijam classificações incorretas via Telegram</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Sistema /treinar</strong><span>Permite adicionar novos casos ao RAG a partir de interações reais</span></div></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="p2-tag priority-tag">P2</span><div class="priority-content"><strong>Tabela cecilia_feedback</strong><span>DT-04=A aprovado pelo CTO mas migration ainda não executada</span></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="sep"></div>
+
+<!-- PLANO AÇÃO -->
+<section class="section" id="acao">
+  <div class="section-header">
+    <span class="section-icon">🚀</span>
+    <h2>Plano de Ação Imediato</h2>
+  </div>
+
+  <div class="grid g3">
+    <div class="card" style="border-color:rgba(255,107,107,0.3);">
+      <div class="card-title" style="color:var(--accent2);">Prioridade 1 — Hoje/Amanhã</div>
+      <div class="priority-item"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>Absorver PB1–PB5 v14 ao vault</strong><span>SSH Mac Mini · criar .md no formato REGRA/QUANDO/AÇÃO/POR QUÊ/EXCEÇÃO</span></div></div>
+      <div class="priority-item"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>Atualizar registry.json</strong><span>Referenciar pb1–pb5-v14 nos modos monitoring e deep_analysis</span></div></div>
+      <div class="priority-item"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>Validar tipos_acao SOUL.md × Playbooks</strong><span>Garantir alinhamento antes de absorver</span></div></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="p0-tag priority-tag">P0</span><div class="priority-content"><strong>Criar tabela cecilia_feedback</strong><span>DT-04=A aprovado — executar migration no Supabase MdFlow</span></div></div>
+    </div>
+
+    <div class="card" style="border-color:rgba(255,209,102,0.3);">
+      <div class="card-title" style="color:var(--accent4);">Prioridade 2 — Esta Semana</div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>TF02 — S5 timeout 120s + retry</strong><span>Requer janela com EPROC online. Reduz falhas por timeout em documentos pesados</span></div></div>
+      <div class="priority-item"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>TF03 — RS116571 debug</strong><span>Taxa 9% → 50%+. Requer EPROC online para teste real com a OAB</span></div></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="p1-tag priority-tag">P1</span><div class="priority-content"><strong>Completar PB6 com João</strong><span>Seletores CSS, fluxo de login por tribunal, screenshots anotados</span></div></div>
+    </div>
+
+    <div class="card" style="border-color:rgba(91,196,245,0.3);">
+      <div class="card-title" style="color:var(--accent5);">Prioridade 3 — Próxima Semana</div>
+      <div class="priority-item"><span class="p2-tag priority-tag">P2</span><div class="priority-content"><strong>702 itens João → RAG</strong><span>Processar casos reais para melhorar recall dos 834 embeddings existentes</span></div></div>
+      <div class="priority-item"><span class="p2-tag priority-tag">P2</span><div class="priority-content"><strong>Carlos — /corrigir + /treinar</strong><span>Sub-agente Telegram com feedback loop ativo para aprendizado contínuo</span></div></div>
+      <div class="priority-item" style="border-bottom:none;"><span class="p2-tag priority-tag">P2</span><div class="priority-content"><strong>Refinamento contínuo</strong><span>Análise de erros após ciclos reais com playbooks v14 integrados</span></div></div>
+    </div>
+  </div>
+
+  <div class="alert alert-green" style="margin-top:24px;">
+    <span class="alert-icon">✅</span>
+    <div><strong>Nota final:</strong> TF01 e TF05 já aplicados — o sistema está mais inteligente. A absorção dos playbooks v14 é o próximo passo mais impactante: estima-se que eleve a classificação correta de ~40% para ~65% imediatamente após integração, sem mudança de código — apenas com conhecimento melhor estruturado injetado no prompt de análise (S6).</div>
+  </div>
+</section>
+
+<div class="footer">
+  🐙 Jarbas 2.0 — MdLab LegalTech · 23/04/2026 · Cecilia — Análise Completa dos Playbooks v14 + Arquitetura
+</div>
+
+</main>
+</div>
+
+<script>
+const links = document.querySelectorAll('.sidebar-link');
+const sections = document.querySelectorAll('section[id]');
+function updateActive() {
+  let current = '';
+  sections.forEach(s => {
+    if (s.getBoundingClientRect().top <= 120) current = s.id;
+  });
+  links.forEach(l => {
+    l.classList.toggle('active', l.getAttribute('href') === '#' + current);
+  });
+}
+window.addEventListener('scroll', updateActive, {passive: true});
+updateActive();
+</script>
+</body>
+</html>

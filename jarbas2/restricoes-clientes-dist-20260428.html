@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório de Restrições — Clientes Pendentes (Distribuição)</title>
+<style>
+  :root {
+    --bg: #12100e;
+    --card: #1a1714;
+    --surface: #1e1b18;
+    --surface2: #252119;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --primary: #20c997;
+    --primary-dim: rgba(32,201,151,0.12);
+    --primary-glow: rgba(32,201,151,0.25);
+    --text: #e8e4de;
+    --text-muted: #8a8278;
+    --text-dim: #5a5550;
+    --danger: #f87171;
+    --danger-dim: rgba(248,113,113,0.10);
+    --danger-bg: rgba(248,113,113,0.06);
+    --warning: #fbbf24;
+    --warning-dim: rgba(251,191,36,0.12);
+    --warning-bg: rgba(251,191,36,0.06);
+    --success: #20c997;
+    --success-dim: rgba(32,201,151,0.10);
+    --gray-dim: rgba(138,130,120,0.12);
+    --blue: #60a5fa;
+    --blue-dim: rgba(96,165,250,0.14);
+    --orange: #fb923c;
+    --orange-dim: rgba(251,146,60,0.14);
+    --green: #4ade80;
+    --green-dim: rgba(74,222,128,0.14);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    padding: 24px 20px;
+    min-height: 100vh;
+  }
+  .container { max-width: 1400px; margin: 0 auto; }
+
+  .hero {
+    text-align: center;
+    padding: 40px 24px 32px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .hero-icon { font-size: 2.4rem; display: block; margin-bottom: 10px; }
+  .hero h1 {
+    font-size: 1.9rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--primary), #60a5fa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+    line-height: 1.2;
+  }
+  .hero-meta {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .hero-meta .sep { color: var(--text-dim); }
+  .db-badge {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.72rem;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border-strong);
+    border-radius: 6px;
+    padding: 2px 8px;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+  }
+
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+    margin-bottom: 24px;
+  }
+  @media(max-width: 768px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
+  @media(max-width: 480px) { .kpi-grid { grid-template-columns: 1fr; } }
+  .kpi-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .kpi-card:hover { border-color: var(--border-strong); }
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .kpi-card.c-total::before { background: linear-gradient(90deg, var(--primary), #60a5fa); }
+  .kpi-card.c-ok::before { background: var(--green); }
+  .kpi-card.c-multi::before { background: var(--warning); }
+  .kpi-card.c-miss::before { background: var(--danger); }
+  .kpi-value {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 4px;
+  }
+  .c-total .kpi-value { color: var(--primary); }
+  .c-ok .kpi-value { color: var(--green); }
+  .c-multi .kpi-value { color: var(--warning); }
+  .c-miss .kpi-value { color: var(--danger); }
+  .kpi-label {
+    font-size: 0.73rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    font-weight: 500;
+  }
+
+  .legend-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+  .legend-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .legend-items {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .ld-ok { background: var(--primary); }
+  .ld-multi { background: var(--warning); }
+  .ld-miss { background: var(--danger); }
+  .ld-empty { background: var(--text-dim); }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+  }
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 220px;
+  }
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-dim);
+    font-size: 0.85rem;
+    pointer-events: none;
+  }
+  .search-input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 9px 12px 9px 36px;
+    color: var(--text);
+    font-size: 0.85rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .search-input:focus { border-color: rgba(32,201,151,0.4); }
+  .search-input::placeholder { color: var(--text-dim); }
+  .count-badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 12px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+  .btn-copy {
+    background: var(--primary-dim);
+    border: 1px solid var(--primary-glow);
+    border-radius: 8px;
+    padding: 9px 16px;
+    color: var(--primary);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+  .btn-copy:hover { background: rgba(32,201,151,0.2); }
+  .btn-copy.copied { background: rgba(32,201,151,0.25); color: #fff; }
+
+  .table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    overflow-x: auto;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 900px;
+  }
+  thead tr {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border-strong);
+  }
+  th {
+    padding: 11px 14px;
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.7px;
+    color: var(--text-muted);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  th:first-child { padding-left: 18px; }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.82rem;
+    vertical-align: middle;
+  }
+  td:first-child { padding-left: 18px; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr { transition: background 0.12s; }
+  tbody tr.row-ok:hover td { background: rgba(255,255,255,0.018); }
+  tbody tr.row-miss { background: var(--danger-bg); }
+  tbody tr.row-miss:hover td { background: rgba(248,113,113,0.09); }
+  tbody tr.row-multi { background: var(--warning-bg); }
+  tbody tr.row-multi:hover td { background: rgba(251,191,36,0.09); }
+  tbody tr.row-empty { background: rgba(90,85,80,0.04); }
+
+  .col-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    width: 36px;
+    text-align: right;
+    padding-right: 8px;
+  }
+  .client-name {
+    font-weight: 500;
+    color: var(--text);
+    font-size: 0.83rem;
+  }
+  .oab-badge {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 2px 7px;
+    border-radius: 5px;
+    white-space: nowrap;
+    letter-spacing: 0.3px;
+  }
+  .oab-sp { background: var(--blue-dim); color: var(--blue); border: 1px solid rgba(96,165,250,0.22); }
+  .oab-rs { background: var(--green-dim); color: var(--green); border: 1px solid rgba(74,222,128,0.22); }
+  .oab-sc { background: var(--orange-dim); color: var(--orange); border: 1px solid rgba(251,146,60,0.22); }
+  .empresa-name { font-size: 0.78rem; color: var(--text); font-weight: 500; }
+  .empresa-multi { font-size: 0.73rem; color: var(--text-muted); font-style: italic; }
+  .empresa-none { color: var(--text-dim); font-style: italic; font-size: 0.78rem; }
+  .contrato {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    max-width: 200px;
+    word-break: break-all;
+  }
+  .contrato-none { color: var(--text-dim); font-style: italic; font-family: inherit; }
+  .data-col {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .valor-col {
+    font-weight: 600;
+    font-size: 0.82rem;
+    white-space: nowrap;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .valor-high { color: var(--danger); font-size: 0.85rem; }
+  .valor-normal { color: var(--text); }
+  .valor-none { color: var(--text-dim); font-style: italic; font-family: inherit; font-weight: 400; }
+  .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 9px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .sp-ok { background: var(--success-dim); color: var(--primary); border: 1px solid rgba(32,201,151,0.2); }
+  .sp-multi { background: var(--warning-dim); color: var(--warning); border: 1px solid rgba(251,191,36,0.22); }
+  .sp-miss { background: var(--danger-dim); color: var(--danger); border: 1px solid rgba(248,113,113,0.22); }
+  .sp-empty { background: var(--gray-dim); color: var(--text-muted); border: 1px solid var(--border); }
+  .no-results {
+    display: none;
+    padding: 40px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+  }
+  .no-results-icon { font-size: 2rem; display: block; margin-bottom: 8px; }
+  .footer {
+    text-align: center;
+    padding: 28px 16px;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    border-top: 1px solid var(--border);
+    margin-top: 32px;
+    line-height: 1.8;
+  }
+  .footer strong { color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <span class="hero-icon">⚖️</span>
+    <h1>Relatório de Restrições — Clientes Pendentes (Distribuição)</h1>
+    <div class="hero-meta">
+      <span>📅 28/04/2026</span>
+      <span class="sep">·</span>
+      <span>97 clientes analisados</span>
+      <span class="sep">·</span>
+      <span>Sistema legado MdFlow</span>
+      <span class="sep">·</span>
+      <span>Backend: <span class="db-badge">hzqoxkmxvwxejjanstdh</span></span>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card c-total">
+      <div class="kpi-value">97</div>
+      <div class="kpi-label">Total Clientes</div>
+    </div>
+    <div class="kpi-card c-ok">
+      <div class="kpi-value">81</div>
+      <div class="kpi-label">Com Dados Completos</div>
+    </div>
+    <div class="kpi-card c-multi">
+      <div class="kpi-value">8</div>
+      <div class="kpi-label">Múltiplas Restrições</div>
+    </div>
+    <div class="kpi-card c-miss">
+      <div class="kpi-value">6</div>
+      <div class="kpi-label">Sem Dados no Legado</div>
+    </div>
+  </div>
+
+  <div class="legend-bar">
+    <span class="legend-title">Legenda</span>
+    <div class="legend-items">
+      <div class="legend-item"><span class="legend-dot ld-ok"></span> Dados OK — restrição localizada</div>
+      <div class="legend-item"><span class="legend-dot ld-multi"></span> Múltiplas — mais de uma restrição</div>
+      <div class="legend-item"><span class="legend-dot ld-miss"></span> Não localizado — sem registro no legado</div>
+      <div class="legend-item"><span class="legend-dot ld-empty"></span> Sem restrição — cadastrado sem restrição ativa</div>
+      <div class="legend-item" style="margin-left:8px;padding-left:8px;border-left:1px solid var(--border)">
+        <span class="oab-badge oab-sp" style="font-family:inherit">SP</span> São Paulo
+        <span class="oab-badge oab-rs" style="font-family:inherit;margin-left:4px">RS</span> Rio Grande do Sul
+        <span class="oab-badge oab-sc" style="font-family:inherit;margin-left:4px">SC</span> Santa Catarina
+      </div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" class="search-input" id="searchInput" placeholder="Buscar por nome do cliente..." oninput="filterTable()">
+    </div>
+    <span class="count-badge" id="countBadge">95 linhas</span>
+    <button class="btn-copy" id="btnCopy" onclick="copyTable()">📋 Copiar tabela</button>
+  </div>
+
+  <div class="table-wrap">
+    <table id="mainTable">
+      <thead>
+        <tr>
+          <th style="width:40px">#</th>
+          <th>Cliente</th>
+          <th>OAB</th>
+          <th>Empresa Ré (Sistema Antigo)</th>
+          <th>Contrato</th>
+          <th>Data Restrição</th>
+          <th>Valor</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="tableBody">
+        <tr class="row-ok"><td class="col-num">1</td><td><span class="client-name">ADRIANA MISSIAS DOS SANTOS JARAMA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ITAU UNIBANCO SA</span></td><td><span class="contrato">000003756608893</span></td><td><span class="data-col">22/06/2025</span></td><td><span class="valor-col valor-normal">R$2.860,99</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">2</td><td><span class="client-name">ADRIANO FERREIRA DOS SANTOS</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0040048701122683100000</span></td><td><span class="data-col">05/03/2021</span></td><td><span class="valor-col valor-high">R$5.014,94</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">3</td><td><span class="client-name">ALECIO NUNES ALMEIDA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CPFL ENERGIA S.A.</span></td><td><span class="contrato">0000905104848123</span></td><td><span class="data-col">20/10/2025</span></td><td><span class="valor-col valor-normal">R$404,70</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">4</td><td><span class="client-name">ALEX DOS SANTOS LUZ</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ITAU UNIBANCO SA</span></td><td><span class="contrato">000045200359797</span></td><td><span class="data-col">28/12/2021</span></td><td><span class="valor-col valor-normal">R$2.931,43</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">5</td><td><span class="client-name">ALEXANDRE APARECIDO PASCHOAL</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td><td><span class="contrato">420603901</span></td><td><span class="data-col">20/03/2022</span></td><td><span class="valor-col valor-normal">R$3.169,02</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">6</td><td><span class="client-name">ALEXANDRO ROBERTO FABRI</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">TC- 2967762</span></td><td><span class="data-col">17/04/2023</span></td><td><span class="valor-col valor-normal">R$1.385,92</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">7</td><td><span class="client-name">ANA LUCIA DOS SANTOS DIAS</span></td><td><span class="oab-badge oab-sc">SC/74025</span></td><td><span class="empresa-name">BANCO BMG SA</span></td><td><span class="contrato">446139079</span></td><td><span class="data-col">03/06/2025</span></td><td><span class="valor-col valor-high">R$9.292,88</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">8</td><td><span class="client-name">ANDERSON SILVA FERREIRA</span></td><td><span class="oab-badge oab-sc">SC/74025</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">CC-1049190664</span></td><td><span class="data-col">28/08/2025</span></td><td><span class="valor-col valor-normal">R$50,14</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">9</td><td><span class="client-name">ANDRE DOS SANTOS SCHABBACH</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">BANRISUL SA</span></td><td><span class="contrato">BBH02100066760946</span></td><td><span class="data-col">07/10/2025</span></td><td><span class="valor-col valor-normal">R$208,00</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">10</td><td><span class="client-name">ANGELA BATISTA DE OLIVEIRA VIGNON</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ITAU UNIBANCO SA</span></td><td><span class="contrato">000003820169179</span></td><td><span class="data-col">16/06/2025</span></td><td><span class="valor-col valor-normal">R$25,90</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-miss"><td class="col-num">11</td><td><span class="client-name">ANGELA PATRÍCIA ALMEIDA DA ROSA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-none">—</span></td><td><span class="contrato-none">—</span></td><td><span class="data-col" style="color:var(--text-dim)">—</span></td><td><span class="valor-col valor-none">—</span></td><td><span class="status-pill sp-miss">🔴 Não localizado</span></td></tr>
+        <tr class="row-ok"><td class="col-num">12</td><td><span class="client-name">ANTONIO JOEL DA SILVEIRA MOURA</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">LOJAS LEBES - DREBES FINANCEIRA SA</span></td><td><span class="contrato">06700312265864</span></td><td><span class="data-col">01/05/2025</span></td><td><span class="valor-col valor-normal">R$435,73</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">13</td><td><span class="client-name">BARBARA MEIRELLES CANABARRO</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">CC- 744783864</span></td><td><span class="data-col">23/07/2024</span></td><td><span class="valor-col valor-normal">R$52,72</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">14</td><td><span class="client-name">BIANCA NASCIMENTO DA ROSA</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">TELEFONICA BRASIL SA</span></td><td><span class="contrato">1335016434</span></td><td><span class="data-col">10/10/2023</span></td><td><span class="valor-col valor-normal">R$157,51</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">15</td><td><span class="client-name">BRENDA RAYANE RIBEIRO CAMARGO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CREDITAS SOLUÇÕES FINANCEIRAS LTDA</span></td><td><span class="contrato">0000001689263000</span></td><td><span class="data-col">10/11/2022</span></td><td><span class="valor-col valor-high">R$5.478,30</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">16</td><td><span class="client-name">BRUNA OLIVEIRA RODRIGUES</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">DE- 1160837186</span></td><td><span class="data-col">29/09/2025</span></td><td><span class="valor-col valor-normal">R$614,92</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">17</td><td><span class="client-name">BRUNO CESAR DE SENA SILVA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">533441930</span></td><td><span class="data-col">05/11/2023</span></td><td><span class="valor-col valor-normal">R$1.293,18</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">18</td><td><span class="client-name">CARLA FERNANDA DA CONCEIÇÃO PAIM</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">B3DD6956E9B5481A</span></td><td><span class="data-col">22/09/2025</span></td><td><span class="valor-col valor-normal">R$228,41</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">19</td><td><span class="client-name">CARLOS ALEXANDRE CARDOSO SILVA</span></td><td><span class="oab-badge oab-sc">SC/74025</span></td><td><span class="empresa-name">JEITTO INSTITUICAO DE PAGAMENTO LTDA</span></td><td><span class="contrato">10754632</span></td><td><span class="data-col">10/02/2024</span></td><td><span class="valor-col valor-normal">R$299,00</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">20</td><td><span class="client-name">CARLOS VINICIUS CAMARGO MARTINS</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ITAPEVA XI MULTICARTEIRA</span></td><td><span class="contrato">33505949</span></td><td><span class="data-col">02/08/2021</span></td><td><span class="valor-col valor-normal">R$1.271,43</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">21</td><td><span class="client-name">CARMELUCIA DE MELO SOUZA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">013635445387242408595</span></td><td><span class="data-col">12/08/2024</span></td><td><span class="valor-col valor-normal">R$115,09</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">22</td><td><span class="client-name">CELIA DIAS</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">013084143363267121199</span></td><td><span class="data-col">01/06/2022</span></td><td><span class="valor-col valor-normal">R$122,85</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">23</td><td><span class="client-name">CICERA PERIM</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td><td><span class="contrato">139787740</span></td><td><span class="data-col">10/08/2022</span></td><td><span class="valor-col valor-normal">R$3.472,56</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">24</td><td><span class="client-name">CIMARA EULINA DOS REIS RIBEIRO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0038800209271513360000</span></td><td><span class="data-col">10/05/2022</span></td><td><span class="valor-col valor-normal">R$233,28</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">25</td><td><span class="client-name">CLÁUDIA FERNANDES DA SILVA SCOTT</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-multi">FIDC NPL II + NU PAGAMENTOS SA</span></td><td><span class="contrato">001615918631.1-2 / BF396A5C5280A47A</span></td><td><span class="data-col">06/01/2022</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">26</td><td><span class="client-name">DAIANE CRISTINA AGOSTINHO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">FIDC IPANEMA IV</span></td><td><span class="contrato">3214180713888699</span></td><td><span class="data-col">14/01/2021</span></td><td><span class="valor-col valor-high">R$35.285,88</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">27</td><td><span class="client-name">DANIEL SOUZA DA CUNHA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0038800209756343500000</span></td><td><span class="data-col">10/10/2022</span></td><td><span class="valor-col valor-normal">R$265,09</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">28</td><td><span class="client-name">DAVI RAMOS DOS SANTOS</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">CC 829913510</span></td><td><span class="data-col">19/10/2024</span></td><td><span class="valor-col valor-normal">R$62,32</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">29</td><td><span class="client-name">DAVID RANGEL DE MELLO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">BANCO BRADESCO SA</span></td><td><span class="contrato">33220006803444381326</span></td><td><span class="data-col">28/08/2024</span></td><td><span class="valor-col valor-normal">R$2.579,39</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">30</td><td><span class="client-name">EDGAR OSTI</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">013837581799977874319</span></td><td><span class="data-col">05/09/2025</span></td><td><span class="valor-col valor-high">R$6.692,42</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">31</td><td><span class="client-name">FERNANDA ALVES PEREIRA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">CC- 497777246</span></td><td><span class="data-col">13/09/2023</span></td><td><span class="valor-col valor-normal">R$243,47</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">32</td><td><span class="client-name">FERNANDO FURTADO NEVES</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">986C3060819F15C4</span></td><td><span class="data-col">27/03/2023</span></td><td><span class="valor-col valor-normal">R$476,74</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">33</td><td><span class="client-name">FRANCISCO JUNIOR MARQUES LOPES</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ITAU UNIBANCO SA</span></td><td><span class="contrato">000000017644436</span></td><td><span class="data-col">26/02/2024</span></td><td><span class="valor-col valor-normal">R$3.216,30</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">34</td><td><span class="client-name">GEOVÁ FERREIRA DE OLIVEIRA BRAZ</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">ITAPEVA XI MULTICARTEIRA</span></td><td><span class="contrato">48304835</span></td><td><span class="data-col">03/03/2023</span></td><td><span class="valor-col valor-normal">R$481,00</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">35</td><td><span class="client-name">GILSON SILVEIRA SILVA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0009628711281469440000</span></td><td><span class="data-col">31/07/2024</span></td><td><span class="valor-col valor-normal">R$2.681,06</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">36</td><td><span class="client-name">HENRIQUE PEREIRA CARDOSO</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">BANCO DIGIO SA</span></td><td><span class="contrato">64727</span></td><td><span class="data-col">05/06/2024</span></td><td><span class="valor-col valor-high">R$8.718,05</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">37</td><td><span class="client-name">IRINEU HERPICH</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">TC-9916993</span></td><td><span class="data-col">20/09/2024</span></td><td><span class="valor-col valor-normal">R$79,27</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">38</td><td><span class="client-name">IVONILTON BRITO DA CRUZ</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">ITAU UNIBANCO SA</span></td><td><span class="contrato">000003281622831</span></td><td><span class="data-col">28/10/2024</span></td><td><span class="valor-col valor-normal">R$3.939,69</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">39</td><td><span class="client-name">JAELSON GONÇALVES FURTADO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">CC- 1122657539</span></td><td><span class="data-col">21/08/2025</span></td><td><span class="valor-col valor-normal">R$86,01</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">40</td><td><span class="client-name">JESUS RAMON BRITO GARCIA</span></td><td><span class="oab-badge oab-sc">SC/74025</span></td><td><span class="empresa-name">BANCO COOPERATIVO SICREDI SA</span></td><td><span class="contrato">C31434562-7/007</span></td><td><span class="data-col">10/05/2024</span></td><td><span class="valor-col valor-normal">R$479,21</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">41</td><td><span class="client-name">JEVERSON RODRIGO HIPOLITO DE FARIA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">8BFC90357F801D9B</span></td><td><span class="data-col">28/12/2023</span></td><td><span class="valor-col valor-normal">R$382,69</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">42</td><td><span class="client-name">JOÃO PAULO BONATTI SOARES</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">8717AF4E0740ECE2</span></td><td><span class="data-col">03/09/2025</span></td><td><span class="valor-col valor-normal">R$168,29</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">43</td><td><span class="client-name">JOELMA DOS SANTOS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-multi">ATIVOS SA + BANRISUL SA</span></td><td><span class="contrato">139052370 / 968474739 / 973874461 / BBH / BDP</span></td><td><span class="data-col">15/04/2022</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-multi"><td class="col-num">44</td><td><span class="client-name">JORGE CAIQUE CHAGAS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-multi">BANCO SANTANDER SA + OUTROS</span></td><td><span class="contrato">UG056032000030208032 / MP056066 / DE00560 / UG056032000030081032</span></td><td><span class="data-col">29/11/2024</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">45</td><td><span class="client-name">LEANDRA PEREIRA ARAUJO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">B9708873FFBA7CEF</span></td><td><span class="data-col">21/11/2025</span></td><td><span class="valor-col valor-normal">R$272,86</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">46</td><td><span class="client-name">LEANDRO DA SILVA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">BANCO BRADESCO SA</span></td><td><span class="contrato">31520340784RRF072236</span></td><td><span class="data-col">08/02/2024</span></td><td><span class="valor-col valor-normal">R$81,01</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">47</td><td><span class="client-name">LEANDRO PEREIRA DA SILVA</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">ITAU UNIBANCO SA</span></td><td><span class="contrato">000076500950456</span></td><td><span class="data-col">05/12/2023</span></td><td><span class="valor-col valor-normal">R$1.531,71</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">48</td><td><span class="client-name">LORECI DOS SANTOS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">BANRISUL SA</span></td><td><span class="contrato">BSB554473847326400</span></td><td><span class="data-col">10/10/2025</span></td><td><span class="valor-col valor-normal">R$135,00</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">49</td><td><span class="client-name">LUCIANA GOULART BOENO</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0038800209326862250000</span></td><td><span class="data-col">15/10/2022</span></td><td><span class="valor-col valor-normal">R$260,07</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">50</td><td><span class="client-name">LUCIANO DOURADO CERQUEIRA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-multi">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">CC- 968490178 / CC- 968122894</span></td><td><span class="data-col">14/03/2025</span></td><td><span class="valor-col valor-normal">R$1.193,07</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">51</td><td><span class="client-name">LUCIANO ROBERTO DOS SANTOS</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">BANCO C6 SA</span></td><td><span class="contrato">EMD900205598</span></td><td><span class="data-col">19/01/2024</span></td><td><span class="valor-col valor-normal">R$150,75</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">52</td><td><span class="client-name">LUIS ANTONIO BORGES SILVA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">BANCO BRADESCO SA</span></td><td><span class="contrato">13930023967435071086</span></td><td><span class="data-col">10/07/2024</span></td><td><span class="valor-col valor-normal">R$1.375,57</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">53</td><td><span class="client-name">LUIS HENRIQUE DE OLIVEIRA SILVA</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">CREDITAS SOLUÇÕES FINANCEIRAS LTDA</span></td><td><span class="contrato">0000000768336000</span></td><td><span class="data-col">23/06/2023</span></td><td><span class="valor-col valor-normal">R$856,02</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">54</td><td><span class="client-name">LUÍS PAULO MACHADO DA CONCEIÇÃO</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">CC- 837095632</span></td><td><span class="data-col">27/10/2024</span></td><td><span class="valor-col valor-normal">R$63,37</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">55</td><td><span class="client-name">MAICON JOVANI MORAES PAES</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">VUON CARD - CIB CON ADM E PARTICIPACOES SA</span></td><td><span class="contrato">FAT44532311</span></td><td><span class="data-col">13/01/2025</span></td><td><span class="valor-col valor-normal">R$563,22</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">56</td><td><span class="client-name">MARCELY SILVA CORREIA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td><td><span class="contrato">962093753</span></td><td><span class="data-col">21/04/2022</span></td><td><span class="valor-col valor-normal">R$2.298,49</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">57</td><td><span class="client-name">MARCIO ROGERIO AMOS</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">A66080518E3860B5</span></td><td><span class="data-col">11/07/2023</span></td><td><span class="valor-col valor-normal">R$335,13</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">58</td><td><span class="client-name">MARCOS RAFAEL LUCAS DE CARVALHO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-multi">PICPAY + NU PAGAMENTOS + O BOTICARIO</span></td><td><span class="contrato">111663376 / 959DECCC967A54F0 / 321567309</span></td><td><span class="data-col">03/08/2024</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">59</td><td><span class="client-name">MARCELY SILVA CORREIA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td><td><span class="contrato">962093753</span></td><td><span class="data-col">21/04/2022</span></td><td><span class="valor-col valor-normal">R$2.298,49</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">60</td><td><span class="client-name">MARCIO ROGERIO AMOS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">A66080518E3860B5</span></td><td><span class="data-col">11/07/2023</span></td><td><span class="valor-col valor-normal">R$335,13</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">61</td><td><span class="client-name">MARCOS RAFAEL LUCAS DE CARVALHO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-multi">PICPAY + NU PAGAMENTOS + O BOTICARIO</span></td><td><span class="contrato">111663376 / 959DECCC967A54F0 / 321567309</span></td><td><span class="data-col">03/08/2024</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">62</td><td><span class="client-name">MARIA APARECIDA PEREIRA BELMIRO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0038800209208430380000</span></td><td><span class="data-col">20/05/2022</span></td><td><span class="valor-col valor-normal">R$202,66</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">63</td><td><span class="client-name">MARIA DE FATIMA PEREIRA SOARES</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">ITAU UNIBANCO SA</span></td><td><span class="contrato">004811226310000</span></td><td><span class="data-col">25/06/2025</span></td><td><span class="valor-col valor-high">R$5.360,60</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-empty"><td class="col-num">64</td><td><span class="client-name">MARIA TERESINHA DOS SANTOS</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-none">—</span></td><td><span class="contrato-none">—</span></td><td><span class="data-col" style="color:var(--text-dim)">—</span></td><td><span class="valor-col valor-none">—</span></td><td><span class="status-pill sp-empty">⬜ Sem restrição no legado</span></td></tr>
+        <tr class="row-ok"><td class="col-num">65</td><td><span class="client-name">MARIANA DA SILVEIRA SARMENTO</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">A994A7B902738310</span></td><td><span class="data-col">18/08/2025</span></td><td><span class="valor-col valor-normal">R$1.186,77</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-empty"><td class="col-num">66</td><td><span class="client-name">MARIANA PERES VICENTE SOARES</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-none">—</span></td><td><span class="contrato-none">—</span></td><td><span class="data-col" style="color:var(--text-dim)">—</span></td><td><span class="valor-col valor-none">—</span></td><td><span class="status-pill sp-empty">⬜ Sem restrição no legado</span></td></tr>
+        <tr class="row-ok"><td class="col-num">67</td><td><span class="client-name">MARINÉLE PACHECO DE QUADROS DA LUZ</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">JEITTO INSTITUICAO DE PAGAMENTO LTDA</span></td><td><span class="contrato">19454790</span></td><td><span class="data-col">10/10/2025</span></td><td><span class="valor-col valor-normal">R$170,00</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">68</td><td><span class="client-name">NATALICE NATALIA PINTO</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">CPFL ENERGIA S.A.</span></td><td><span class="contrato">0000905104539648</span></td><td><span class="data-col">22/11/2024</span></td><td><span class="valor-col valor-normal">R$137,60</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">69</td><td><span class="client-name">NÍDIA CHAVES</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td><td><span class="contrato">107053316</span></td><td><span class="data-col">05/03/2023</span></td><td><span class="valor-col valor-normal">R$1.038,28</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">70</td><td><span class="client-name">NIVALDO RODRIGUES DE SANTANA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-multi">NU PAGAMENTOS SA / ENEL ELETROPAULO</span></td><td><span class="contrato">BDF7DFB778EAA327 / 2501-680532374</span></td><td><span class="data-col">21/01/2022</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-multi"><td class="col-num">71</td><td><span class="client-name">NIVALDO RODRIGUES DE SANTANA</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-multi">NU PAGAMENTOS SA / ENEL ELETROPAULO</span></td><td><span class="contrato">BDF7DFB778EAA327 / 2501-680532374</span></td><td><span class="data-col">21/01/2022</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-multi"><td class="col-num">72</td><td><span class="client-name">NIVALDO RODRIGUES DE SANTANA</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-multi">NU PAGAMENTOS SA / ENEL ELETROPAULO</span></td><td><span class="contrato">BDF7DFB778EAA327 / 2501-680532374</span></td><td><span class="data-col">21/01/2022</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">73</td><td><span class="client-name">PATRICIA APARECIDA DE LIMA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">98ACE9470A9DF8BD</span></td><td><span class="data-col">26/02/2025</span></td><td><span class="valor-col valor-normal">R$106,32</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">74</td><td><span class="client-name">PAULO HENRIQUE CANDIDO MANOEL</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">BANCO SANTANDER SA</span></td><td><span class="contrato">DE04335010956439</span></td><td><span class="data-col">30/01/2025</span></td><td><span class="valor-col valor-normal">R$112,93</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">75</td><td><span class="client-name">RAFAEL PRADOS DIAS</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0038800209359714540000</span></td><td><span class="data-col">28/06/2022</span></td><td><span class="valor-col valor-normal">R$257,74</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">76</td><td><span class="client-name">ROBERTO BATISTA PEGO</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">AD47938CFB5272DD</span></td><td><span class="data-col">25/07/2023</span></td><td><span class="valor-col valor-normal">R$176,99</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">77</td><td><span class="client-name">RODNEY PIOLOGO VICENTE</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">REALIZE CREDITO, FINANCIAMENTO E INVESTIMENTO SA</span></td><td><span class="contrato">347289928020003</span></td><td><span class="data-col">25/07/2022</span></td><td><span class="valor-col valor-normal">R$2.693,76</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-miss"><td class="col-num">78</td><td><span class="client-name">ROGERIO JOSÉ DA SILVA</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-none">—</span></td><td><span class="contrato-none">—</span></td><td><span class="data-col" style="color:var(--text-dim)">—</span></td><td><span class="valor-col valor-none">—</span></td><td><span class="status-pill sp-miss">🔴 Não localizado</span></td></tr>
+        <tr class="row-ok"><td class="col-num">79</td><td><span class="client-name">ROSANGELA JESUS DOS SANTOS</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">WILL FINANCEIRA SA</span></td><td><span class="contrato">391687404</span></td><td><span class="data-col">20/03/2025</span></td><td><span class="valor-col valor-normal">R$930,13</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">80</td><td><span class="client-name">SELMA RAMOS PIRES</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">BANCO DAYCOVAL SA</span></td><td><span class="contrato">10-689770/16E</span></td><td><span class="data-col">21/08/2021</span></td><td><span class="valor-col valor-normal">R$513,51</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">81</td><td><span class="client-name">SIDNEI DE SOUZA</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">B19062C29EC7508B</span></td><td><span class="data-col">13/01/2025</span></td><td><span class="valor-col valor-normal">R$163,76</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">82</td><td><span class="client-name">UELITON CARVALHO DOS SANTOS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">CAIXA ECONÔMICA FEDERAL</span></td><td><span class="contrato">0038800209356895270000</span></td><td><span class="data-col">28/08/2022</span></td><td><span class="valor-col valor-normal">R$254,24</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">83</td><td><span class="client-name">VANDERLÉIA MORBACH</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">80FBEFD78CB2D46E</span></td><td><span class="data-col">25/08/2023</span></td><td><span class="valor-col valor-normal">R$146,60</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">84</td><td><span class="client-name">VANUSA PEREIRA DE MORAES</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">MERCADOPAGO REPRESENTACOES LTDA</span></td><td><span class="contrato">DE 839521630</span></td><td><span class="data-col">29/10/2024</span></td><td><span class="valor-col valor-normal">R$441,52</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">85</td><td><span class="client-name">VOLNEI DE MEDEIROS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">BANCO SANTANDER SA</span></td><td><span class="contrato">MP125766000038063066</span></td><td><span class="data-col">10/11/2025</span></td><td><span class="valor-col valor-normal">R$325,12</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">86</td><td><span class="client-name">WILIAN DE JESUS SANTOS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-multi">FIDC NPL II + NEON + NU PAGAMENTOS</span></td><td><span class="contrato">1600012064032042 / 1600019371000132 / A2BF954AB3A6B955 / 72F74C04</span></td><td><span class="data-col">04/03/2021</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">87</td><td><span class="client-name">WILIAN MAIA RIBEIRO DE SOUZA</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td><td><span class="contrato">137279757</span></td><td><span class="data-col">05/06/2021</span></td><td><span class="valor-col valor-normal">R$1.350,70</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">88</td><td><span class="client-name">WILLI ANTUNES DE FARIA</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">TELEFONICA BRASIL SA</span></td><td><span class="contrato">1338707953</span></td><td><span class="data-col">10/10/2023</span></td><td><span class="valor-col valor-normal">R$239,97</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">89</td><td><span class="client-name">WILLIAM DOS SANTOS PEREIRA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">TELEFONICA BRASIL SA</span></td><td><span class="contrato">1352494838</span></td><td><span class="data-col">10/10/2024</span></td><td><span class="valor-col valor-normal">R$135,00</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">90</td><td><span class="client-name">VOLNEI DE MEDEIROS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">BANCO SANTANDER SA</span></td><td><span class="contrato">MP125766000038063066</span></td><td><span class="data-col">10/11/2025</span></td><td><span class="valor-col valor-normal">R$325,12</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-multi"><td class="col-num">91</td><td><span class="client-name">WILIAN DE JESUS SANTOS</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-multi">FIDC NPL II + NEON + NU PAGAMENTOS</span></td><td><span class="contrato">1600012064032042 / A2BF954AB3A6B955</span></td><td><span class="data-col">04/03/2021</span></td><td><span class="valor-col" style="color:var(--warning);font-family:'JetBrains Mono',monospace">Múltiplas</span></td><td><span class="status-pill sp-multi">⚠️ Múltiplas</span></td></tr>
+        <tr class="row-ok"><td class="col-num">92</td><td><span class="client-name">WILIAN MAIA RIBEIRO DE SOUZA</span></td><td><span class="oab-badge oab-rs">RS/131163</span></td><td><span class="empresa-name">ATIVOS SA - SEC DE CREDITOS FINANCEIROS</span></td><td><span class="contrato">137279757</span></td><td><span class="data-col">05/06/2021</span></td><td><span class="valor-col valor-normal">R$1.350,70</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">93</td><td><span class="client-name">WILLI ANTUNES DE FARIA</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">TELEFONICA BRASIL SA</span></td><td><span class="contrato">1338707953</span></td><td><span class="data-col">10/10/2023</span></td><td><span class="valor-col valor-normal">R$239,97</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">94</td><td><span class="client-name">WILLIAM DOS SANTOS PEREIRA</span></td><td><span class="oab-badge oab-sp">SP/535101</span></td><td><span class="empresa-name">TELEFONICA BRASIL SA</span></td><td><span class="contrato">1352494838</span></td><td><span class="data-col">10/10/2024</span></td><td><span class="valor-col valor-normal">R$135,00</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+        <tr class="row-ok"><td class="col-num">95</td><td><span class="client-name">VANDERLÉIA MORBACH</span></td><td><span class="oab-badge oab-rs">RS/116571</span></td><td><span class="empresa-name">NU PAGAMENTOS SA</span></td><td><span class="contrato">80FBEFD78CB2D46E</span></td><td><span class="data-col">25/08/2023</span></td><td><span class="valor-col valor-normal">R$146,60</span></td><td><span class="status-pill sp-ok">✅ Dados OK</span></td></tr>
+      </tbody>
+    </table>
+    <div class="no-results" id="noResults">
+      <span class="no-results-icon">🔍</span>
+      Nenhum cliente encontrado para "<span id="searchTerm"></span>"
+    </div>
+  </div>
+
+  <div class="footer">
+    <strong>Fonte: Sistema legado MdFlow (hzqoxkmxvwxejjanstdh)</strong><br>
+    Gerado em 28/04/2026 &nbsp;|&nbsp; Perinotti Paz Advogados<br>
+    <span style="font-size:0.7rem;color:var(--text-dim);margin-top:4px;display:block">Documento confidencial — uso interno restrito</span>
+  </div>
+
+</div>
+
+<script>
+  function filterTable() {
+    var val = document.getElementById('searchInput').value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+    var rows = document.querySelectorAll('#tableBody tr');
+    var visible = 0;
+    rows.forEach(function(row) {
+      var name = row.querySelector('.client-name');
+      if (!name) return;
+      var text = name.textContent.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+      if (text.indexOf(val) !== -1) {
+        row.style.display = '';
+        visible++;
+      } else {
+        row.style.display = 'none';
+      }
+    });
+    document.getElementById('countBadge').textContent = visible + ' linha' + (visible !== 1 ? 's' : '');
+    var noRes = document.getElementById('noResults');
+    if (visible === 0) {
+      noRes.style.display = 'block';
+      document.getElementById('searchTerm').textContent = document.getElementById('searchInput').value;
+    } else {
+      noRes.style.display = 'none';
+    }
+  }
+
+  function copyTable() {
+    var rows = document.querySelectorAll('#tableBody tr');
+    var headers = ['#', 'Cliente', 'OAB', 'Empresa Re', 'Contrato', 'Data Restricao', 'Valor', 'Status'];
+    var tsv = headers.join('\t') + '\n';
+    rows.forEach(function(row) {
+      if (row.style.display === 'none') return;
+      var cells = row.querySelectorAll('td');
+      var cols = [];
+      cells.forEach(function(cell) { cols.push(cell.textContent.trim()); });
+      tsv += cols.join('\t') + '\n';
+    });
+    navigator.clipboard.writeText(tsv).then(function() {
+      var btn = document.getElementById('btnCopy');
+      btn.textContent = 'Copiado!';
+      btn.classList.add('copied');
+      setTimeout(function() {
+        btn.textContent = 'Copiar tabela';
+        btn.classList.remove('copied');
+      }, 2000);
+    }).catch(function() {
+      alert('Erro ao copiar. Selecione e copie manualmente.');
+    });
+  }
+
+  document.getElementById('countBadge').textContent = document.querySelectorAll('#tableBody tr').length + ' linhas';
+</script>
+</body>
+</html>

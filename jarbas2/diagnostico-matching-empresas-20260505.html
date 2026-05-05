@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Diagnóstico: Matching de Empresas — MdFlow</title>
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1714;
+  --surface2: #201d1a;
+  --surface3: #2a2623;
+  --border: #2e2a27;
+  --accent: #20c997;
+  --accent2: #ef4444;
+  --accent3: #f59e0b;
+  --accent4: #6b7280;
+  --accent5: #5bc4f5;
+  --accent6: #a78bfa;
+  --text: #f0ece8;
+  --text-muted: #8a8075;
+  --p0: #ef4444;
+  --p1: #f59e0b;
+  --p2: #6b7280;
+  --ok: #20c997;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.875rem; line-height: 1.6; padding: 24px; }
+.container { max-width: 1100px; margin: 0 auto; }
+
+/* Hero */
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2.2rem; font-weight: 700; font-family: 'Manrope', 'Inter', sans-serif; background: linear-gradient(135deg, #20c997, #5bc4f5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(32,201,151,0.12); color: var(--accent); border: 1px solid rgba(32,201,151,0.28); }
+.br { background: rgba(239,68,68,0.1); color: var(--p0); border: 1px solid rgba(239,68,68,0.25); }
+.by { background: rgba(245,158,11,0.1); color: var(--p1); border: 1px solid rgba(245,158,11,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+
+/* Grid */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+
+/* Cards */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--text-muted); margin-bottom: 12px; }
+
+/* Stat cards */
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2.2rem; font-weight: 700; font-family: 'Manrope', sans-serif; }
+.stat-value.ok { color: var(--ok); }
+.stat-value.warn { color: var(--p1); }
+.stat-value.danger { color: var(--p0); }
+.stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Section */
+.section { margin: 32px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.05rem; font-weight: 600; }
+
+/* Table */
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.83rem; vertical-align: middle; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+th:first-child, td:first-child { border-radius: 0; }
+
+/* Highlight rows */
+tr.exact-match td { background: rgba(239,68,68,0.06); }
+tr.exact-match td:first-child { border-left: 3px solid var(--p0); }
+tr.near-match td { background: rgba(245,158,11,0.05); }
+tr.near-match td:first-child { border-left: 3px solid var(--p1); }
+
+/* Status pills */
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.73rem; font-weight: 500; white-space: nowrap; }
+.sp-p0 { background: rgba(239,68,68,0.12); color: var(--p0); }
+.sp-p1 { background: rgba(245,158,11,0.1); color: var(--p1); }
+.sp-p2 { background: rgba(107,114,128,0.15); color: var(--p2); color: #9ca3af; }
+.sp-ok { background: rgba(32,201,151,0.1); color: var(--ok); }
+.sp-info { background: rgba(91,196,245,0.1); color: var(--accent5); }
+
+/* Code */
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.45); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; color: var(--ok); overflow-x: auto; white-space: pre-wrap; word-break: break-all; line-height: 1.7; }
+.code .comment { color: var(--text-muted); }
+.code .keyword { color: var(--accent5); }
+.code .string { color: var(--p1); }
+.code .number { color: var(--accent6); }
+
+/* Flowchart */
+.flow { display: flex; flex-direction: column; gap: 0; }
+.flow-step { display: flex; align-items: flex-start; gap: 14px; padding: 14px 0; }
+.flow-step + .flow-step { border-top: 1px dashed var(--border); }
+.flow-num { min-width: 28px; height: 28px; border-radius: 50%; background: rgba(32,201,151,0.15); border: 1px solid rgba(32,201,151,0.35); color: var(--ok); font-size: 0.75rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 2px; }
+.flow-body { flex: 1; }
+.flow-title { font-weight: 600; font-size: 0.88rem; margin-bottom: 4px; }
+.flow-desc { color: var(--text-muted); font-size: 0.82rem; }
+.flow-example { margin-top: 8px; }
+.flow-arrow { text-align: center; color: var(--text-muted); font-size: 0.75rem; padding: 2px 0; }
+
+/* Drift cards */
+.drift-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; position: relative; overflow: hidden; }
+.drift-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+.drift-card.critical::before { background: var(--p0); }
+.drift-card.attention::before { background: var(--p1); }
+.drift-card.info::before { background: var(--p2); }
+.drift-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.drift-name { font-weight: 600; font-size: 0.88rem; }
+.drift-problem { color: var(--text-muted); font-size: 0.81rem; margin-bottom: 10px; line-height: 1.5; }
+.drift-action { font-size: 0.78rem; padding: 6px 10px; background: rgba(0,0,0,0.3); border-radius: 6px; border-left: 3px solid; }
+.drift-action.critical-action { border-color: var(--p0); color: rgba(239,68,68,0.9); }
+.drift-action.attention-action { border-color: var(--p1); color: rgba(245,158,11,0.9); }
+.drift-action.info-action { border-color: var(--p2); color: #9ca3af; }
+
+/* Auto-aprendizado */
+.learn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media(max-width:768px) { .learn-grid { grid-template-columns: 1fr; } }
+.learn-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.learn-card-title { font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.learn-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.82rem; }
+.learn-item:last-child { border-bottom: none; }
+.learn-icon { font-size: 1rem; min-width: 20px; margin-top: 1px; }
+
+/* Ações priorizadas */
+.action-item { display: flex; align-items: flex-start; gap: 14px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; }
+.action-item.p0 { border-left: 3px solid var(--p0); background: rgba(239,68,68,0.04); }
+.action-item.p1 { border-left: 3px solid var(--p1); background: rgba(245,158,11,0.03); }
+.action-item.p2 { border-left: 3px solid var(--p2); background: rgba(107,114,128,0.04); }
+.action-badge { padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.5px; min-width: 28px; text-align: center; margin-top: 2px; }
+.action-badge.p0 { background: rgba(239,68,68,0.2); color: var(--p0); }
+.action-badge.p1 { background: rgba(245,158,11,0.15); color: var(--p1); }
+.action-badge.p2 { background: rgba(107,114,128,0.15); color: #9ca3af; }
+.action-body { flex: 1; }
+.action-title { font-weight: 600; font-size: 0.85rem; margin-bottom: 3px; }
+.action-desc { color: var(--text-muted); font-size: 0.8rem; }
+
+/* Score chip */
+.score-chip { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+.score-high { background: rgba(32,201,151,0.15); color: var(--ok); }
+.score-med { background: rgba(245,158,11,0.12); color: var(--p1); }
+.score-low { background: rgba(239,68,68,0.12); color: var(--p0); }
+.score-exact { background: rgba(167,139,250,0.15); color: var(--accent6); }
+
+/* Highlight text */
+.hl-red { color: var(--p0); font-weight: 600; }
+.hl-yellow { color: var(--p1); font-weight: 600; }
+.hl-green { color: var(--ok); }
+.hl-blue { color: var(--accent5); }
+.hl-mono { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 4px; }
+
+/* Footer */
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 48px; }
+
+/* Divider */
+.divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+/* Alert box */
+.alert { padding: 12px 16px; border-radius: 8px; font-size: 0.82rem; margin-bottom: 14px; border-left: 3px solid; }
+.alert-red { background: rgba(239,68,68,0.07); border-color: var(--p0); color: rgba(240,236,232,0.85); }
+.alert-yellow { background: rgba(245,158,11,0.07); border-color: var(--p1); color: rgba(240,236,232,0.85); }
+.alert-green { background: rgba(32,201,151,0.07); border-color: var(--ok); color: rgba(240,236,232,0.85); }
+.alert-blue { background: rgba(91,196,245,0.07); border-color: var(--accent5); color: rgba(240,236,232,0.85); }
+
+/* Count chip */
+.count-chip { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 1px 8px; font-size: 0.73rem; color: var(--text-muted); margin-left: 6px; font-family: 'JetBrains Mono', monospace; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="hero-emoji">🏢</span>
+    <h1 class="gradient-text">Diagnóstico: Matching de Empresas</h1>
+    <p class="hero-sub">Análise completa do sistema de matching automático ApiFull → Empresas cadastradas</p>
+    <div class="badges">
+      <span class="badge bp">MdFlow v2.0</span>
+      <span class="badge br">3 P0 críticos</span>
+      <span class="badge by">5 P1 atenção</span>
+      <span class="badge bb">2026-05-05</span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="grid g3" style="margin-bottom: 32px;">
+    <div class="stat-card">
+      <div class="stat-value ok">21</div>
+      <div class="stat-label">Empresas com variações mapeadas</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value danger">1.401</div>
+      <div class="stat-label">Restrições sem empresa_id (empresa conhecida no banco)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value warn">6</div>
+      <div class="stat-label">Drifts detectados em nome_variacoes</div>
+    </div>
+  </div>
+
+  <!-- RESUMO EXECUTIVO -->
+  <div class="card" style="margin-bottom: 32px;">
+    <div class="card-title">Resumo Executivo</div>
+    <p style="font-size:0.85rem; color: var(--text-muted); line-height: 1.7;">
+      O sistema de matching usa <strong style="color:var(--text)">tokenSimilarity</strong> + <strong style="color:var(--text)">nome_variacoes</strong> com auto-aprendizado via drawer de auditoria.
+      Os dados revelam <span class="hl-red">1.401 restrições sem empresa_id</span> para credores cujas empresas já existem no banco — o maior gap sendo <span class="hl-red">BOA VISTA SERVICOS S.A. (389 casos)</span> sem vínculo mesmo a empresa existindo com esse nome quase idêntico.
+      O principal problema estrutural é que restrições criadas fora do fluxo de auditoria (migração/CRM antigo) <span class="hl-yellow">nunca acionam o auto-aprendizado</span> e ficam permanentemente sem vínculo.
+      Adicionalmente, foram detectados <span class="hl-red">3 drifts críticos</span> em nome_variacoes: dados de teste em produção, cross-contaminação entre fundos FIDC e mapeamento NPL I → NPL II incorreto.
+    </p>
+  </div>
+
+  <!-- SEÇÃO 1: COMO FUNCIONA O MATCHING -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⚙️</span>
+      <h2>Como Funciona o Matching</h2>
+    </div>
+
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-title">Algoritmo — 3 passos em sequência</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-body">
+            <div class="flow-title">Match exato em nome_variacoes <span class="score-exact" style="margin-left:8px;">score 1.0 — EXATO</span></div>
+            <div class="flow-desc">Normaliza o credor recebido (remove acentos, lowercase, caracteres especiais) e compara contra todas as strings do array nome_variacoes de cada empresa cadastrada. Match case-insensitive após normalização.</div>
+            <div class="flow-example">
+              <div class="code"
+><span class="comment">// Exemplo: "SCPC - Boa Vista Serviços" → normaliza → "scpc boa vista servicos"
+// Compara com nome_variacoes de BOA VISTA SERVICOS S.A.:
+//   ["BOA VISTA", "BOA VISTA SERVICOS", "SCPC - BOA VISTA SERVIÇOS"]
+// → normalizado "scpc boa vista servicos" encontrado → score 1.0 → match EXATO</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-body">
+            <div class="flow-title">tokenSimilarity fuzzy — nome, razao_social, nome_fantasia, nome_variacoes <span class="score-high" style="margin-left:8px;">score ≥ 0.45 → aceito</span></div>
+            <div class="flow-desc">Tokeniza ambos os strings por espaço, calcula interseção de tokens sobre o máximo dos dois sets. Compara o credor contra todos os campos textuais de todas as empresas e retorna o maior score.</div>
+            <div class="flow-example">
+              <div class="code"
+><span class="comment">// Exemplo A: "BANCO DO BRASIL S/A" vs "BANCO DO BRASIL S.A."
+// tokensA = ["banco","do","brasil","s"]  tokensB = ["banco","do","brasil","s","a"]
+// common = 4  |  max(4,5) = 5  →  score = 4/5 = 0.80 → match ALTO ✅
+//
+// Exemplo B: "MERCADO PAGO INSTITUICAO DE PAGAMENTO LTDA" vs "MERCADO PAGO INST. DE PAGAMENTO LTDA"
+// tokensA = ["mercado","pago","instituicao","de","pagamento","ltda"]  (6)
+// tokensB = ["mercado","pago","inst","de","pagamento","ltda"]  (6)
+// common = ["mercado","pago","de","pagamento","ltda"] = 5  →  score = 5/6 = 0.83 → match ALTO ✅
+//
+// Exemplo C: "LEBES FINANCEIRA S.A." vs qualquer empresa
+// → nenhuma empresa com tokens similares → score < 0.45 → SEM MATCH</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-body">
+            <div class="flow-title">Classificação do match_type</div>
+            <div class="flow-desc">Determina a confiança do match baseado no score final obtido nos passos 1 e 2.</div>
+            <div class="flow-example" style="margin-top:10px;">
+              <div class="grid g3" style="gap:10px;">
+                <div style="background:rgba(167,139,250,0.08); border:1px solid rgba(167,139,250,0.2); border-radius:8px; padding:10px;">
+                  <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--accent6); margin-bottom:4px;">EXATO</div>
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">variação ≥ 0.6</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Match por nome_variacoes com score alto</div>
+                </div>
+                <div style="background:rgba(32,201,151,0.07); border:1px solid rgba(32,201,151,0.2); border-radius:8px; padding:10px;">
+                  <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--ok); margin-bottom:4px;">ALTO</div>
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">score ≥ 0.75</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Alta confiança — aceito automaticamente</div>
+                </div>
+                <div style="background:rgba(245,158,11,0.07); border:1px solid rgba(245,158,11,0.2); border-radius:8px; padding:10px;">
+                  <div style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--p1); margin-bottom:4px;">MEDIO</div>
+                  <div style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">0.45 — 0.74</div>
+                  <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">Confirmação humana recomendada</div>
+                </div>
+              </div>
+              <div style="margin-top:10px; background:rgba(239,68,68,0.07); border:1px solid rgba(239,68,68,0.2); border-radius:8px; padding:10px;">
+                <span style="font-size:0.7rem; text-transform:uppercase; letter-spacing:0.8px; color:var(--p0);">SEM MATCH — </span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:0.82rem;">score &lt; 0.45</span>
+                <span style="font-size:0.8rem; color:var(--text-muted); margin-left:8px;">empresa_id = NULL, orgao_nome = nome do credor raw</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-yellow">
+      <strong>Limite de 0.45 — impacto real:</strong> "BANCO DO BRASIL S/A" (tokens: banco,do,brasil,s) vs "BANCO DO BRASIL S.A." (tokens: banco,do,brasil,s,a) → score 0.80. O algoritmo <em>deveria</em> matchar. Se esses 144 casos aparecem sem vínculo, o problema é de <strong>fluxo</strong>, não do algoritmo — foram inseridos diretamente no banco sem passar pelo pipeline de matching.
+    </div>
+  </div>
+
+  <!-- SEÇÃO 2: GAPS CRÍTICOS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔴</span>
+      <h2>Gaps Críticos — Restrições sem empresa_id com empresa cadastrada</h2>
+    </div>
+
+    <div class="alert alert-red" style="margin-bottom:14px;">
+      <strong>Causa raiz confirmada:</strong> Registros com <span class="hl-mono">empresa_id = NULL</span> e <span class="hl-mono">orgao_nome = NULL</span> foram criados por fluxo diferente do drawer de auditoria (migração/importação/CRM antigo). O matching nunca foi executado nesses registros — portanto adicionar variações ao banco <em>não resolve retroativamente</em>. Será necessário um script de re-matching em batch.
+    </div>
+
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Credor retornado pela API</th>
+            <th>Ocorrências</th>
+            <th>Empresa no banco</th>
+            <th>Tipo de gap</th>
+            <th>Score estimado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="exact-match">
+            <td><span class="hl-mono">BOA VISTA SERVICOS S.A.</span></td>
+            <td><strong style="color:var(--p0)">389</strong></td>
+            <td>BOA VISTA SERVICOS S.A. <span class="count-chip">existe</span></td>
+            <td><span class="status-pill sp-p0">Fluxo diferente</span></td>
+            <td><span class="score-chip score-exact">1.0 exato</span></td>
+          </tr>
+          <tr class="near-match">
+            <td><span class="hl-mono">MERCADO PAGO INSTITUICAO DE PAGAMENTO LTDA</span></td>
+            <td><strong style="color:var(--p1)">215</strong></td>
+            <td>MERCADO PAGO INST. DE PAGAMENTO LTDA <span class="count-chip">existe</span></td>
+            <td><span class="status-pill sp-p1">Variação faltando</span></td>
+            <td><span class="score-chip score-med">~0.83</span></td>
+          </tr>
+          <tr class="near-match">
+            <td><span class="hl-mono">BANCO DO ESTADO DO RIO GRANDE DO SUL S/A - BANRISUL</span></td>
+            <td><strong style="color:var(--p1)">164</strong></td>
+            <td>BANRISUL <span class="count-chip">existe</span></td>
+            <td><span class="status-pill sp-p1">Fluxo / variação</span></td>
+            <td><span class="score-chip score-med">~0.50</span></td>
+          </tr>
+          <tr class="near-match">
+            <td><span class="hl-mono">BANCO DO BRASIL S/A</span></td>
+            <td><strong style="color:var(--p1)">144</strong></td>
+            <td>BANCO DO BRASIL S.A. <span class="count-chip">existe</span></td>
+            <td><span class="status-pill sp-p1">Fluxo diferente</span></td>
+            <td><span class="score-chip score-high">~0.80</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">SCPC - Boa Vista Serviços</span></td>
+            <td><strong>125</strong></td>
+            <td>BOA VISTA SERVICOS S.A. <span class="count-chip">tem variação SCPC</span></td>
+            <td><span class="status-pill sp-p0">Fluxo diferente</span></td>
+            <td><span class="score-chip score-exact">1.0 variação</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">BANCO SANTANDER (BRASIL) S.A.</span></td>
+            <td><strong>80</strong></td>
+            <td>BANCO SANTANDER S.A. <span class="count-chip">tem variação exata</span></td>
+            <td><span class="status-pill sp-p1">Fluxo diferente</span></td>
+            <td><span class="score-chip score-exact">1.0 variação</span></td>
+          </tr>
+          <tr class="exact-match">
+            <td><span class="hl-mono">ITAU UNIBANCO S.A.</span></td>
+            <td><strong style="color:var(--p0)">78</strong> <span class="badge br" style="font-size:0.65rem; padding:2px 6px;">IDENTICO!</span></td>
+            <td>ITAU UNIBANCO S.A. <span class="count-chip">nome exato</span></td>
+            <td><span class="status-pill sp-p0">Fluxo diferente — P0</span></td>
+            <td><span class="score-chip score-exact">1.0 exato</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">NU PAGAMENTOS S.A. - INSTITUICAO DE PAGAMENTO</span></td>
+            <td><strong>76</strong></td>
+            <td>NU PAGAMENTOS S.A. <span class="count-chip">existe</span></td>
+            <td><span class="status-pill sp-p1">Variação faltando</span></td>
+            <td><span class="score-chip score-med">~0.67</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">O BOTICARIO FRANCHISING LTDA</span></td>
+            <td><strong>74</strong></td>
+            <td>O BOTICARIO PRODUTOS DE BELEZA LTDA <span class="count-chip">diferente</span></td>
+            <td><span class="status-pill sp-p1">Variação faltando</span></td>
+            <td><span class="score-chip score-med">~0.60</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">LEBES FINANCEIRA S.A.</span></td>
+            <td><strong>64</strong></td>
+            <td style="color:var(--text-muted)">— não cadastrada</td>
+            <td><span class="status-pill sp-info">Empresa nova</span></td>
+            <td><span class="score-chip score-low">&lt; 0.45</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">BANCO BRADESCO S.A.</span></td>
+            <td><strong>44</strong></td>
+            <td style="color:var(--text-muted)">— não cadastrado</td>
+            <td><span class="status-pill sp-info">Empresa nova</span></td>
+            <td><span class="score-chip score-low">&lt; 0.45</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">SENFFNET INSTITUICAO DE PAGAMENTO LTDA</span></td>
+            <td><strong>41</strong></td>
+            <td>JEITTO <span class="count-chip">tem variação SENFFNET</span></td>
+            <td><span class="status-pill sp-p1">Fluxo diferente</span></td>
+            <td><span class="score-chip score-exact">1.0 variação</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">BANCO CSF S/A</span></td>
+            <td><strong>33</strong></td>
+            <td style="color:var(--text-muted)">— não cadastrado</td>
+            <td><span class="status-pill sp-info">Empresa nova</span></td>
+            <td><span class="score-chip score-low">&lt; 0.45</span></td>
+          </tr>
+          <tr class="exact-match">
+            <td><span class="hl-mono">ATIVOS S.A. SECURITIZADORA</span></td>
+            <td><strong style="color:var(--p0)">32</strong></td>
+            <td>ATIVOS S.A. SECURITIZADORA <span class="count-chip">SEM variações</span></td>
+            <td><span class="status-pill sp-p1">Score limite ~0.75</span></td>
+            <td><span class="score-chip score-high">~0.75</span></td>
+          </tr>
+          <tr class="exact-match">
+            <td><span class="hl-mono">BANCO ITAUCARD S.A.</span></td>
+            <td><strong style="color:var(--p0)">31</strong> <span class="badge br" style="font-size:0.65rem; padding:2px 6px;">IDENTICO!</span></td>
+            <td>BANCO ITAUCARD S.A. <span class="count-chip">nome exato</span></td>
+            <td><span class="status-pill sp-p0">Fluxo diferente — P0</span></td>
+            <td><span class="score-chip score-exact">1.0 exato</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">RGE SUL DISTRIBUIDORA DE ENERGIA</span></td>
+            <td><strong>30</strong></td>
+            <td>RGE SUL <span class="count-chip">existe</span></td>
+            <td><span class="status-pill sp-p1">Variação faltando</span></td>
+            <td><span class="score-chip score-med">~0.50</span></td>
+          </tr>
+          <tr>
+            <td><span class="hl-mono">BANCO ORIGINAL S/A</span></td>
+            <td><strong>27</strong></td>
+            <td>BANCO ORIGINAL S.A. <span class="count-chip">existe</span></td>
+            <td><span class="status-pill sp-p1">Fluxo / variação</span></td>
+            <td><span class="score-chip score-high">~0.80</span></td>
+          </tr>
+          <tr class="exact-match">
+            <td><span class="hl-mono">TELEFONICA BRASIL S.A.</span></td>
+            <td><strong style="color:var(--p0)">25</strong> <span class="badge br" style="font-size:0.65rem; padding:2px 6px;">IDENTICO!</span></td>
+            <td>TELEFONICA BRASIL S.A. <span class="count-chip">nome exato</span></td>
+            <td><span class="status-pill sp-p0">Fluxo diferente — P0</span></td>
+            <td><span class="score-chip score-exact">1.0 exato</span></td>
+          </tr>
+        </tbody>
+      </table>
+      <div style="margin-top:12px; font-size:0.75rem; color:var(--text-muted);">
+        Linhas em vermelho = nome idêntico ou variação já cadastrada — o matching deveria funcionar, o problema é de fluxo de inserção.
+        Linhas em amarelo = score fuzzy alto mas credor não passou pelo pipeline de matching.
+      </div>
+    </div>
+
+    <div class="alert alert-red" style="margin-top:16px;">
+      <strong>Conclusão do diagnóstico de gaps:</strong> Os casos com nome idêntico (ITAU UNIBANCO S.A. 78x, BANCO ITAUCARD S.A. 31x, TELEFONICA BRASIL S.A. 25x) provam que o algoritmo NÃO foi chamado — esses registros foram inseridos diretamente no banco. A solução não é melhorar o algoritmo de matching, mas sim <strong>executar retroativamente o matching em todos os registros com empresa_id = NULL</strong>.
+    </div>
+  </div>
+
+  <!-- SEÇÃO 3: DRIFTS EM NOME_VARIACOES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⚠️</span>
+      <h2>Drifts em nome_variacoes</h2>
+    </div>
+
+    <div class="alert alert-yellow" style="margin-bottom:16px;">
+      O auto-aprendizado não valida unicidade global — apenas verifica se a variação já existe para a <em>mesma</em> empresa. Isso permite que variações de empresas diferentes sejam adicionadas incorretamente, causando falsos positivos no matching.
+    </div>
+
+    <div class="grid g2" style="margin-bottom:16px;">
+
+      <div class="drift-card critical">
+        <div class="drift-header">
+          <div class="drift-name">VERO S.A.</div>
+          <span class="status-pill sp-p0">CRITICO</span>
+        </div>
+        <div class="drift-problem">
+          O array nome_variacoes contém <span class="hl-mono" style="color:var(--p0);">"Teste Smoke 16:38:34"</span> — dado de teste que foi persistido em produção via auto-aprendizado. Toda restrição com credor "Teste Smoke 16:38:34" vai ser vinculada à VERO S.A. com score 1.0 (exato), gerando vínculo completamente falso.
+        </div>
+        <div class="drift-action critical-action">
+          Acao: executar <code>fn_empresas_remove_variacao</code> (ou UPDATE direto) para remover "Teste Smoke 16:38:34" do array. Auditoria: verificar se existem restrições já vinculadas com esse credor raw.
+        </div>
+      </div>
+
+      <div class="drift-card critical">
+        <div class="drift-header">
+          <div class="drift-name">FIDC IPANEMA IV</div>
+          <span class="status-pill sp-p0">CRITICO</span>
+        </div>
+        <div class="drift-problem">
+          Tem como variação <span class="hl-mono" style="color:var(--p0);">"FIDC MULTISEGMENTOS NPL IPANEMA VI RESPONSABILIDADE LIMITADA"</span>, porém FIDC IPANEMA VI é uma <strong>empresa diferente</strong> cadastrada separadamente no banco. Qualquer restrição com credor IPANEMA VI vai ser vinculada incorretamente ao FIDC IV, causando mistura de passivos entre fundos distintos.
+        </div>
+        <div class="drift-action critical-action">
+          Acao: remover variação IPANEMA VI do FIDC IV. Verificar se restrições IPANEMA VI estão vinculadas ao ID errado e corrigir empresa_id. Checar como essa variação foi inserida (provavelmente confirmacao humana errada no drawer).
+        </div>
+      </div>
+
+      <div class="drift-card critical">
+        <div class="drift-header">
+          <div class="drift-name">NPL I (FUNDO CREDITORIOS NAO-PADRONIZADOS)</div>
+          <span class="status-pill sp-p0">CRITICO</span>
+        </div>
+        <div class="drift-problem">
+          Tem como variação <span class="hl-mono" style="color:var(--p0);">"NPL II"</span>, mas NPL I e NPL II são fundos juridicamente distintos com carteiras independentes. Restrições do NPL II serão vinculadas ao NPL I — erro grave em relatórios de passivo por credor.
+        </div>
+        <div class="drift-action critical-action">
+          Acao: remover "NPL II" das variacoes do NPL I. Auditar restrições vinculadas ao NPL I com credor_raw contendo "NPL II". Corrigir empresa_id para o UUID do NPL II.
+        </div>
+      </div>
+
+      <div class="drift-card attention">
+        <div class="drift-header">
+          <div class="drift-name">VUON CARD / CIB CONSULTORIA</div>
+          <span class="status-pill sp-p1">ATENCAO</span>
+        </div>
+        <div class="drift-problem">
+          VUON CARD tem <span class="hl-mono" style="color:var(--p1);">"CIB CONSULTORIA ADMINISTRACAO E PARTICIPACOES S/A."</span> como variação, mas CIB CONSULTORIA existe como empresa separada cadastrada com razão social similar. Potencial duplicata — restrições da CIB podem estar sendo vinculadas ao VUON CARD.
+        </div>
+        <div class="drift-action attention-action">
+          Acao: verificar se CIB CONSULTORIA e VUON CARD são de fato a mesma entidade (CNPJ). Se forem diferentes: remover variação do VUON CARD e garantir que CIB tem seu próprio cadastro. Se forem a mesma: consolidar em uma empresa e marcar a outra com deleted_at.
+        </div>
+      </div>
+
+      <div class="drift-card attention">
+        <div class="drift-header">
+          <div class="drift-name">CELESC — Possível Duplicata</div>
+          <span class="status-pill sp-p1">ATENCAO</span>
+        </div>
+        <div class="drift-problem">
+          Existem duas entradas: <span class="hl-mono">CELESC DISTRIBUICAO S.A.</span> e <span class="hl-mono">CELESC - CENTRAIS ELETRICAS DE SANTA CATARINA SA</span>. Podem ser a mesma empresa (holding vs subsidiária de distribuição) ou entidades distintas. Matching pode estar dividindo restrições entre os dois cadastros.
+        </div>
+        <div class="drift-action attention-action">
+          Acao: verificar CNPJs. Se subsidiária separada: manter ambas com nomes claros. Se mesma entidade: consolidar mantendo CELESC DISTRIBUICAO como principal e adicionando variação "CELESC CENTRAIS ELETRICAS".
+        </div>
+      </div>
+
+      <div class="drift-card info">
+        <div class="drift-header">
+          <div class="drift-name">BANRISUL — 17 variações por agência</div>
+          <span class="status-pill sp-p2">INFO</span>
+        </div>
+        <div class="drift-problem">
+          BANRISUL tem 17 variações no padrão <span class="hl-mono">"BANRISUL - TAQUARI"</span>, <span class="hl-mono">"BANRISUL - PELOTAS"</span> etc. Funcionalmente correto para matching (credores chegam com nome da agência), mas aumenta o risco de falso positivo se outra empresa tiver "BANRISUL" no nome no futuro.
+        </div>
+        <div class="drift-action info-action">
+          Acao: nenhuma urgente. Monitorar se variações por agência estão causando falsos positivos. Considerar regex matching para padrão "BANRISUL - *" em vez de variações individuais (melhoria futura no algoritmo).
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SEÇÃO 4: AUTO-APRENDIZADO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🧠</span>
+      <h2>Auto-Aprendizado — Onde Funciona e Onde Não Funciona</h2>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title">RPC fn_empresas_append_variacao</div>
+      <div class="code">-- Lógica da RPC (comportamento confirmado):
+-- 1. Recebe: empresa_id UUID, credor_raw TEXT, organizacao_id UUID
+-- 2. Verifica se credor_raw já existe em nome_variacoes (case-insensitive)
+-- 3. Se NÃO existe: faz array_append(nome_variacoes, credor_raw)
+-- 4. Se JÁ existe: noop silencioso
+-- 5. NÃO valida se credor_raw já existe em OUTRA empresa (gap crítico que gerou drifts FIDC/NPL)
+-- Acionada: ao salvar restrição confirmada pelo drawer de auditoria
+--            quando credor_raw ≠ nome canônico da empresa confirmada</div>
+    </div>
+
+    <div class="learn-grid">
+      <div class="learn-card">
+        <div class="learn-card-title" style="color:var(--ok);">
+          <span>✅</span> Funciona — auto-aprende
+        </div>
+        <div class="learn-item">
+          <span class="learn-icon">🔍</span>
+          <div>
+            <div style="font-weight:600; font-size:0.83rem;">Drawer de auditoria (fluxo normal)</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Auditor abre restrição, confirma empresa correta. Se credor_raw difere do nome, variação é adicionada automaticamente.</div>
+          </div>
+        </div>
+        <div class="learn-item">
+          <span class="learn-icon">📎</span>
+          <div>
+            <div style="font-weight:600; font-size:0.83rem;">Match de média confiança confirmado</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Score entre 0.45–0.74 validado pelo usuário aprende a variação para futuras ocorrências idênticas.</div>
+          </div>
+        </div>
+        <div class="learn-item">
+          <span class="learn-icon">🚀</span>
+          <div>
+            <div style="font-weight:600; font-size:0.83rem;">Efeito acumulativo correto</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Cada confirmação melhora matching futuro. Empresas com muitas restrições (BOA VISTA 1202, MERCADO PAGO 597) acumulam variações ricas.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="learn-card">
+        <div class="learn-card-title" style="color:var(--p0);">
+          <span>❌</span> Não funciona — gap estrutural
+        </div>
+        <div class="learn-item">
+          <span class="learn-icon">📦</span>
+          <div>
+            <div style="font-weight:600; font-size:0.83rem;">Restrições importadas / migração</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">orgao_nome = NULL. Foram inseridas diretamente no banco sem passar pelo pipeline de matching. O auto-aprendizado nunca é chamado. São os 1.401 casos do gap acima.</div>
+          </div>
+        </div>
+        <div class="learn-item">
+          <span class="learn-icon">📋</span>
+          <div>
+            <div style="font-weight:600; font-size:0.83rem;">Aba Restrições do CRM (sem auditoria)</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Restrições salvas diretamente na aba do CRM, fora do fluxo de auditoria, não acionam a RPC de aprendizado.</div>
+          </div>
+        </div>
+        <div class="learn-item">
+          <span class="learn-icon">✅</span>
+          <div>
+            <div style="font-weight:600; font-size:0.83rem;">Match exato de primeira (correto omitir)</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">Quando credor_raw = nome canônico da empresa, não há variação nova a aprender. Comportamento correto por design.</div>
+          </div>
+        </div>
+        <div class="learn-item">
+          <span class="learn-icon">⚠️</span>
+          <div>
+            <div style="font-weight:600; font-size:0.83rem;">Cross-empresa não validado (gerou drifts)</div>
+            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:2px;">RPC não verifica se variação já pertence a outra empresa. Confirmação humana errada no drawer gerou os drifts FIDC IV/VI e NPL I/II.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SEÇÃO 5: AÇÕES SUGERIDAS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🎯</span>
+      <h2>Ações Sugeridas — Priorizadas</h2>
+    </div>
+
+    <div class="action-item p0">
+      <div class="action-badge p0">P0</div>
+      <div class="action-body">
+        <div class="action-title">Remover "Teste Smoke 16:38:34" das variações de VERO S.A.</div>
+        <div class="action-desc">Dado de teste em produção causando falso positivo. Executar UPDATE direto ou nova RPC fn_empresas_remove_variacao. Auditar se há restrições já vinculadas com esse credor raw — desvincular se existirem.</div>
+      </div>
+    </div>
+
+    <div class="action-item p0">
+      <div class="action-badge p0">P0</div>
+      <div class="action-body">
+        <div class="action-title">Corrigir cross-contaminação FIDC IPANEMA IV → IPANEMA VI</div>
+        <div class="action-desc">Remover variação "FIDC MULTISEGMENTOS NPL IPANEMA VI..." do cadastro do FIDC IV. Executar query para identificar restrições com empresa_id = FIDC_IV e credor_raw contendo "IPANEMA VI". Corrigir empresa_id para o UUID do IPANEMA VI.</div>
+      </div>
+    </div>
+
+    <div class="action-item p0">
+      <div class="action-badge p0">P0</div>
+      <div class="action-body">
+        <div class="action-title">Corrigir cross-contaminação NPL I com variação "NPL II"</div>
+        <div class="action-desc">Remover "NPL II" das variações do NPL I. Auditar restrições vinculadas ao NPL I com credor_raw = "NPL II" e corrigir empresa_id para o fundo correto. Adicionar validação na RPC para rejeitar variação já existente em outra empresa.</div>
+      </div>
+    </div>
+
+    <div class="action-item p1">
+      <div class="action-badge p1">P1</div>
+      <div class="action-body">
+        <div class="action-title">Script de re-matching em batch para registros com empresa_id = NULL</div>
+        <div class="action-desc">1.401 restrições nunca passaram pelo pipeline de matching. Criar job SQL/n8n que para cada restrição com empresa_id = NULL executa o tokenSimilarity contra todas empresas e preenche empresa_id + match_type se score ≥ 0.45. Prioridade: BOA VISTA (389), MERCADO PAGO (215), BANRISUL (164), BANCO DO BRASIL (144).</div>
+      </div>
+    </div>
+
+    <div class="action-item p1">
+      <div class="action-badge p1">P1</div>
+      <div class="action-body">
+        <div class="action-title">Adicionar variações aos credores com maior volume de gaps</div>
+        <div class="action-desc">Via fn_empresas_append_variacao ou UPDATE direto: BOA VISTA → "BOA VISTA SERVICOS S.A." (389 casos) | BANRISUL → "BANCO DO ESTADO DO RIO GRANDE DO SUL S/A - BANRISUL" (164) | BANCO DO BRASIL → "BANCO DO BRASIL S/A" (144) | NU PAGAMENTOS → "NU PAGAMENTOS S.A. - INSTITUICAO DE PAGAMENTO" (76) | O BOTICARIO → "O BOTICARIO FRANCHISING LTDA" (74).</div>
+      </div>
+    </div>
+
+    <div class="action-item p1">
+      <div class="action-badge p1">P1</div>
+      <div class="action-body">
+        <div class="action-title">Investigar por que ITAU UNIBANCO S.A. (nome idêntico) tem 78 casos sem vínculo</div>
+        <div class="action-desc">O nome é exatamente igual ao cadastrado. Isso confirma que esses registros foram inseridos por fluxo que bypassa o matching. Identificar a origem (migração batch, import CSV, endpoint legado) e garantir que o fluxo atual de inserção sempre acione o matching.</div>
+      </div>
+    </div>
+
+    <div class="action-item p1">
+      <div class="action-badge p1">P1</div>
+      <div class="action-body">
+        <div class="action-title">Adicionar validação cross-empresa na RPC fn_empresas_append_variacao</div>
+        <div class="action-desc">Antes de fazer array_append, verificar se a variação já existe em OUTRA empresa do mesmo organizacao_id. Se sim, retornar erro com o nome da empresa conflitante para o auditor decidir. Isso previne novos drifts como os do FIDC e NPL.</div>
+      </div>
+    </div>
+
+    <div class="action-item p1">
+      <div class="action-badge p1">P1</div>
+      <div class="action-body">
+        <div class="action-title">Cadastrar empresas ausentes: LEBES FINANCEIRA, BANCO BRADESCO, BANCO CSF</div>
+        <div class="action-desc">LEBES FINANCEIRA (64 restrições), BANCO BRADESCO (44), BANCO CSF S/A (33) — empresas com volume relevante mas não cadastradas. Criar registros mínimos para que o matching possa vincular retroativamente após o batch de re-matching (P1 acima).</div>
+      </div>
+    </div>
+
+    <div class="action-item p2">
+      <div class="action-badge p2">P2</div>
+      <div class="action-body">
+        <div class="action-title">Investigar e consolidar VUON CARD / CIB CONSULTORIA duplicata</div>
+        <div class="action-desc">Verificar CNPJs. Se mesma entidade: consolidar com soft delete na duplicata. Se entidades distintas: remover variação CIB do VUON CARD. Impacto estimado baixo — volume de restrições não mencionado.</div>
+      </div>
+    </div>
+
+    <div class="action-item p2">
+      <div class="action-badge p2">P2</div>
+      <div class="action-body">
+        <div class="action-title">Avaliar CELESC DISTRIBUICAO vs CELESC CENTRAIS ELETRICAS — possível duplicata</div>
+        <div class="action-desc">Comparar CNPJs. Holding (CELESC SA) e subsidiária (CELESC DISTRIBUICAO) são CNPJs distintos mas frequentemente tratados como mesmo credor em cobranças. Decisão de negócio: tratar como uma empresa ou manter separadas com variações cruzadas.</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- TABELA RESUMO DE ESTADO DAS EMPRESAS TOP -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📊</span>
+      <h2>Estado Atual — Top Empresas por Volume</h2>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>Restrições vinculadas</th>
+            <th>Variações cadastradas</th>
+            <th>Status matching</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>BOA VISTA SERVICOS S.A.</strong></td>
+            <td>1.202</td>
+            <td>3 variações <span class="count-chip">+389 sem vínculo</span></td>
+            <td><span class="status-pill sp-p1">Batch pendente</span></td>
+          </tr>
+          <tr>
+            <td><strong>MERCADO PAGO INST. DE PAGAMENTO LTDA</strong></td>
+            <td>597</td>
+            <td>2 variações <span class="count-chip">+215 sem vínculo</span></td>
+            <td><span class="status-pill sp-p1">Variação + batch</span></td>
+          </tr>
+          <tr>
+            <td><strong>NU PAGAMENTOS S.A.</strong></td>
+            <td>499</td>
+            <td>2 variações <span class="count-chip">+76 sem vínculo</span></td>
+            <td><span class="status-pill sp-p1">Variação + batch</span></td>
+          </tr>
+          <tr>
+            <td><strong>BANCO SANTANDER S.A.</strong></td>
+            <td>412</td>
+            <td>2 variações <span class="count-chip">+80 sem vínculo</span></td>
+            <td><span class="status-pill sp-p1">Batch pendente</span></td>
+          </tr>
+          <tr>
+            <td><strong>ITAU UNIBANCO S.A.</strong></td>
+            <td>303</td>
+            <td>4 variações <span class="count-chip">+78 idêntico sem vínculo</span></td>
+            <td><span class="status-pill sp-p0">Investigar fluxo</span></td>
+          </tr>
+          <tr>
+            <td><strong>BANRISUL</strong></td>
+            <td>231</td>
+            <td>17 variações <span class="count-chip">+164 sem vínculo</span></td>
+            <td><span class="status-pill sp-p1">Variação longa faltando</span></td>
+          </tr>
+          <tr>
+            <td><strong>ATIVOS S.A. SECURITIZADORA</strong></td>
+            <td>120</td>
+            <td>0 variações <span class="count-chip">+32 sem vínculo</span></td>
+            <td><span class="status-pill sp-p1">Score borderline</span></td>
+          </tr>
+          <tr>
+            <td><strong>VERO S.A.</strong></td>
+            <td>—</td>
+            <td><span class="hl-red">CONTAMINADA</span> (Teste Smoke)</td>
+            <td><span class="status-pill sp-p0">Limpeza urgente</span></td>
+          </tr>
+          <tr>
+            <td><strong>FIDC IPANEMA IV</strong></td>
+            <td>—</td>
+            <td><span class="hl-red">DRIFT CRITICO</span> (IPANEMA VI)</td>
+            <td><span class="status-pill sp-p0">Correção urgente</span></td>
+          </tr>
+          <tr>
+            <td><strong>NPL I</strong></td>
+            <td>—</td>
+            <td><span class="hl-red">DRIFT CRITICO</span> (NPL II)</td>
+            <td><span class="status-pill sp-p0">Correção urgente</span></td>
+          </tr>
+          <tr>
+            <td><strong>JEITTO</strong></td>
+            <td>—</td>
+            <td>Tem variação SENFFNET <span class="count-chip">+41 sem vínculo</span></td>
+            <td><span class="status-pill sp-p1">Batch pendente</span></td>
+          </tr>
+          <tr>
+            <td><strong>WILL FINANCEIRA</strong></td>
+            <td>18</td>
+            <td>0 variações</td>
+            <td><span class="status-pill sp-ok">OK por nome</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    🐙 Jarbas 2.0 — MdLab LegalTech · Diagnóstico Matching de Empresas · 2026-05-05
+  </div>
+
+</div>
+</body>
+</html>

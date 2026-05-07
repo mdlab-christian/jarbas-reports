@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Julia — Fluxo Completo do Sistema</title>
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1714;
+  --surface2: #221f1b;
+  --surface3: #2a2620;
+  --border: #3a3530;
+  --accent: #20c997;
+  --accent-blue: #3b82f6;
+  --accent-red: #ef4444;
+  --accent-yellow: #f59e0b;
+  --accent-purple: #a78bfa;
+  --accent-orange: #fb923c;
+  --text: #e8e3dc;
+  --text-muted: #8a8278;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); font-size: 0.85rem; line-height: 1.6; }
+.container { max-width: 1300px; margin: 0 auto; padding: 24px; }
+.hero { text-align: center; padding: 48px 24px 32px; }
+.hero-emoji { font-size: 2.8rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, #20c997, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 8px; }
+.hero-sub { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 20px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; }
+.bg { background: rgba(32,201,151,0.1); color: var(--accent); border: 1px solid rgba(32,201,151,0.25); }
+.bb { background: rgba(59,130,246,0.1); color: var(--accent-blue); border: 1px solid rgba(59,130,246,0.25); }
+.by { background: rgba(245,158,11,0.1); color: var(--accent-yellow); border: 1px solid rgba(245,158,11,0.25); }
+.br { background: rgba(239,68,68,0.1); color: var(--accent-red); border: 1px solid rgba(239,68,68,0.25); }
+.bp { background: rgba(167,139,250,0.1); color: var(--accent-purple); border: 1px solid rgba(167,139,250,0.25); }
+.tabs { display: flex; gap: 0; border-bottom: 2px solid var(--border); margin: 32px 0 0; overflow-x: auto; }
+.tab { padding: 12px 28px; cursor: pointer; font-size: 0.88rem; font-weight: 600; color: var(--text-muted); border-bottom: 2px solid transparent; margin-bottom: -2px; white-space: nowrap; transition: all 0.2s; user-select: none; }
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-panel { display: none; padding: 32px 0; }
+.tab-panel.active { display: block; }
+.flow { display: flex; flex-direction: column; gap: 0; }
+.conn { display: flex; justify-content: center; align-items: center; padding: 8px 0; }
+.conn-inner { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.conn-line { width: 2px; height: 14px; background: var(--border); }
+.conn-arrow { color: var(--text-muted); line-height: 1; font-size: 1rem; }
+.conn-label { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 2px 10px; font-size: 0.7rem; color: var(--text-muted); margin: 4px 0; white-space: nowrap; }
+.card { border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+.card-script { border-left: 4px solid var(--accent); }
+.card-prompt { border-left: 4px solid var(--accent-blue); }
+.card-error { border-left: 4px solid var(--accent-red); }
+.card-decision { border-left: 4px solid var(--accent-yellow); }
+.card-parallel { border-left: 4px solid var(--accent-purple); }
+.card-external { border-left: 4px solid var(--accent-orange); }
+.card-header { padding: 10px 16px; display: flex; align-items: center; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+.card-header-script { background: rgba(32,201,151,0.07); }
+.card-header-prompt { background: rgba(59,130,246,0.07); }
+.card-header-error { background: rgba(239,68,68,0.07); }
+.card-header-decision { background: rgba(245,158,11,0.07); }
+.card-header-parallel { background: rgba(167,139,250,0.07); }
+.card-header-external { background: rgba(251,146,60,0.07); }
+.file-ref { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); }
+.filename { color: var(--accent); font-weight: 600; }
+.type-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; letter-spacing: 0.5px; white-space: nowrap; }
+.type-script { background: rgba(32,201,151,0.15); color: var(--accent); }
+.type-prompt { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+.type-error { background: rgba(239,68,68,0.15); color: var(--accent-red); }
+.type-decision { background: rgba(245,158,11,0.15); color: var(--accent-yellow); }
+.type-parallel { background: rgba(167,139,250,0.15); color: var(--accent-purple); }
+.type-external { background: rgba(251,146,60,0.15); color: var(--accent-orange); }
+.card-body { padding: 16px; background: var(--surface); }
+.step-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 8px; }
+.step-desc { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 12px; }
+.code-block { font-family: 'JetBrains Mono', monospace; font-size: 0.73rem; background: rgba(0,0,0,0.5); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; color: #4fffb0; overflow-x: auto; white-space: pre; margin: 10px 0; line-height: 1.7; }
+.code-comment { color: #5a6a5a; }
+.db-state { background: rgba(0,0,0,0.3); border: 1px solid rgba(32,201,151,0.2); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-family: 'JetBrains Mono', monospace; font-size: 0.73rem; }
+.db-label { font-size: 0.68rem; color: var(--accent); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.db-row { color: var(--text-muted); margin: 2px 0; }
+.db-row .field { color: #5bc4f5; }
+.db-row .val { color: var(--accent-yellow); }
+.wa-preview { background: rgba(0,0,0,0.25); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+.wa-label { font-size: 0.68rem; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+.wa-bubbles { display: flex; flex-direction: column; gap: 5px; }
+.bubble { display: inline-flex; max-width: 78%; padding: 8px 12px; border-radius: 12px; font-size: 0.82rem; line-height: 1.5; }
+.b-sent { background: #1a3a2e; border: 1px solid rgba(32,201,151,0.15); align-self: flex-end; border-bottom-right-radius: 4px; }
+.b-recv { background: #2a2620; border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 4px; }
+.example-label { font-size: 0.7rem; color: var(--text-muted); font-style: italic; margin: 10px 0 4px; }
+.fork-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.fork-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+@media(max-width: 900px) { .fork-2, .fork-3 { grid-template-columns: 1fr; } }
+.fork-col { background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.fork-col-title { font-size: 0.75rem; font-weight: 600; margin-bottom: 8px; }
+.parallel-box { border: 2px dashed rgba(167,139,250,0.3); border-radius: 12px; padding: 16px; margin: 10px 0; background: rgba(167,139,250,0.03); }
+.parallel-title { font-size: 0.7rem; color: var(--accent-purple); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+.parallel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media(max-width: 768px) { .parallel-grid { grid-template-columns: 1fr; } }
+.error-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 16px 0; }
+@media(max-width: 768px) { .error-grid { grid-template-columns: 1fr; } }
+.error-item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
+.error-item.red { border-left: 3px solid var(--accent-red); }
+.error-item.yellow { border-left: 3px solid var(--accent-yellow); }
+.error-item.blue { border-left: 3px solid var(--accent-blue); }
+.error-item.gray { border-left: 3px solid var(--text-muted); }
+.error-item.purple { border-left: 3px solid var(--accent-purple); }
+.etrigger { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
+.etrigger.red { color: var(--accent-red); }
+.etrigger.yellow { color: var(--accent-yellow); }
+.etrigger.blue { color: var(--accent-blue); }
+.etrigger.gray { color: var(--text-muted); }
+.etrigger.purple { color: var(--accent-purple); }
+.etitle { font-weight: 600; font-size: 0.85rem; margin-bottom: 5px; }
+.edesc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+.section { margin: 36px 0; }
+.sec-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.sec-icon { font-size: 1.1rem; }
+.sec-header h2 { font-size: 1rem; font-weight: 600; }
+.pipeline-steps { display: flex; flex-direction: column; gap: 0; }
+.ps { display: flex; gap: 14px; }
+.ps-num { display: flex; flex-direction: column; align-items: center; min-width: 30px; }
+.ps-circle { width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; flex-shrink: 0; }
+.ps-line { flex: 1; width: 2px; background: var(--border); min-height: 20px; margin: 3px 0; }
+.ps-body { flex: 1; padding-bottom: 18px; }
+.ps-title { font-weight: 600; font-size: 0.88rem; padding: 2px 0 5px; }
+.ps-desc { font-size: 0.78rem; color: var(--text-muted); }
+table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+th { background: var(--surface2); padding: 8px 12px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 0.78rem; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.info-box { background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 0.78rem; color: var(--text-muted); }
+.warn-box { background: rgba(245,158,11,0.05); border: 1px solid rgba(245,158,11,0.2); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 0.78rem; color: var(--text-muted); }
+.forbidden-box { background: rgba(239,68,68,0.05); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 10px 14px; margin: 10px 0; font-size: 0.78rem; }
+ul.checks { list-style: none; padding: 0; }
+ul.checks li { padding: 2px 0; font-size: 0.8rem; color: var(--text-muted); }
+ul.checks li::before { content: '-> '; color: var(--accent); font-weight: 600; }
+.arch-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 12px 0; }
+@media(max-width: 768px) { .arch-grid { grid-template-columns: 1fr 1fr; } }
+.arch-item { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; font-size: 0.72rem; }
+.arch-key { font-weight: 600; margin-bottom: 2px; }
+.arch-val { color: var(--text-muted); }
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 48px; }
+.skill-matrix { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 12px 0; }
+@media(max-width: 768px) { .skill-matrix { grid-template-columns: 1fr; } }
+.skill-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+.skill-name { font-weight: 700; font-size: 0.85rem; color: var(--accent-blue); margin-bottom: 4px; }
+.skill-trigger { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; }
+.objecao-table { margin: 10px 0; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="hero">
+  <span class="hero-emoji">🤖</span>
+  <h1 class="gradient-text">Julia — Fluxo Completo do Sistema</h1>
+  <p class="hero-sub">Midas Atendimento · WhatsApp IA · SDR Leads · claude-sonnet-4-6</p>
+  <div class="badges">
+    <span class="badge bg">🟢 SCRIPT = determinístico</span>
+    <span class="badge bb">🔵 PROMPT = LLM decide</span>
+    <span class="badge by">🟡 DECISÃO = fork logico</span>
+    <span class="badge br">🔴 ERRO = condição especial</span>
+    <span class="badge bp">🟣 PARALLEL = background</span>
+  </div>
+</div>
+
+<!-- ARQUITETURA GERAL -->
+<div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 8px;">
+  <div style="font-size: 0.7rem; color: var(--text-muted); margin-bottom: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Arquitetura geral</div>
+  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;">
+    <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; text-align: center; font-size: 0.75rem; min-width: 120px;">
+      <div style="font-size: 1.1rem; margin-bottom: 3px;">📱</div>
+      <div style="font-weight: 600;">WhatsApp Meta</div>
+      <div style="color: var(--text-muted); font-size: 0.68rem;">5551816855848</div>
+    </div>
+    <div style="color: var(--text-muted); font-size: 0.8rem; flex-shrink: 0;">→ webhook →</div>
+    <div style="background: var(--surface2); border: 1px solid rgba(32,201,151,0.3); border-radius: 8px; padding: 10px 14px; text-align: center; font-size: 0.75rem; min-width: 150px;">
+      <div style="font-size: 1.1rem; margin-bottom: 3px;">⚡</div>
+      <div style="font-weight: 600; color: var(--accent);">mdzap-webhook</div>
+      <div style="color: var(--text-muted); font-size: 0.68rem;">Edge Function Supabase</div>
+      <div style="color: var(--text-muted); font-size: 0.68rem;">salva whatsapp_mensagens</div>
+    </div>
+    <div style="color: var(--text-muted); font-size: 0.8rem; flex-shrink: 0;">→ POST /inbound →</div>
+    <div style="background: var(--surface2); border: 1px solid rgba(59,130,246,0.3); border-radius: 8px; padding: 10px 14px; text-align: center; font-size: 0.75rem; min-width: 150px;">
+      <div style="font-size: 1.1rem; margin-bottom: 3px;">🧠</div>
+      <div style="font-weight: 600; color: var(--accent-blue);">Julia Server</div>
+      <div style="color: var(--text-muted); font-size: 0.68rem;">/Users/julia/julia-server</div>
+      <div style="color: var(--text-muted); font-size: 0.68rem;">Node.js/TS · porta 8787</div>
+    </div>
+    <div style="color: var(--text-muted); font-size: 0.8rem; flex-shrink: 0;">→ Meta API →</div>
+    <div style="background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; text-align: center; font-size: 0.75rem; min-width: 120px;">
+      <div style="font-size: 1.1rem; margin-bottom: 3px;">💬</div>
+      <div style="font-weight: 600;">Lead recebe</div>
+      <div style="color: var(--text-muted); font-size: 0.68rem;">bolhas no WhatsApp</div>
+    </div>
+  </div>
+  <div class="arch-grid">
+    <div class="arch-item"><div class="arch-key" style="color:var(--accent);">Banco</div><div class="arch-val">Supabase qdivfairxhdihaqqypgb</div></div>
+    <div class="arch-item"><div class="arch-key" style="color:var(--accent-blue);">LLM</div><div class="arch-val">claude-sonnet-4-6 + cache 5min</div></div>
+    <div class="arch-item"><div class="arch-key" style="color:var(--accent-yellow);">Vault</div><div class="arch-val">/Users/julia/Documents/julia-vault/</div></div>
+    <div class="arch-item"><div class="arch-key" style="color:var(--accent-purple);">Process</div><div class="arch-val">launchctl com.midas.julia UID 509</div></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="showTab('positiva')">Fase Positiva — Happy Path</div>
+  <div class="tab" onclick="showTab('alternativa')">Fase Alternativa</div>
+  <div class="tab" onclick="showTab('pipeline')">Pipeline F4 — Auditoria Background</div>
+  <div class="tab" onclick="showTab('erros')">Erros e Condicoes Especiais</div>
+  <div class="tab" onclick="showTab('referencia')">Referencia Rapida</div>
+</div>
+
+<!-- ============================ FASE POSITIVA ============================ -->
+<div id="tab-positiva" class="tab-panel active">
+  <div class="sec-header"><span class="sec-icon">✅</span><h2>Happy Path — Lead Joao, objetivo "financiar casa", 1a mensagem com codigo</h2></div>
+
+  <div class="flow">
+
+    <!-- STEP 1 -->
+    <div class="card card-external">
+      <div class="card-header card-header-external">
+        <div class="file-ref">📱 <span class="filename">WhatsApp Meta API</span> → Edge Function <span class="filename">mdzap-webhook</span></div>
+        <span class="type-badge type-external">EXTERNO</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Lead envia 1a mensagem com codigo de atendimento</div>
+        <div class="step-desc">Meta API envia webhook HTTP POST para a Edge Function Supabase. A Edge Function salva a mensagem em <code style="color:var(--accent)">whatsapp_mensagens</code> e faz POST para <code style="color:var(--accent)">localhost:8787/inbound</code>.</div>
+        <div class="wa-preview">
+          <div class="wa-label">Lead → Julia (mensagem real chegando)</div>
+          <div class="wa-bubbles">
+            <div class="bubble b-recv">Oi, vim pelo anuncio [Codigo atendimento: 05532177844]</div>
+          </div>
+        </div>
+        <div class="db-state">
+          <div class="db-label">Estado do banco apos chegada</div>
+          <div class="db-row"><span class="field">whatsapp_mensagens</span> → INSERT <span class="val">direcao='entrada', tipo='text', wa_message_id='wamid.xxx'</span></div>
+          <div class="db-row"><span class="field">whatsapp_conversas</span> → <span class="val">ja existe ou criada pela Edge Function</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 2 -->
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L118–L160</div>
+        <span class="type-badge type-script">SCRIPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Extracao de dados do payload + carga da conversa</div>
+        <div class="step-desc">Extrai todos os campos do body do POST. Busca a conversa no Supabase. Conta mensagens de entrada para detectar se e a 1a. Aplica regex para detectar codigo de atendimento (11 digitos).</div>
+        <div class="code-block"><span class="code-comment">// L118-L131 — Extracao campos</span>
+const conversaId    = data.conversa_id       <span class="code-comment">// string uuid</span>
+const numeroId      = data.numero_id         <span class="code-comment">// string uuid</span>
+const contatoNumero = data.contato_numero    <span class="code-comment">// '5551816855848'</span>
+const mensagemTexto = data.mensagem_texto    <span class="code-comment">// 'Oi, vim pelo anuncio [Codigo atendimento: 05532177844]'</span>
+const tipoMsg       = data.tipo ?? 'text'    <span class="code-comment">// 'text'|'image'|'audio'|'voice'|'document'</span>
+const mediaUrl      = data.media_url         <span class="code-comment">// null neste caso</span>
+const waMessageId   = data.wa_message_id
+
+<span class="code-comment">// L140-L160 — Conversa + lead_id</span>
+const { data: conversa } = await supabaseAdmin
+  .from('whatsapp_conversas')
+  .select('id, lead_id')
+  .eq('id', conversaId)
+  .maybeSingle()
+let leadId = conversa?.lead_id ?? null
+
+<span class="code-comment">// Conta msgs de ENTRADA para detectar isFirstMsg</span>
+const { count: msgsCount } = await supabaseAdmin
+  .from('whatsapp_mensagens')
+  .select('id', { count: 'exact', head: true })
+  .eq('conversa_id', conversaId)
+  .eq('direcao', 'entrada')
+
+const isFirstMsg  = (msgsCount ?? 0) <= 1   <span class="code-comment">// a propria msg conta → true</span>
+const codigoMatch = mensagemTexto?.match(
+  /\[Codigo atendimento:\s*(\d{11})\]/i
+)
+<span class="code-comment">// codigoMatch = ['[Codigo atendimento: 05532177844]', '05532177844']</span></div>
+        <div class="db-state">
+          <div class="db-label">Condicoes avaliadas</div>
+          <div class="db-row"><span class="field">isFirstMsg</span> = <span class="val">true</span></div>
+          <div class="db-row"><span class="field">codigoMatch[1]</span> = <span class="val">'05532177844'</span></div>
+          <div class="db-row"><span class="field">tipoMsg</span> = <span class="val">'text'</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 3 GATE -->
+    <div class="card card-decision">
+      <div class="card-header card-header-decision">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L163–L200</div>
+        <span class="type-badge type-decision">DECISAO</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">GATE: 1a mensagem tem codigo de atendimento?</div>
+        <div class="fork-2" style="margin-top:12px;">
+          <div class="fork-col">
+            <div class="fork-col-title" style="color:var(--accent);">✅ isFirstMsg + codigoMatch — HAPPY PATH</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">Continua para criar/localizar o lead via RPC</div>
+            <div class="code-block" style="font-size:0.7rem;"><span class="code-comment">// cpfFromCode = codigoMatch[1]
+// Avanca para fn_julia_criar_lead</span></div>
+          </div>
+          <div class="fork-col">
+            <div class="fork-col-title" style="color:var(--accent-red);">❌ isFirstMsg=true SEM codigo — GATE BLOQUEIA</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">Julia NAO responde. Lead sinalizado para revisao humana.</div>
+            <div class="code-block" style="font-size:0.7rem;">await supabaseAdmin.from('leads')
+  .update({
+    awaiting_human: true,
+    observacoes: 'Lead chegou sem codigo'
+  }).eq('id', leadId)
+return jsonResp(res, {
+  success: true,
+  action: 'noop',
+  data: { skipped: true, reason: 'no_code' }
+})</div>
+          </div>
+        </div>
+        <div class="warn-box">Leads sem codigo vem de fontes nao mapeadas. O gate impede Julia de responder e sinaliza para revisao humana (awaiting_human=true).</div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-label">isFirstMsg + codigoMatch OK</div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 4 RPC -->
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L200–L280</div>
+        <span class="type-badge type-script">SCRIPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Criacao/busca do lead via RPC fn_julia_criar_lead</div>
+        <div class="step-desc">CPF extraido do codigo de atendimento e passado para o RPC no Supabase. O RPC e idempotente: se o CPF ja existe na org, retorna o lead existente (criado_agora=false). Se nao existe, cria e retorna (criado_agora=true).</div>
+        <div class="code-block">const cpfFromCode = codigoMatch[1]  <span class="code-comment">// '05532177844'</span>
+
+const { data: rpcResult } = await supabaseAdmin.rpc(
+  'fn_julia_criar_lead',
+  {
+    p_numero_whatsapp: contatoNumero,  <span class="code-comment">// '5551816855848'</span>
+    p_cpf:            cpfFromCode,     <span class="code-comment">// '05532177844'</span>
+    p_nome:           data.contato_nome, <span class="code-comment">// 'Joao Silva' ou '.' se nao mapeado</span>
+    p_organizacao_id: env.organizacao_id
+  }
+)
+<span class="code-comment">// rpcResult.lead_id     → UUID do lead</span>
+<span class="code-comment">// rpcResult.criado_agora → boolean</span>
+leadId = rpcResult.lead_id</div>
+        <div class="db-state">
+          <div class="db-label">Estado banco apos RPC</div>
+          <div class="db-row"><span class="field">leads.id</span> = <span class="val">"uuid-gerado"</span></div>
+          <div class="db-row"><span class="field">leads.cpf</span> = <span class="val">"05532177844"</span></div>
+          <div class="db-row"><span class="field">leads.numero_whatsapp</span> = <span class="val">"5551816855848"</span></div>
+          <div class="db-row"><span class="field">leads.julia_auditoria_status</span> = <span class="val">null</span></div>
+          <div class="db-row"><span class="field">leads.awaiting_human</span> = <span class="val">false</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 5 CONTEXTO -->
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L280–L310</div>
+        <span class="type-badge type-script">SCRIPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Fix contato_nome placeholder + Carregamento contexto do lead</div>
+        <div class="step-desc">Se contato_nome chegou como "." ou como numero de telefone, busca o nome real do lead e atualiza a conversa (operacao void — nao bloqueia). Depois carrega o lead completo para extrair contexto_consolidado, coluna_crm e awaiting_human.</div>
+        <div class="code-block"><span class="code-comment">// L280-L296 — Fix nome placeholder</span>
+const isPlaceholder = !contato_nome
+  || contato_nome === '.'
+  || /^\d+$/.test(contato_nome)
+
+if (isPlaceholder) {
+  <span class="code-comment">// void: nao bloqueia a resposta Julia</span>
+  const { data: leadNome } = await supabaseAdmin
+    .from('leads').select('nome')
+    .eq('id', leadId).maybeSingle()
+  await supabaseAdmin.from('whatsapp_conversas')
+    .update({ contato_nome: leadNome?.nome })
+    .eq('id', conversaId)
+}
+
+<span class="code-comment">// L300-L310 — Carrega lead para contexto</span>
+const { data: lead } = await supabaseAdmin
+  .from('leads')
+  .select('contexto_consolidado, nome, coluna_crm, awaiting_human')
+  .eq('id', leadId).maybeSingle()
+
+<span class="code-comment">// contexto_consolidado → injetado no system prompt</span>
+<span class="code-comment">// Se awaiting_human=true SEM codigoMatch → skip silencioso</span>
+<span class="code-comment">// Se awaiting_human=true COM codigoMatch → reset para false + continua</span></div>
+        <div class="info-box">O contexto_consolidado e uma string gerada por um worker/trigger que consolida dados do lead (restricoes, objetivo, interacoes anteriores) para dar memoria a Julia entre sessoes.</div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 6 MIDIA -->
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L315–L375</div>
+        <span class="type-badge type-script">SCRIPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Processamento de midia (passthrough para texto)</div>
+        <div class="step-desc">Para mensagens de texto (tipoMsg='text'), esta fase e passthrough: textoEfetivo = mensagemTexto. Para midia, aplica processamento antes de passar ao LLM.</div>
+        <div class="code-block"><span class="code-comment">// L315-L375 — Midia routing</span>
+let textoMidia = null
+let mediaContextNote = ''
+
+if (tipoMsg === 'audio' || tipoMsg === 'voice') {
+  textoMidia = await transcribeAudio(mediaUrl)
+  <span class="code-comment">// Whisper.cpp local</span>
+  mediaContextNote = '[Mensagem de audio — transcrita via Whisper]'
+}
+if (tipoMsg === 'image' && mediaUrl) {
+  textoMidia = await analyzeImage(mediaUrl)
+  <span class="code-comment">// Vision API Anthropic</span>
+  mediaContextNote = '[Lead enviou IMAGEM. Conteudo analisado pela visao:]'
+}
+if (tipoMsg === 'document' && mediaUrl) {
+  textoMidia = await analyzeImage(mediaUrl)
+  <span class="code-comment">// tenta Vision — falha gracefully para PDF</span>
+  mediaContextNote = '[Lead enviou DOCUMENTO. Reconheca o recebimento.]'
+}
+
+<span class="code-comment">// Happy path: textoMidia = null</span>
+const textoEfetivo = textoMidia ?? mensagemTexto ?? ''
+<span class="code-comment">// = 'Oi, vim pelo anuncio [Codigo atendimento: 05532177844]'</span></div>
+        <table>
+          <tr><th>tipoMsg</th><th>Processamento</th><th>Se falhar</th></tr>
+          <tr><td>text</td><td>Passthrough direto</td><td>—</td></tr>
+          <tr><td>audio / voice</td><td>Whisper.cpp local</td><td>Julia pede para digitar</td></tr>
+          <tr><td>image</td><td>Vision API Anthropic</td><td>Pede descricao em texto</td></tr>
+          <tr><td>document</td><td>Vision API (tenta)</td><td>Confirma recebimento gracefully</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 7 CPF + BACKGROUND SPLIT -->
+    <div class="card card-parallel">
+      <div class="card-header card-header-parallel">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L376–L415</div>
+        <span class="type-badge type-parallel">SCRIPT + FORK PARALELO</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">F11-B: Deteccao CPF + Disparo pipeline auditoria em background</div>
+        <div class="step-desc">O CPF do codigo de atendimento e salvo no lead (se ainda nao tem). O pipeline de auditoria e disparado via <code style="color:var(--accent)">setImmediate()</code> — roda em background sem bloquear a resposta ao lead.</div>
+        <div class="code-block"><span class="code-comment">// L376-L415 — CPF detection + background pipeline</span>
+const cpfDetectado = extractCpf(textoEfetivo)
+<span class="code-comment">// regex + validacao digitos verificadores mod-11</span>
+<span class="code-comment">// Neste caso: cpfDetectado = '05532177844' (do codigo)</span>
+
+if (cpfDetectado && isValidCpf(cpfDetectado)) {
+  <span class="code-comment">// Salva CPF no lead — apenas se ainda nao tem (best-effort)</span>
+  void supabaseAdmin.from('leads')
+    .update({ cpf: cpfDetectado })
+    .eq('id', leadId)
+    .is('cpf', null)
+
+  <span class="code-comment">// FORCA PARALELA: pipeline roda AGORA sem bloquear</span>
+  setImmediate(() => rodarAuditoriaCompleta({
+    leadId,
+    organizacaoId: env.organizacao_id,
+    cpf:           cpfDetectado,        <span class="code-comment">// '05532177844'</span>
+    numeroId,
+    contatoNumero,
+    conversaId,
+    requestId:     env.request_id
+  }))
+}</div>
+
+        <div class="parallel-box" style="margin-top:14px;">
+          <div class="parallel-title">🟣 FLUXO PARALELO — 2 threads rodando ao mesmo tempo</div>
+          <div class="parallel-grid">
+            <div>
+              <div style="font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:8px;">Thread A — resposta Julia ao lead (este fluxo)</div>
+              <ul class="checks">
+                <li>Seleciona skill recepcao.md</li>
+                <li>Monta system prompt (SOUL + STYLE + skill)</li>
+                <li>Injeta Brief DF + contexto + CPF</li>
+                <li>Chama Anthropic claude-sonnet-4-6</li>
+                <li>Aplica forbidden filter</li>
+                <li>Envia bolhas via Meta API (~3-5s total)</li>
+              </ul>
+            </div>
+            <div>
+              <div style="font-size:0.75rem;font-weight:600;color:var(--accent-purple);margin-bottom:8px;">Thread B — auditoria-pipeline.ts (~30-90s)</div>
+              <ul class="checks">
+                <li>STEP 1: Lock status = 'rodando'</li>
+                <li>STEP 2: POST APIFULL Boa Vista SCPC</li>
+                <li>STEP 3: Classificar restricoes do lead</li>
+                <li>STEP 3.5: INSERT auditorias + RPC restricoes</li>
+                <li>STEP 4: Gerar PDF Chrome headless</li>
+                <li>STEP 5: Upload Storage signed URL</li>
+                <li>STEP 6: Envia texto + PDF ao lead</li>
+                <li>STEP 7: INSERT whatsapp_mensagens</li>
+                <li>STEP 7b: Pedido de documentos (delay 3s)</li>
+                <li>STEP 8: status = 'concluida'</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="db-state" style="margin-top:12px;">
+          <div class="db-label">Estado banco — inicio do background</div>
+          <div class="db-row"><span class="field">leads.julia_auditoria_status</span> = <span class="val">'rodando'</span> (apos STEP 1 da Thread B)</div>
+          <div class="db-row"><span class="field">leads.cpf</span> = <span class="val">'05532177844'</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-label">Thread A continua — selecao de skill</div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 8 SKILL -->
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L416–L462</div>
+        <span class="type-badge type-script">SCRIPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Selecao de skill + Injecao CPF + Montagem do user message</div>
+        <div class="step-desc">Carrega Brief DF do lead. Detecta objecao por regex (8 tipos). Verifica se PDF ja foi gerado. Seleciona skill com base em prioridade. Para 1a mensagem: sempre recepcao.md. Injeta CPF no user message para evitar que o LLM o peca.</div>
+        <div class="code-block"><span class="code-comment">// Carrega brief (objetivo, classificacao predita, UTM)</span>
+const brief   = await loadDiagnosticoBrief(leadId)
+const objecao = detectarObjecao(textoEfetivo)
+
+<span class="code-comment">// Verifica PDF anterior (sem limite de tempo)</span>
+const { data: lastPdf } = await supabaseAdmin
+  .from('julia_pdfs_gerados')
+  .select('id')
+  .eq('lead_id', leadId)
+  .order('created_at', { ascending: false })
+  .limit(1).maybeSingle()
+const hasPdf = lastPdf != null  <span class="code-comment">// false — 1a msg</span>
+
+<span class="code-comment">// PRIORIDADE DA SKILL:</span>
+let skillFile = 'recepcao.md'           <span class="code-comment">// ← DEFAULT USADO AQUI</span>
+if (objecao)                skillFile = 'objecao.md'
+else if (hasPdf && !isFirstMsg) skillFile = 'pos_pdf.md'
+
+<span class="code-comment">// L452-L462 — Injeta CPF no user message</span>
+if (codigoMatch) {
+  userMessageParts.push(
+    `CPF do lead extraido automaticamente: ${codigoMatch[1]}. NAO peca o CPF ao lead.`
+  )
+}</div>
+        <div style="margin-top:12px;">
+          <table>
+            <tr><th>Condicao</th><th>Skill selecionada</th><th>Prioridade</th></tr>
+            <tr><td>objecao detectada</td><td style="color:var(--accent-blue);">objecao.md</td><td>1 (mais alta)</td></tr>
+            <tr><td>hasPdf=true AND !isFirstMsg</td><td style="color:var(--accent-blue);">pos_pdf.md</td><td>2</td></tr>
+            <tr><td>default (1a msg)</td><td style="color:var(--accent);">recepcao.md</td><td>3 (fallback)</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 9 SYSTEM PROMPT -->
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L465–L510</div>
+        <span class="type-badge type-script">SCRIPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Montagem do system prompt completo</div>
+        <div class="step-desc">Lê os arquivos do vault e monta o system prompt que sera enviado ao claude-sonnet-4-6. A montagem e hierarquica: SOUL + STYLE + skill.</div>
+        <div class="code-block"><span class="code-comment">// loadSystemPrompt concatena na ordem:</span>
+<span class="code-comment">// 1. /Users/julia/Documents/julia-vault/00_cerebro/SOUL.md</span>
+<span class="code-comment">// 2. /Users/julia/Documents/julia-vault/00_cerebro/STYLE.md</span>
+<span class="code-comment">// 3. /Users/julia/Documents/julia-vault/01_skills/recepcao.md</span>
+<span class="code-comment">// 4. "---OUTPUT OBRIGATORIO---\nJSON multi-bolha"</span>
+const system = await loadSystemPrompt('recepcao.md')
+
+<span class="code-comment">// user message parts (array, concatenados):</span>
+<span class="code-comment">// 1. '[Objecao detectada: preco]' (se objecao — nao neste caso)</span>
+<span class="code-comment">// 2. brief formatado (objetivo, UTM, classificacao predita)</span>
+<span class="code-comment">// 3. contexto_consolidado do lead</span>
+<span class="code-comment">// 4. mediaContextNote (vazio neste caso — texto puro)</span>
+<span class="code-comment">// 5. 'CPF do lead: 05532177844. NAO peca o CPF ao lead.'</span>
+<span class="code-comment">// 6. mensagem do lead: 'Oi, vim pelo anuncio...'</span></div>
+        <div class="info-box">O prompt cache ephemeral do Anthropic (5min) cobre o system prompt inteiro, reduzindo latencia e custo em conversas com multiplas mensagens.</div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 10 FORBIDDEN FILTER -->
+    <div class="card card-decision">
+      <div class="card-header card-header-decision">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L510–L560 + <span class="filename">00_cerebro/SOUL.md</span></div>
+        <span class="type-badge type-decision">DECISAO — PRE-ENVIO</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Forbidden filter — verificacao pre-envio da resposta LLM</div>
+        <div class="step-desc">APOS o LLM gerar a resposta, antes de enviar ao lead, o texto e verificado contra os tabus criticos. Se qualquer palavra proibida for encontrada, a resposta e BLOQUEADA e nunca chega ao lead.</div>
+        <div class="forbidden-box">
+          <div style="font-size:0.72rem;font-weight:600;color:var(--accent-red);margin-bottom:8px;">PALAVRAS BLOQUEADAS (regex case-insensitive)</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);">
+            tribunal | processo | judicial | ajuizar | acao judicial | vara | juiz<br>
+            advogado | escritorio | Midas Advocacia | Perinotti | Paz<br>
+            garanto | garantia | 100% | com certeza sai | sem riscos | sucesso garantido
+          </div>
+          <div style="margin-top:8px;font-size:0.75rem;color:var(--accent-red);">Se hit: LOG 'forbidden_hit' → Julia NAO envia nada ao lead → request termina</div>
+        </div>
+        <div class="warn-box">Aviso tecnico bureau: API APIFULL cobre SOMENTE Boa Vista SCPC. Julia nunca pode dizer "seu Serasa" ou "SPC mostra". Correto: "as principais restricoes" / "Boa Vista SCPC".</div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-label">resposta OK — sem palavras proibidas</div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 11 PROMPT RECEPCAO -->
+    <div class="card card-prompt">
+      <div class="card-header card-header-prompt">
+        <div class="file-ref">📁 <span class="filename">julia-vault/01_skills/recepcao.md</span> · TRIGGER: 1a msg + codigoMatch</div>
+        <span class="type-badge type-prompt">PROMPT LLM — claude-sonnet-4-6</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Skill recepcao.md — Resposta ao lead</div>
+        <div class="step-desc">O LLM recebe SOUL + STYLE + recepcao.md + contexto do lead e gera a resposta em formato JSON multi-bolha. O output obrigatorio e um array de bolhas com delays_ms entre elas.</div>
+
+        <div style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 10px; padding: 14px; margin: 10px 0;">
+          <div style="font-size:0.7rem;color:var(--accent-blue);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Trecho do prompt (recepcao.md)</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);font-style:italic;line-height:1.7;">
+            "Voce e Julia. Sua funcao agora e recepcionar o lead que acabou de chegar pelo WhatsApp.<br>
+            <br>
+            OBJETIVOS DESTA SKILL:<br>
+            - Saudar com o nome do lead (se disponivel no brief)<br>
+            - Apresentar Julia da Midas<br>
+            - Confirmar o objetivo do lead (do Brief DF)<br>
+            - Anunciar que a auditoria do CPF esta sendo feita agora<br>
+            - Tom: cuidadoso, sem promessas<br>
+            <br>
+            NUNCA: pedir CPF, mencionar tribunal/processo/advogado, garantir prazo<br>
+            <br>
+            OUTPUT OBRIGATORIO — JSON:<br>
+            { 'bolhas': [...], 'delays_ms': [...] }"
+          </div>
+        </div>
+
+        <div style="font-size:0.72rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px;">Output JSON do LLM (exemplo real — lead com nome + objetivo financiar casa):</div>
+        <div class="code-block">{
+  "bolhas": [
+    "Oi Joao! Tudo certo? 👋",
+    "Aqui e a Julia da Midas.",
+    "Vi que tu quer financiar a casa, ne? Vamos ver o que da pra fazer pelo teu nome.",
+    "Vou fazer uma auditoria do teu CPF agora — em uns 2 minutinhos te mando o resultado por aqui mesmo. ✅"
+  ],
+  "delays_ms": [0, 1500, 1800, 1600]
+}</div>
+
+        <div class="example-label">Exemplo 1: Lead RS com nome + objetivo "financiar casa"</div>
+        <div class="wa-preview">
+          <div class="wa-label">Julia → Lead (enviado em sequencia com delays)</div>
+          <div class="wa-bubbles">
+            <div class="bubble b-sent">Oi Joao! Tudo certo? 👋</div>
+            <div class="bubble b-sent">Aqui e a Julia da Midas.</div>
+            <div class="bubble b-sent">Vi que tu quer financiar a casa, ne? Vamos ver o que da pra fazer pelo teu nome.</div>
+            <div class="bubble b-sent">Vou fazer uma auditoria do teu CPF agora — em uns 2 minutinhos te mando o resultado por aqui mesmo. ✅</div>
+          </div>
+        </div>
+
+        <div class="example-label">Exemplo 2: Lead sem nome no brief (contato_nome = ".")</div>
+        <div class="wa-preview">
+          <div class="wa-bubbles">
+            <div class="bubble b-sent">Oi! Tudo certo? 👋</div>
+            <div class="bubble b-sent">Aqui e a Julia da Midas.</div>
+            <div class="bubble b-sent">A gente faz auditoria das restricoes no teu nome — gratuita. Vou checar seu CPF agora.</div>
+            <div class="bubble b-sent">Em alguns minutinhos te mando o resultado aqui. ✅</div>
+          </div>
+        </div>
+
+        <div class="example-label">Exemplo 3: Lead SC, objetivo "limpar nome pra comprar parcelado"</div>
+        <div class="wa-preview">
+          <div class="wa-bubbles">
+            <div class="bubble b-sent">Oi Maria! Tudo certo? 👋</div>
+            <div class="bubble b-sent">Aqui e a Julia da Midas.</div>
+            <div class="bubble b-sent">Vi que tu quer limpar o nome pra voltar a comprar parcelado. Vou ver o que esta no teu CPF.</div>
+            <div class="bubble b-sent">Ja inicio a consulta — em uns minutinhos te mando o relatorio aqui. ✅</div>
+          </div>
+        </div>
+
+        <div style="margin-top:12px;">
+          <table>
+            <tr><th>Variavel no brief</th><th>Variacao na recepcao</th></tr>
+            <tr><td>nome presente</td><td>"Oi {nome}!"</td></tr>
+            <tr><td>nome ausente</td><td>"Oi!" (sem nome)</td></tr>
+            <tr><td>objetivo: financiar casa</td><td>"Vi que tu quer financiar a casa, ne?"</td></tr>
+            <tr><td>objetivo: limpar nome</td><td>"Vi que tu quer limpar o nome pra voltar a comprar parcelado"</td></tr>
+            <tr><td>objetivo: generico</td><td>"A gente faz auditoria das restricoes no teu nome — gratuita"</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-label">~30-90 segundos depois — Thread B finaliza</div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 12 RESULTADO AUDITORIA -->
+    <div class="card card-parallel">
+      <div class="card-header card-header-parallel">
+        <div class="file-ref">📁 <span class="filename">auditoria-pipeline.ts</span> · STEP 6 — enviado pela Thread B</div>
+        <span class="type-badge type-parallel">BACKGROUND — ENVIA AO LEAD</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Pipeline finaliza: envia texto anuncio + PDF ao lead</div>
+        <div class="step-desc">Apos gerar o PDF (Chrome headless), o pipeline envia: (1) texto de anuncio dinamico, (2) o documento PDF via Meta API, (3) apos 3s, o pedido de documentos se restricoes > 0.</div>
+        <div class="code-block"><span class="code-comment">// STEP 6a — Texto anuncio (dinamico)</span>
+const announceTxt = restricoes > 0
+  ? `✅ *Consulta concluida!*\n\nEncontrei *${n} restricao(oes)* vinculada(s) ao seu CPF. Segue o relatorio completo:`
+  : `✅ *Consulta concluida!*\n\nSeu CPF esta *sem restricoes* ativas. Segue o relatorio:`
+
+<span class="code-comment">// STEP 6b — PDF via sendMetaDocument</span>
+await sendMetaDocument(
+  contatoNumero,
+  pdfSignedUrl,
+  'Relatorio completo de restricoes no CPF 📊'
+)</div>
+
+        <div class="wa-preview">
+          <div class="wa-label">Thread B → Lead (cenario: CPF com 3 restricoes)</div>
+          <div class="wa-bubbles">
+            <div class="bubble b-sent">✅ *Consulta concluida!*<br><br>Encontrei *3 restricoes* vinculadas ao seu CPF. Segue o relatorio completo:</div>
+            <div class="bubble b-sent">📊 Relatorio completo de restricoes no CPF [PDF enviado]</div>
+          </div>
+        </div>
+
+        <div class="conn" style="padding:6px 0;"><div class="conn-inner"><div class="conn-line"></div><div class="conn-label">delay 3s — so se n_restricoes &gt; 0</div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+        <div class="code-block"><span class="code-comment">// STEP 7b — Pedido de documentos (delay 3s, apenas se restricoes > 0)</span>
+const servicoTxt = `Analisei suas restricoes e temos boas chances de excluílas do seu CPF! 🎯
+
+Vamos iniciar um procedimento de contestacao — *todo o servico e 100% gratuito*, quem arca sao as empresas credoras.
+
+Para darmos inicio, preciso de dois documentos:
+📄 *Documento de identificacao* (RG ou CNH)
+🏠 *Comprovante de residencia* atualizado em seu nome
+
+Me manda quando puder! 😊`</div>
+
+        <div class="wa-preview">
+          <div class="wa-label">Thread B → Lead (pedido de documentos)</div>
+          <div class="wa-bubbles">
+            <div class="bubble b-sent">Analisei suas restricoes e temos boas chances de excluí-las do seu CPF! 🎯<br><br>Vamos iniciar um procedimento de contestacao — todo o servico e 100% gratuito, quem arca sao as empresas credoras.<br><br>Para darmos inicio, preciso de dois documentos:<br>📄 Documento de identificacao (RG ou CNH)<br>🏠 Comprovante de residencia atualizado em seu nome<br><br>Me manda quando puder! 😊</div>
+          </div>
+        </div>
+
+        <div class="db-state">
+          <div class="db-label">Estado banco apos pipeline completo</div>
+          <div class="db-row"><span class="field">leads.julia_auditoria_status</span> = <span class="val">'concluida'</span></div>
+          <div class="db-row"><span class="field">auditorias.status</span> = <span class="val">'concluida'</span></div>
+          <div class="db-row"><span class="field">julia_pdfs_gerados</span> → INSERT com <span class="val">lead_id, signed_url, storage_path</span></div>
+          <div class="db-row"><span class="field">whatsapp_mensagens</span> → INSERT <span class="val">tipo='document', direcao='saida'</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-label">Lead responde — proximo turno</div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 13 POS PDF -->
+    <div class="card card-prompt">
+      <div class="card-header card-header-prompt">
+        <div class="file-ref">📁 <span class="filename">julia-vault/01_skills/pos_pdf.md</span> · TRIGGER: hasPdf=true AND !isFirstMsg</div>
+        <span class="type-badge type-prompt">PROMPT LLM — claude-sonnet-4-6</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Skill pos_pdf.md — Qualquer mensagem apos o PDF enviado</div>
+        <div class="step-desc">A partir do proximo turno, hasPdf=true e isFirstMsg=false. A skill pos_pdf.md assume o controle. O lead esta na fase de enviar os documentos (RG/CNH + comprovante).</div>
+        <div style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 10px; padding: 14px; margin: 10px 0;">
+          <div style="font-size:0.7rem;color:var(--accent-blue);font-weight:600;margin-bottom:6px;">Contexto injetado no prompt (pos_pdf.md):</div>
+          <div style="font-size:0.78rem;color:var(--text-muted);font-style:italic;">"A mensagem de pedido de documentos (RG/CNH + comprovante) ja foi enviada automaticamente. Lead esta na fase de entregar docs para cadastro."</div>
+        </div>
+        <div class="example-label">Lead confirma: "ok, vou mandar"</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">ok, vou mandar</div>
+          <div class="bubble b-sent">Perfeito Joao!</div>
+          <div class="bubble b-sent">So me manda os dois documentos aqui mesmo pelo WhatsApp:</div>
+          <div class="bubble b-sent">📄 RG ou CNH</div>
+          <div class="bubble b-sent">🏠 Comprovante de residencia atualizado em seu nome</div>
+        </div></div>
+        <div class="example-label">Lead pergunta: "e gratuito?"</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">e gratuito isso?</div>
+          <div class="bubble b-sent">E 100% gratuito Joao.</div>
+          <div class="bubble b-sent">Tu nao paga nada — nem no inicio, nem no fim.</div>
+          <div class="bubble b-sent">Quem arca com os custos sao as empresas que fizeram as restricoes indevidas no teu nome.</div>
+        </div></div>
+        <div class="example-label">Lead pergunta: "qual o prazo?"</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">quanto tempo leva?</div>
+          <div class="bubble b-sent">Nao existe um prazo exato Joao — cada caso depende das empresas.</div>
+          <div class="bubble b-sent">O tempo medio pra termos um retorno inicial tem sido em torno de 45 dias.</div>
+          <div class="bubble b-sent">Pode acontecer antes ou depois, dependendo. Mas qualquer novidade a gente te avisa na hora.</div>
+        </div></div>
+        <div class="example-label">Lead pergunta: "e tipo Serasa Limpa Nome?"</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">isso e igual ao Serasa Limpa Nome?</div>
+          <div class="bubble b-sent">Nao, e diferente.</div>
+          <div class="bubble b-sent">No Serasa Limpa Nome tu paga a divida com desconto. Aqui a gente nao negocia pagamento — a gente contesta a regularidade da inscricao.</div>
+          <div class="bubble b-sent">Quando encontramos irregularidade: a restricao e excluida. Tu nao paga nada.</div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="conn"><div class="conn-inner"><div class="conn-line"></div><div class="conn-label">Lead envia imagem/doc (RG ou comprovante)</div><div class="conn-arrow">↓</div><div class="conn-line"></div></div></div>
+
+    <!-- STEP 14 DOCS RECEBIDOS -->
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L670–L695 + <span class="filename">pos_pdf.md</span></div>
+        <span class="type-badge type-script">SCRIPT + PROMPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">F13-C1: Lead envia doc/imagem com hasPdf ativo → awaiting_human=true</div>
+        <div class="step-desc">Quando o lead envia imagem ou documento e hasPdf=true, Julia responde "Recebi!" (prompt pos_pdf.md) e entao o script seta awaiting_human=true + coluna_crm='triagem'. Julia PARA de responder automaticamente.</div>
+        <div class="code-block"><span class="code-comment">// L670-L695 — F13-C1: documentos recebidos</span>
+if (hasPdf && !isFirstMsg && leadId
+  && (tipoMsg === 'image' || tipoMsg === 'document')
+  && !codigoMatch) {
+
+  <span class="code-comment">// Seta awaiting_human: especialista humano assume</span>
+  void supabaseAdmin.from('leads')
+    .update({
+      awaiting_human: true,
+      coluna_crm: 'triagem'
+    })
+    .eq('id', leadId)
+  <span class="code-comment">// Julia ainda envia a resposta "Recebi!" deste turno</span>
+  <span class="code-comment">// Mas no proximo turno: skip silencioso (awaiting_human=true)</span>
+}</div>
+        <div class="wa-preview">
+          <div class="wa-label">Troca final — lead envia doc, Julia confirma e para</div>
+          <div class="wa-bubbles">
+            <div class="bubble b-recv">📎 RG_frente.jpg [imagem enviada]</div>
+            <div class="bubble b-sent">Recebi! ✅</div>
+            <div class="bubble b-sent">Vou encaminhar pro nosso especialista fazer a analise do teu caso.</div>
+            <div class="bubble b-sent">Em breve ele entra em contato com voce pelo WhatsApp.</div>
+          </div>
+        </div>
+        <div class="db-state">
+          <div class="db-label">Estado banco final do happy path</div>
+          <div class="db-row"><span class="field">leads.awaiting_human</span> = <span class="val">true</span></div>
+          <div class="db-row"><span class="field">leads.coluna_crm</span> = <span class="val">'triagem'</span></div>
+          <div class="db-row"><span class="field">leads.julia_auditoria_status</span> = <span class="val">'concluida'</span></div>
+        </div>
+        <div style="margin-top:10px;background:rgba(32,201,151,0.07);border:1px solid rgba(32,201,151,0.2);border-radius:8px;padding:10px 14px;font-size:0.78rem;color:var(--accent);">
+          ✅ Happy path completo — lead vai para triagem humana com: auditoria concluida, PDF gerado, documentos recebidos.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================ FASE ALTERNATIVA ============================ -->
+<div id="tab-alternativa" class="tab-panel">
+  <div class="sec-header"><span class="sec-icon">🔀</span><h2>Caminhos alternativos que o lead pode seguir</h2></div>
+
+  <!-- OBJECOES -->
+  <div class="section">
+    <div class="sec-header"><span class="sec-icon">💬</span><h2>Skill objecao.md — 8 tipos de objecao detectados por regex</h2></div>
+    <div class="card card-prompt">
+      <div class="card-header card-header-prompt">
+        <div class="file-ref">📁 <span class="filename">julia-vault/01_skills/objecao.md</span> · TRIGGER: detectarObjecao() != null</div>
+        <span class="type-badge type-prompt">PROMPT LLM</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Deteccao e tratamento de objecoes (PRIORIDADE MAXIMA sobre outras skills)</div>
+        <div class="step-desc">A funcao detectarObjecao() aplica regex ao textoEfetivo. Se detectar qualquer objecao, a skill objecao.md e selecionada independente de hasPdf ou isFirstMsg.</div>
+        <table style="margin-bottom:14px;">
+          <tr><th>#</th><th>Tipo</th><th>Keywords (regex)</th><th>Prioridade</th></tr>
+          <tr><td>4</td><td>golpe/desconfianca</td><td>golpe, fraude, nao acredito, mentira, fake, suspeito</td><td style="color:var(--accent);">1 (mais alta)</td></tr>
+          <tr><td>1</td><td>preco/custo</td><td>caro, custo, preco, quanto custa, cobrar, pagar</td><td>2</td></tr>
+          <tr><td>2</td><td>garantia</td><td>garante, garanto, certeza, com certeza</td><td>3</td></tr>
+          <tr><td>5</td><td>risco</td><td>risco, perder, prejudicar</td><td>4</td></tr>
+          <tr><td>6</td><td>desempregado</td><td>desempregado, sem renda, sem trabalho, fui demitido</td><td>5</td></tr>
+          <tr><td>3</td><td>prazo</td><td>demora, prazo, quando, tempo</td><td>6</td></tr>
+          <tr><td>7</td><td>nao agora/depois</td><td>depois, mais tarde, agora nao, ocupado</td><td>7</td></tr>
+          <tr><td>8</td><td>vou pensar/outro</td><td>vou pensar, preciso pensar, vou falar com, minha esposa</td><td>8</td></tr>
+        </table>
+
+        <div class="example-label">Objecao #4 — golpe/desconfianca (prioridade maxima)</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">isso parece golpe</div>
+          <div class="bubble b-sent">Entendo a desconfianca, e importante ter cuidado. 👍</div>
+          <div class="bubble b-sent">A Midas e um escritorio registrado na OAB. Voce pode verificar no site da OAB RS.</div>
+          <div class="bubble b-sent">Nao cobramos nada adiantado — nunca. Se quiser continuar, me manda os documentos. Se nao quiser, tudo bem tambem.</div>
+        </div></div>
+
+        <div class="example-label">Objecao #1 — preco/custo</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">quanto custa isso?</div>
+          <div class="bubble b-sent">E totalmente gratuito Joao.</div>
+          <div class="bubble b-sent">Tu nao paga nada — nem consulta, nem abertura de processo, nem honorarios.</div>
+          <div class="bubble b-sent">Quem paga e a empresa credora que fez a restricao indevida no teu nome.</div>
+        </div></div>
+
+        <div class="example-label">Objecao #2 — garantia (NUNCA prometer resultado)</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">voce me garante que vai funcionar?</div>
+          <div class="bubble b-sent">Nao posso te garantir nada — seria desonesto da minha parte.</div>
+          <div class="bubble b-sent">O que posso dizer e que a gente so aceita casos quando vemos irregularidade real. Se nao encontrar, a gente te avisa.</div>
+          <div class="bubble b-sent">O risco e nosso — tu nao fica devendo nada se nao der certo.</div>
+        </div></div>
+
+        <div class="example-label">Objecao #7/#8 — nao agora / vou pensar (NAO insistir)</div>
+        <div class="wa-preview"><div class="wa-bubbles">
+          <div class="bubble b-recv">vou pensar</div>
+          <div class="bubble b-sent">Claro, sem pressao! 😊</div>
+          <div class="bubble b-sent">Quando voce quiser, e so me chamar por aqui. Fico a disposicao.</div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOLLOWUP CRON -->
+  <div class="section">
+    <div class="sec-header"><span class="sec-icon">⏰</span><h2>Skill followup.md — Cron outbound para leads esquecidos</h2></div>
+    <div class="card card-prompt">
+      <div class="card-header card-header-prompt">
+        <div class="file-ref">📁 <span class="filename">julia-vault/01_skills/followup.md</span> · TRIGGER: cron 0 9-19/3 * * 1-5</div>
+        <span class="type-badge type-prompt">PROMPT LLM — OUTBOUND</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Followup automatico — leads com ultima interacao entre 3h-24h atras</div>
+        <div class="step-desc">O cron roda das 9h as 19h a cada 3 horas em dias de semana. Busca leads com julia_ultima_interacao entre 3h e 24h atras. CRITICO: janela 24h Meta — nunca enviar outbound apos 24h sem HSM aprovado.</div>
+        <div class="code-block"><span class="code-comment">// Cron: '0 9-19/3 * * 1-5'</span>
+<span class="code-comment">// Leads elegíveis: julia_ultima_interacao BETWEEN now()-24h AND now()-3h</span>
+<span class="code-comment">// AND awaiting_human = false</span>
+<span class="code-comment">// AND julia_auditoria_status IN ('concluida', null)</span></div>
+        <div style="background: rgba(59,130,246,0.05); border: 1px solid rgba(59,130,246,0.2); border-radius: 10px; padding: 14px; margin: 10px 0;">
+          <div style="font-size:0.7rem;color:var(--accent-blue);font-weight:600;margin-bottom:6px;">Output JSON com decisao (LLM decide se envia ou pula)</div>
+          <div class="code-block" style="margin:0;">{ "decisao": "enviar",
+  "bolhas": ["Eii Joao, conseguiu abrir o PDF?", "Qualquer duvida, me chama."],
+  "delays_ms": [0, 1800] }
+<span class="code-comment">// OU</span>
+{ "decisao": "skip",
+  "motivo": "lead disse 'vou pensar' ha 4h — aguardar minimo 12h" }</div>
+        </div>
+        <table>
+          <tr><th>Heuristica</th><th>Acao</th></tr>
+          <tr><td>2 followups sem resposta</td><td>skip definitivo</td></tr>
+          <tr><td>ultima msg "vou pensar"</td><td>aguardar minimo 12h</td></tr>
+          <tr><td>sexta 19h</td><td>parar ate segunda</td></tr>
+          <tr><td>ultima_interacao &gt; 24h</td><td>BLOQUEADO — janela Meta expirada</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ESCALADA -->
+  <div class="section">
+    <div class="sec-header"><span class="sec-icon">👨‍💼</span><h2>Skill escalada.md — Passagem para especialista humano</h2></div>
+    <div class="card card-script">
+      <div class="card-header card-header-script">
+        <div class="file-ref">📁 <span class="filename">julia-vault/01_skills/escalada.md</span> · TRIGGER: lead aceita OU 3 turnos com objecao OU fora do escopo</div>
+        <span class="type-badge type-script">SCRIPT + PROMPT</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">Escalada para Vinicius (especialista) com briefing automatico</div>
+        <div class="step-desc">Quando o lead aceita seguir, ficou 3 turnos com objecao sem desistir, ou faz perguntas fora do escopo da Julia, o sistema escala para humano.</div>
+        <div class="code-block"><span class="code-comment">// Acoes automaticas (SCRIPT):</span>
+await supabaseAdmin.from('leads')
+  .update({ awaiting_human: true })
+  .eq('id', leadId)
+
+<span class="code-comment">// Salva briefing no leads.memoria_julia</span>
+await supabaseAdmin.from('leads')
+  .update({
+    memoria_julia: {
+      briefing_para_especialista: {
+        objetivo: brief.objetivo,
+        restricoes: restricoesResumidas,
+        tom_lead: 'receptivo | desconfiante | neutro',
+        ultima_objecao: objecao?.tipo ?? null,
+        recomendacao: 'ligar em ate 30min'
+      }
+    }
+  }).eq('id', leadId)
+
+<span class="code-comment">// Notifica Vinicius via Telegram</span>
+await notificarTelegram(VINICIUS_CHAT_ID, briefingMsg)</div>
+        <div class="wa-preview">
+          <div class="wa-label">Julia → Lead (cenario positivo)</div>
+          <div class="wa-bubbles">
+            <div class="bubble b-sent">Show Joao!</div>
+            <div class="bubble b-sent">Vou te encaminhar pro nosso especialista financeiro pra explicar como funciona e tirar tuas duvidas.</div>
+            <div class="bubble b-sent">Ele te chama aqui em uns minutos. Pode aguardar?</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RETORNO COM CODIGO -->
+  <div class="section">
+    <div class="sec-header"><span class="sec-icon">🔄</span><h2>Lead retorna com awaiting_human=true + codigo de atendimento</h2></div>
+    <div class="card card-decision">
+      <div class="card-header card-header-decision">
+        <div class="file-ref">📁 <span class="filename">inbound.controller.ts</span> · L300–L315</div>
+        <span class="type-badge type-decision">DECISAO</span>
+      </div>
+      <div class="card-body">
+        <div class="step-title">awaiting_human=true — dois caminhos</div>
+        <div class="fork-2">
+          <div class="fork-col">
+            <div class="fork-col-title" style="color:var(--accent);">Lead manda mensagem COM codigo</div>
+            <div class="code-block" style="font-size:0.7rem;"><span class="code-comment">// Reset awaiting_human</span>
+await supabaseAdmin.from('leads')
+  .update({ awaiting_human: false })
+  .eq('id', leadId)
+<span class="code-comment">// Continua fluxo normal</span></div>
+          </div>
+          <div class="fork-col">
+            <div class="fork-col-title" style="color:var(--text-muted);">Lead manda mensagem SEM codigo</div>
+            <div class="code-block" style="font-size:0.7rem;"><span class="code-comment">// Skip silencioso</span>
+<span class="code-comment">// Julia nao responde</span>
+<span class="code-comment">// Log: 'inbound_skip_awaiting_human'</span>
+return  <span class="code-comment">// 200 sem noop</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ PIPELINE F4 ============================ -->
+<div id="tab-pipeline" class="tab-panel">
+  <div class="sec-header"><span class="sec-icon">🔬</span><h2>Pipeline F4 — Auditoria Background (auditoria-pipeline.ts)</h2></div>
+
+  <div class="card card-parallel" style="margin-bottom:20px;">
+    <div class="card-header card-header-parallel">
+      <div class="file-ref">📁 <span class="filename">src/lib/auditoria-pipeline.ts</span></div>
+      <span class="type-badge type-parallel">BACKGROUND — setImmediate()</span>
+    </div>
+    <div class="card-body">
+      <div class="step-title">Visao geral do pipeline — executado em background enquanto Julia responde</div>
+      <div class="info-box">O pipeline e disparado via setImmediate() — completamente desacoplado da Thread A. Leva ~30-90 segundos. O lead recebe o resultado diretamente pelo WhatsApp sem nova interacao.</div>
+    </div>
+  </div>
+
+  <div class="pipeline-steps">
+
+    <!-- PS1 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(32,201,151,0.15);color:var(--accent);">1</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 1 — Lock (L67): CAS update julia_auditoria_status</div>
+        <div class="ps-desc">Compare-And-Swap atomico no Supabase. Permite transicao apenas de null|erro_* para 'rodando'. Garante que o pipeline nao seja duplicado se a mesma mensagem chegar duas vezes.</div>
+        <div class="code-block" style="font-size:0.72rem;"><span class="code-comment">// L67 — CAS atomico via RPC ou UPDATE com WHERE</span>
+const { data: lockResult } = await supabaseAdmin
+  .from('leads')
+  .update({ julia_auditoria_status: 'rodando' })
+  .eq('id', leadId)
+  .or('julia_auditoria_status.is.null,julia_auditoria_status.like.erro_*')
+  .select('id')
+  .maybeSingle()
+
+if (!lockResult) {
+  <span class="code-comment">// ja esta 'rodando' ou 'concluida' → skip silencioso</span>
+  return
+}</div>
+        <div class="db-state">
+          <div class="db-label">Estado apos STEP 1</div>
+          <div class="db-row"><span class="field">leads.julia_auditoria_status</span> = <span class="val">'rodando'</span></div>
+        </div>
+        <div class="warn-box">Se status for 'concluida': lock bloqueia → pipeline nao roda novamente. Se status for 'erro_*': lock PERMITE re-run (retry automatico).</div>
+      </div>
+    </div>
+
+    <!-- PS2 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">2</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 2 — APIFULL (L106): POST Boa Vista SCPC com CPF</div>
+        <div class="ps-desc">Consulta a API externa APIFULL com o CPF do lead. Retry automatico em caso de 400/429.</div>
+        <div class="code-block" style="font-size:0.72rem;"><span class="code-comment">// L106 — APIFULL Boa Vista SCPC</span>
+const apifullResult = await callApifullBurst(cpf)
+<span class="code-comment">// Retry automatico:</span>
+<span class="code-comment">// 400/429 → wait 3s → tenta novamente</span>
+<span class="code-comment">// 2a falha → wait 6s → tenta novamente</span>
+<span class="code-comment">// 3a falha → throw → leads.julia_auditoria_status='erro_apifull'</span>
+
+<span class="code-comment">// Retorna:</span>
+<span class="code-comment">// { restricoes[], n_restricoes, valor_total_centavos, identificacao }</span></div>
+        <div class="warn-box">APIFULL cobre SOMENTE Boa Vista SCPC. Julia nunca pode mencionar "Serasa" ou "SPC" ao lead. Sempre usar "Boa Vista SCPC" ou "as principais restricoes".</div>
+      </div>
+    </div>
+
+    <!-- PS3 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(245,158,11,0.15);color:var(--accent-yellow);">3</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 3 — Classificacao (L110): classificarLead(restricoes)</div>
+        <div class="ps-desc">Classifica o lead com base nas restricoes encontradas. Determina a pontuacao geral e por tipo de restricao.</div>
+        <div class="code-block" style="font-size:0.72rem;">const { classificacao_geral, por_restricao }
+  = classificarLead(restricoes)
+<span class="code-comment">// classificacao_geral: 'alta'|'media'|'baixa'|'limpo'</span>
+<span class="code-comment">// por_restricao: [{ credor, tipo, contestavel, score }]</span></div>
+      </div>
+    </div>
+
+    <!-- PS3.5 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(32,201,151,0.15);color:var(--accent);">3.5</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 3.5 — CRM (L145): INSERT auditorias + RPC fn_mdzap_auto_cadastrar_restricoes</div>
+        <div class="ps-desc">Salva a auditoria no banco e dispara o RPC que faz fuzzy match dos credores e cadastra as restricoes individualmente em processos (se aplicavel).</div>
+        <div class="code-block" style="font-size:0.72rem;"><span class="code-comment">// INSERT auditorias</span>
+await supabaseAdmin.from('auditorias').insert({
+  organizacao_id,
+  lead_id:              leadId,
+  cpf,
+  bureau:               'apifull_115',
+  status:               'processando',
+  restricoes_encontradas: n_restricoes,
+  valor_total_restricoes: valor_total_centavos,
+  possui_restricoes:    n_restricoes > 0,
+  resultado_json: {
+    restricoes: restricoes.map(r => ({
+      credor, valor, tipo, bureau, data, codigo_contrato
+    }))
+  }
+})
+
+<span class="code-comment">// RPC: fuzzy match credores + salvar cada restricao</span>
+await supabaseAdmin.rpc(
+  'fn_mdzap_auto_cadastrar_restricoes',
+  { p_lead_id: leadId, p_restricoes: restricoes }
+)</div>
+      </div>
+    </div>
+
+    <!-- PS4 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(251,146,60,0.15);color:var(--accent-orange);">4</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 4 — PDF (L198): gerarPDFAuditoriaCompleto() via Chrome headless</div>
+        <div class="ps-desc">Gera um PDF do relatorio de auditoria usando Chrome headless no servidor Julia. Em caso de falha: leads.julia_auditoria_status = 'erro_pdf_gen'.</div>
+        <div class="code-block" style="font-size:0.72rem;"><span class="code-comment">// L198 — Chrome headless via puppeteer/playwright</span>
+const pdfBytes = await gerarPDFAuditoriaCompleto({
+  lead: { nome, cpf },
+  restricoes,
+  classificacao_geral,
+  por_restricao,
+  data_auditoria: new Date()
+})
+<span class="code-comment">// Se falhar: julia_auditoria_status = 'erro_pdf_gen'</span></div>
+      </div>
+    </div>
+
+    <!-- PS5 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(167,139,250,0.15);color:var(--accent-purple);">5</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 5 — Upload (L208): Storage + julia_pdfs_gerados</div>
+        <div class="ps-desc">Faz upload do PDF para o Supabase Storage e insere o registro em julia_pdfs_gerados com a URL assinada.</div>
+        <div class="code-block" style="font-size:0.72rem;">const { signedUrl, storagePath }
+  = await uploadPDFAuditoria(pdfBytes, leadId)
+
+await supabaseAdmin.from('julia_pdfs_gerados').insert({
+  lead_id:      leadId,
+  storage_path: storagePath,
+  signed_url:   signedUrl,
+  organizacao_id,
+  cpf
+})</div>
+        <div class="db-state">
+          <div class="db-label">Estado banco apos STEP 5</div>
+          <div class="db-row"><span class="field">julia_pdfs_gerados</span> → novo registro com <span class="val">signed_url, storage_path</span></div>
+          <div class="db-row"><span class="field">hasPdf</span> = <span class="val">true a partir deste momento</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PS6 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(32,201,151,0.15);color:var(--accent);">6</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 6 — Meta Send (L230): texto anuncio + PDF ao lead</div>
+        <div class="ps-desc">Envia dois elementos via Meta API: o texto de anuncio (dinamico por restricoes) e o documento PDF. Em caso de falha: 'erro_meta_send'.</div>
+        <div class="code-block" style="font-size:0.72rem;"><span class="code-comment">// 6a — Texto anuncio (dinamico)</span>
+const txt = n_restricoes > 0
+  ? `✅ *Consulta concluida!*\n\nEncontrei *${n_restricoes} restricao(oes)*...`
+  : `✅ *Consulta concluida!*\n\nSeu CPF esta *sem restricoes* ativas...`
+await sendMetaMessage(contatoNumero, txt)
+
+<span class="code-comment">// 6b — Documento PDF</span>
+await sendMetaDocument(
+  contatoNumero,
+  signedUrl,
+  'Relatorio completo de restricoes no CPF 📊'
+)
+<span class="code-comment">// Se falhar: julia_auditoria_status='erro_meta_send'</span></div>
+      </div>
+    </div>
+
+    <!-- PS7 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(59,130,246,0.15);color:var(--accent-blue);">7</div>
+        <div class="ps-line"></div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 7 — Persist (L265): INSERT whatsapp_mensagens + servicoTxt</div>
+        <div class="ps-desc">Registra o documento enviado no historico de mensagens. Depois, com delay de 3s (apenas se restricoes > 0), envia o texto de pedido de documentos.</div>
+        <div class="code-block" style="font-size:0.72rem;"><span class="code-comment">// INSERT mensagem do PDF no historico</span>
+await supabaseAdmin.from('whatsapp_mensagens').insert({
+  conversa_id:  conversaId,
+  direcao:      'saida',
+  tipo:         'document',
+  media_url:    signedUrl,
+  organizacao_id
+})
+
+<span class="code-comment">// 7b — Pedido de documentos (so se n_restricoes > 0)</span>
+if (n_restricoes > 0) {
+  await sleep(3000)  <span class="code-comment">// delay 3s</span>
+  await sendMetaMessage(contatoNumero, servicoTxt)
+  <span class="code-comment">// servicoTxt = 'Analisei suas restricoes...\n📄 RG ou CNH\n🏠 Comprovante...'</span>
+}</div>
+      </div>
+    </div>
+
+    <!-- PS8 -->
+    <div class="ps">
+      <div class="ps-num">
+        <div class="ps-circle" style="background:rgba(32,201,151,0.2);color:var(--accent);">8</div>
+      </div>
+      <div class="ps-body">
+        <div class="ps-title">STEP 8 — Finalize (L310): status = 'concluida'</div>
+        <div class="ps-desc">Atualiza o status final em leads e auditorias. A partir deste ponto, o lock do STEP 1 impede qualquer re-run do pipeline para este lead.</div>
+        <div class="code-block" style="font-size:0.72rem;">await supabaseAdmin.from('leads')
+  .update({ julia_auditoria_status: 'concluida' })
+  .eq('id', leadId)
+
+await supabaseAdmin.from('auditorias')
+  .update({ status: 'concluida' })
+  .eq('lead_id', leadId)
+  .eq('status', 'processando')</div>
+        <div class="db-state">
+          <div class="db-label">Estado banco final do pipeline</div>
+          <div class="db-row"><span class="field">leads.julia_auditoria_status</span> = <span class="val">'concluida'</span></div>
+          <div class="db-row"><span class="field">auditorias.status</span> = <span class="val">'concluida'</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================ ERROS ============================ -->
+<div id="tab-erros" class="tab-panel">
+  <div class="sec-header"><span class="sec-icon">⛔</span><h2>Erros, condições especiais e comportamentos de fallback</h2></div>
+
+  <div class="error-grid">
+    <div class="error-item red">
+      <div class="etrigger red">ERRO — APIFULL</div>
+      <div class="etitle">APIFULL 400/429 — API bureau falha</div>
+      <div class="edesc">Retry automatico com backoff: 3s → 6s. Apos 2 falhas: leads.julia_auditoria_status = 'erro_apifull'. Status 'erro_*' PERMITE re-run pelo lock do STEP 1. Julia ja respondeu ao lead e nao sabe do erro.</div>
+    </div>
+    <div class="error-item red">
+      <div class="etrigger red">ERRO — CHROME HEADLESS</div>
+      <div class="etitle">PDF nao gerado — Chrome headless falha</div>
+      <div class="edesc">leads.julia_auditoria_status = 'erro_pdf_gen'. INSERT em julia_skills_audit_log. O lead nao recebe o PDF. Status 'erro_*' permite re-run.</div>
+    </div>
+    <div class="error-item red">
+      <div class="etrigger red">ERRO — META API</div>
+      <div class="etitle">Meta API falha ao enviar PDF/texto</div>
+      <div class="edesc">Log 'meta_send_failed'. Response HTTP 500 interno. leads.julia_auditoria_status = 'erro_meta_send'. O lead nao recebe o resultado da auditoria.</div>
+    </div>
+    <div class="error-item red">
+      <div class="etrigger red">BLOQUEIO — FORBIDDEN FILTER</div>
+      <div class="etitle">Resposta LLM contem palavra proibida</div>
+      <div class="edesc">Response bloqueada antes de chegar ao lead. Log 'forbidden_hit'. Julia NAO envia nada. Request termina com 200 (noop). Palavras: tribunal|juiz|advogado|garanto|100%|Perinotti|Paz etc.</div>
+    </div>
+    <div class="error-item yellow">
+      <div class="etrigger yellow">SKIP — AWAITING HUMAN</div>
+      <div class="etitle">Lead envia msg sem codigo com awaiting_human=true</div>
+      <div class="edesc">Skip silencioso. Julia NAO responde. Log 'inbound_skip_awaiting_human'. O especialista humano deve assumir o atendimento. awaiting_human so e resetado se chegar novo codigoMatch.</div>
+    </div>
+    <div class="error-item yellow">
+      <div class="etrigger yellow">SKIP — PIPELINE DUPLICADO</div>
+      <div class="etitle">Pipeline ja esta rodando (status='rodando')</div>
+      <div class="edesc">CAS lock do STEP 1 retorna null (nenhuma linha atualizada). Pipeline skip silencioso. Evita race condition se a mesma mensagem chegar duas vezes.</div>
+    </div>
+    <div class="error-item yellow">
+      <div class="etrigger yellow">SKIP — PIPELINE CONCLUIDO</div>
+      <div class="etitle">julia_auditoria_status = 'concluida'</div>
+      <div class="edesc">CAS lock bloqueia. Pipeline nao roda novamente para este lead. Para re-auditar seria necessario resetar manualmente o status no banco.</div>
+    </div>
+    <div class="error-item blue">
+      <div class="etrigger blue">CONDICAO — AUDIO SEM URL</div>
+      <div class="etitle">Audio chegou mas mediaUrl e null</div>
+      <div class="edesc">mediaContextNote indica o problema. LLM recebe nota: "audio sem URL disponivel". Julia pede para o lead digitar em texto.</div>
+    </div>
+    <div class="error-item blue">
+      <div class="etrigger blue">CONDICAO — IMAGE ANALYSIS FALHA</div>
+      <div class="etitle">Vision API Anthropic retorna erro</div>
+      <div class="edesc">Fallback graceful: nota contextual e passada ao LLM. Julia responde pedindo para o lead descrever em texto o que enviou.</div>
+    </div>
+    <div class="error-item blue">
+      <div class="etrigger blue">CONDICAO — JANELA 24H META</div>
+      <div class="etitle">julia_ultima_interacao > 24h atras</div>
+      <div class="edesc">Followup bloqueado pelo filtro de horario do cron. Nenhuma mensagem outbound enviada. Para entrar em contato apos 24h seria necessario HSM (template) aprovado pela Meta.</div>
+    </div>
+    <div class="error-item gray">
+      <div class="etrigger gray">DEBUG — SHADOW MODE</div>
+      <div class="etitle">Shadow mode ativo (testes)</div>
+      <div class="edesc">decidirOutbound() retorna decisao com flag shadow=true. Pipeline loga a decisao sem enviar nada ao lead. Usado para validar comportamento sem impacto real.</div>
+    </div>
+    <div class="error-item gray">
+      <div class="etrigger gray">GATE — 1A MSG SEM CODIGO</div>
+      <div class="etitle">isFirstMsg=true, codigoMatch=null</div>
+      <div class="edesc">Gate bloqueia. leads.awaiting_human=true + observacoes='Lead chegou sem codigo'. Retorna noop imediatamente. Julia nunca responde. Requer revisao manual da origem do lead.</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-header"><span class="sec-icon">🗺️</span><h2>Mapa de status julia_auditoria_status → acoes possiveis</h2></div>
+    <table>
+      <tr><th>Status</th><th>Lock permite novo pipeline?</th><th>Causa</th><th>Acao recomendada</th></tr>
+      <tr><td style="color:var(--text-muted);">null</td><td style="color:var(--accent);">SIM</td><td>Lead novo, auditoria nunca rodou</td><td>Normal</td></tr>
+      <tr><td style="color:var(--accent-yellow);">rodando</td><td style="color:var(--accent-red);">NAO</td><td>Pipeline em execucao agora</td><td>Aguardar finalizacao</td></tr>
+      <tr><td style="color:var(--accent);">concluida</td><td style="color:var(--accent-red);">NAO</td><td>Pipeline concluiu com sucesso</td><td>Nenhuma — hasPdf=true</td></tr>
+      <tr><td style="color:var(--accent-red);">erro_apifull</td><td style="color:var(--accent);">SIM</td><td>Boa Vista SCPC retornou erro apos retries</td><td>Re-run automatico na proxima msg</td></tr>
+      <tr><td style="color:var(--accent-red);">erro_pdf_gen</td><td style="color:var(--accent);">SIM</td><td>Chrome headless falhou</td><td>Verificar processo Chrome no servidor</td></tr>
+      <tr><td style="color:var(--accent-red);">erro_meta_send</td><td style="color:var(--accent);">SIM</td><td>Meta API retornou erro</td><td>Verificar token Meta + numero ativo</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ============================ REFERENCIA ============================ -->
+<div id="tab-referencia" class="tab-panel">
+  <div class="sec-header"><span class="sec-icon">📋</span><h2>Referencia rapida — onde esta cada comportamento</h2></div>
+
+  <div class="fork-2" style="margin-bottom:24px;">
+    <div>
+      <div style="font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Para mudar o comportamento da Julia</div>
+      <table>
+        <tr><th>Comportamento</th><th>Arquivo</th><th>Linha</th></tr>
+        <tr><td>Resposta de recepcao ao lead</td><td style="color:var(--accent-blue);font-family:monospace;font-size:0.75rem;">01_skills/recepcao.md</td><td>—</td></tr>
+        <tr><td>Respostas pos-PDF</td><td style="color:var(--accent-blue);font-family:monospace;font-size:0.75rem;">01_skills/pos_pdf.md</td><td>—</td></tr>
+        <tr><td>Tratamento de objecoes</td><td style="color:var(--accent-blue);font-family:monospace;font-size:0.75rem;">01_skills/objecao.md</td><td>—</td></tr>
+        <tr><td>Escalada para humano</td><td style="color:var(--accent-blue);font-family:monospace;font-size:0.75rem;">01_skills/escalada.md</td><td>—</td></tr>
+        <tr><td>Followup cron</td><td style="color:var(--accent-blue);font-family:monospace;font-size:0.75rem;">01_skills/followup.md</td><td>—</td></tr>
+        <tr><td>Personalidade / tabus criticos</td><td style="color:var(--accent-blue);font-family:monospace;font-size:0.75rem;">00_cerebro/SOUL.md</td><td>—</td></tr>
+        <tr><td>Tom e estilo de escrita</td><td style="color:var(--accent-blue);font-family:monospace;font-size:0.75rem;">00_cerebro/STYLE.md</td><td>—</td></tr>
+      </table>
+    </div>
+    <div>
+      <div style="font-size:0.75rem;font-weight:600;color:var(--accent);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.5px;">Para mudar logica de controle</div>
+      <table>
+        <tr><th>Comportamento</th><th>Arquivo</th><th>Linha</th></tr>
+        <tr><td>Gate codigo de atendimento</td><td style="color:var(--accent);font-family:monospace;font-size:0.75rem;">inbound.controller.ts</td><td>L163</td></tr>
+        <tr><td>Criacao do lead (RPC)</td><td style="color:var(--accent);font-family:monospace;font-size:0.75rem;">inbound.controller.ts</td><td>L200</td></tr>
+        <tr><td>Selecao de skill</td><td style="color:var(--accent);font-family:monospace;font-size:0.75rem;">inbound.controller.ts</td><td>L416</td></tr>
+        <tr><td>Forbidden filter</td><td style="color:var(--accent);font-family:monospace;font-size:0.75rem;">inbound.controller.ts</td><td>L510</td></tr>
+        <tr><td>Docs recebidos → triagem</td><td style="color:var(--accent);font-family:monospace;font-size:0.75rem;">inbound.controller.ts</td><td>L670</td></tr>
+        <tr><td>Lock CAS pipeline</td><td style="color:var(--accent-purple);font-family:monospace;font-size:0.75rem;">auditoria-pipeline.ts</td><td>L67</td></tr>
+        <tr><td>Chamada APIFULL + retry</td><td style="color:var(--accent-purple);font-family:monospace;font-size:0.75rem;">auditoria-pipeline.ts</td><td>L106</td></tr>
+        <tr><td>Texto do pedido de docs</td><td style="color:var(--accent-purple);font-family:monospace;font-size:0.75rem;">auditoria-pipeline.ts</td><td>L265</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec-header"><span class="sec-icon">🗃️</span><h2>Tabelas do banco usadas pelo sistema Julia</h2></div>
+  <table>
+    <tr><th>Tabela</th><th>Operacoes</th><th>Campos criticos</th></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">leads</td><td>SELECT, UPDATE</td><td>julia_auditoria_status, awaiting_human, coluna_crm, cpf, contexto_consolidado, memoria_julia</td></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">whatsapp_conversas</td><td>SELECT, UPDATE</td><td>lead_id, contato_nome, agente_slug</td></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">whatsapp_mensagens</td><td>SELECT (count), INSERT</td><td>conversa_id, direcao, tipo, texto, media_url</td></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">auditorias</td><td>INSERT, UPDATE</td><td>lead_id, cpf, bureau, status, restricoes_encontradas, resultado_json</td></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">julia_pdfs_gerados</td><td>SELECT, INSERT</td><td>lead_id, signed_url, storage_path</td></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">julia_skills_audit_log</td><td>INSERT (erros)</td><td>lead_id, step, erro, ts</td></tr>
+  </table>
+
+  <div class="sec-header" style="margin-top:28px;"><span class="sec-icon">⚡</span><h2>RPCs usados</h2></div>
+  <table>
+    <tr><th>RPC</th><th>Chamado em</th><th>Funcao</th></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">fn_julia_criar_lead</td><td>inbound.controller.ts L200</td><td>Cria ou localiza lead por CPF+org (idempotente)</td></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">fn_mdzap_auto_cadastrar_restricoes</td><td>auditoria-pipeline.ts L145</td><td>Fuzzy match credores + salva cada restricao</td></tr>
+    <tr><td style="font-family:monospace;color:var(--accent);">fn_restricao_salvar</td><td>dentro do RPC acima</td><td>Salva restricao individual com deduplicacao</td></tr>
+  </table>
+</div>
+
+</div><!-- .container -->
+
+<div class="footer">
+  🤖 Julia — Fluxo Completo do Sistema · Midas / MdLab LegalTech · 2026-05-07
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

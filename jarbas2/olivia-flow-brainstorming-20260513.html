@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OlivIA Flow — Brainstorming + Arquitetura + Decisões</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: hsl(25,16%,6%);
+    --card: hsl(30,18%,9%);
+    --surface: hsl(28,14%,11%);
+    --surface2: hsl(28,12%,14%);
+    --border: hsl(28,10%,21%);
+    --text: hsl(36,17%,93%);
+    --text-muted: hsl(33,10%,58%);
+    --primary: hsl(162,72%,45%);
+    --primary-dim: hsl(162,72%,45%,0.12);
+    --accent2: hsl(0,84%,65%);
+    --accent3: hsl(38,92%,55%);
+    --accent4: hsl(200,85%,60%);
+    --accent5: hsl(270,70%,70%);
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  /* HEADER */
+  .hero {
+    background: linear-gradient(180deg, hsl(162,72%,10%) 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 48px 36px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -80px; left: -80px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, hsl(162,72%,30%,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero h1 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 2.6rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, var(--primary), hsl(162,72%,70%));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 8px;
+  }
+  .hero-sub { color: var(--text-muted); font-size: 1.05rem; margin-bottom: 20px; }
+  .hero-meta { display: flex; gap: 12px; flex-wrap: wrap; }
+  .badge {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+  .badge.green { color: var(--primary); border-color: hsl(162,72%,30%); }
+  .badge.red { color: var(--accent2); border-color: hsl(0,60%,30%); }
+  .badge.yellow { color: var(--accent3); border-color: hsl(38,60%,30%); }
+  .badge.blue { color: var(--accent4); border-color: hsl(200,60%,30%); }
+
+  /* LAYOUT */
+  .container { max-width: 1200px; margin: 0 auto; padding: 40px 48px; }
+  .section-title {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title .icon { font-size: 1.1rem; }
+  .section-desc { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+  .divider { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* CARDS */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+  }
+  .card.highlight { border-color: hsl(162,72%,30%); }
+  .card.danger { border-color: hsl(0,60%,30%); background: hsl(0,40%,7%); }
+  .card.warning { border-color: hsl(38,60%,30%); background: hsl(38,20%,7%); }
+  .card.info { border-color: hsl(200,60%,30%); background: hsl(200,20%,7%); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* STAT CARDS */
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-num {
+    font-family: 'Manrope', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--primary);
+    line-height: 1;
+  }
+  .stat-num.red { color: var(--accent2); }
+  .stat-num.yellow { color: var(--accent3); }
+  .stat-num.blue { color: var(--accent4); }
+  .stat-label { color: var(--text-muted); font-size: 0.8rem; margin-top: 4px; }
+
+  /* DECISÃO INTERATIVA */
+  .decision-block {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .decision-header {
+    padding: 18px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .decision-num {
+    background: var(--primary);
+    color: hsl(162,72%,10%);
+    font-weight: 800;
+    font-size: 0.85rem;
+    border-radius: 8px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .decision-num.pending { background: var(--accent3); color: hsl(38,60%,10%); }
+  .decision-num.done { background: var(--surface2); color: var(--text-muted); }
+  .decision-question { font-weight: 600; color: var(--text); font-size: 1rem; }
+  .decision-context { color: var(--text-muted); font-size: 0.85rem; margin-top: 4px; }
+  .decision-tag {
+    margin-left: auto;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .decision-tag.critica { background: hsl(0,60%,15%); color: var(--accent2); }
+  .decision-tag.importante { background: hsl(38,60%,15%); color: var(--accent3); }
+  .decision-tag.moderada { background: hsl(200,60%,15%); color: var(--accent4); }
+
+  .options-grid { padding: 16px 24px 20px; display: flex; flex-direction: column; gap: 10px; }
+  .option {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .option:hover { border-color: var(--primary); background: var(--primary-dim); }
+  .option.selected { border-color: var(--primary); background: var(--primary-dim); }
+  .option.selected .opt-label { color: var(--primary); }
+  .option.recommended { border-color: hsl(162,72%,30%); }
+  .opt-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    margin-top: 2px;
+    min-width: 28px;
+  }
+  .opt-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+  .opt-desc { color: var(--text-muted); font-size: 0.83rem; line-height: 1.5; }
+  .opt-tag {
+    margin-left: auto;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .opt-tag.rec { background: hsl(162,72%,15%); color: var(--primary); }
+  .opt-tag.risk { background: hsl(0,60%,15%); color: var(--accent2); }
+  .opt-tag.safe { background: hsl(200,60%,15%); color: var(--accent4); }
+
+  /* ARQUITETURA */
+  .arch-layer {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+  }
+  .arch-layer-header {
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .arch-layer-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+  .layer-react { background: hsl(200,80%,15%); }
+  .layer-ef { background: hsl(270,60%,15%); }
+  .layer-db { background: hsl(38,60%,15%); }
+  .layer-mini { background: hsl(162,60%,12%); }
+  .arch-layer-name { font-weight: 700; font-size: 0.95rem; }
+  .arch-layer-sub { color: var(--text-muted); font-size: 0.8rem; }
+  .arch-layer-body { padding: 14px 20px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .arch-chip {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text);
+  }
+  .arch-chip.green { color: var(--primary); border-color: hsl(162,72%,25%); }
+  .arch-chip.purple { color: var(--accent5); border-color: hsl(270,60%,35%); }
+  .arch-chip.yellow { color: var(--accent3); border-color: hsl(38,60%,30%); }
+  .arch-chip.red { color: var(--accent2); border-color: hsl(0,60%,30%); }
+  .arch-chip.blue { color: var(--accent4); border-color: hsl(200,60%,30%); }
+
+  .arrow-down {
+    text-align: center;
+    color: var(--border);
+    font-size: 1.2rem;
+    margin: 4px 0;
+  }
+
+  /* WIZARD MOCK */
+  .wizard-mock {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .wizard-topbar {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .wizard-logo {
+    font-family: 'Manrope', sans-serif;
+    font-weight: 800;
+    font-size: 1rem;
+    color: var(--primary);
+  }
+  .wizard-step-bar { flex: 1; display: flex; align-items: center; gap: 4px; }
+  .ws-step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+  .ws-step.active { background: var(--primary-dim); color: var(--primary); border: 1px solid hsl(162,72%,30%); }
+  .ws-step.done { color: hsl(162,72%,55%); }
+  .ws-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .ws-connector { width: 20px; height: 1px; background: var(--border); }
+
+  .wizard-body { padding: 24px; min-height: 200px; }
+
+  /* COMPONENTES */
+  .comp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .comp-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+  }
+  .comp-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    color: var(--primary);
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .comp-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+  .comp-status {
+    margin-top: 8px;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    display: inline-block;
+  }
+  .cs-new { background: hsl(162,72%,12%); color: var(--primary); }
+  .cs-rebuild { background: hsl(38,60%,12%); color: var(--accent3); }
+  .cs-reuse { background: hsl(200,60%,12%); color: var(--accent4); }
+
+  /* FLOW DIAGRAM */
+  .flow-diagram { display: flex; align-items: stretch; gap: 0; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .flow-step {
+    flex: 1;
+    padding: 20px 16px;
+    position: relative;
+    border-right: 1px solid var(--border);
+    background: var(--card);
+  }
+  .flow-step:last-child { border-right: none; }
+  .flow-step.active { background: hsl(162,72%,7%); border-right-color: hsl(162,72%,25%); }
+  .flow-step-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+  .flow-step-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 6px; }
+  .flow-step-items { list-style: none; }
+  .flow-step-items li {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    padding: 2px 0;
+    padding-left: 12px;
+    position: relative;
+  }
+  .flow-step-items li::before { content: '·'; position: absolute; left: 0; color: var(--primary); }
+  .flow-arrow {
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--primary);
+    color: hsl(162,72%,10%);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    z-index: 1;
+  }
+
+  /* ANÁLISE DE VIABILIDADE */
+  .viab-bar {
+    height: 8px;
+    border-radius: 4px;
+    background: var(--surface2);
+    margin-top: 8px;
+    overflow: hidden;
+  }
+  .viab-fill { height: 100%; border-radius: 4px; background: var(--primary); }
+  .viab-fill.yellow { background: var(--accent3); }
+  .viab-fill.red { background: var(--accent2); }
+
+  /* RISCO */
+  .risk-card {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px;
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+  }
+  .risk-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 2px; }
+  .risk-title { font-weight: 700; font-size: 0.9rem; margin-bottom: 3px; }
+  .risk-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; }
+  .risk-mitigacao { font-size: 0.8rem; margin-top: 8px; padding: 8px 10px; background: var(--surface2); border-radius: 6px; color: var(--text); }
+  .risk-mitigacao strong { color: var(--primary); }
+
+  /* TECH STACK TABLE */
+  .table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .table th {
+    background: var(--surface2);
+    text-align: left;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .table td { padding: 10px 14px; border-bottom: 1px solid hsl(28,10%,14%); vertical-align: top; }
+  .table tr:last-child td { border-bottom: none; }
+  .table code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.78rem;
+    background: var(--surface2);
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: var(--primary);
+  }
+
+  /* VEREDICTO */
+  .verdict {
+    background: hsl(162,72%,7%);
+    border: 2px solid var(--primary);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    text-align: center;
+  }
+  .verdict h2 {
+    font-family: 'Manrope', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 12px;
+  }
+  .verdict p { color: var(--text-muted); font-size: 1rem; max-width: 700px; margin: 0 auto 16px; line-height: 1.7; }
+
+  /* SCORE */
+  .score-circle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--primary);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+  }
+  .score-num { font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 1.5rem; color: var(--primary); }
+  .score-max { font-size: 0.65rem; color: var(--text-muted); }
+
+  /* PRÓXIMOS PASSOS */
+  .next-step {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    padding: 16px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--card);
+  }
+  .next-step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--primary);
+    color: hsl(162,72%,10%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .next-step-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 3px; }
+  .next-step-desc { color: var(--text-muted); font-size: 0.83rem; line-height: 1.5; }
+
+  /* UTILS */
+  .text-primary { color: var(--primary); }
+  .text-muted { color: var(--text-muted); }
+  .font-mono { font-family: 'JetBrains Mono', monospace; }
+  .font-bold { font-weight: 700; }
+  .mt-4 { margin-top: 4px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-24 { margin-top: 24px; }
+  .mb-12 { margin-bottom: 12px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+  .flex { display: flex; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .items-center { align-items: center; }
+  .flex-1 { flex: 1; }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    .hero { padding: 28px 20px 24px; }
+    .hero h1 { font-size: 1.8rem; }
+    .container { padding: 24px 20px; }
+    .grid-2, .grid-3, .grid-4, .comp-grid { grid-template-columns: 1fr; }
+    .flow-diagram { flex-direction: column; }
+    .flow-step { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+
+  /* INTERACTIVE */
+  .option { user-select: none; }
+  .option:hover .opt-label { color: var(--primary); }
+  input[type="radio"] { display: none; }
+  input[type="radio"]:checked + .option { border-color: var(--primary); background: var(--primary-dim); }
+  input[type="radio"]:checked + .option .opt-label { color: var(--primary); }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>OlivIA Flow — Brainstorming & Arquitetura</h1>
+  <p class="hero-sub">Decisões pendentes · Componentes UI/UX · Análise de viabilidade · Roadmap prático</p>
+  <div class="hero-meta">
+    <span class="badge green">OlivIA v4</span>
+    <span class="badge yellow">Decisões Pendentes</span>
+    <span class="badge blue">Brainstorming 2026-05-13</span>
+    <span class="badge">5.800 processos</span>
+    <span class="badge red">Taxa atual: 47.9% → Meta: 90%+</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- SEÇÃO 1: CONTEXTO RÁPIDO -->
+  <div class="section-title"><span class="icon">📊</span> Situação Atual</div>
+  <p class="section-desc">Por que estamos reconstruindo o OlivIA Flow do zero</p>
+
+  <div class="grid-4 mb-24">
+    <div class="stat-card">
+      <div class="stat-num red">47.9%</div>
+      <div class="stat-label">Taxa de sucesso atual</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num yellow">25</div>
+      <div class="stat-label">Problemas documentados</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num red">3</div>
+      <div class="stat-label">Pipelines coexistentes (bagunça)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">90%+</div>
+      <div class="stat-label">Meta de success rate</div>
+    </div>
+  </div>
+
+  <div class="grid-2 mb-24">
+    <div class="card danger">
+      <div style="font-weight:700; color:var(--accent2); margin-bottom:12px;">💀 O que está quebrando hoje</div>
+      <ul style="list-style:none; display:flex; flex-direction:column; gap:8px;">
+        <li style="font-size:0.85rem; color:var(--text-muted);">🔴 <strong>Race condition no Step 2</strong> — análise e tópicos disputam Realtime</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">🔴 <strong>OLIVIA_TOKEN exposto</strong> no bundle frontend (P0 de segurança)</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">🔴 <strong>match_rag_chunks_by_text</strong> com similarity=1.0 (nunca retorna nada)</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">🔴 <strong>3 pipelines A+B+C</strong> sem consenso — cada chamada usa um diferente</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">🔴 <strong>Mac Mini ERROs</strong> — últimas 5 tentativas = 100% erro</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">🔴 <strong>VibeLaw nunca implementado</strong> — só stub</li>
+      </ul>
+    </div>
+    <div class="card highlight">
+      <div style="font-weight:700; color:var(--primary); margin-bottom:12px;">✅ O que já está pronto (Wave 1 e 2)</div>
+      <ul style="list-style:none; display:flex; flex-direction:column; gap:8px;">
+        <li style="font-size:0.85rem; color:var(--text-muted);">✓ <strong>49 tabelas mapeadas</strong> — olivia_historico com 49 colunas documentadas</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">✓ <strong>advogado_id</strong> em modelos_grupo e modelos_peticao</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">✓ <strong>embedding_google vector(768)</strong> + HNSW índices migrados</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">✓ <strong>fn_olivia_get_full_context</strong> + <strong>fn_olivia_retry</strong> criadas</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">✓ <strong>fn_rag_search_v3</strong> com bug do similarity=1.0 corrigido</li>
+        <li style="font-size:0.85rem; color:var(--text-muted);">✓ <strong>Legacy cleanup</strong> — 8 colunas orphans removidas</li>
+      </ul>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 2: ARQUITETURA PRÁTICA -->
+  <div class="section-title"><span class="icon">🏗️</span> Arquitetura Prática — Como vai funcionar</div>
+  <p class="section-desc">4 camadas separadas com responsabilidades bem definidas. Zero n8n — essa é a decisão mais importante.</p>
+
+  <div class="mb-24">
+    <div class="arch-layer">
+      <div class="arch-layer-header" style="background:hsl(200,30%,8%);">
+        <div class="arch-layer-icon layer-react">⚛️</div>
+        <div>
+          <div class="arch-layer-name" style="color:var(--accent4);">Camada 1 — React Frontend</div>
+          <div class="arch-layer-sub">Exibe. Nunca guarda. Nunca decide.</div>
+        </div>
+      </div>
+      <div class="arch-layer-body">
+        <span class="arch-chip blue">Wizard 4 Steps</span>
+        <span class="arch-chip blue">TipTap Editor</span>
+        <span class="arch-chip blue">DnD Tópicos</span>
+        <span class="arch-chip blue">Realtime Progress</span>
+        <span class="arch-chip blue">VibeLaw SlashMenu</span>
+        <span class="arch-chip blue">Upload OCR</span>
+        <span class="arch-chip blue">Download PDF/DOCX</span>
+        <span class="arch-chip blue">SectionNav minimap</span>
+        <span class="arch-chip blue">Zustand (5 tabs)</span>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓ Chama via fetch (JWT Bearer)</div>
+
+    <div class="arch-layer">
+      <div class="arch-layer-header" style="background:hsl(270,30%,8%);">
+        <div class="arch-layer-icon layer-ef">⚡</div>
+        <div>
+          <div class="arch-layer-name" style="color:var(--accent5);">Camada 2 — Supabase Edge Functions</div>
+          <div class="arch-layer-sub">Valida. Orquestra. Delega para Mac Mini. Retorna imediatamente.</div>
+        </div>
+      </div>
+      <div class="arch-layer-body">
+        <span class="arch-chip purple">EF-01 extrair-texto</span>
+        <span class="arch-chip purple">EF-02 topicos (→ Mac Mini)</span>
+        <span class="arch-chip purple">EF-03 gerar (→ Mac Mini)</span>
+        <span class="arch-chip purple">EF-04 criar-doc (→ Mac Mini)</span>
+        <span class="arch-chip purple">EF-05 vibelaw (Sonnet)</span>
+        <span class="arch-chip purple">EF-06 relatorio</span>
+        <span class="arch-chip purple">EF-07 embeddings (Gemini)</span>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓ POST webhook para Mac Mini + ↕ Realtime subscription (PostgreSQL changes)</div>
+
+    <div class="arch-layer">
+      <div class="arch-layer-header" style="background:hsl(162,30%,7%);">
+        <div class="arch-layer-icon layer-mini">🖥️</div>
+        <div>
+          <div class="arch-layer-name" style="color:var(--primary);">Camada 3 — Mac Mini (Mecanismo)</div>
+          <div class="arch-layer-sub">Executa. Pipeline S0→S9. Gera com Sonnet 4.6. Atualiza banco via Supabase SDK.</div>
+        </div>
+      </div>
+      <div class="arch-layer-body">
+        <span class="arch-chip green">olivia-pipeline-v4.mjs</span>
+        <span class="arch-chip green">S0 Preparação</span>
+        <span class="arch-chip green">S1 Contexto processo</span>
+        <span class="arch-chip green">S2 RAG jurisprudência</span>
+        <span class="arch-chip green">S3-S6 Geração por tópico</span>
+        <span class="arch-chip green">S7 Revisão</span>
+        <span class="arch-chip green">S8-S9 DOCX/PDF</span>
+        <span class="arch-chip green">Porta 19100</span>
+        <span class="arch-chip green">Sonnet 4.6</span>
+      </div>
+    </div>
+
+    <div class="arrow-down">↓ Lê e escreve</div>
+
+    <div class="arch-layer">
+      <div class="arch-layer-header" style="background:hsl(38,30%,7%);">
+        <div class="arch-layer-icon layer-db">🗄️</div>
+        <div>
+          <div class="arch-layer-name" style="color:var(--accent3);">Camada 4 — Supabase Database</div>
+          <div class="arch-layer-sub">Verdade única. olivia_historico é o coração. Realtime propaga mudanças ao frontend.</div>
+        </div>
+      </div>
+      <div class="arch-layer-body">
+        <span class="arch-chip yellow">olivia_historico</span>
+        <span class="arch-chip yellow">olivia_modelos_peticao (329)</span>
+        <span class="arch-chip yellow">olivia_blocos_texto (1.244)</span>
+        <span class="arch-chip yellow">olivia_jurisprudencias (1.353)</span>
+        <span class="arch-chip yellow">olivia_playbooks (16)</span>
+        <span class="arch-chip yellow">processos (5.800)</span>
+        <span class="arch-chip yellow">Storage: olivia-reports/</span>
+        <span class="arch-chip yellow">Realtime channel</span>
+        <span class="arch-chip yellow">RLS por org</span>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 3: O FLOW PASSO A PASSO -->
+  <div class="section-title"><span class="icon">🔄</span> O Flow na Prática — Do clique ao DOCX</div>
+  <p class="section-desc">O que acontece exatamente quando o advogado clica "Gerar Petição"</p>
+
+  <div class="flow-diagram mb-16">
+    <div class="flow-step">
+      <div class="flow-step-num">S1</div>
+      <div class="flow-step-title">Identificação</div>
+      <ul class="flow-step-items">
+        <li>Busca processo (CNJ)</li>
+        <li>Seleciona tipo petição</li>
+        <li>Escolhe advogado</li>
+        <li>Upload docs (OCR)</li>
+        <li>Clica → Analisar</li>
+      </ul>
+      <div class="flow-arrow">→</div>
+    </div>
+    <div class="flow-step active">
+      <div class="flow-step-num">S2</div>
+      <div class="flow-step-title" style="color:var(--primary);">Análise + Tópicos</div>
+      <ul class="flow-step-items">
+        <li>Cria olivia_historico</li>
+        <li>EF-02 → Mac Mini</li>
+        <li>Progress bar S0→S9</li>
+        <li>Tópicos aparecem via Realtime</li>
+        <li>DnD reordena</li>
+        <li>Aprova → Gerar</li>
+      </ul>
+      <div class="flow-arrow">→</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">S3</div>
+      <div class="flow-step-title">Editor VibeLaw</div>
+      <ul class="flow-step-items">
+        <li>Petição completa no TipTap</li>
+        <li>Split view (preview)</li>
+        <li>SectionNav minimap</li>
+        <li>Cmd+K slash commands</li>
+        <li>/reescrever com diff</li>
+        <li>Autosave contínuo</li>
+      </ul>
+      <div class="flow-arrow">→</div>
+    </div>
+    <div class="flow-step">
+      <div class="flow-step-num">S4</div>
+      <div class="flow-step-title">Conclusão</div>
+      <ul class="flow-step-items">
+        <li>Download DOCX</li>
+        <li>Download PDF</li>
+        <li>Download HTML</li>
+        <li>Feedback (estrelas)</li>
+        <li>Nova petição</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card info mb-24">
+    <div style="font-weight:700; color:var(--accent4); margin-bottom:10px;">🔌 O segredo: Realtime como cola</div>
+    <p style="font-size:0.87rem; color:var(--text-muted); line-height:1.7;">
+      O Mac Mini roda o pipeline (pode levar 60-120s). O frontend não fica em loop de polling — usa <strong style="color:var(--text);">Supabase Realtime</strong> via PostgreSQL changes em <code style="font-family:JetBrains Mono; background:var(--surface2); padding:2px 6px; border-radius:4px;">olivia_historico</code>. Quando o Mac Mini escreve <code style="font-family:JetBrains Mono; background:var(--surface2); padding:2px 6px; border-radius:4px;">etapa_atual = 'S3'</code> ou <code style="font-family:JetBrains Mono; background:var(--surface2); padding:2px 6px; border-radius:4px;">status = 'CONCLUIDO'</code>, o frontend recebe em milissegundos. Zero polling. Zero race condition. Limpo.
+    </p>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 4: DECISÕES INTERATIVAS -->
+  <div class="section-title"><span class="icon">🎯</span> Decisões que Você Precisa Tomar</div>
+  <p class="section-desc">Clique na opção que você escolhe. 8 decisões, algumas críticas — sem elas o projeto fica travado.</p>
+
+  <!-- D1 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-01</div>
+      <div>
+        <div class="decision-question">Onde roda o gerador de petições — Mac Mini ou Edge Function pura?</div>
+        <div class="decision-context">Hoje o Mac Mini executa o pipeline S0→S9. Há uma alternativa de migrar tudo para Edge Functions (Deno) sem depender de hardware local.</div>
+      </div>
+      <div class="decision-tag critica">CRÍTICA</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d1" value="a">
+        <div class="option recommended">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">Manter Mac Mini + corrigir ERROs</div>
+            <div class="opt-desc">Mac Mini continua sendo o executor. Corrigir a causa-raiz dos ERROs (checar logs, env vars, porta 19100). Edge Functions apenas orquestram e delegam. Pipeline v4 unificado.</div>
+          </div>
+          <div class="opt-tag rec">RECOMENDO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d1" value="b">
+        <div class="option">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">Migrar para Edge Functions puras (sem Mac Mini)</div>
+            <div class="opt-desc">Todo o pipeline roda em Deno. Supabase cobra por tempo de CPU (limite 400ms/request, mas pode usar background tasks). Sem dependência de hardware local. Mais complexo de configurar RAG e DOCX.</div>
+          </div>
+          <div class="opt-tag risk">RISCO ALTO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d1" value="c">
+        <div class="option">
+          <div class="opt-label">C</div>
+          <div>
+            <div class="opt-title">Híbrido: geração na EF, DOCX no Mac Mini</div>
+            <div class="opt-desc">Geração de texto (Sonnet via API Anthropic direta) na Edge Function. Só a parte de DOCX/PDF delega ao Mac Mini (que tem Calibri/Georgia instalado).</div>
+          </div>
+          <div class="opt-tag safe">CONSERVADOR</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- D2 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-02</div>
+      <div>
+        <div class="decision-question">Quantas abas simultâneas de petição o wizard suporta?</div>
+        <div class="decision-context">Spec atual diz máximo 5. Mas cada aba em geração consome recursos do Mac Mini. E a UX de múltiplas abas tem overhead de Zustand + state management.</div>
+      </div>
+      <div class="decision-tag importante">IMPORTANTE</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d2" value="a">
+        <div class="option recommended">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">Máximo 3 abas — simplifica UX e estado</div>
+            <div class="opt-desc">3 tabs é suficiente para a prática diária. Zustand mais simples. Interface menos poluída. Mais fácil de testar.</div>
+          </div>
+          <div class="opt-tag rec">RECOMENDO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d2" value="b">
+        <div class="option">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">Máximo 5 abas (conforme spec)</div>
+            <div class="opt-desc">Manter a spec original. Christian pode querer gerar 5 petições em paralelo enquanto trabalha em outras. Risco: Zustand mais complexo.</div>
+          </div>
+          <div class="opt-tag safe">SPEC ORIGINAL</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d2" value="c">
+        <div class="option">
+          <div class="opt-label">C</div>
+          <div>
+            <div class="opt-title">1 aba apenas — foco máximo, MVP</div>
+            <div class="opt-desc">Para o primeiro ciclo funcionar, manter 1 petição por vez. Após validar o fluxo completo, abrir para multi-tab.</div>
+          </div>
+          <div class="opt-tag risk">MVP</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- D3 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-03</div>
+      <div>
+        <div class="decision-question">VibeLaw — editor simples ou split view completo com minimap?</div>
+        <div class="decision-context">TipTap completo (split view + minimap + Cmd+K + diff) é a spec D13. Mas é complexo de implementar corretamente e pode atrasar o prazo. Alternativa: editor funcional primeiro, polish depois.</div>
+      </div>
+      <div class="decision-tag importante">IMPORTANTE</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d3" value="a">
+        <div class="option">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">TipTap completo — split view + minimap + Cmd+K + diff</div>
+            <div class="opt-desc">Implementar tudo conforme D13. Experiência profissional que justifica o produto. Mais demorado (estimativa: 2 sprints para fazer certo).</div>
+          </div>
+          <div class="opt-tag risk">COMPLEXO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d3" value="b">
+        <div class="option recommended">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">TipTap funcional + Cmd+K — sem split view por enquanto</div>
+            <div class="opt-desc">Editor completo com toolbar, Cmd+K e /comandos VibeLaw. Split view e minimap como fase 2. Mais rápido de implementar e já entrega valor real.</div>
+          </div>
+          <div class="opt-tag rec">RECOMENDO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d3" value="c">
+        <div class="option">
+          <div class="opt-label">C</div>
+          <div>
+            <div class="opt-title">Editor básico textarea → rich text depois</div>
+            <div class="opt-desc">Para validar o pipeline, usar textarea no Step 3. Só implementar TipTap quando o fluxo de geração estiver 100% estável.</div>
+          </div>
+          <div class="opt-tag safe">MVP</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- D4 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-04</div>
+      <div>
+        <div class="decision-question">Como tratar timeout/erro durante geração (Mac Mini fora do ar)?</div>
+        <div class="decision-context">Hoje quando o Mac Mini cai, o usuário fica preso na tela de loading infinito. Precisa de uma estratégia de fallback clara.</div>
+      </div>
+      <div class="decision-tag critica">CRÍTICA</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d4" value="a">
+        <div class="option recommended">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">Timeout 120s + retry automático + fila persistente</div>
+            <div class="opt-desc">Após 120s sem update no Realtime → toast de aviso + botão "Tentar novamente". Petição fica em estado PENDENTE no banco. Mac Mini retoma quando voltar. fn_olivia_retry() já existe.</div>
+          </div>
+          <div class="opt-tag rec">RECOMENDO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d4" value="b">
+        <div class="option">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">Timeout 120s + fallback direto via API Anthropic</div>
+            <div class="opt-desc">Se Mac Mini não responder em 120s, Edge Function usa API Anthropic diretamente (sem o pipeline completo, sem RAG). Petição mais simples mas entregue.</div>
+          </div>
+          <div class="opt-tag risk">QUALIDADE MENOR</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d4" value="c">
+        <div class="option">
+          <div class="opt-label">C</div>
+          <div>
+            <div class="opt-title">Sem timeout — apenas healthcheck do Mac Mini antes de iniciar</div>
+            <div class="opt-desc">Antes de clicar "Analisar", EF pinga o Mac Mini. Se estiver offline, não deixa o usuário iniciar. Mais simples, mas não trata falha durante o processo.</div>
+          </div>
+          <div class="opt-tag safe">SIMPLES</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- D5 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-05</div>
+      <div>
+        <div class="decision-question">Upload de documentos no Step 1 — OCR é P0 ou P2?</div>
+        <div class="decision-context">A spec prevê OCR de PDFs escaneados via Sonnet 4.6 Vision. Mas 80% das petições não precisam de documentos extras — processo já tem peças no EPROC. OCR atrasa o time-to-first-petition.</div>
+      </div>
+      <div class="decision-tag moderada">MODERADA</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d5" value="a">
+        <div class="option">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">OCR P0 — implementar desde o início</div>
+            <div class="opt-desc">Upload + OCR fazem parte da proposta de valor. Laudos médicos, contratos e documentos do cliente enriquecem a petição com contexto real.</div>
+          </div>
+          <div class="opt-tag safe">COMPLETO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d5" value="b">
+        <div class="option recommended">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">Upload opcional P2 — campo existe mas OCR é fase 2</div>
+            <div class="opt-desc">Campo de upload aparece no Step 1, mas se não tiver arquivo, o pipeline segue normalmente com dados do processo. OCR é implementado depois que o flow principal funcionar.</div>
+          </div>
+          <div class="opt-tag rec">RECOMENDO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d5" value="c">
+        <div class="option">
+          <div class="opt-label">C</div>
+          <div>
+            <div class="opt-title">Sem upload — remover do Step 1 por enquanto</div>
+            <div class="opt-desc">Simplificar o Step 1 ao máximo: processo + tipo + advogado. Nada de upload. Adicionar depois como feature nova.</div>
+          </div>
+          <div class="opt-tag risk">SCOPE MENOR</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- D6 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-06</div>
+      <div>
+        <div class="decision-question">Qual modelo IA para os VibeLaw slash commands?</div>
+        <div class="decision-context">D13 especifica Sonnet 4.6 para VibeLaw. Mas /reescrever de um parágrafo é simples — Haiku 4.5 seria 10x mais barato e 3x mais rápido para edições rápidas.</div>
+      </div>
+      <div class="decision-tag moderada">MODERADA</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d6" value="a">
+        <div class="option recommended">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">Sonnet 4.6 fixo para VibeLaw (conforme D4/D9)</div>
+            <div class="opt-desc">Decisão D4/D9 já diz: Zero Haiku. Qualidade > custo para contexto jurídico. Trechos jurídicos mal reescritos causam dano ao cliente.</div>
+          </div>
+          <div class="opt-tag rec">SPEC ORIGINAL</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d6" value="b">
+        <div class="option">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">Haiku para /simplificar e /resumir, Sonnet para /reescrever e /jurisprudencia</div>
+            <div class="opt-desc">Split inteligente: comandos simples usam Haiku, comandos que exigem raciocínio jurídico usam Sonnet. Economia significativa a longo prazo.</div>
+          </div>
+          <div class="opt-tag safe">HÍBRIDO</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- D7 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-07</div>
+      <div>
+        <div class="decision-question">Onde fica o Step de análise de provas — integrado ou separado?</div>
+        <div class="decision-context">A spec v3 original tinha uma "AnaliseCompacta" no Step 2 mostrando score 0-10 + pilares + alertas. Útil para o advogado entender a força da tese antes de gerar.</div>
+      </div>
+      <div class="decision-tag moderada">MODERADA</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d7" value="a">
+        <div class="option recommended">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">AnaliseCompacta integrada no Step 2 (30% do layout)</div>
+            <div class="opt-desc">Step 2 divide 70% tópicos + 30% análise (score, pilares, alertas). Contextualiza os tópicos. O advogado sabe se a tese é forte antes de aprovar.</div>
+          </div>
+          <div class="opt-tag rec">RECOMENDO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d7" value="b">
+        <div class="option">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">Análise como modal ou aba separada</div>
+            <div class="opt-desc">Step 2 só mostra tópicos. Botão "Ver Análise" abre modal ou aba. Layout mais limpo, mas a análise fica escondida.</div>
+          </div>
+          <div class="opt-tag safe">SIMPLES</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d7" value="c">
+        <div class="option">
+          <div class="opt-label">C</div>
+          <div>
+            <div class="opt-title">Sem análise por enquanto — só tópicos no Step 2</div>
+            <div class="opt-desc">Análise de provas é feature separada. Step 2 = apenas lista de tópicos + DnD. Fase 2 adiciona análise.</div>
+          </div>
+          <div class="opt-tag risk">MVP</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <!-- D8 -->
+  <div class="decision-block">
+    <div class="decision-header">
+      <div class="decision-num pending">D-08</div>
+      <div>
+        <div class="decision-question">Por onde começar — Frontend ou Mecanismo (Mac Mini)?</div>
+        <div class="decision-context">Dois caminhos possíveis para retomar o projeto. Backend (migrations) já está quase pronto. O gargalo é Mac Mini ERROs ou Frontend incompleto?</div>
+      </div>
+      <div class="decision-tag critica">CRÍTICA — Define o próximo sprint</div>
+    </div>
+    <div class="options-grid">
+      <label>
+        <input type="radio" name="d8" value="a">
+        <div class="option">
+          <div class="opt-label">A</div>
+          <div>
+            <div class="opt-title">Frontend primeiro — wizard do zero (DELETE + CRIAR)</div>
+            <div class="opt-desc">Delete tudo de /pages/olivia/ e reconstruir. O frontend novo pode testar contra o mecanismo atual (mesmo com ERROs), e o Mac Mini é corrigido em paralelo.</div>
+          </div>
+          <div class="opt-tag safe">PARALELO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d8" value="b">
+        <div class="option recommended">
+          <div class="opt-label">B</div>
+          <div>
+            <div class="opt-title">Mecanismo primeiro — diagnosticar e corrigir Mac Mini ERROs</div>
+            <div class="opt-desc">Sem o mecanismo funcionando, o frontend não tem o que testar. 2-4h para diagnosticar os ERROs (checar logs, env vars). Depois o frontend tem onde se apoiar.</div>
+          </div>
+          <div class="opt-tag rec">RECOMENDO</div>
+        </div>
+      </label>
+      <label>
+        <input type="radio" name="d8" value="c">
+        <div class="option">
+          <div class="opt-label">C</div>
+          <div>
+            <div class="opt-title">Mock-first — frontend com dados mockados, integração depois</div>
+            <div class="opt-desc">Construir o wizard completo com dados mockados (historico_id fake, tópicos hardcoded, petição de exemplo). Integração real só quando tudo estiver bonito.</div>
+          </div>
+          <div class="opt-tag risk">RISK DE RETRABALHO</div>
+        </div>
+      </label>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 5: COMPONENTES FRONTEND -->
+  <div class="section-title"><span class="icon">🧩</span> Todos os Componentes do Frontend</div>
+  <p class="section-desc">Mapa completo de componentes, hooks e onde cada um vive. Verde = criar do zero. Amarelo = reconstruir. Azul = reutilizar.</p>
+
+  <!-- MOCK DO WIZARD -->
+  <div class="wizard-mock mb-24">
+    <div class="wizard-topbar">
+      <div class="wizard-logo">OlivIA</div>
+      <div class="wizard-step-bar">
+        <div class="ws-step done"><div class="ws-dot"></div>Identificação</div>
+        <div class="ws-connector"></div>
+        <div class="ws-step active"><div class="ws-dot"></div>Tópicos + Análise</div>
+        <div class="ws-connector"></div>
+        <div class="ws-step"><div class="ws-dot"></div>Editor VibeLaw</div>
+        <div class="ws-connector"></div>
+        <div class="ws-step"><div class="ws-dot"></div>Conclusão</div>
+      </div>
+      <div style="font-size:0.78rem; color:var(--text-muted); font-family:JetBrains Mono, monospace;">
+        Réplica · TJRS · Christian
+      </div>
+    </div>
+    <div class="wizard-body">
+      <div style="display:flex; gap:20px; height:200px;">
+        <!-- Mock tópicos -->
+        <div style="flex:7; background:var(--surface2); border-radius:8px; padding:16px;">
+          <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Tópicos Gerados (DnD)</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="background:var(--card); border:1px solid var(--border); border-radius:6px; padding:10px 12px; display:flex; align-items:center; gap:10px; font-size:0.82rem;">
+              <span style="color:var(--text-muted);">⠿</span>
+              <span>1. Ilegitimidade passiva da instituição financeira</span>
+              <span style="margin-left:auto; font-size:0.72rem; color:var(--primary); background:hsl(162,72%,12%); padding:2px 8px; border-radius:4px;">✓ aprovado</span>
+            </div>
+            <div style="background:var(--card); border:1px solid hsl(162,72%,30%); border-radius:6px; padding:10px 12px; display:flex; align-items:center; gap:10px; font-size:0.82rem;">
+              <span style="color:var(--text-muted);">⠿</span>
+              <span>2. Dano moral configurado pela negativação indevida</span>
+              <span style="margin-left:auto; font-size:0.72rem; color:var(--accent3); background:hsl(38,60%,12%); padding:2px 8px; border-radius:4px;">editando...</span>
+            </div>
+            <div style="background:var(--card); border:1px solid var(--border); border-radius:6px; padding:10px 12px; display:flex; align-items:center; gap:10px; font-size:0.82rem; opacity:0.6;">
+              <span style="color:var(--text-muted);">⠿</span>
+              <span>3. Quantum indenizatório proporcional</span>
+            </div>
+          </div>
+        </div>
+        <!-- Mock análise -->
+        <div style="flex:3; background:var(--surface2); border-radius:8px; padding:16px;">
+          <div style="font-size:0.78rem; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px;">Análise Compacta</div>
+          <div style="text-align:center; margin-bottom:12px;">
+            <div style="font-family:Manrope,sans-serif; font-size:2rem; font-weight:800; color:var(--primary);">8.4</div>
+            <div style="font-size:0.72rem; color:var(--text-muted);">Score de viabilidade</div>
+          </div>
+          <div style="display:flex; flex-direction:column; gap:6px;">
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:3px;"><span>Fatos</span><span style="color:var(--primary);">9.2</span></div>
+              <div class="viab-bar"><div class="viab-fill" style="width:92%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:3px;"><span>Provas</span><span style="color:var(--accent3);">7.5</span></div>
+              <div class="viab-bar"><div class="viab-fill yellow" style="width:75%"></div></div>
+            </div>
+            <div>
+              <div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-bottom:3px;"><span>Jurisprudência</span><span style="color:var(--primary);">8.8</span></div>
+              <div class="viab-bar"><div class="viab-fill" style="width:88%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 1 COMPONENTES -->
+  <div style="font-weight:700; font-size:1rem; margin-bottom:12px; color:var(--accent4);">Step 1 — Identificação</div>
+  <div class="comp-grid mb-24">
+    <div class="comp-card">
+      <div class="comp-name">StepIdentificacao.tsx</div>
+      <div class="comp-desc">Orquestrador do step 1. Controla validação e habilita o botão "Analisar".</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">ProcessoSelectorV3.tsx</div>
+      <div class="comp-desc">Combobox com busca por CNJ ou nome do cliente. RPC search_processos, debounce 300ms. Mostra: CNJ, réu, advogado, fase.</div>
+      <div class="comp-status cs-rebuild">RECONSTRUIR</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">TipoPeticaoSelector.tsx</div>
+      <div class="comp-desc">Dropdown com grupos de modelos. Filtra por advogado_id selecionado. 329 modelos organizados por tag.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">AdvogadoSelector.tsx</div>
+      <div class="comp-desc">2 cards visuais: Christian (Calibri 12) e Heloísa (Georgia 12). Persiste no Zustand. Define fonte do DOCX.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">UploadDocumentosV3.tsx</div>
+      <div class="comp-desc">Drag-and-drop opcional. Se PDF → EF-01 extrai texto via Vision. Mostra preview do texto extraído.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">InstrucoesAdicionais.tsx</div>
+      <div class="comp-desc">Textarea pequeno. "Ênfase em X", "Ignorar Y". Opcional. Whisper (mic) para ditado rápido.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+  </div>
+
+  <!-- STEP 2 COMPONENTES -->
+  <div style="font-weight:700; font-size:1rem; margin-bottom:12px; color:var(--primary);">Step 2 — Tópicos + Análise</div>
+  <div class="comp-grid mb-24">
+    <div class="comp-card">
+      <div class="comp-name">StepTopicosAnalise.tsx</div>
+      <div class="comp-desc">Layout 70/30. Esquerda: TopicosPanel. Direita: AnaliseCompacta. Controla StageProgressBar no topo.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">StageProgressBar.tsx</div>
+      <div class="comp-desc">Barra de progresso S0→S9 com labels: "Carregando contexto" → "Buscando jurisprudência" → "Gerando tópicos". Alimentado via Realtime.</div>
+      <div class="comp-status cs-rebuild">RECONSTRUIR</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">TopicosPanel.tsx</div>
+      <div class="comp-desc">Lista @dnd-kit. Cada item: handle de drag, texto editável inline, checkbox de aprovação, botão remover. Até 10 tópicos.</div>
+      <div class="comp-status cs-rebuild">RECONSTRUIR</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">TopicoItemV3.tsx</div>
+      <div class="comp-desc">Card único de tópico. Edição inline com ContentEditable ou Input. Salva no Zustand em tempo real.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">AnaliseCompactaPanel.tsx</div>
+      <div class="comp-desc">Score 0-10 circular. 3 pilares (barras). Alertas críticos (vermelho). Botão "Ver Relatório Completo" → abre HTML em nova aba.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">MacMiniStatusBadge.tsx</div>
+      <div class="comp-desc">Indicador discreto: 🟢 Online / 🔴 Offline. Aparece se Mac Mini não responder em 5s. Evita o usuário clicar "Analisar" em vão.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+  </div>
+
+  <!-- STEP 3 COMPONENTES -->
+  <div style="font-weight:700; font-size:1rem; margin-bottom:12px; color:var(--accent5);">Step 3 — Editor VibeLaw</div>
+  <div class="comp-grid mb-24">
+    <div class="comp-card">
+      <div class="comp-name">StepEditorVibeLaw.tsx</div>
+      <div class="comp-desc">Container principal. Gerencia layout (modo split ou full). Controla autosave (debounce 3s). Exibe toolbar e botão "Gerar Download".</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">EditorPeticaoV3.tsx</div>
+      <div class="comp-desc">TipTap com extensions: Bold, Italic, Heading 1-3, BulletList, OrderedList, TextAlign, VibeLawExtension. Toolbar completa no topo.</div>
+      <div class="comp-status cs-rebuild">RECONSTRUIR</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">VibeLawSlashMenu.tsx</div>
+      <div class="comp-desc">Popup ativado por Cmd+K ou digitando "/". Comandos: /reescrever /expandir /simplificar /jurisprudencia /formal. Filtra ao digitar.</div>
+      <div class="comp-status cs-rebuild">RECONSTRUIR</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">VibeLawExtension.ts</div>
+      <div class="comp-desc">TipTap Extension custom. Intercepta "/" e dispara o SlashMenu. Aplica resultado em substituição ao trecho selecionado.</div>
+      <div class="comp-status cs-rebuild">RECONSTRUIR</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">DiffHighlighter.tsx</div>
+      <div class="comp-desc">Após VibeLaw reescrever, mostra verde/vermelho inline entre versão antiga e nova. Botão "Aceitar" ou "Reverter".</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">SectionNavV3.tsx</div>
+      <div class="comp-desc">TOC lateral direita baseada nos headings H1/H2/H3 do TipTap. Clique salta para seção. Destaca seção atual enquanto scrolla.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+  </div>
+
+  <!-- STEP 4 COMPONENTES -->
+  <div style="font-weight:700; font-size:1rem; margin-bottom:12px; color:var(--accent3);">Step 4 — Conclusão</div>
+  <div class="comp-grid mb-24">
+    <div class="comp-card">
+      <div class="comp-name">StepConclusao.tsx</div>
+      <div class="comp-desc">Layout simples: 3 cards de download + FeedbackAdvogado abaixo + botão "Nova Petição".</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">DownloadCardsGrid.tsx</div>
+      <div class="comp-desc">3 cards: PDF (Adobe), DOCX (Word — fonte correta), HTML (visualização). Spinner enquanto gera. Toast em erro.</div>
+      <div class="comp-status cs-new">CRIAR DO ZERO</div>
+    </div>
+    <div class="comp-card">
+      <div class="comp-name">FeedbackAdvogado.tsx</div>
+      <div class="comp-desc">5 estrelas + campo opcional "O que melhorar?". Submit salva em olivia_historico.feedback_advogado. Silencioso se falhar.</div>
+      <div class="comp-status cs-reuse">REUTILIZAR</div>
+    </div>
+  </div>
+
+  <!-- HOOKS -->
+  <div style="font-weight:700; font-size:1rem; margin-bottom:12px; color:var(--text-muted);">Hooks Centrais</div>
+  <div class="grid-2 mb-24">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useOliviaWizardV3</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">Orquestra os 4 steps. Estado global (Zustand). Controla qual step está ativo e transições.</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useOliviaStatusRealtime</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">Subscription Supabase Realtime em olivia_historico. Atualiza progress bar e aciona transição para Step 3.</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useTopicosV3</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">DnD via @dnd-kit. Edição inline. Aprovação/rejeição. Persiste no Zustand até o Step 3.</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useVibeLaw</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">Chama EF-05. Recebe novo trecho + diff_patches. Aplica no TipTap. Estado: idle | loading | diff_preview | accepted.</div>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useOliviaProcessoBusca</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">RPC search_processos com debounce 300ms. Mín 2 chars. Cache React Query staleTime 30s.</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useOliviaExportV3</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">Chama EF-04. Aguarda URL do Storage. Trigger download automático. Estados: idle | generating | ready | error.</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useAnaliseCompacta</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">Lê olivia_analises via Realtime. Extrai score, pilares e alertas para o painel de análise.</div>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:12px 14px; display:flex; gap:12px; align-items:flex-start;">
+        <div class="font-mono" style="font-size:0.75rem; color:var(--primary); flex-shrink:0; margin-top:2px;">useMacMiniHealth</div>
+        <div style="font-size:0.82rem; color:var(--text-muted);">Pinga EF de healthcheck a cada 30s. Expõe status online/offline. Bloqueia "Analisar" se offline.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 6: ANÁLISE DE VIABILIDADE -->
+  <div class="section-title"><span class="icon">🔬</span> Vai Funcionar na Prática?</div>
+  <p class="section-desc">Análise honesta de cada dimensão do projeto. Sem eufemismo.</p>
+
+  <div class="grid-2 mb-24">
+    <div class="card">
+      <div style="font-weight:700; margin-bottom:14px;">Dimensões de Viabilidade</div>
+      <div style="display:flex; flex-direction:column; gap:14px;">
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem;">
+            <span>Arquitetura (Frontend ↔ EF ↔ Mac Mini)</span>
+            <span style="color:var(--primary); font-weight:700;">92%</span>
+          </div>
+          <div class="viab-bar"><div class="viab-fill" style="width:92%"></div></div>
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-top:3px;">Separação de responsabilidades correta. Realtime resolve race condition.</div>
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem;">
+            <span>Confiabilidade do Mac Mini</span>
+            <span style="color:var(--accent2); font-weight:700;">45%</span>
+          </div>
+          <div class="viab-bar"><div class="viab-fill red" style="width:45%"></div></div>
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-top:3px;">Maior risco. ERROs não diagnosticados. Sem retry, sem healthcheck, sem fila.</div>
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem;">
+            <span>Qualidade do Output (Petições)</span>
+            <span style="color:var(--primary); font-weight:700;">85%</span>
+          </div>
+          <div class="viab-bar"><div class="viab-fill" style="width:85%"></div></div>
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-top:3px;">Sonnet 4.6 + RAG corrigido + playbooks = qualidade alta quando funcionar.</div>
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem;">
+            <span>Complexidade UX (4 Steps + TipTap)</span>
+            <span style="color:var(--accent3); font-weight:700;">70%</span>
+          </div>
+          <div class="viab-bar"><div class="viab-fill yellow" style="width:70%"></div></div>
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-top:3px;">TipTap + VibeLaw é complexo. Recomendo simplificar para primeira versão.</div>
+        </div>
+        <div>
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px; font-size:0.85rem;">
+            <span>Time para entrega (estimativa)</span>
+            <span style="color:var(--accent3); font-weight:700;">65%</span>
+          </div>
+          <div class="viab-bar"><div class="viab-fill yellow" style="width:65%"></div></div>
+          <div style="font-size:0.78rem; color:var(--text-muted); margin-top:3px;">43 tasks. Estimativa: 3-4 semanas para MVP funcional com qualidade.</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <div class="risk-card" style="background:hsl(0,20%,7%); border-color:hsl(0,60%,25%);">
+          <div class="risk-icon">🔴</div>
+          <div>
+            <div class="risk-title">Risco #1 — Mac Mini como ponto único de falha</div>
+            <div class="risk-desc">Se o Mac Mini cair (energia, rede, update), o OlivIA para completamente. Hoje não tem retry, healthcheck ou fila.</div>
+            <div class="risk-mitigacao"><strong>Mitigação:</strong> useMacMiniHealth (healthcheck 30s) + fn_olivia_retry + timeout 120s com toast de aviso.</div>
+          </div>
+        </div>
+        <div class="risk-card" style="background:hsl(38,20%,7%); border-color:hsl(38,60%,25%);">
+          <div class="risk-icon">🟡</div>
+          <div>
+            <div class="risk-title">Risco #2 — TipTap + VibeLaw = débito técnico potencial</div>
+            <div class="risk-desc">SlashMenu, DiffHighlighter, e SectionNav integrados ao TipTap são difíceis de testar. Bug em um quebra os outros.</div>
+            <div class="risk-mitigacao"><strong>Mitigação:</strong> Implementar VibeLawExtension de forma isolada, com testes unitários separados do editor.</div>
+          </div>
+        </div>
+        <div class="risk-card" style="background:hsl(38,20%,7%); border-color:hsl(38,60%,25%);">
+          <div class="risk-icon">🟡</div>
+          <div>
+            <div class="risk-title">Risco #3 — Zustand com múltiplas abas em geração</div>
+            <div class="risk-desc">Cada aba tem seu Realtime subscription. 5 abas simultâneas = 5 channels abertos. Estado pode dessincronizar.</div>
+            <div class="risk-mitigacao"><strong>Mitigação:</strong> Limitar para 3 abas (D-02 opção A) e centralizar subscriptions no hook useOliviaStatusRealtime.</div>
+          </div>
+        </div>
+        <div class="risk-card" style="background:hsl(162,20%,6%); border-color:hsl(162,60%,20%);">
+          <div class="risk-icon">🟢</div>
+          <div>
+            <div class="risk-title">Ponto forte — Backend já está 70% pronto</div>
+            <div class="risk-desc">Waves 1 e 2 concluídas. Tabelas migradas, fn_rag_search_v3 corrigida, embedding_google funcionando. O frontend tem base sólida.</div>
+            <div class="risk-mitigacao"><strong>Ação:</strong> Priorizar diagnóstico do Mac Mini (D-08 opção B) para desbloquear a integração ponta-a-ponta.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 7: O PROJETO PERFEITO -->
+  <div class="section-title"><span class="icon">💡</span> Como Seria o Projeto Perfeito para o Seu Caso</div>
+  <p class="section-desc">Não o spec genérico — o que faz sentido para Christian + Heloísa + 5.800 processos EPROC + negativação indevida</p>
+
+  <div class="grid-2 mb-24">
+    <div class="card highlight">
+      <div style="font-weight:700; color:var(--primary); margin-bottom:14px;">✨ O que torna o seu caso único</div>
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:0.85rem;">
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--primary); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">→</span>
+          <div><strong>Dois advogados, duas fontes diferentes:</strong> Calibri (Christian) vs Georgia (Heloísa). O AdvogadoSelector não é estético — define a fonte do DOCX que vai protocolizar.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--primary); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">→</span>
+          <div><strong>Domínio específico:</strong> negativação indevida + EPROC (TJRS/TJSC/TJSP). Os 16 playbooks cobrem exatamente os réus do Midas. RAG em 1.353 jurisprudências relevantes.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--primary); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">→</span>
+          <div><strong>Volume alto:</strong> 5.800 processos = usar OlivIA todo dia. Cada 1% de melhoria na taxa de sucesso = 58 petições a mais por ciclo.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--primary); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">→</span>
+          <div><strong>Equipe pequena:</strong> Não precisa de multi-tenant de verdade. Midas-only simplifica RLS, VibeLaw prompts e onboarding.</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-weight:700; margin-bottom:14px;">🎯 O projeto perfeito para esse contexto</div>
+      <div style="display:flex; flex-direction:column; gap:10px; font-size:0.85rem;">
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--accent3); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">1.</span>
+          <div><strong>Flow em 3 minutos:</strong> Do processo selecionado ao DOCX pronto em 3 min. Hoje leva 10-15min (quando funciona). A meta é competir com fazer manualmente.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--accent3); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">2.</span>
+          <div><strong>Step 1 com 3 cliques:</strong> Processo (busca rápida), tipo de petição (filtro por advogado), advogado (card). Nada mais. Sem fricção.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--accent3); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">3.</span>
+          <div><strong>Tópicos inteligentes:</strong> Porque o Midas tem 1.353 jurisprudências + 1.244 blocos + playbooks específicos por banco réu, os tópicos gerados já chegam no nível certo.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--accent3); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">4.</span>
+          <div><strong>VibeLaw como diferencial real:</strong> /jurisprudencia que puxa da base local (não do Claude genérico) é o que faz sentido para negativação indevida.</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:flex-start;">
+          <span style="color:var(--accent3); font-size:1.1rem; flex-shrink:0; margin-top:-2px;">5.</span>
+          <div><strong>Mac Mini estável &gt; Edge Functions bonitas:</strong> O que importa é gerar petição. Hardware local com pipeline bem debugado &gt; arquitetura elegante instável.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- IDEIA DE OURO -->
+  <div class="card info mb-24">
+    <div style="font-weight:700; color:var(--accent4); font-size:1.05rem; margin-bottom:12px;">💡 Ideia de brainstorming: "Quick Reply" para processos em andamento</div>
+    <p style="font-size:0.87rem; color:var(--text-muted); line-height:1.7; margin-bottom:12px;">
+      Na <strong style="color:var(--text);">/pagina_processo</strong>, ao clicar em uma intimação ou prazo, abrir um <strong style="color:var(--text);">slide-over</strong> com um OlivIA Express mini: processo já pré-selecionado, tipo pré-inferido do contexto da intimação, advogado do processo. <strong style="color:var(--text);">2 cliques</strong> para iniciar a geração. O resultado vai direto para o S3 (editor) em modal. Do contexto da intimação ao DOCX sem sair da página do processo.
+    </p>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      <span class="badge green">Alta prioridade</span>
+      <span class="badge">Integração /pagina_processo</span>
+      <span class="badge">Dependência: OlivIA Flow funcionando</span>
+    </div>
+  </div>
+
+  <div class="card warning mb-24">
+    <div style="font-weight:700; color:var(--accent3); font-size:1.05rem; margin-bottom:12px;">⚠️ O que vai dar errado se não corrigir antes de implementar o frontend</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.85rem;">
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <span style="color:var(--accent2);">✗</span>
+        <div><strong>Mac Mini ERROs não diagnosticados</strong> — frontend bonito sem backend funcional = 0% de utilidade.</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <span style="color:var(--accent2);">✗</span>
+        <div><strong>match_rag_chunks_by_text similarity=1.0</strong> — RAG não retorna nada. Petição sem contexto jurídico específico.</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <span style="color:var(--accent2);">✗</span>
+        <div><strong>OLIVIA_TOKEN no bundle</strong> — P0 de segurança. Se não corrigir, qualquer um com DevTools acessa o Mac Mini.</div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:flex-start;">
+        <span style="color:var(--accent2);">✗</span>
+        <div><strong>Sem fn_olivia_retry no frontend</strong> — primeiro ERRO = sessão perdida. Usuário recomeça do Step 1.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <!-- SEÇÃO 8: PRÓXIMOS PASSOS -->
+  <div class="section-title"><span class="icon">🚀</span> Próximos Passos Recomendados</div>
+  <p class="section-desc">Ordem de execução baseada nas decisões e riscos mapeados</p>
+
+  <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:40px;">
+    <div class="next-step">
+      <div class="next-step-num">1</div>
+      <div>
+        <div class="next-step-title">Diagnosticar Mac Mini (2-4h) — BLOQUEANTE</div>
+        <div class="next-step-desc">SSH no Mac Mini. Checar logs de olivia-pipeline-v3.mjs. Verificar: porta 19100 ativa? ANTHROPIC_API_KEY presente? Dependências npm? Quota da API? Resolver antes de qualquer frontend.</div>
+      </div>
+    </div>
+    <div class="next-step">
+      <div class="next-step-num">2</div>
+      <div>
+        <div class="next-step-title">Responder as 8 Decisões acima — 30min</div>
+        <div class="next-step-desc">D-01 a D-08 definem escopo, complexidade e tempo de execução. Especialmente D-01 (onde roda), D-03 (VibeLaw) e D-08 (por onde começa).</div>
+      </div>
+    </div>
+    <div class="next-step">
+      <div class="next-step-num">3</div>
+      <div>
+        <div class="next-step-title">DELETE /pages/olivia/ + Scaffold do Wizard — 1 sprint</div>
+        <div class="next-step-desc">Deletar os 72 arquivos legados. Criar a estrutura: index.tsx + OliviaWizardV3.tsx + os 4 StepX.tsx com layout mock. Zustand store. Testa navegação entre steps sem backend.</div>
+      </div>
+    </div>
+    <div class="next-step">
+      <div class="next-step-num">4</div>
+      <div>
+        <div class="next-step-title">Step 1 funcional + integração EF-02 — 1 sprint</div>
+        <div class="next-step-desc">ProcessoSelector → TipoPeticao → Advogado → Analisar. Chama EF-02. Aguarda via Realtime. Vê tópicos aparecerem. Esse é o "momento uau" do produto.</div>
+      </div>
+    </div>
+    <div class="next-step">
+      <div class="next-step-num">5</div>
+      <div>
+        <div class="next-step-title">Step 2 DnD + Step 3 TipTap básico + Step 4 Download — 2 sprints</div>
+        <div class="next-step-desc">Flow completo ponta-a-ponta. VibeLaw slash commands. Download DOCX. Testar com processo real do Christian (TJRS) e Heloísa (TJSC).</div>
+      </div>
+    </div>
+    <div class="next-step">
+      <div class="next-step-num">6</div>
+      <div>
+        <div class="next-step-title">Polish: Split View + DiffHighlighter + SectionNav — 1 sprint</div>
+        <div class="next-step-desc">Após o fluxo funcionar de ponta a ponta com qualidade ≥ 7.0, adicionar as features de D13 que elevam a UX sem bloquear a entrega core.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VEREDICTO FINAL -->
+  <div class="verdict">
+    <div class="score-circle">
+      <div class="score-num">8.1</div>
+      <div class="score-max">/10</div>
+    </div>
+    <h2>Vai funcionar? Sim — com condições</h2>
+    <p>
+      A <strong>arquitetura está correta</strong>: Realtime resolve o race condition, Edge Functions eliminam o token exposto, Mac Mini mantém o poder de processamento. O backend (Waves 1 e 2) está 70% pronto.
+    </p>
+    <p>
+      O risco real não é o frontend — é o <strong>Mac Mini não debugado</strong>. Não adianta construir um wizard perfeito se o pipeline de geração retorna ERRO. A primeira ação obrigatória é SSHar no Mac Mini, abrir os logs e entender o que está quebrando.
+    </p>
+    <p>
+      Com o mecanismo funcionando e as 8 decisões respondidas, o OlivIA Flow está a <strong>3-4 semanas de MVP funcional</strong> com taxa de sucesso &gt;90%.
+    </p>
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-top:16px;">
+      <span class="badge green">Arquitetura aprovada</span>
+      <span class="badge red">Mac Mini = P0 urgente</span>
+      <span class="badge yellow">8 decisões pendentes</span>
+      <span class="badge blue">3-4 semanas para MVP</span>
+    </div>
+  </div>
+
+  <div style="text-align:center; padding:32px 0 16px; color:var(--text-muted); font-size:0.8rem;">
+    Gerado por Jarbas 2.0 · MDX LegalTech · 2026-05-13
+  </div>
+
+</div>
+
+<script>
+  // Interatividade das decisões
+  document.querySelectorAll('.option').forEach(opt => {
+    opt.addEventListener('click', function() {
+      const radio = this.previousElementSibling;
+      if (radio && radio.type === 'radio') {
+        radio.checked = true;
+        // Remove selected de irmãos
+        const name = radio.name;
+        document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+          r.nextElementSibling.classList.remove('selected');
+        });
+        this.classList.add('selected');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>

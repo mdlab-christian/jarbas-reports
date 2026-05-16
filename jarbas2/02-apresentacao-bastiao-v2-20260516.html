@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Como construí uma arquitetura de Super Agentes — e como o Hermes Agent entra agora</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); font-size: 0.92rem; line-height: 1.65; padding: 20px 16px; }
+.container { max-width: 1100px; margin: 0 auto; }
+.hero { text-align: center; padding: 36px 16px 28px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text { font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent5)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; margin-bottom: 10px; line-height: 1.2; padding: 0 4px; }
+.hero-sub { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 16px; max-width: 720px; margin-left: auto; margin-right: auto; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } body { padding: 16px 12px; } .hero { padding: 24px 8px 20px; } }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+.card-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 12px; }
+.card h3 { font-size: 1.15rem; margin-bottom: 10px; color: var(--text); }
+.card p { margin-bottom: 10px; }
+.card ul, .card ol { margin: 10px 0 10px 22px; }
+.card li { margin-bottom: 6px; }
+.card.accent-purple { border-left: 4px solid var(--accent); }
+.card.accent-green { border-left: 4px solid var(--accent3); }
+.card.accent-yellow { border-left: 4px solid var(--accent4); }
+.card.accent-red { border-left: 4px solid var(--accent2); }
+.card.accent-blue { border-left: 4px solid var(--accent5); }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px 14px; text-align: center; }
+.stat-value { font-size: 1.5rem; font-weight: 700; color: var(--accent); line-height: 1.2; }
+.stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+.section { margin: 36px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.3rem; }
+.section-header h2 { font-size: 1.2rem; font-weight: 600; flex: 1; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 0.85rem; }
+.table-wrap { overflow-x: auto; border-radius: 10px; border: 1px solid var(--border); }
+th { background: var(--surface2); padding: 10px 12px; text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.82rem; vertical-align: top; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 500; display: inline-block; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.code { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.78rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--accent3); overflow-x: auto; white-space: pre-wrap; word-break: break-word; margin: 10px 0; }
+.ascii { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; background: rgba(0,0,0,0.4); border: 1px solid var(--border); border-radius: 10px; padding: 16px; color: var(--accent5); overflow-x: auto; white-space: pre; line-height: 1.4; margin: 14px 0; }
+.quote { border-left: 4px solid var(--accent); background: rgba(124,109,255,0.06); padding: 14px 16px; border-radius: 0 10px 10px 0; margin: 12px 0; font-style: italic; color: var(--text); }
+.quote.green { border-left-color: var(--accent3); background: rgba(79,255,176,0.06); }
+.quote.yellow { border-left-color: var(--accent4); background: rgba(255,209,102,0.06); }
+.agent-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.agent-card h3 { font-size: 1.1rem; margin-bottom: 4px; }
+.agent-card .agent-tag { font-size: 0.78rem; color: var(--text-muted); font-weight: 500; }
+.agent-card .block { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 10px 12px; }
+.agent-card .block-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px; font-weight: 600; }
+.agent-card ul { margin-left: 18px; font-size: 0.85rem; }
+.agent-card li { margin-bottom: 4px; }
+.agent-card .interfaces { display: grid; grid-template-columns: 1fr; gap: 6px; font-size: 0.82rem; }
+.agent-card .interfaces span { background: rgba(91,196,245,0.08); border: 1px solid rgba(91,196,245,0.2); padding: 6px 10px; border-radius: 6px; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 14px 0; }
+@media(max-width:768px) { .compare { grid-template-columns: 1fr; } }
+.compare-col { background: var(--surface2); border-radius: 10px; padding: 16px; border: 1px solid var(--border); }
+.compare-col.before { border-top: 3px solid var(--accent2); }
+.compare-col.after { border-top: 3px solid var(--accent3); }
+.compare-col h4 { margin-bottom: 10px; font-size: 0.95rem; }
+.compare-col ul { margin-left: 18px; font-size: 0.85rem; }
+.compare-col li { margin-bottom: 5px; }
+.step { background: var(--surface2); border-left: 3px solid var(--accent); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 10px 0; }
+.step-num { font-weight: 700; color: var(--accent); margin-right: 8px; }
+.step-title { font-weight: 600; display: inline; }
+.highlight-box { background: linear-gradient(135deg, rgba(124,109,255,0.1), rgba(91,196,245,0.08)); border: 1px solid rgba(124,109,255,0.3); border-radius: 14px; padding: 22px; margin: 14px 0; }
+.highlight-box.gold { background: linear-gradient(135deg, rgba(255,209,102,0.1), rgba(255,107,107,0.06)); border-color: rgba(255,209,102,0.35); }
+.highlight-box.green { background: linear-gradient(135deg, rgba(79,255,176,0.08), rgba(124,109,255,0.06)); border-color: rgba(79,255,176,0.3); }
+.footer { text-align: center; padding: 28px 16px; color: var(--text-muted); font-size: 0.78rem; border-top: 1px solid var(--border); margin-top: 40px; }
+a { color: var(--accent5); text-decoration: none; word-break: break-word; }
+a:hover { text-decoration: underline; }
+strong { color: var(--text); font-weight: 600; }
+.intro-card { background: linear-gradient(135deg, rgba(124,109,255,0.08), rgba(91,196,245,0.05)); border: 1px solid rgba(124,109,255,0.25); border-radius: 14px; padding: 22px; }
+.intro-card ul { margin-left: 22px; margin-top: 10px; }
+.intro-card li { margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <span class="hero-emoji">🧠</span>
+    <h1 class="gradient-text">Como construí uma arquitetura de Super Agentes — e como o Hermes Agent entra agora</h1>
+    <p class="hero-sub">Para a Comunidade do Bastião · MdLab LegalTech · Apresentação completa · 2026-05-16</p>
+    <div class="badges">
+      <span class="badge bp">Christian Paz</span>
+      <span class="badge bg">CTO MdLab LegalTech</span>
+      <span class="badge bb">Audiência mista</span>
+      <span class="badge by">Didático + técnico</span>
+    </div>
+  </div>
+
+  <div class="grid g4">
+    <div class="stat-card"><div class="stat-value">5</div><div class="stat-label">Super agentes em produção</div></div>
+    <div class="stat-card"><div class="stat-value">3</div><div class="stat-label">Interfaces por agente</div></div>
+    <div class="stat-card"><div class="stat-value">1</div><div class="stat-label">Cérebro Obsidian compartilhado</div></div>
+    <div class="stat-card"><div class="stat-value">OC + Hermes</div><div class="stat-label">Lado a lado</div></div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">👋</span><h2>Quem sou eu e o que vocês vão ver</h2></div>
+    <div class="intro-card">
+      <p><strong>Christian Paz</strong> — CTO da MdLab LegalTech.</p>
+      <ul>
+        <li>Construo software jurídico (MdFlow) e opero um escritório de advocacia.</li>
+        <li>Hoje rodo <strong>5 super agentes IA em produção</strong> há meses.</li>
+        <li>Pesquisei o Hermes hoje porque mandaram aqui no grupo — e percebi que ele <strong>encaixa perfeitamente</strong> no que eu já tenho.</li>
+        <li>Este HTML é a apresentação completa: minha arquitetura + plano de integração do Hermes + um guia 80/20 pra quem quiser começar.</li>
+      </ul>
+      <p style="margin-top: 12px; color: var(--text-muted); font-size: 0.85rem;">Tom: papo de quadro-branco. Leigo entende. Avançado se surpreende. Esse é o objetivo.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🎯</span><h2>A grande sacada: UM agente, TRÊS interfaces</h2></div>
+    <div class="card accent-purple">
+      <div class="quote">"Imagine que você tem uma assistente. Ela atende você por WhatsApp, atende sua equipe pelo navegador da empresa, e você fala com ela no terminal do seu Mac quando está programando. <strong>É a mesma pessoa</strong>, o mesmo cérebro, a mesma memória. Só muda o canal."</div>
+
+      <div class="ascii">                    ┌─────────────────────────────┐
+                    │   UM SUPER AGENTE (Olivia)  │
+                    │  Cérebro + Memória + Skills │
+                    └──────────────┬──────────────┘
+                                   │
+        ┌──────────────────────────┼──────────────────────────┐
+        ▼                          ▼                          ▼
+  ┌──────────────┐         ┌──────────────┐         ┌──────────────┐
+  │ INTERFACE 1  │         │ INTERFACE 2  │         │ INTERFACE 3  │
+  │              │         │              │         │              │
+  │  Frontend    │         │  MdOs (CC)   │         │  Telegram    │
+  │  MdFlow      │         │  Claude Code │         │  OpenClaw    │
+  │  web/app     │         │  no terminal │         │  + Hermes    │
+  │              │         │              │         │              │
+  │  Advogados   │         │  Eu (CTO)    │         │  Equipe      │
+  └──────────────┘         └──────────────┘         └──────────────┘</div>
+
+      <p>Cada super agente nosso tem <strong>3 entradas</strong>:</p>
+      <ul>
+        <li><strong>MdFlow</strong> — o app web da empresa (advogados usam diariamente)</li>
+        <li><strong>MdOs</strong> — Claude Code rodando direto no terminal do Mac (eu, CTO)</li>
+        <li><strong>Telegram</strong> — via OpenClaw (e logo Hermes)</li>
+      </ul>
+      <p>Mudei uma regra de negócio do agente OlivIA? <strong>Funciona simultaneamente nas 3 interfaces.</strong> Adicionei um playbook jurídico novo? Todas as 3 interfaces leem o mesmo arquivo. O usuário escolhe a interface conforme o contexto.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🧠</span><h2>O cérebro do projeto: Obsidian + RAG</h2></div>
+    <div class="card accent-blue">
+      <div class="quote">"Esses agentes não são tudo IA. A IA é só o motor. <strong>O cérebro está em arquivos Markdown</strong> que vivem num Obsidian."</div>
+
+      <h3>a) O que é Obsidian (pro leigo)</h3>
+      <p>App de notas que salva tudo em arquivos <code>.md</code> no seu computador. Texto puro. Você pode abrir no Bloco de Notas se quiser. Sem banco de dados, sem nuvem proprietária.</p>
+
+      <h3 style="margin-top: 16px;">b) Como usamos como cérebro</h3>
+      <ul>
+        <li>Cada super agente tem um <strong>vault próprio</strong> (uma pasta de notas)</li>
+        <li><code>olivia-vault</code> tem: identidade (<code>SOUL.md</code>), estilo (<code>STYLE.md</code>), exemplos validados (<code>EXAMPLES.md</code>), 37 playbooks jurídicos, memória de erros já corrigidos (<code>ERRORS.md</code>), memória de aprendizados (<code>MEMORY.md</code>)</li>
+        <li>Quando o agente vai responder algo, ele <strong>LÊ esses arquivos primeiro</strong> pra saber quem ele é, como ele fala, o que aprendeu antes</li>
+        <li>Toda vez que treinamos o agente, ele atualiza a memória sozinho</li>
+      </ul>
+
+      <h3 style="margin-top: 16px;">c) Onde entra o RAG</h3>
+      <ul>
+        <li><strong>RAG</strong> = Retrieval Augmented Generation. Em português: "primeiro busca, depois gera"</li>
+        <li>OlivIA tem <strong>1.353 jurisprudências</strong> (decisões judiciais) e <strong>1.258 trechos de petições antigas</strong> indexados via embeddings</li>
+        <li>Quando vai gerar uma peça jurídica, primeiro <strong>busca</strong> o que é relevante (pgvector no Supabase) e depois <strong>usa</strong> isso como contexto pra IA</li>
+        <li>O Obsidian sincroniza entre os 3 Macs em tempo real (Obsidian Sync). Edito uma regra no celular → propaga pro servidor em segundos</li>
+        <li><strong>Sem deploy. Sem reinício. Hot reload de cérebro.</strong></li>
+      </ul>
+      <p style="margin-top: 14px; color: var(--text-muted); font-size: 0.85rem;">Esta é a parte que faz devs avançados pirarem: a inteligência mora em arquivos de texto que qualquer um edita.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🏗️</span><h2>Arquitetura física: UM Mac Mini, MUITOS usuários</h2></div>
+    <div class="card accent-green">
+      <div class="quote green">"Tem um Mac Mini M4 aqui no escritório. Um computador só. Mas dentro dele, <strong>cada super agente roda como se fosse um usuário macOS separado</strong>. Como se cada um tivesse seu próprio computador."</div>
+
+      <h3>Analogia pro leigo: apartamento com vários quartos</h3>
+      <ul>
+        <li>Cada <strong>quarto</strong> tem dono próprio (user macOS)</li>
+        <li>Cada um tem suas <strong>chaves</strong> (permissões), seu <strong>armário</strong> (filesystem), seu <strong>telefone</strong> (porta de rede)</li>
+        <li>Se um quarto pega fogo (bug), os outros não pegam</li>
+        <li>A administradora do prédio (admin) consegue entrar em qualquer quarto se precisar</li>
+      </ul>
+
+      <div class="table-wrap" style="margin-top: 14px;">
+      <table>
+        <thead><tr><th>User macOS</th><th>Agente</th><th>O que faz</th></tr></thead>
+        <tbody>
+          <tr><td><strong>olivia</strong></td><td>OlivIA</td><td>Advogada de IA — escreve petições</td></tr>
+          <tr><td><strong>cecilia</strong></td><td>Cecília</td><td>Estagiária de IA — vigia processos no tribunal</td></tr>
+          <tr><td><strong>julia</strong></td><td>Julia</td><td>Recepcionista de IA — atende leads no WhatsApp</td></tr>
+          <tr><td><strong>mia</strong></td><td>MIA</td><td>Secretária de IA — organiza o dia da equipe</td></tr>
+          <tr><td><strong>jarbas</strong></td><td>Jarbinhas</td><td>Mordomo legado (rodando workflow n8n antigo)</td></tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div class="ascii">┌────────────────────────────────────────────────────┐
+│              Mac Mini M4 (1 hardware)              │
+│                                                    │
+│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ │
+│  │ olivia  │ │ cecilia │ │  julia  │ │   mia   │ │
+│  │ UID 503 │ │ UID 504 │ │ UID 508 │ │ UID 509 │ │
+│  │ :19100  │ │ :19200  │ │ :8787   │ │ :19500  │ │
+│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ │
+│                                                    │
+│  Tailscale VPN ─── SSH cross-user (admin: eu)     │
+└────────────────────────────────────────────────────┘</div>
+
+      <h3 style="margin-top: 14px;">Pro técnico:</h3>
+      <ul>
+        <li>Cada user macOS tem <strong>UID próprio</strong> (502, 503, 504, 506, 508, 509)</li>
+        <li>Cada um tem um <strong>LaunchAgent</strong> (auto-restart se cair)</li>
+        <li>Porta HTTP exposta no <strong>Tailscale</strong> (VPN privada entre nossos Macs)</li>
+        <li>SSH cross-user permite admin entrar em qualquer um pra debugar</li>
+        <li>Logs separados, processos isolados, segurança real</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🤖</span><h2>Os 5 super agentes em detalhe</h2></div>
+
+    <div class="grid g2">
+
+      <div class="agent-card">
+        <div>
+          <h3>⚖️ OlivIA</h3>
+          <div class="agent-tag">advogada de IA</div>
+        </div>
+        <p><strong>O que faz:</strong> escreve petições jurídicas (contestações, réplicas, apelações) — em minutos o que advogado humano leva horas.</p>
+        <div class="block">
+          <div class="block-label">4 modos operacionais</div>
+          <ul>
+            <li><strong>ANÁLISE</strong> — lê provas e identifica tópicos jurídicos</li>
+            <li><strong>GERAÇÃO</strong> — escreve a peça do zero a partir do tema</li>
+            <li><strong>VIBELAW</strong> — chat de revisão (advogado conversa e ajusta)</li>
+            <li><strong>RELATÓRIO</strong> — relatórios técnicos do caso</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">Stack técnica</div>
+          <ul>
+            <li>Pipeline próprio Node.js (<strong>pipeline-v4</strong>) com 6 estágios</li>
+            <li><strong>Claude Sonnet 4.6</strong> como motor + validador "<strong>Boris</strong>" (também Sonnet 4.6, treinado pra ser crítico)</li>
+            <li>RAG via pgvector (Supabase) — 1.353 decisões indexadas</li>
+            <li><strong>177 modelos</strong> de petição validados como base</li>
+            <li><strong>37 playbooks</strong> jurídicos (estratégias por tipo de caso)</li>
+            <li>Geração DOCX/PDF formatado direto</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">3 interfaces</div>
+          <div class="interfaces">
+            <span>1. MdFlow <code>/olivia</code> — wizard 4 steps</span>
+            <span>2. MdOs <code>/mdos-olivia:peticao</code></span>
+            <span>3. Telegram <code>@olivia_mdbot</code></span>
+          </div>
+        </div>
+        <div class="block">
+          <div class="block-label">Cérebro</div>
+          <p style="font-size: 0.83rem;"><code>~/Documents/olivia-vault/</code> — 200+ arquivos Markdown via Obsidian Sync</p>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div>
+          <h3>📋 Cecília</h3>
+          <div class="agent-tag">estagiária de IA</div>
+        </div>
+        <p><strong>O que faz:</strong> vigia os tribunais 24/7. Quando aparece intimação no nome do escritório, ela classifica e avisa a equipe <strong>antes do ofício oficial chegar</strong>.</p>
+        <div class="block">
+          <div class="block-label">3 workers paralelos</div>
+          <ul>
+            <li><strong>Worker A</strong> (5min, sem IA): captura crua do EPROC via Playwright stealth</li>
+            <li><strong>Worker B</strong> (10min, IA leve): classifica taxonomia A-G (audiência / cumprimento / ato adm / desistência / embargos / sentença / outros)</li>
+            <li><strong>Worker C</strong> (15min, IA pesada): análise profunda + galeria visual de telas (Atlas)</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">Capacidades</div>
+          <ul>
+            <li>Login automático nos 5 OABs do escritório (RS, SC, SP) usando <strong>otplib</strong> (TOTP 2FA)</li>
+            <li>Auto-aprova classificações com confiança ≥0.95</li>
+            <li>Quando duvida, escala pra humano</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">3 interfaces</div>
+          <div class="interfaces">
+            <span>1. MdFlow <code>/controller</code> — dashboard equipe</span>
+            <span>2. MdOs <code>/mdos-cecilia:lote</code></span>
+            <span>3. Telegram <code>@cecilia_mdbot</code></span>
+          </div>
+        </div>
+        <div class="block">
+          <div class="block-label">Cérebro</div>
+          <p style="font-size: 0.83rem;"><code>~/Documents/cecilia-vault/</code> — taxonomias, fluxos operacionais, memória por tribunal e por empresa ré</p>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div>
+          <h3>💬 Julia</h3>
+          <div class="agent-tag">recepcionista de IA</div>
+        </div>
+        <p><strong>O que faz:</strong> atende leads no WhatsApp 24/7. Faz auditoria gratuita do CPF, conversa, qualifica e encaminha pro humano <strong>só quando o lead está pronto</strong>.</p>
+        <div class="block">
+          <div class="block-label">Stack</div>
+          <ul>
+            <li>Servidor próprio Node/TypeScript (Express) na porta :8787</li>
+            <li>Cloudflare Tunnel expõe pra internet (julia.midas.com.br)</li>
+            <li><strong>Whisper.cpp local</strong> transcreve áudios (large-v3-turbo)</li>
+            <li>Consulta <strong>APIFULL</strong> (BoaVista) pra puxar restrições do CPF</li>
+            <li>Gera PDF de 6 páginas com auditoria do nome do lead</li>
+            <li><strong>5 skills</strong> routed por estado: recepção → auditoria → docs → followup → escalada</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">Camadas de segurança</div>
+          <ul>
+            <li><strong>Forbidden filter</strong>: 15 padrões que ela NUNCA pode dizer (não diz que é IA, não promete resultado, não vaza dados)</li>
+            <li><strong>Memory consolidator</strong>: domingo cron agrupa histórico em 2000 chars (cut custo 60%)</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">3 interfaces</div>
+          <div class="interfaces">
+            <span>1. MdFlow <code>/mdzap/sdr_leads</code></span>
+            <span>2. MdOs <code>/julia</code> skill</span>
+            <span>3. Telegram <code>@Julia_mdbot</code></span>
+          </div>
+        </div>
+        <div class="block">
+          <div class="block-label">Cérebro</div>
+          <p style="font-size: 0.83rem;"><code>~/Documents/julia-vault/</code> — skills, personas, exemplos canônicos</p>
+        </div>
+      </div>
+
+      <div class="agent-card">
+        <div>
+          <h3>📅 MIA</h3>
+          <div class="agent-tag">secretária digital</div>
+        </div>
+        <p><strong>O que faz:</strong> secretária da equipe jurídica. Manda briefing do dia toda manhã, avisa prazos vencendo, e <strong>escala pra OlivIA ou Cecília</strong> quando precisa.</p>
+        <div class="block">
+          <div class="block-label">Capacidades</div>
+          <ul>
+            <li><strong>15 skills L2</strong> (rotear, consultar, escalar, criar atividade)</li>
+            <li><strong>Briefing matinal 8h</strong> → resumo do dia (intimações urgentes, prazos, audiências)</li>
+            <li><strong>Alertas 9h e 13h</strong> → prazos D-0, D-1, D-3</li>
+            <li>Roteamento multi-intent: "MIA, busca processos da Maria do BB" → ela entende e responde</li>
+            <li>Escala pra OlivIA: "MIA, gera réplica disso"</li>
+            <li>Escala pra Cecília: "MIA, reanalisa essa intimação com contexto X"</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">Modelos</div>
+          <ul>
+            <li>Sonnet 4.6 para conversa real-time</li>
+            <li>Haiku 4.5 para crons noturnos (mais barato)</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">3 interfaces</div>
+          <div class="interfaces">
+            <span>1. MdFlow — notificações in-app</span>
+            <span>2. MdOs <code>/mdos-mia:briefing</code></span>
+            <span>3. Telegram <code>@mia_mdbot</code></span>
+          </div>
+        </div>
+        <div class="block">
+          <div class="block-label">Cérebro</div>
+          <p style="font-size: 0.83rem;"><code>~/Documents/MdOs-vault/docs/mia-conceito.md</code> + protocolo multi-agent compartilhado</p>
+        </div>
+      </div>
+
+      <div class="agent-card" style="grid-column: 1 / -1;">
+        <div>
+          <h3>🐙 Jarbas 2.0</h3>
+          <div class="agent-tag">mordomo do CTO</div>
+        </div>
+        <p><strong>O que faz:</strong> é meu agente pessoal. Roda num <strong>MacBook Air dedicado</strong> (sim, comprei um Mac só pra ele). Falo com ele do celular e ele opera todos os meus projetos.</p>
+        <div class="block">
+          <div class="block-label">Capacidades</div>
+          <ul>
+            <li><code>@jarbas_masterbot</code> Telegram</li>
+            <li>Roda em MacBook Air M4 dedicado (UID christian) — livre acesso ao sistema</li>
+            <li><strong>46 skills</strong> (superset das outras): <code>/projeto</code> (gestor projetos), <code>/report</code>, <code>/briefing-matinal</code>, <code>/youtube-watcher</code>, <code>/ideia</code>, <code>/vault-ops</code>, etc</li>
+            <li>Vault próprio (<code>~/jarbas-vault</code>) com 30+ projetos ativos, 50+ aprendizados, 100+ memórias</li>
+            <li>Supervisor de OlivIA, Cecília, MIA, Beto (dev), Jarbinhas (legado)</li>
+            <li><strong>Cron-bus + command-bus</strong>: scheduling assíncrono via arquivos no vault</li>
+            <li>Opera navegador (Universal Control), SSH em qualquer Mac, executa qualquer comando do meu fluxo</li>
+          </ul>
+        </div>
+        <div class="block">
+          <div class="block-label">3 interfaces</div>
+          <div class="interfaces">
+            <span>1. MdFlow — não tem (é só meu, CTO)</span>
+            <span>2. MdOs — JARBAS está dentro do meu Claude Code (vault inclusive)</span>
+            <span>3. Telegram <code>@jarbas_masterbot</code> — falo dele do celular</span>
+          </div>
+        </div>
+        <div class="block">
+          <div class="block-label">Cérebro</div>
+          <p style="font-size: 0.83rem;"><code>~/jarbas-vault/</code> — vault privado mais denso, sincronizado entre os 3 Macs (Pro, Air, Mini)</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🔗</span><h2>Como os 5 agentes conversam entre si</h2></div>
+    <div class="card accent-purple">
+      <p>Quando você tem 5 agentes em produção, eles precisam <strong>conversar</strong>. A gente fez um protocolo multi-agent simples:</p>
+      <ul>
+        <li>Cada agente tem <strong>porta HTTP exposta no Tailscale</strong> (VPN privada entre os 3 Macs)</li>
+        <li>Envelope JSON canônico de request:</li>
+      </ul>
+      <div class="code">{
+  "request_id": "uuid",
+  "contexto": "pagina.acao",
+  "organizacao_id": "uuid",
+  "actor_user_id": "uuid",
+  "origem_rota": "/pagina",
+  "data": { ... }
+}</div>
+      <p>Response canônico (HTTP 200 sempre, mesmo em erro):</p>
+      <div class="code">{
+  "success": true,
+  "message": "...",
+  "action": "toast_refresh",
+  "data": { ... },
+  "error_code": null
+}</div>
+      <p>Exemplos do dia-a-dia:</p>
+      <ul>
+        <li>Cecília detecta intimação urgente classe A → manda HTTP pra MIA → MIA escala via Telegram pro advogado responsável</li>
+        <li>OlivIA recebe pedido de petição no MdFlow → consulta Cecília se há intimação relevante no processo → busca jurisprudência via RAG → gera peça</li>
+        <li>Jarbas pode invocar qualquer um via SSH ou API local</li>
+      </ul>
+      <p><strong>Resultado:</strong> os agentes trabalham juntos como uma equipe.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">⚙️</span><h2>Por que isso substitui o n8n</h2></div>
+    <div class="card accent-yellow">
+      <div class="quote yellow">"Antes a gente fazia automações em n8n (igual Zapier, mas open source). Mas n8n tem um limite: <strong>ele é uma sequência fixa de passos</strong>. Se você quer flexibilidade real, precisa de agente."</div>
+
+      <div class="compare">
+        <div class="compare-col before">
+          <h4>🔴 n8n (antes)</h4>
+          <ul>
+            <li>Workflow fixo: gatilho → passo 1 → 2 → 3 → saída</li>
+            <li>Cada decisão é um IF/ELSE manual</li>
+            <li>Mudar o fluxo = editar visual + redeployar</li>
+            <li>Não tem memória</li>
+            <li>Não aprende</li>
+            <li>Custo cresce com complexidade</li>
+          </ul>
+        </div>
+        <div class="compare-col after">
+          <h4>🟢 Agentes (depois)</h4>
+          <ul>
+            <li>O agente <strong>decide o caminho cada vez</strong></li>
+            <li>Decisão é raciocínio LLM com contexto</li>
+            <li>Mudar comportamento = editar Markdown no vault (hot reload)</li>
+            <li>Tem memória persistente</li>
+            <li>Aprende com erros (auto-atualiza ERRORS, MEMORY)</li>
+            <li>Custo previsível por chamada</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 14px;">Onde substituímos n8n:</h3>
+      <ul>
+        <li><strong>Análise de intimações</strong> — antes: workflow n8n com regex + IF gigante. Hoje: Cecília classificando com IA + playbook</li>
+        <li><strong>Geração de petição</strong> — antes: impossível em n8n. Hoje: OlivIA pipeline-v4</li>
+        <li><strong>Recepção de leads WhatsApp</strong> — antes: n8n + Anthropic node. Hoje: Julia com 5 skills + memória cross-conversa</li>
+        <li><strong>Briefing matinal</strong> — antes: n8n + queries SQL fixas. Hoje: MIA que entende contexto</li>
+      </ul>
+
+      <h3 style="margin-top: 14px;">Onde n8n continua sendo bom:</h3>
+      <ul>
+        <li>Workflows simples (webhook → 1 ação)</li>
+        <li>Integrações 1:1 (Stripe → planilha)</li>
+        <li>Tarefas determinísticas sem decisão IA</li>
+      </ul>
+
+      <p style="margin-top: 14px;"><strong>Hoje temos ~80 workflows n8n ainda rodando</strong> — mas a parte "inteligente" da operação migrou pros agentes.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🚀</span><h2>Agora entra o Hermes — o que muda</h2></div>
+    <div class="card accent-blue">
+      <div class="quote">"Hermes Agent é um framework lançado pela <strong>Nous Research em fevereiro de 2026</strong>. Ele é o <strong>sucessor natural do OpenClaw</strong> que eu já uso. Bombou em 10 semanas — 110-140 mil estrelas no GitHub, o framework de agentes que mais cresceu este ano."</div>
+
+      <h3>5 coisas que Hermes traz a mais que OpenClaw:</h3>
+
+      <div class="step">
+        <span class="step-num">1.</span><strong class="step-title">Skills self-improving</strong>
+        <p style="margin-top: 6px;">A cada ~15 ações, o agente <strong>para, pensa, escreve uma nova skill no vault</strong> dele documentando o que aprendeu. Sem ser pedido. ViktorKav (YouTuber BR) mostrou um vídeo dele em que o agente criou sozinho um manual de 6.000 caracteres com os 4 processos do canal, em 4 horas de uso.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">2.</span><strong class="step-title">Divisão de modelos (Pantheon)</strong>
+        <p style="margin-top: 6px;">Em OpenClaw, tudo cai no modelo principal. Em Hermes, você divide: visão → modelo barato, busca → modelo barato, raciocínio → modelo top. <strong>Economia projetada: 40-60% do custo IA.</strong></p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">3.</span><strong class="step-title">18 plataformas no mesmo gateway</strong>
+        <p style="margin-top: 6px;">Hoje cada agente é um bot Telegram separado. Com Hermes pode ser <strong>Telegram + Discord + Slack + WhatsApp + Signal + Email</strong> no mesmo processo. Plug.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">4.</span><strong class="step-title">MCP first-class</strong>
+        <p style="margin-top: 6px;">Hermes nasceu conectando <strong>MCP (Model Context Protocol)</strong>. Supabase, GitHub, Gmail, Calendar, Notion — tudo plug. Sem reescrever cliente HTTP.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">5.</span><strong class="step-title">Cron em linguagem natural</strong>
+        <p style="margin-top: 6px;">"Hermes, todo dia às 7h30 me manda um briefing do dia" → ele cria o cron sozinho. <strong>Sem editar crontab.</strong></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🪄</span><h2>A grande dica pro grupo: migração plug-and-play</h2></div>
+    <div class="highlight-box gold">
+      <div class="quote yellow">"Aqui está a sacada que vai interessar muito o grupo: <strong>se você já tem OpenClaw rodando, migra pra Hermes em um comando.</strong>"</div>
+
+      <div class="code">hermes claw migrate</div>
+
+      <p><strong>O que acontece:</strong></p>
+      <ul>
+        <li>Hermes lê todo seu workspace OpenClaw (<code>~/.openclaw/</code>)</li>
+        <li>Importa: persona do agente, memórias acumuladas, skills criadas, allowlist de comandos, chaves de API, configs de plataforma</li>
+        <li><strong>Em segundos.</strong> Sem editar arquivo. Sem dor.</li>
+        <li>ViktorKav reportou: "4 itens migrados, 7 arquivados, 32 pulados, 0 conflitos, 0 erros, segundos"</li>
+        <li>O agente dele (Cláudio) chegou inteiro do outro lado</li>
+      </ul>
+
+      <p style="margin-top: 14px;"><strong>Quem nunca teve OpenClaw:</strong></p>
+      <div class="code">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash</div>
+      <p>Instala em ~10 minutos. Cria um bot no Telegram pelo @BotFather. Conecta. Roda.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">📦</span><h2>Guia 80/20 — quem do grupo quiser começar</h2></div>
+    <div class="card accent-green">
+      <div class="quote green">"80% do resultado com 20% do esforço. Se você só vai ler uma seção, leia esta."</div>
+
+      <h3>Pré-requisitos</h3>
+      <ul>
+        <li>Um Mac, Linux ou VPS (Hostinger tem template direto, sem terminal)</li>
+        <li>Conta de Telegram</li>
+        <li>Chave de API de algum LLM (Anthropic, OpenAI ou OpenRouter)</li>
+      </ul>
+
+      <div class="step">
+        <span class="step-num">Passo 1 —</span><strong class="step-title">Instalar (5 min)</strong>
+        <div class="code">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash</div>
+      </div>
+
+      <div class="step">
+        <span class="step-num">Passo 2 —</span><strong class="step-title">Criar bot Telegram (3 min)</strong>
+        <ul style="margin-top: 6px;">
+          <li>Abre Telegram, procura @BotFather</li>
+          <li>Digita <code>/newbot</code></li>
+          <li>Dá um nome e username (terminando em "bot")</li>
+          <li>Copia o token</li>
+        </ul>
+      </div>
+
+      <div class="step">
+        <span class="step-num">Passo 3 —</span><strong class="step-title">Setup wizard (5 min)</strong>
+        <div class="code">hermes setup</div>
+        <ul style="margin-top: 6px;">
+          <li>Cola o token Telegram</li>
+          <li>Cola tua chave de API LLM</li>
+          <li>Define teu Telegram User ID (busca em @userinfobot)</li>
+          <li>Confirma. Pronto.</li>
+        </ul>
+      </div>
+
+      <div class="step" style="border-left-color: var(--accent2);">
+        <span class="step-num" style="color: var(--accent2);">Passo 4 —</span><strong class="step-title">Configuração CRÍTICA (não pule!)</strong>
+        <p style="margin-top: 6px;">Vai em "Auxiliary models" e separa:</p>
+        <ul style="margin-top: 6px;">
+          <li>Visão → modelo barato (GPT-5-mini ou Haiku)</li>
+          <li>Busca em sessões → modelo barato</li>
+          <li>Compressão → modelo barato</li>
+          <li>Principal → modelo top (Sonnet 4.6 ou Opus 4.7)</li>
+        </ul>
+        <p style="margin-top: 8px; color: var(--accent2);"><strong>Por quê?</strong> ViktorKav levou rate limit no primeiro dia porque deixou tudo no modelo principal. 3 processos falharam por estouro de cota.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">Passo 5 —</span><strong class="step-title">Primeira conversa (1 min)</strong>
+        <p style="margin-top: 6px;">Abre o Telegram, manda mensagem pro bot. Ele responde. <strong>Acabou.</strong> Você tem um agente IA rodando no seu computador, 24/7.</p>
+      </div>
+
+      <div class="step">
+        <span class="step-num">Passo 6 —</span><strong class="step-title">Adiciona MCPs (opcional, recomendado)</strong>
+        <div class="code">hermes mcp add supabase
+hermes mcp add github
+# filesystem já vem por padrão</div>
+      </div>
+
+      <div class="step">
+        <span class="step-num">Passo 7 —</span><strong class="step-title">Deixa ele aprender</strong>
+        <p style="margin-top: 6px;">Usa uma semana. Pede coisas reais. Ele vai <strong>criar skills sozinho</strong> documentando os padrões. Vai ficar melhor com o tempo.</p>
+      </div>
+
+      <p style="margin-top: 14px; color: var(--text-muted); font-size: 0.85rem;"><strong>Próximo passo (avançado):</strong> criar profile separado por agente <code>hermes profile create dev-agent</code>, configurar Pantheon (5 personas com modelos diferentes), conectar Obsidian vault <code>hermes connect obsidian /caminho/vault</code>.</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🎯</span><h2>Como vou integrar Hermes na minha operação (plano CTO)</h2></div>
+    <div class="card accent-purple">
+      <div class="table-wrap">
+      <table>
+        <thead><tr><th>Fase</th><th>O que faço</th><th>Quando</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><strong>FASE 0</strong></td>
+            <td>Instalo Hermes no MacBook Air ao lado do OpenClaw atual (shadow paralelo, sem desligar nada). Bot Telegram de teste novo. 1 semana experimentando.</td>
+            <td>Próximos 5 dias</td>
+            <td><span class="status-pill sp-run">🔄 próximo</span></td>
+          </tr>
+          <tr>
+            <td><strong>FASE 1</strong></td>
+            <td>Migro Jarbas 2.0 pro Hermes (<code>hermes claw migrate</code>). <code>@jarbas_masterbot</code> apontado pro Hermes. OpenClaw arquivado (rollback 30s).</td>
+            <td>1 semana depois</td>
+            <td><span class="status-pill sp-pend">⏳ planejado</span></td>
+          </tr>
+          <tr>
+            <td><strong>FASE 2</strong></td>
+            <td>Crio Hermes orquestrador transversal MdFlow no Mini. Bot novo <code>@christian_devbot</code>. MCPs Supabase + n8n + GitHub. Substitui briefing pesado da MIA.</td>
+            <td>2 semanas</td>
+            <td><span class="status-pill sp-pend">⏳ planejado</span></td>
+          </tr>
+          <tr>
+            <td><strong>FASE 3</strong></td>
+            <td>Coloco Hermes em SHADOW pra OlivIA e Cecília (paralelo, não substitui). Comparo qualidade, custo, latência por 6 semanas. Decisão GO/NO-GO no fim.</td>
+            <td>1-2 meses</td>
+            <td><span class="status-pill sp-pend">⏳ planejado</span></td>
+          </tr>
+          <tr>
+            <td><strong>FASE 4-5</strong></td>
+            <td>Julia e camada de notificação Cecília — condicional. <strong>Pipelines críticos NÃO migram</strong> (validados, calibrados).</td>
+            <td>Avaliação futura</td>
+            <td><span class="status-pill sp-block">⛔ condicional</span></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <h3 style="margin-top: 18px; color: var(--accent2);">⚠️ O que NÃO migra (transparência):</h3>
+      <ul>
+        <li><strong>Pipeline-v4 OlivIA Node</strong> — <code>server.mjs</code> com Boris validator, é engenharia específica</li>
+        <li><strong>Workers A/B/C Cecília</strong> — taxonomia A-G calibrada com José em 8h de treino</li>
+        <li><strong>Julia v2 server</strong> — Express + Cloudflare Tunnel + APIFULL + forbidden filter validado</li>
+        <li><strong>~80 cenários n8n</strong> — separação de concerns</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">💡</span><h2>O que melhora na prática: sistema atual + Hermes</h2></div>
+    <div class="highlight-box green">
+
+      <h3>Pra mim (CTO):</h3>
+      <ol>
+        <li><strong>Vibing operation no celular</strong> — falo com Hermes no Telegram, ele opera projetos, abre PRs, faz deploys via SSH nos 3 Macs. Substitui muito uso de terminal.</li>
+        <li><strong>Briefing matinal mais inteligente</strong> — Hermes consolida o que aconteceu ontem nos 3 Macs (via bridge Claude Code OS), sugere prioridades, manda pro Telegram às 7h30.</li>
+        <li><strong>Skills aprendidas automaticamente</strong> — paro de escrever skills manualmente no JARBAS. Hermes observa meu uso, cria/refina sozinho.</li>
+        <li><strong>Economia 40-60% custo IA</strong> — Pantheon (Opus raciocínio + Sonnet padrão + Haiku validação + GPT-nano commodities) cuts costs.</li>
+      </ol>
+
+      <h3 style="margin-top: 18px;">Pra equipe jurídica:</h3>
+      <ol start="5">
+        <li><strong>OlivIA mais barata</strong> — em shadow, valido se Pantheon mantém qualidade. Se OK, equipe ganha throughput com mesmo custo.</li>
+        <li><strong>Notificações Cecília via Hermes</strong> — backups automáticos, rollback de skills, GitHub privado de configs.</li>
+        <li><strong>MIA mais responsiva</strong> — modelos auxiliares mais rápidos = respostas em segundos.</li>
+      </ol>
+
+      <h3 style="margin-top: 18px;">Pra arquitetura:</h3>
+      <ol start="8">
+        <li><strong>Resiliência multiplicada</strong> — Hermes vive PARALELO ao OpenClaw. Cai um, outro continua. Não substituição, adição.</li>
+        <li><strong>Sandbox de fábrica</strong> — Hermes roda em Singularity por padrão. Agente erra comando → erro contido. Hoje rodamos sem isolation.</li>
+        <li><strong>Multi-instância via profiles</strong> — <code>hermes profile create</code> permite ter agentes especializados no mesmo Mac sem conflito (<code>olivia-shadow</code>, <code>mdflow-orchestrator</code>, etc).</li>
+      </ol>
+
+      <h3 style="margin-top: 18px;">Pra quem é do grupo:</h3>
+      <ol start="11">
+        <li><strong>Aprende com a operação madura</strong> — vocês veem o que funcionou (vault Obsidian, 3 interfaces, isolamento por user macOS, migração seletiva), copiam o que faz sentido.</li>
+        <li><strong>Hermes não é "vai trocar tudo"</strong> — é "vai adicionar onde faz sentido". Essa é a regra de ouro: <strong>se o agente já funciona sem você, não mexe. Se precisa de você pensando junto, Hermes brilha.</strong></li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">📚</span><h2>Links pro grupo</h2></div>
+    <div class="card">
+      <ul>
+        <li><strong>Hermes Agent</strong>: <a href="https://github.com/NousResearch/hermes-agent">github.com/NousResearch/hermes-agent</a> (110k+ stars, MIT license, open source)</li>
+        <li><strong>Documentação oficial</strong>: <a href="https://hermes-agent.nousresearch.com/docs/">hermes-agent.nousresearch.com/docs/</a></li>
+        <li><strong>Awesome Hermes</strong> (skills da comunidade): <a href="https://github.com/0xNyk/awesome-hermes-agent">github.com/0xNyk/awesome-hermes-agent</a></li>
+        <li><strong>Hostinger</strong> (instalação 1-clique): <a href="https://hostinger.com.br/vps">hostinger.com.br/vps</a> (cupom CAVE 10% off)</li>
+        <li><strong>ViktorKav YouTube</strong> (vídeo migração PT-BR): <a href="https://youtube.com/watch?v=nSgixa1PJvY">youtube.com/watch?v=nSgixa1PJvY</a> (18min)</li>
+        <li><strong>Jack Roberts</strong> (Hermes 10X Better, EN): <a href="https://youtube.com/watch?v=7xuWZ-3lyQE">youtube.com/watch?v=7xuWZ-3lyQE</a> (31min)</li>
+        <li><strong>OpenClaw original</strong>: <a href="https://openclaw.com">openclaw.com</a> (pra quem quer começar pelo simples)</li>
+        <li><strong>Obsidian</strong> (cérebro dos agentes): <a href="https://obsidian.md">obsidian.md</a></li>
+        <li><strong>MCP</strong> (protocolo de tools): <a href="https://modelcontextprotocol.io">modelcontextprotocol.io</a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header"><span class="section-icon">🤝</span><h2>Fechamento</h2></div>
+    <div class="highlight-box">
+      <div class="quote">"Se chegou até aqui, valeu. Esta arquitetura levou <strong>~6 meses pra evoluir</strong> até onde tá. O Hermes vai acelerar daqui pra frente — mas ele encaixa porque <strong>o cérebro (Obsidian + vaults) e o esqueleto (5 agentes em users macOS isolados, 3 interfaces cada) já estavam prontos.</strong>"</div>
+      <div class="quote">"Se quiserem montar algo parecido, <strong>copiem o que faz sentido</strong> — não precisa ter escritório de advocacia pra usar isso. A arquitetura de '1 agente, 3 interfaces, cérebro em arquivos Markdown' funciona pra QUALQUER vertical."</div>
+      <div class="quote green">"Tô disponível aqui no grupo pra trocar ideia. Eduardo, valeu pela comunidade. 🐙"</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    🐙 MdLab LegalTech · Apresentação Comunidade do Bastião · 2026-05-16
+  </div>
+
+</div>
+</body>
+</html>

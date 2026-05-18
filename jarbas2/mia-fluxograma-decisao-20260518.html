@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mia Worker — Árvore de Decisão EPROC</title>
+<style>
+:root {
+  --bg: #0d0f18;
+  --surface: #161926;
+  --surface2: #1e2235;
+  --surface3: #252a40;
+  --border: #2a2f4a;
+  --accent: #7c6dff;
+  --accent2: #ff6b6b;
+  --accent3: #4fffb0;
+  --accent4: #ffd166;
+  --accent5: #5bc4f5;
+  --text: #e8eaf6;
+  --text-muted: #7a82a8;
+  --phase-blue: #3b82f6;
+  --phase-purple: #a855f7;
+  --phase-teal: #14b8a6;
+  --phase-green: #22c55e;
+  --phase-amber: #f59e0b;
+  --phase-orange: #f97316;
+  --phase-red: #ef4444;
+  --phase-slate: #64748b;
+  --phase-darkred: #991b1b;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  padding: 24px;
+}
+.container { max-width: 1200px; margin: 0 auto; }
+
+.hero { text-align: center; padding: 48px 24px 36px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 12px; }
+.gradient-text {
+  font-size: 2.2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent5));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+.hero-sub { color: var(--text-muted); font-size: 1rem; margin-bottom: 16px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(124,109,255,0.15); color: var(--accent); border: 1px solid rgba(124,109,255,0.3); }
+.bg { background: rgba(79,255,176,0.1); color: var(--accent3); border: 1px solid rgba(79,255,176,0.25); }
+.by { background: rgba(255,209,102,0.1); color: var(--accent4); border: 1px solid rgba(255,209,102,0.25); }
+.br { background: rgba(255,107,107,0.1); color: var(--accent2); border: 1px solid rgba(255,107,107,0.25); }
+.bb { background: rgba(91,196,245,0.1); color: var(--accent5); border: 1px solid rgba(91,196,245,0.25); }
+
+.grid { display: grid; gap: 16px; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+@media(max-width: 768px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+.stat-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.section { margin: 32px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.1rem; font-weight: 600; }
+
+.tree-container {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.82rem;
+}
+.tree-root { color: var(--accent4); font-weight: 700; margin-bottom: 8px; font-size: 0.9rem; }
+.tree-line { display: flex; align-items: flex-start; gap: 6px; padding: 3px 0; }
+.tree-connector { color: var(--text-muted); user-select: none; white-space: pre; }
+.tree-folder { color: var(--accent4); }
+.tree-file { color: var(--accent3); }
+.tree-comment { color: var(--text-muted); font-size: 0.75rem; margin-left: 8px; }
+.tree-indent { padding-left: 20px; }
+
+.flow-container { position: relative; }
+
+.phase-card {
+  position: relative;
+  z-index: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
+  border-left: 4px solid transparent;
+}
+.phase-card.blue { border-left-color: var(--phase-blue); }
+.phase-card.purple { border-left-color: var(--phase-purple); }
+.phase-card.teal { border-left-color: var(--phase-teal); }
+.phase-card.green { border-left-color: var(--phase-green); }
+.phase-card.amber { border-left-color: var(--phase-amber); }
+.phase-card.orange { border-left-color: var(--phase-orange); }
+.phase-card.red { border-left-color: var(--phase-red); }
+.phase-card.slate { border-left-color: var(--phase-slate); }
+.phase-card.darkred { border-left-color: var(--phase-darkred); background: rgba(153,27,27,0.05); }
+
+.phase-header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.phase-num {
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 4px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+.blue .phase-num { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.purple .phase-num { background: rgba(168,85,247,0.15); color: #c084fc; }
+.teal .phase-num { background: rgba(20,184,166,0.15); color: #2dd4bf; }
+.green .phase-num { background: rgba(34,197,94,0.15); color: #4ade80; }
+.amber .phase-num { background: rgba(245,158,11,0.15); color: #fbbf24; }
+.orange .phase-num { background: rgba(249,115,22,0.15); color: #fb923c; }
+.red .phase-num { background: rgba(239,68,68,0.15); color: #f87171; }
+.slate .phase-num { background: rgba(100,116,139,0.15); color: #94a3b8; }
+.darkred .phase-num { background: rgba(153,27,27,0.2); color: #fca5a5; }
+
+.phase-title { font-size: 1rem; font-weight: 700; flex: 1; }
+.phase-file { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); }
+
+.checks { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.checks li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+.check-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+.check-body { flex: 1; }
+.check-label { font-weight: 600; font-size: 0.85rem; margin-bottom: 2px; }
+.check-detail { font-size: 0.78rem; color: var(--text-muted); }
+.check-code { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--accent3); background: rgba(0,0,0,0.4); padding: 1px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+.check-warn { font-size: 0.72rem; color: var(--accent4); margin-top: 4px; font-weight: 600; }
+
+.table-wrap { overflow-x: auto; margin-top: 16px; border-radius: 10px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); }
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+td.name-col { font-family: 'Inter', sans-serif; font-size: 0.82rem; }
+
+.decision-node {
+  background: var(--surface2);
+  border: 2px solid var(--accent4);
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin: 12px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.dn-icon { font-size: 1.1rem; flex-shrink: 0; }
+.dn-body { flex: 1; }
+.dn-q { font-weight: 700; font-size: 0.85rem; color: var(--accent4); }
+.dn-yes { color: var(--accent3); font-size: 0.78rem; margin-top: 4px; }
+.dn-no { color: var(--accent2); font-size: 0.78rem; }
+
+.upload-row-1 { background: rgba(124,109,255,0.05); }
+.upload-row-2 { background: rgba(79,255,176,0.03); }
+.upload-row-last { background: rgba(255,107,107,0.05); }
+
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; display: inline-block; }
+.sp-done { background: rgba(79,255,176,0.1); color: var(--accent3); }
+.sp-run { background: rgba(91,196,245,0.1); color: var(--accent5); }
+.sp-pend { background: rgba(255,209,102,0.1); color: var(--accent4); }
+.sp-block { background: rgba(255,107,107,0.1); color: var(--accent2); }
+.sp-crit { background: rgba(239,68,68,0.2); color: #fca5a5; font-weight: 700; }
+
+.bug-card {
+  background: rgba(239,68,68,0.07);
+  border: 1px solid rgba(239,68,68,0.3);
+  border-left: 4px solid var(--accent2);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+}
+.bug-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.bug-num { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; background: rgba(239,68,68,0.2); color: #fca5a5; padding: 3px 10px; border-radius: 6px; font-weight: 700; }
+.bug-title { font-weight: 700; font-size: 0.95rem; color: #fca5a5; flex: 1; }
+.bug-body { display: flex; flex-direction: column; gap: 8px; }
+.bug-row { display: flex; gap: 8px; }
+.bug-key { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); font-weight: 600; white-space: nowrap; min-width: 60px; margin-top: 1px; }
+.bug-val { font-size: 0.82rem; color: var(--text); flex: 1; }
+.bug-fix { color: var(--accent3); }
+
+.code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--accent3);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin: 8px 0;
+}
+
+.legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
+.leg-item { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--text-muted); }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+
+.connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  color: var(--text-muted);
+  font-size: 1.2rem;
+  margin: -4px 0;
+}
+
+.env-block {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 10px 0;
+}
+.env-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; font-weight: 600; }
+.env-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; flex-wrap: wrap; }
+.env-key { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent4); }
+.env-eq { color: var(--text-muted); }
+.env-val { font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--accent3); }
+
+.tables-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(91,196,245,0.1);
+  color: var(--accent5);
+  border: 1px solid rgba(91,196,245,0.2);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  margin: 2px;
+}
+
+.infobox {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  color: #fca5a5;
+  margin-top: 12px;
+  font-weight: 600;
+}
+
+.footer { text-align: center; padding: 32px; color: var(--text-muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="hero">
+    <span class="hero-emoji">🤖</span>
+    <h1 class="gradient-text">Mia Worker — Árvore de Decisão</h1>
+    <p class="hero-sub">Quais scripts rodam, em que ordem, e o que cada um checa | v41 | 2026-05-18</p>
+    <div class="badges">
+      <span class="badge bp">EPROC TJRS</span>
+      <span class="badge bg">Playwright Headless</span>
+      <span class="badge by">v41 Estável</span>
+      <span class="badge br">3 Bugs Conhecidos</span>
+      <span class="badge bb">Distribuição Automatizada</span>
+    </div>
+  </div>
+
+  <div class="grid g4" style="margin-bottom: 32px;">
+    <div class="stat-card">
+      <div class="stat-value">5</div>
+      <div class="stat-label">Scripts Ativos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">10</div>
+      <div class="stat-label">Fases (F0→E9)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value">5</div>
+      <div class="stat-label">OABs Round-Robin</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color: var(--accent2);">3</div>
+      <div class="stat-label">Bugs Críticos</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📦</span>
+      <h2>Arquitetura de Scripts</h2>
+    </div>
+    <div class="tree-container">
+      <div class="tree-root">📦 /Users/mia/code/worker/</div>
+      <div class="tree-line">
+        <span class="tree-connector">├──</span>
+        <span class="tree-folder">📁 services/</span>
+      </div>
+      <div class="tree-indent">
+        <div class="tree-line">
+          <span class="tree-connector">└──</span>
+          <span class="tree-file">queue-consumer.mjs</span>
+          <span class="tree-comment">← Entrypoint. Loop polling. Roteamento por OAB.</span>
+        </div>
+      </div>
+      <div class="tree-line">
+        <span class="tree-connector">├──</span>
+        <span class="tree-folder">📁 adapters/</span>
+      </div>
+      <div class="tree-indent">
+        <div class="tree-line">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">distribuir-tjrs.mjs</span>
+          <span class="tree-comment">← ENGINE compartilhado TJRS. Pipeline F0→E9.</span>
+        </div>
+        <div class="tree-line">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">distribuir-tjrs-rs116571.mjs</span>
+          <span class="tree-comment">← Wrapper Christian. Valida OAB=RS116571. Chama engine.</span>
+        </div>
+        <div class="tree-line">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">distribuir-tjrs-rs131163.mjs</span>
+          <span class="tree-comment">← Wrapper Heloísa. Valida OAB=RS131163. Chama engine.</span>
+        </div>
+        <div class="tree-line">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">distribuir-tjsc.mjs</span>
+          <span class="tree-comment">← Fallback TJSC (genérico, sem per-OAB)</span>
+        </div>
+        <div class="tree-line">
+          <span class="tree-connector">└──</span>
+          <span class="tree-file">distribuir-tjsp.mjs</span>
+          <span class="tree-comment">← Fallback TJSP (genérico, sem per-OAB)</span>
+        </div>
+      </div>
+      <div class="tree-line">
+        <span class="tree-connector">└──</span>
+        <span class="tree-folder">📁 lib/</span>
+      </div>
+      <div class="tree-indent">
+        <div class="tree-line">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">browser-pool.mjs</span>
+          <span class="tree-comment">← Pool Playwright. Chromium headless.</span>
+        </div>
+        <div class="tree-line">
+          <span class="tree-connector">├──</span>
+          <span class="tree-file">eproc-login.mjs</span>
+          <span class="tree-comment">← Login EPROC + TOTP + SSO</span>
+        </div>
+        <div class="tree-line">
+          <span class="tree-connector">└──</span>
+          <span class="tree-file">supabase.mjs</span>
+          <span class="tree-comment">← Client Supabase (service role)</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🎨</span>
+      <h2>Legenda de Cores</h2>
+    </div>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:#3b82f6;"></div> Azul = Polling / Roteamento</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#a855f7;"></div> Roxo = Login / Auth</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#14b8a6;"></div> Teal = Dados Básicos EPROC</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#22c55e;"></div> Verde = Preenchimento Partes</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f59e0b;"></div> Âmbar = Ré / Empresa</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#f97316;"></div> Laranja = Características</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#ef4444;"></div> Vermelho = Upload Docs</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#64748b;"></div> Cinza = Revisão Humano</div>
+      <div class="leg-item"><div class="leg-dot" style="background:#991b1b;"></div> Escuro = Ajuizamento Real</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔄</span>
+      <h2>Fluxograma Principal — Pipeline F0 ao E9</h2>
+    </div>
+
+    <div class="flow-container">
+
+      <!-- FASE 0 -->
+      <div class="phase-card blue">
+        <div class="phase-header">
+          <span class="phase-num">FASE 0</span>
+          <span class="phase-title">queue-consumer.mjs — Polling e Roteamento</span>
+          <span class="phase-file">services/queue-consumer.mjs</span>
+        </div>
+        <div class="env-block">
+          <div class="env-title">Variáveis de Ambiente</div>
+          <div class="env-row">
+            <span class="env-key">MIA_OABS</span>
+            <span class="env-eq">=</span>
+            <span class="env-val">"RS116571,RS131163,SC074025,SC075466,SP535101"</span>
+            <span class="status-pill sp-run" style="margin-left:8px;">round-robin</span>
+          </div>
+          <div class="env-row">
+            <span class="env-key">MIA_POLL_INTERVAL_MS</span>
+            <span class="env-eq">=</span>
+            <span class="env-val">10000</span>
+            <span style="font-size:0.72rem;color:var(--text-muted);margin-left:8px;">(10s quando fila vazia)</span>
+          </div>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">📡</span>
+            <div class="check-body">
+              <div class="check-label">Chama RPC de polling</div>
+              <div class="check-code">fn_mia_pegar_proxima_distribuicao(p_oab)</div>
+              <div class="check-detail">Retorna lote_id ou null. Se null aguarda 10s e avança para próxima OAB no round-robin.</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">📋</span>
+            <div class="check-body">
+              <div class="check-label">Lê detalhes do lote</div>
+              <div class="check-code">SELECT * FROM distribuicao_lotes WHERE id = lote_id</div>
+              <div class="check-detail">Carrega: processo_id, cliente_id, oab, tribunal, confirmar_ajuizamento.</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔀</span>
+            <div class="check-body">
+              <div class="check-label">Roteamento por OAB para adapter</div>
+              <div class="check-detail">Consulta adaptersPorOab[oab]. Se encontrado usa adapter per-OAB. Fallback: adaptersPorTribunal[tribunal].</div>
+              <div style="margin-top:6px;">
+                <span class="tables-tag">RS116571 → distribuir-tjrs-rs116571.mjs</span>
+                <span class="tables-tag">RS131163 → distribuir-tjrs-rs131163.mjs</span>
+                <span class="tables-tag">TJSC → distribuir-tjsc.mjs</span>
+                <span class="tables-tag">TJSP → distribuir-tjsp.mjs</span>
+              </div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔑</span>
+            <div class="check-body">
+              <div class="check-label">Carrega credenciais da OAB</div>
+              <div class="check-code">SELECT * FROM jarbas_accounts WHERE oab = X AND ativo = true</div>
+              <div class="check-detail">Campos: login_eproc, senha_hash, totp_secret, eproc_url, sso_url.</div>
+            </div>
+          </li>
+        </ul>
+        <div style="margin-top: 14px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Tabelas Consultadas</div>
+          <span class="tables-tag">distribuicao_lotes</span>
+          <span class="tables-tag">jarbas_accounts</span>
+          <span class="tables-tag">processos</span>
+          <span class="tables-tag">clientes</span>
+          <span class="tables-tag">restricoes</span>
+        </div>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE F0 -->
+      <div class="phase-card blue">
+        <div class="phase-header">
+          <span class="phase-num">FASE F0</span>
+          <span class="phase-title">distribuir-tjrs.mjs — Validação e Pré-checks</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">🚫</span>
+            <div class="check-body">
+              <div class="check-label">Anti-repeat: detecta processo já distribuído</div>
+              <div class="check-code">SELECT etapa_distribuicao FROM processos WHERE id = X</div>
+              <div class="check-detail">Se etapa_distribuicao = 'distribuido' aborta imediatamente. Não reprocessa.</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">📄</span>
+            <div class="check-body">
+              <div class="check-label">Valida existência da Petição Inicial</div>
+              <div class="check-code">SELECT * FROM processos_documentos WHERE processo_id = X AND tipo_documento = 'peticao_inicial' AND deleted_at IS NULL</div>
+              <div class="check-detail">Se não encontrar aborta com evento <span class="status-pill sp-block">peticao_inicial_ausente</span></div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">📎</span>
+            <div class="check-body">
+              <div class="check-label">Carrega comprovantes de restrição</div>
+              <div class="check-code">SELECT * FROM processos_documentos WHERE processo_id = X AND (tipo_documento = 'comprovante_restricao' OR tipo_documento IS NULL)</div>
+              <div class="check-detail">Filtra URLs que apontam para bucket comprovantes.</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">📁</span>
+            <div class="check-body">
+              <div class="check-label">Carrega docs do cliente (leadDocs) — Fluxo complexo</div>
+              <div class="check-detail" style="margin-top:4px;">
+                <strong>1.</strong> <span class="check-code">SELECT lead_id FROM clientes WHERE id = cliente_id</span><br>
+                <strong>2.</strong> <span class="check-code">SELECT * FROM processos_documentos WHERE lead_id = X AND deleted_at IS NULL</span> — metadados do DB<br>
+                <strong>3.</strong> Storage <span class="check-code">leads-docs/{org_id}/leads/{lead_id}/</span> lista arquivos root<br>
+                <strong>4.</strong> Storage <span class="check-code">leads-docs/{org_id}/leads/{lead_id}/restricoes/{restricao_id}/</span> lista arquivos da restrição
+              </div>
+              <div class="check-warn">Mapeamento DB→Storage: keywordsMeta(nome_db) → keywords → mapearMelhor(arquivos_storage, keywords) → empate desfeito por timestamp mais recente</div>
+              <div class="check-detail" style="margin-top:4px;"><strong>Ordem final:</strong> leadDocs.all = [...restricao, ...root].sort(prefixo_numerico). Prefixo extraído do nome no DB. Ex: "3 - CNH" → 3, "2.2 - Procuração" → 2.2</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🏢</span>
+            <div class="check-body">
+              <div class="check-label">Carrega dados da empresa ré</div>
+              <div class="check-code">restricoes → empresas → cnpj, razao_social, enderecos_empresa</div>
+              <div class="check-detail">Usada para preencher o réu no EPROC (fase E5).</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">📍</span>
+            <div class="check-body">
+              <div class="check-label">Determina cidade da petição</div>
+              <div class="check-detail">pdftotext na petição → regex "Comarca de CIDADE" → Fallback: processos.foro_regional</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✏️</span>
+            <div class="check-body">
+              <div class="check-label">Marca processo como em andamento</div>
+              <div class="check-code">UPDATE processos SET etapa_distribuicao = 'em_distribuicao'</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE F1 -->
+      <div class="phase-card purple">
+        <div class="phase-header">
+          <span class="phase-num">FASE F1</span>
+          <span class="phase-title">Login EPROC</span>
+          <span class="phase-file">lib/eproc-login.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">🔐</span>
+            <div class="check-body">
+              <div class="check-label">Lê credenciais da conta</div>
+              <div class="check-detail">Campos: account.login_eproc, account.senha_hash, account.totp_secret, account.eproc_url, account.sso_url</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔢</span>
+            <div class="check-body">
+              <div class="check-label">Gera TOTP dinâmico</div>
+              <div class="check-code">authenticator.generate(totp_secret)</div>
+              <div class="check-detail">Biblioteca: otplib. Código de 6 dígitos válido por 30s.</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🌐</span>
+            <div class="check-body">
+              <div class="check-label">Autenticação via Playwright</div>
+              <div class="check-detail">Abre Chromium via browser-pool.mjs → navega SSO → preenche login + senha + TOTP → verifica tela inicial EPROC.</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E2 -->
+      <div class="phase-card teal">
+        <div class="phase-header">
+          <span class="phase-num">FASE E2</span>
+          <span class="phase-title">Dados Básicos do Processo</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">⚖️</span>
+            <div class="check-body">
+              <div class="check-label">Tipo de processo e assunto</div>
+              <div class="check-detail">Tipo: PJIF (hardcoded) | Assunto principal: código 30 — Restrição Indevida de Crédito</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">💰</span>
+            <div class="check-body">
+              <div class="check-label">Valor da causa</div>
+              <div class="check-code">processos.valor_causa</div>
+              <div class="check-detail">Armazenado em centavos (INT8). Formatado em BRL para preenchimento no EPROC.</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">📍</span>
+            <div class="check-body">
+              <div class="check-label">Competência / Comarca e Foro Regional</div>
+              <div class="check-detail">Cidade extraída da petição (fase F0) OU processos.cidade_distribuicao</div>
+              <div class="check-code">processos.foro_regional</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E3 -->
+      <div class="phase-card green">
+        <div class="phase-header">
+          <span class="phase-num">FASE E3</span>
+          <span class="phase-title">Assunto EPROC</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">🏷️</span>
+            <div class="check-body">
+              <div class="check-label">Código de assunto</div>
+              <div class="check-detail">Hardcoded: código 30 — Inscrição Indevida em Cadastro de Inadimplentes. Não varia por processo.</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E4 -->
+      <div class="phase-card green">
+        <div class="phase-header">
+          <span class="phase-num">FASE E4</span>
+          <span class="phase-title">Autor (Parte Ativa)</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">👤</span>
+            <div class="check-body">
+              <div class="check-label">Dados pessoais do cliente</div>
+              <div class="check-code">clientes.nome, clientes.cpf_cnpj, clientes.rg, clientes.data_nascimento</div>
+              <div class="check-detail">Se data_nascimento ausente busca em leads.data_nascimento via clientes.lead_id</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🏠</span>
+            <div class="check-body">
+              <div class="check-label">Endereço completo</div>
+              <div class="check-code">clientes.endereco_logradouro, .endereco_numero, .endereco_bairro, .cep, .cidade, .endereco_uf</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">💼</span>
+            <div class="check-body">
+              <div class="check-label">Profissão e benefícios</div>
+              <div class="check-code">clientes.profissao</div>
+              <div class="check-detail">Inclui marcação de Jus Gratuita (checkbox EPROC).</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E5 -->
+      <div class="phase-card amber">
+        <div class="phase-header">
+          <span class="phase-num">FASE E5</span>
+          <span class="phase-title">Réu (Empresa)</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">🏢</span>
+            <div class="check-body">
+              <div class="check-label">Dados da empresa ré</div>
+              <div class="check-code">restricoes.empresa_id → empresas.cnpj, empresas.razao_social, empresas.enderecos_empresa</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔍</span>
+            <div class="check-body">
+              <div class="check-label">Detecção do tipo de entidade</div>
+              <div class="decision-node" style="margin: 8px 0;">
+                <span class="dn-icon">❓</span>
+                <div class="dn-body">
+                  <div class="dn-q">Nome contém "BOA VISTA", "BANRISUL", "CAIXA", "SERASA" etc?</div>
+                  <div class="dn-yes">SIM → Tipo ENT (Entidade) → usa botão "Incluir" ENT no EPROC</div>
+                  <div class="dn-no">NAO → Tipo PJ normal → busca por CNPJ no autocomplete EPROC</div>
+                </div>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E6 -->
+      <div class="phase-card orange">
+        <div class="phase-header">
+          <span class="phase-num">FASE E6</span>
+          <span class="phase-title">Características do Processo</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">☑️</span>
+            <div class="check-body">
+              <div class="check-label">Flags hardcoded do processo</div>
+              <div class="check-detail" style="margin-top:6px;">
+                <div style="margin-bottom:4px;"><span class="status-pill sp-done">chkJuizoDigital</span> &nbsp;Juízo 100% Digital</div>
+                <div style="margin-bottom:4px;"><span class="status-pill sp-done">chkCautAntecTutela</span> &nbsp;Antecipação de Tutela</div>
+                <div><span class="status-pill sp-done">chkManifestaDesinteresse334</span> &nbsp;Não conciliar (art. 334 CPC)</div>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E7 -->
+      <div class="phase-card red">
+        <div class="phase-header">
+          <span class="phase-num">FASE E7</span>
+          <span class="phase-title">Upload de Documentos</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Sequência de Upload (Ordem Fixa)</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Slot</th>
+                  <th>Documento</th>
+                  <th>Origem</th>
+                  <th>Tipo EPROC</th>
+                  <th>Code</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="upload-row-1">
+                  <td>1</td>
+                  <td class="name-col">Petição Inicial</td>
+                  <td>Bucket peticoes via processos_documentos.storage_path</td>
+                  <td class="name-col">Petição Inicial</td>
+                  <td>1</td>
+                </tr>
+                <tr class="upload-row-2">
+                  <td>2+</td>
+                  <td class="name-col">Docs do lead por prefixo numérico do nome no DB</td>
+                  <td>Bucket leads-docs via leadDocs.all</td>
+                  <td class="name-col">detectarTipoCanônico(safeName, oab)</td>
+                  <td>vários</td>
+                </tr>
+                <tr class="upload-row-last">
+                  <td>Último</td>
+                  <td class="name-col">Comprovante de restrição</td>
+                  <td>Bucket comprovantes via processos_documentos</td>
+                  <td class="name-col">Hardcoded por OAB</td>
+                  <td>262 ou 176</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 16px;">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-muted);margin-bottom:10px;font-weight:600;">Tipos EPROC por OAB</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tipo Canônico</th>
+                  <th>Nome EPROC</th>
+                  <th>Code</th>
+                  <th>OABs</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>peticao_inicial</td><td class="name-col">Petição Inicial</td><td>1</td><td>todos</td></tr>
+                <tr><td>procuracao</td><td class="name-col">Procuração</td><td>2</td><td>todos</td></tr>
+                <tr><td>cnh</td><td class="name-col">Carteira Nacional de Habilitação</td><td>62</td><td>todos</td></tr>
+                <tr><td>identidade</td><td class="name-col">IDENTIDADE</td><td>8 (dinâmico)</td><td>todos</td></tr>
+                <tr><td>residencia</td><td class="name-col">Comprovante de Residência</td><td>10</td><td>todos</td></tr>
+                <tr><td>ctps</td><td class="name-col">Carteira de Trabalho</td><td>22</td><td>todos</td></tr>
+                <tr><td>situacao_cadastral</td><td class="name-col">Situação Cadastral do CPF</td><td>63</td><td>todos</td></tr>
+                <tr><td>comprovantes_chr</td><td class="name-col">COMPROVANTES</td><td>176</td><td>RS116571, SC074025, SP535101 (Christian)</td></tr>
+                <tr><td>comprovante</td><td class="name-col">Anexo</td><td>262</td><td>RS131163, SC075466 (Heloísa)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <ul class="checks">
+          <li>
+            <span class="check-icon">🔍</span>
+            <div class="check-body">
+              <div class="check-label">Como detecta o tipo de cada documento</div>
+              <div class="check-detail" style="margin-top:4px;">
+                <strong>1.</strong> safeName = doc.nomeEproc (nome do DB + .pdf) OU eprocSafeNome(doc.name, oab) (nome do storage normalizado)<br>
+                <strong>2.</strong> detectarTipoCanônico(safeName, oab) → regex no nome → retorna tipo canônico<br>
+                <strong>3.</strong> TIPO_MAP[tipoCanônico] → code EPROC<br>
+                <strong>4.</strong> Se code estático → injeta via injetarCodigo() (direct DOM injection, sem click)<br>
+                <strong>5.</strong> Se sem code → busca dinâmica na lista EPROC via AJAX
+              </div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔢</span>
+            <div class="check-body">
+              <div class="check-label">Como determina a ORDEM dos docs</div>
+              <div class="check-detail">extrairPrefixo(nomeMeta) → número inicial do nome no DB (ex: "3 - CNH" → 3)</div>
+              <div class="check-detail">sort(prefixo ASC, created_at ASC) → menor número sobe primeiro</div>
+              <div class="check-warn">CRITICO: a ordem depende do nome correto no DB (processos_documentos.nome)</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">✅</span>
+            <div class="check-body">
+              <div class="check-label">Verificação pós-upload</div>
+              <div class="check-detail">Checa hdnNumDocumentos → se 0 = upload não confirmado pelo EPROC</div>
+              <div class="check-detail">Checa dialogMessages → se "2 ou mais arquivos iguais" = doc duplicado no envio</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E8 -->
+      <div class="phase-card slate">
+        <div class="phase-header">
+          <span class="phase-num">FASE E8</span>
+          <span class="phase-title">Revisão Final — Aguarda Humano ou Confirma</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <div class="decision-node">
+          <span class="dn-icon">❓</span>
+          <div class="dn-body">
+            <div class="dn-q">lote.meta.confirmar_ajuizamento === true?</div>
+            <div class="dn-yes">TRUE (real) → clica "Salvar/Finalizar" → aguarda tela de confirmação → avança para E9</div>
+            <div class="dn-no">FALSE (protótipo) → captura screenshot E8 → clica "Cancelar" → salva debug → processo resetado para aguardando</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- FASE E9 -->
+      <div class="phase-card darkred">
+        <div class="phase-header">
+          <span class="phase-num">FASE E9</span>
+          <span class="phase-title">Ajuizamento Real</span>
+          <span class="phase-file">adapters/distribuir-tjrs.mjs</span>
+        </div>
+        <div class="infobox">⚠ SOMENTE quando confirmar_ajuizamento = true — Esta fase ainda NAO foi testada em producao.</div>
+        <ul class="checks" style="margin-top: 14px;">
+          <li>
+            <span class="check-icon">🖱️</span>
+            <div class="check-body">
+              <div class="check-label">Confirma ajuizamento</div>
+              <div class="check-detail">Clica botão final de confirmação no EPROC → aguarda tela de resultado com número CNJ definitivo.</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">📝</span>
+            <div class="check-body">
+              <div class="check-label">Salva resultado no banco</div>
+              <div class="check-code">UPDATE processos SET numero_cnj = X, etapa_distribuicao = 'distribuido', nosso_oab = oab</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="connector">↓</div>
+
+      <!-- POS -->
+      <div class="phase-card blue">
+        <div class="phase-header">
+          <span class="phase-num">POS</span>
+          <span class="phase-title">Pós-Processamento — Cleanup e Status</span>
+          <span class="phase-file">services/queue-consumer.mjs</span>
+        </div>
+        <ul class="checks">
+          <li>
+            <span class="check-icon">✅</span>
+            <div class="check-body">
+              <div class="check-label">Se sucesso E confirmar_ajuizamento = true</div>
+              <div class="check-code">UPDATE processos SET etapa_distribuicao = 'distribuido', nosso_oab = oab</div>
+              <div class="check-code">UPDATE distribuicao_lotes SET status = 'concluido'</div>
+            </div>
+          </li>
+          <li>
+            <span class="check-icon">🔄</span>
+            <div class="check-body">
+              <div class="check-label">Se falha ou modo protótipo</div>
+              <div class="check-code">UPDATE processos SET etapa_distribuicao = 'aguardando'</div>
+              <div class="check-code">UPDATE distribuicao_lotes SET status = 'erro'</div>
+              <div class="check-detail">Processo retorna à fila para nova tentativa ou revisão manual.</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- BUGS -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🐛</span>
+      <h2>Bugs Conhecidos</h2>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-num">BUG-01</span>
+        <span class="bug-title">Swap auditoria ↔ procuração</span>
+        <span class="status-pill sp-crit">CRITICO</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-row">
+          <span class="bug-key">Causa</span>
+          <span class="bug-val">keywordsMeta usa keyword 'boavista' que também está no nome do arquivo de procuração (ex: "2.2_-_procuracao_boa_vista.pdf"). Quando empata com a auditoria, o desempate por timestamp mais recente dá a vitória para a procuração.</span>
+        </div>
+        <div class="bug-row">
+          <span class="bug-key">Sintoma</span>
+          <span class="bug-val">Arquivo de auditoria sobe como "Procuração" (code 2). Procuração sobe como "Anexo" (262). Documentos invertidos no processo EPROC.</span>
+        </div>
+        <div class="bug-row">
+          <span class="bug-key">Fix</span>
+          <span class="bug-val bug-fix">Remover 'boavista' das keywords de comprovante/auditoria. Usar apenas 'auditoria' e 'negativa' como keywords discriminadoras.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-num">BUG-02</span>
+        <span class="bug-title">CTPS duplicado (cross-folder)</span>
+        <span class="status-pill sp-crit">CRITICO</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-row">
+          <span class="bug-key">Causa</span>
+          <span class="bug-val">Mesmo arquivo de CTPS salvo em duas pastas do Storage (root e restricoes/). A deduplicação atual corre por pasta separada. Ambos sobrevivem e são enviados ao EPROC.</span>
+        </div>
+        <div class="bug-row">
+          <span class="bug-key">Sintoma</span>
+          <span class="bug-val">Alerta EPROC "2 ou mais arquivos iguais" → hdnNumDocumentos = 0 → upload não confirmado pelo EPROC → distribuição falha silenciosamente.</span>
+        </div>
+        <div class="bug-row">
+          <span class="bug-key">Fix</span>
+          <span class="bug-val bug-fix">Implementar cross-folder dedup no final de carregarDocsLead(), comparando pelo base normalizado de nome de arquivo entre as duas pastas.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="bug-card">
+      <div class="bug-header">
+        <span class="bug-num">BUG-03</span>
+        <span class="bug-title">Double .pdf em nomeEproc</span>
+        <span class="status-pill sp-pend">MODERADO</span>
+      </div>
+      <div class="bug-body">
+        <div class="bug-row">
+          <span class="bug-key">Causa</span>
+          <span class="bug-val">processos_documentos.nome já inclui a extensão .pdf no valor persistido. A função nomeParaEproc(nome) adiciona outro .pdf sem checar.</span>
+        </div>
+        <div class="bug-row">
+          <span class="bug-key">Sintoma</span>
+          <span class="bug-val">Nome do arquivo no EPROC fica "2.2 - Procuração Boa Vista.pdf.pdf" — extensão duplicada visível no processo judicial.</span>
+        </div>
+        <div class="bug-row">
+          <span class="bug-key">Fix</span>
+          <span class="bug-val bug-fix">nomeParaEproc deve fazer strip da extensão .pdf final antes de adicionar a extensão novamente.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABELAS POR FASE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🗄️</span>
+      <h2>Tabelas Consultadas por Fase</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Fase</th>
+            <th>Script</th>
+            <th>Tabelas / Storage</th>
+            <th>Operacao</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="status-pill sp-run">F0 Polling</span></td>
+            <td>queue-consumer.mjs</td>
+            <td class="name-col">distribuicao_lotes, jarbas_accounts</td>
+            <td class="name-col">RPC fn_mia_pegar_proxima_distribuicao + SELECT</td>
+          </tr>
+          <tr>
+            <td><span class="status-pill sp-run">F0 Validate</span></td>
+            <td>distribuir-tjrs.mjs</td>
+            <td class="name-col">processos, processos_documentos, clientes, leads, restricoes, empresas</td>
+            <td class="name-col">SELECT + pdftotext</td>
+          </tr>
+          <tr>
+            <td><span class="status-pill sp-run">F0 Storage</span></td>
+            <td>distribuir-tjrs.mjs</td>
+            <td class="name-col">leads-docs/{org}/{lead}/* e restricoes/{id}/*</td>
+            <td class="name-col">Storage.list()</td>
+          </tr>
+          <tr>
+            <td><span class="status-pill" style="background:rgba(168,85,247,0.1);color:#c084fc;">F1 Login</span></td>
+            <td>eproc-login.mjs</td>
+            <td class="name-col">jarbas_accounts</td>
+            <td class="name-col">SELECT (credenciais)</td>
+          </tr>
+          <tr>
+            <td><span class="status-pill sp-done">E2-E7</span></td>
+            <td>distribuir-tjrs.mjs</td>
+            <td class="name-col">dados já carregados em F0</td>
+            <td class="name-col">Playwright DOM manipulation</td>
+          </tr>
+          <tr>
+            <td><span class="status-pill sp-pend">E9 + POS</span></td>
+            <td>queue-consumer.mjs</td>
+            <td class="name-col">processos, distribuicao_lotes</td>
+            <td class="name-col">UPDATE etapa_distribuicao + status</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- OABs -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔄</span>
+      <h2>OABs no Round-Robin</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>OAB</th>
+            <th>Advogado</th>
+            <th>Tribunal</th>
+            <th>Adapter</th>
+            <th>Comprovante Code</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>RS116571</td>
+            <td class="name-col">Christian</td>
+            <td>TJRS</td>
+            <td>distribuir-tjrs-rs116571.mjs</td>
+            <td>176 (COMPROVANTES)</td>
+            <td><span class="status-pill sp-done">Ativo</span></td>
+          </tr>
+          <tr>
+            <td>RS131163</td>
+            <td class="name-col">Heloísa</td>
+            <td>TJRS</td>
+            <td>distribuir-tjrs-rs131163.mjs</td>
+            <td>262 (Anexo)</td>
+            <td><span class="status-pill sp-done">Ativo</span></td>
+          </tr>
+          <tr>
+            <td>SC074025</td>
+            <td class="name-col">Christian</td>
+            <td>TJSC</td>
+            <td>distribuir-tjsc.mjs</td>
+            <td>176 (COMPROVANTES)</td>
+            <td><span class="status-pill sp-pend">Fallback</span></td>
+          </tr>
+          <tr>
+            <td>SC075466</td>
+            <td class="name-col">Heloísa</td>
+            <td>TJSC</td>
+            <td>distribuir-tjsc.mjs</td>
+            <td>262 (Anexo)</td>
+            <td><span class="status-pill sp-pend">Fallback</span></td>
+          </tr>
+          <tr>
+            <td>SP535101</td>
+            <td class="name-col">Christian</td>
+            <td>TJSP</td>
+            <td>distribuir-tjsp.mjs</td>
+            <td>176 (COMPROVANTES)</td>
+            <td><span class="status-pill sp-pend">Fallback</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footer">
+    🐙 Jarbas 2.0 — MdLab LegalTech &nbsp;·&nbsp; Mia Worker v41 &nbsp;·&nbsp; 2026-05-18
+  </div>
+
+</div>
+</body>
+</html>

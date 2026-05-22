@@ -1,0 +1,1298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Davi-Mia — Planejamento Drive + Multi-Estado + Error Logging</title>
+<style>
+:root {
+  --bg: #12100e;
+  --surface: #1a1815;
+  --surface2: #211e1a;
+  --surface3: #2a2520;
+  --border: #2a2520;
+  --accent: #20c997;
+  --accent2: #ef4444;
+  --accent3: #f59e0b;
+  --accent4: #3b82f6;
+  --accent5: #a78bfa;
+  --text: #e8e3dc;
+  --text-muted: #7a7068;
+  --code-bg: #0d0b09;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  padding: 24px;
+}
+.container { max-width: 1140px; margin: 0 auto; }
+
+/* HERO */
+.hero { text-align: center; padding: 52px 24px 40px; }
+.hero-emoji { font-size: 3rem; display: block; margin-bottom: 14px; }
+.gradient-text {
+  font-size: 2.1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #20c997, #3b82f6);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+  line-height: 1.25;
+}
+.hero-sub { color: var(--text-muted); font-size: 0.95rem; margin-bottom: 18px; }
+.badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.badge { padding: 4px 13px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; letter-spacing: 0.3px; }
+.bp { background: rgba(32,201,151,0.12); color: var(--accent); border: 1px solid rgba(32,201,151,0.25); }
+.br { background: rgba(239,68,68,0.12); color: var(--accent2); border: 1px solid rgba(239,68,68,0.25); }
+.by { background: rgba(245,158,11,0.12); color: var(--accent3); border: 1px solid rgba(245,158,11,0.25); }
+.bb { background: rgba(59,130,246,0.12); color: var(--accent4); border: 1px solid rgba(59,130,246,0.25); }
+.bv { background: rgba(167,139,250,0.12); color: var(--accent5); border: 1px solid rgba(167,139,250,0.25); }
+
+/* ROOT CAUSE BANNER */
+.root-cause-banner {
+  background: rgba(239,68,68,0.08);
+  border: 2px solid rgba(239,68,68,0.4);
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin: 24px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.root-cause-banner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent2), transparent);
+  animation: scanline 2s ease-in-out infinite;
+}
+@keyframes scanline { 0%,100%{opacity:0.3} 50%{opacity:1} }
+.root-cause-icon { font-size: 2rem; flex-shrink: 0; }
+.root-cause-content {}
+.root-cause-label {
+  display: inline-block;
+  background: var(--accent2);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-bottom: 6px;
+  animation: pulse-badge 2s ease-in-out infinite;
+}
+@keyframes pulse-badge { 0%,100%{opacity:1} 50%{opacity:0.7} }
+.root-cause-content h3 { font-size: 0.95rem; font-weight: 600; color: var(--accent2); margin-bottom: 4px; }
+.root-cause-content p { font-size: 0.85rem; color: var(--text); line-height: 1.5; }
+.root-cause-content .highlight { color: var(--accent2); font-weight: 600; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+.root-cause-stat { margin-top: 10px; padding: 8px 14px; background: rgba(239,68,68,0.1); border-radius: 8px; font-size: 0.82rem; }
+.root-cause-stat span { color: var(--accent2); font-weight: 700; font-size: 1rem; }
+
+/* GRID */
+.grid { display: grid; gap: 16px; }
+.g2 { grid-template-columns: 1fr 1fr; }
+.g3 { grid-template-columns: 1fr 1fr 1fr; }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media(max-width:768px) { .g2,.g3,.g4 { grid-template-columns: 1fr; } }
+
+/* CARDS */
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; }
+.card-title { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 10px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 20px; text-align: center; }
+.stat-value { font-size: 2rem; font-weight: 700; color: var(--accent); }
+.stat-label { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+.stat-sub { font-size: 0.75rem; color: var(--text-muted); margin-top: 6px; }
+
+/* PILLAR CARDS */
+.pillar-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px;
+  transition: border-color 0.2s;
+}
+.pillar-card:hover { border-color: rgba(32,201,151,0.35); }
+.pillar-icon { font-size: 1.8rem; margin-bottom: 10px; display: block; }
+.pillar-title { font-size: 0.95rem; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+.pillar-desc { font-size: 0.82rem; color: var(--text-muted); line-height: 1.55; }
+
+/* SECTION */
+.section { margin: 36px 0; }
+.section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.section-icon { font-size: 1.2rem; }
+.section-header h2 { font-size: 1.05rem; font-weight: 600; }
+.section-number { font-size: 0.72rem; color: var(--text-muted); background: var(--surface2); padding: 2px 8px; border-radius: 10px; margin-left: auto; }
+
+/* TABLES */
+.table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; }
+th { background: var(--surface2); padding: 10px 14px; text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); white-space: nowrap; }
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); font-size: 0.83rem; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.015); }
+.mono { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.78rem; color: var(--accent); }
+.mono-dim { font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.78rem; color: var(--text-muted); }
+
+/* STATUS */
+.status-pill { padding: 3px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 500; white-space: nowrap; }
+.sp-ok { background: rgba(32,201,151,0.1); color: var(--accent); }
+.sp-err { background: rgba(239,68,68,0.1); color: var(--accent2); }
+.sp-warn { background: rgba(245,158,11,0.1); color: var(--accent3); }
+.sp-info { background: rgba(59,130,246,0.1); color: var(--accent4); }
+.sp-pend { background: rgba(167,139,250,0.1); color: var(--accent5); }
+.sp-root { background: var(--accent2); color: #fff; font-size: 0.65rem; letter-spacing: 0.5px; }
+
+/* CODE */
+.code-block {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  color: #a3e4c7;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.65;
+  margin: 12px 0;
+}
+.code-block .c-green { color: #20c997; }
+.code-block .c-blue { color: #93c5fd; }
+.code-block .c-yellow { color: #fde68a; }
+.code-block .c-red { color: #fca5a5; }
+.code-block .c-muted { color: #6b7280; }
+.code-block .c-white { color: #f9fafb; }
+
+/* ASCII DIAGRAM */
+.ascii-diagram {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: 0.78rem;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 18px 20px;
+  color: #a3e4c7;
+  overflow-x: auto;
+  white-space: pre;
+  line-height: 1.75;
+}
+
+/* GREEN HIGHLIGHT CARD */
+.card-highlight-green {
+  background: rgba(32,201,151,0.06);
+  border: 1px solid rgba(32,201,151,0.25);
+  border-radius: 14px;
+  padding: 22px;
+}
+.card-highlight-green .card-title { color: var(--accent); }
+
+/* Q CARDS */
+.q-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 14px;
+}
+.q-id {
+  display: inline-block;
+  background: rgba(59,130,246,0.15);
+  color: var(--accent4);
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-bottom: 8px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.q-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 12px; }
+.q-options { display: flex; flex-direction: column; gap: 8px; }
+.q-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  cursor: default;
+  transition: border-color 0.15s;
+  font-size: 0.83rem;
+}
+.q-option:hover { border-color: rgba(32,201,151,0.3); }
+.q-opt-letter {
+  font-size: 0.72rem;
+  font-weight: 700;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+.opt-a { background: rgba(32,201,151,0.15); color: var(--accent); }
+.opt-b { background: rgba(59,130,246,0.15); color: var(--accent4); }
+.opt-c { background: rgba(245,158,11,0.15); color: var(--accent3); }
+.q-opt-text { line-height: 1.5; }
+.q-opt-text em { color: var(--text-muted); font-style: normal; font-size: 0.78rem; }
+
+/* ROADMAP */
+.roadmap { display: flex; flex-direction: column; gap: 0; position: relative; }
+.roadmap::before {
+  content: '';
+  position: absolute;
+  left: 28px;
+  top: 36px;
+  bottom: 36px;
+  width: 2px;
+  background: linear-gradient(to bottom, var(--accent), var(--accent4));
+  opacity: 0.4;
+}
+.roadmap-item {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  padding: 16px 0;
+  position: relative;
+  z-index: 1;
+}
+.roadmap-dot {
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  border-radius: 50%;
+  margin-top: 4px;
+  margin-left: 22px;
+  border: 2px solid;
+}
+.dot-green { background: rgba(32,201,151,0.2); border-color: var(--accent); }
+.dot-blue { background: rgba(59,130,246,0.2); border-color: var(--accent4); }
+.dot-yellow { background: rgba(245,158,11,0.2); border-color: var(--accent3); }
+.dot-purple { background: rgba(167,139,250,0.2); border-color: var(--accent5); }
+.roadmap-content { flex: 1; }
+.roadmap-phase { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); margin-bottom: 4px; }
+.roadmap-title { font-size: 0.92rem; font-weight: 600; margin-bottom: 4px; }
+.roadmap-items-list { font-size: 0.82rem; color: var(--text-muted); line-height: 1.7; }
+
+/* INV CARDS */
+.inv-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 10px;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.inv-id {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--accent3);
+  background: rgba(245,158,11,0.1);
+  border: 1px solid rgba(245,158,11,0.2);
+  padding: 3px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+.inv-body { flex: 1; }
+.inv-title { font-size: 0.88rem; font-weight: 600; margin-bottom: 4px; }
+.inv-why { font-size: 0.8rem; color: var(--text-muted); }
+.inv-query { margin-top: 8px; }
+
+/* DECISIONS TABLE */
+.dec-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+.dec-done { background: rgba(32,201,151,0.1); color: var(--accent); }
+.dec-pend { background: rgba(167,139,250,0.1); color: var(--accent5); }
+
+/* FOOTER */
+.footer {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  border-top: 1px solid var(--border);
+  margin-top: 52px;
+}
+
+/* DIVIDER */
+.divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+/* TAGS */
+.tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 500; }
+.tag-critical { background: rgba(239,68,68,0.12); color: var(--accent2); border: 1px solid rgba(239,68,68,0.2); }
+.tag-alto { background: rgba(245,158,11,0.1); color: var(--accent3); border: 1px solid rgba(245,158,11,0.2); }
+.tag-medio { background: rgba(59,130,246,0.1); color: var(--accent4); border: 1px solid rgba(59,130,246,0.2); }
+.tag-baixo { background: rgba(32,201,151,0.1); color: var(--accent); border: 1px solid rgba(32,201,151,0.2); }
+
+/* MEDIA */
+@media(max-width:768px) {
+  .gradient-text { font-size: 1.55rem; }
+  body { padding: 16px; }
+  .hero { padding: 36px 16px 28px; }
+  .root-cause-banner { flex-direction: column; gap: 10px; }
+  .roadmap::before { display: none; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero">
+    <span class="hero-emoji">🤖</span>
+    <h1 class="gradient-text">Davi-Mia — Planejamento Drive + Multi-Estado + Error Logging</h1>
+    <p class="hero-sub">Investigacao 2026-05-22 &nbsp;|&nbsp; Pre-implementacao Round 4</p>
+    <div class="badges">
+      <span class="badge bp">Davi v1</span>
+      <span class="badge bb">Drive Reorganizado</span>
+      <span class="badge bv">Multi-Estado</span>
+      <span class="badge by">Error Logging</span>
+      <span class="badge br">G-11 a G-16</span>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div class="grid g4">
+    <div class="stat-card">
+      <div class="stat-value">6</div>
+      <div class="stat-label">Novos Gaps</div>
+      <div class="stat-sub">G-11 a G-16</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent3)">266</div>
+      <div class="stat-label">Leads com Drive</div>
+      <div class="stat-sub">de 2021 total (13%)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent2)">0</div>
+      <div class="stat-label">Subpastas Restricao</div>
+      <div class="stat-sub">drive-pasta-restricao FALTANDO</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" style="color:var(--accent5)">6</div>
+      <div class="stat-label">Decisoes Pendentes</div>
+      <div class="stat-sub">D-25 a D-30</div>
+    </div>
+  </div>
+
+  <!-- SECAO 1 — SUMARIO EXECUTIVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">📋</span>
+      <h2>Sumario Executivo</h2>
+      <span class="section-number">Secao 1</span>
+    </div>
+
+    <div class="grid g3" style="margin-bottom:20px;">
+      <div class="pillar-card">
+        <span class="pillar-icon">🗂️</span>
+        <div class="pillar-title">Drive Reorganizado</div>
+        <div class="pillar-desc">Subpasta por restricao com todos os docs integrados: Tier 1 (procuracao, identidade, residencia, CTPS) + Tier 2 (comprovante restricao) + PI + Comprovante por empresa-re.</div>
+      </div>
+      <div class="pillar-card">
+        <span class="pillar-icon">🌎</span>
+        <div class="pillar-title">Multi-Estado Extensivel</div>
+        <div class="pillar-desc">Arquitetura generica desde o inicio. Limitacao ao RS por configuracao, nao por hardcode. Deteccao via <span style="font-family:monospace;color:var(--accent);font-size:0.8rem">advogados.oab_uf</span>, nunca parsing manual.</div>
+      </div>
+      <div class="pillar-card">
+        <span class="pillar-icon">🔍</span>
+        <div class="pillar-title">Davi como Especialista de Erros</div>
+        <div class="pillar-desc">Logs estruturados com <span style="font-family:monospace;color:var(--accent);font-size:0.8rem">pipeline_step</span>, <span style="font-family:monospace;color:var(--accent);font-size:0.8rem">acao_tomada</span>, <span style="font-family:monospace;color:var(--accent);font-size:0.8rem">sugestao</span>. Rastreabilidade completa CRM → distribuicao.</div>
+      </div>
+    </div>
+
+    <!-- ROOT CAUSE BANNER -->
+    <div class="root-cause-banner">
+      <div class="root-cause-icon">⛔</div>
+      <div class="root-cause-content">
+        <div class="root-cause-label">ROOT CAUSE IDENTIFICADO</div>
+        <h3>drive-pasta-restricao — webhook chamado mas nao existe</h3>
+        <p>
+          O workflow <span class="highlight">MDFLOW-DRIVE-PASTA-LEAD-v1</span> chama o webhook
+          <span class="highlight">/webhook/mdflow/drive-pasta-restricao</span> para criar subpastas
+          de restricao no Drive. Este webhook <strong>nao existe em nenhum dos 100+ workflows n8n</strong>.
+          Por isso, <span class="highlight">restricoes.drive_pasta_id</span> e <span class="highlight">drive_pasta_url</span>
+          sao SEMPRE NULL — e PI/comprovante vao para pastas erradas ou nao chegam ao Drive.
+        </p>
+        <div class="root-cause-stat">
+          Escala do problema: <span>266 de 2021 leads</span> tem pasta Drive (13%) — e nenhum tem subpastas de restricao criadas corretamente.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 2 — MAPA DRIVE ATUAL -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🗺️</span>
+      <h2>Mapa Drive Atual — Campos e Workflows</h2>
+      <span class="section-number">Secao 2</span>
+    </div>
+
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-title">Schema de Campos Drive no Banco</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tabela</th>
+              <th>Campo</th>
+              <th>Populado por</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono">leads</span></td>
+              <td><span class="mono">google_drive_folder_id</span></td>
+              <td>PASTA-LEAD-v1</td>
+              <td><span class="status-pill sp-ok">✅ Funciona (266 leads)</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">clientes</span></td>
+              <td><span class="mono">google_drive_folder_id</span></td>
+              <td>PASTA-LEAD-v1 (espelha)</td>
+              <td><span class="status-pill sp-ok">✅ Funciona</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">clientes</span></td>
+              <td><span class="mono">drive_cliente</span></td>
+              <td>Desconhecido</td>
+              <td><span class="status-pill sp-warn">⚠️ Legado?</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">processos</span></td>
+              <td><span class="mono">google_drive_folder_id</span></td>
+              <td><strong>NUNCA populado</strong></td>
+              <td><span class="status-pill sp-err">❌ Sempre NULL</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">processos</span></td>
+              <td><span class="mono">drive_processo</span></td>
+              <td>Desconhecido</td>
+              <td><span class="status-pill sp-warn">⚠️ Legado?</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">restricoes</span></td>
+              <td><span class="mono">drive_pasta_id</span></td>
+              <td>drive-pasta-restricao (NAO EXISTE)</td>
+              <td><span class="status-pill sp-err">❌ Sempre NULL</span></td>
+            </tr>
+            <tr>
+              <td><span class="mono">restricoes</span></td>
+              <td><span class="mono">drive_pasta_url</span></td>
+              <td>drive-pasta-restricao (NAO EXISTE)</td>
+              <td><span class="status-pill sp-err">❌ Sempre NULL</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-title">Workflows Drive Existentes</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Nome</th>
+              <th>Webhook</th>
+              <th>O que faz</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono-dim">a3se07X6...</span></td>
+              <td>MDFLOW-DRIVE-PASTA-LEAD-v1</td>
+              <td><span class="mono">/drive-pasta-lead</span></td>
+              <td>Cria pasta do lead, chama drive-pasta-restricao (que nao existe), sincroniza docs existentes</td>
+            </tr>
+            <tr>
+              <td><span class="mono-dim">0QxdwlNq...</span></td>
+              <td>WH-SYNC-STORAGE-DRIVE</td>
+              <td><span class="mono">/sync-storage-drive</span></td>
+              <td>Upload de arquivo do storage para Drive pasta especifica</td>
+            </tr>
+            <tr>
+              <td><span class="mono-dim">aN282cp8...</span></td>
+              <td>WH-CLIENTES-007 — Clientes Drive Sync</td>
+              <td>—</td>
+              <td>Drive sync de clientes</td>
+            </tr>
+            <tr>
+              <td><span class="mono-dim">AaPTK8kJ...</span></td>
+              <td>MDFLOW-DRIVE-LIXEIRA-v1</td>
+              <td>—</td>
+              <td>Move arquivos para lixeira Drive</td>
+            </tr>
+            <tr style="background:rgba(239,68,68,0.04);">
+              <td><span style="color:var(--accent2);font-size:0.8rem;font-weight:700;">FALTANDO</span></td>
+              <td style="color:var(--accent2);font-weight:600;">MDFLOW-DRIVE-PASTA-RESTRICAO-v1</td>
+              <td><span class="mono" style="color:var(--accent2);">/drive-pasta-restricao</span></td>
+              <td style="color:var(--accent2);">⛔ PRECISA SER CRIADO — cria subpastas de restricao e salva drive_pasta_id</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Como PI e Comprovante chegam (ou nao chegam) no Drive</div>
+      <div class="code-block"><span class="c-muted">-- PI (Distribuicao-Gerar-Iniciais):</span>
+<span class="c-blue">→ Busca restricoes.drive_pasta_id para a restricao do processo</span>
+<span class="c-green">→ SE preenchido: PI vai para subpasta da restricao ✅</span>
+<span class="c-red">→ SE NULL (sempre): PI vai para pasta GENERICA hardcoded</span>
+<span class="c-red">  1JTbKJqbmPzRTLlqRYZEZ5pNY-w8r1ALZ ❌</span>
+
+<span class="c-muted">-- Comprovante (WH-DOC-COMPROVANTE):</span>
+<span class="c-blue">→ driveFolderId = restricoes.drive_pasta_id</span>
+<span class="c-blue">               || processos.google_drive_folder_id (SEMPRE NULL)</span>
+<span class="c-blue">               || processos.drive_processo (legado)</span>
+<span class="c-red">→ Como os 3 sao NULL: comprovante NUNCA vai ao Drive ❌</span>
+<span class="c-green">→ Mas vai ao Storage bucket "comprovantes" ✅</span></div>
+    </div>
+  </div>
+
+  <!-- SECAO 3 — ARQUITETURA DRIVE ALVO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🏗️</span>
+      <h2>Arquitetura Drive Alvo</h2>
+      <span class="section-number">Secao 3</span>
+    </div>
+    <div class="card">
+      <div class="card-title">Estrutura de Pastas Alvo</div>
+      <div class="ascii-diagram">/Organizacao Root/
+  /NOME DO CLIENTE (LEAD)/
+    /EMPRESA-RE 1 — SERASA/
+      ├── 1 - Procuracao.pdf              ← Tier 1 (copia/sync)
+      ├── 3 - Identidade.pdf              ← Tier 1
+      ├── 4 - Comprovante Residencia.pdf  ← Tier 1
+      ├── 5 - CTPS ou Renda.pdf           ← Tier 1
+      ├── 6 - Comprovante Restricao SERASA.pdf   ← Tier 2 (gerado)
+      └── 2 - Peticao Inicial.docx        ← Gerado pelo Davi/OlivIA
+
+    /EMPRESA-RE 2 — BOA VISTA SCPC/
+      ├── 1 - Procuracao.pdf              ← Tier 1 (copia em cada subpasta)
+      ├── 3 - Identidade.pdf
+      ├── 4 - Comprovante Residencia.pdf
+      ├── 5 - CTPS ou Renda.pdf
+      ├── 6 - Comprovante Restricao Boa Vista.pdf  ← Tier 2 (upado manualmente)
+      └── 2 - Peticao Inicial.docx</div>
+    </div>
+  </div>
+
+  <!-- SECAO 4 — PAPEL DO DAVI NO DRIVE -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🤖</span>
+      <h2>Papel do Davi no Drive</h2>
+      <span class="section-number">Secao 4</span>
+    </div>
+    <div class="card">
+      <div class="card-title">Etapa Drive Audit — Validacao Mode 1 (Ag. Preparacao)</div>
+      <div class="code-block"><span class="c-yellow">ETAPA DRIVE (nova — pre-validacao de docs):</span>
+
+<span class="c-blue">1. Verificar leads.google_drive_folder_id</span>
+   → NULL → trigger PASTA-LEAD-v1 → aguardar
+
+<span class="c-blue">2. Para cada restricao do processo:</span>
+   a. Verificar restricoes.drive_pasta_id
+   b. NULL → criar subpasta via nova EF/webhook → salvar drive_pasta_id
+
+<span class="c-blue">3. Sincronizar Tier 1 para cada subpasta:</span>
+   → buscar docs sem restricao_id (procuracao, identidade, residencia, CTPS)
+   → para cada subpasta: WH-SYNC-STORAGE-DRIVE com drive_folder_id_override
+
+<span class="c-blue">4. Verificar PI na subpasta correta:</span>
+   → processos_documentos WHERE tipo='peticao_inicial'
+   → SE google_drive_id NULL ou pasta errada → re-trigger PI
+
+<span class="c-blue">5. Verificar Comprovante na subpasta correta:</span>
+   → processos_documentos WHERE tipo='comprovante_restricao'
+   → SE google_drive_id NULL → re-trigger comprovante com pasta correta
+
+<span class="c-green">6. Registrar estado em davi_validacoes.issues (drive_audit)</span></div>
+    </div>
+  </div>
+
+  <!-- SECAO 5 — GAPS G-11 a G-16 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">⚠️</span>
+      <h2>Novos Gaps Identificados — G-11 a G-16</h2>
+      <span class="section-number">Secao 5</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Gap</th>
+            <th>Descricao</th>
+            <th>Impacto</th>
+            <th>Causa Raiz</th>
+            <th>Solucao Proposta</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>G-11</strong> <span class="status-pill sp-root">ROOT CAUSE</span></td>
+            <td><span class="mono">MDFLOW-DRIVE-PASTA-RESTRICAO-v1</span> nao existe</td>
+            <td><span class="tag tag-critical">CRITICO</span></td>
+            <td>Webhook chamado pelo PASTA-LEAD-v1 mas nunca criado nos 100+ workflows</td>
+            <td>Criar novo workflow n8n com webhook <span class="mono">/drive-pasta-restricao</span></td>
+          </tr>
+          <tr>
+            <td><strong>G-12</strong></td>
+            <td><span class="mono">processos.google_drive_folder_id</span> nunca populado</td>
+            <td><span class="tag tag-alto">ALTO</span></td>
+            <td>PASTA-LEAD-v1 so salva em <span class="mono">leads</span> e <span class="mono">clientes</span>, nao em <span class="mono">processos</span></td>
+            <td>PASTA-LEAD-v1 deve tambem salvar em processos vinculados ao lead</td>
+          </tr>
+          <tr>
+            <td><strong>G-13</strong></td>
+            <td>Tier 1 docs NAO chegam nas subpastas de restricao</td>
+            <td><span class="tag tag-alto">ALTO</span></td>
+            <td>Sync atual copia docs COM <span class="mono">restricao_id</span> para subpastas; Tier 1 nao tem restricao_id</td>
+            <td>Davi deve copiar Tier 1 para cada subpasta no Drive Audit</td>
+          </tr>
+          <tr>
+            <td><strong>G-14</strong></td>
+            <td>Race condition no Sync Post-Criacao do PASTA-LEAD-v1</td>
+            <td><span class="tag tag-medio">MEDIO</span></td>
+            <td>Sync acontece imediatamente; drive-pasta-restricao e paralelo e pode nao ter concluido</td>
+            <td>Davi re-executa sync apos subpastas criadas — eliminando a race condition</td>
+          </tr>
+          <tr>
+            <td><strong>G-15</strong></td>
+            <td>PI inserida sem campo <span class="mono">tipo_documento</span></td>
+            <td><span class="tag tag-medio">MEDIO</span></td>
+            <td><span class="mono">processos_documentos</span> recebe so <span class="mono">categoria: 'peticao_inicial'</span>, sem <span class="mono">tipo_documento</span></td>
+            <td>Corrigir n8n para incluir <span class="mono">tipo_documento: 'peticao_inicial'</span></td>
+          </tr>
+          <tr>
+            <td><strong>G-16</strong></td>
+            <td>Comportamentos multi-estado hardcoded</td>
+            <td><span class="tag tag-baixo">BAIXO</span></td>
+            <td>Separadores EPROC, nomes e outros detalhes de estado no codigo</td>
+            <td>Detectar estado via <span class="mono">advogados.oab_uf</span>, usar config por OAB</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECAO 6 — DECISOES D-25 a D-30 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🎯</span>
+      <h2>Novas Decisoes Necessarias — D-25 a D-30</h2>
+      <span class="section-number">Secao 6</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Tema</th>
+            <th>Opcoes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>D-25</strong></td>
+            <td>Nome das subpastas de restricao no Drive</td>
+            <td>
+              <strong>A:</strong> <span class="mono">empresa_nome</span> — ex: "RGE SUL DISTRIBUIDORA"<br>
+              <strong>B:</strong> <span class="mono">empresa_nome – orgao_nome</span> — ex: "RGE SUL – SERASA"<br>
+              <strong>C:</strong> <span class="mono">orgao_nome – empresa_nome</span>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>D-26</strong></td>
+            <td>Tier 1 nas subpastas — estrategia</td>
+            <td>
+              <strong>A:</strong> Copiar Tier 1 para CADA subpasta (duplicacao, mas subpasta completa)<br>
+              <strong>B:</strong> Tier 1 fica so na raiz do lead; subpastas tem Tier 2 + PI + Comprovante
+            </td>
+          </tr>
+          <tr>
+            <td><strong>D-27</strong></td>
+            <td>PI em pasta errada — acao do Davi</td>
+            <td>
+              <strong>A:</strong> Mover arquivo Drive para subpasta correta (Drive API move)<br>
+              <strong>B:</strong> Re-gerar PI na pasta correta (caro em tokens)<br>
+              <strong>C:</strong> Registrar como aviso nao-bloqueante
+            </td>
+          </tr>
+          <tr>
+            <td><strong>D-28</strong></td>
+            <td>peticao_status — 'gerada' vs 'sucesso'</td>
+            <td>
+              <strong>A:</strong> Davi aceita 'gerada' (nao quebrar o que funciona)<br>
+              <strong>B:</strong> Corrigir n8n para setar 'sucesso' apos JARBAS-DOC suceder<br>
+              <strong>C:</strong> Davi verifica existencia do arquivo (mais robusto, ignora status)
+            </td>
+          </tr>
+          <tr>
+            <td><strong>D-29</strong></td>
+            <td>Multi-estado — deteccao do estado</td>
+            <td>
+              <strong>A:</strong> Via <span class="mono">advogados.oab_uf</span> (mais simples, ja existe)<br>
+              <strong>B:</strong> Via parsing do CNJ (campo J)<br>
+              <strong>C:</strong> Campo explicito <span class="mono">processos.estado_distribuicao</span>
+            </td>
+          </tr>
+          <tr>
+            <td><strong>D-30</strong></td>
+            <td>Backfill Drive para processos existentes</td>
+            <td>
+              <strong>A:</strong> So novos processos a partir da implementacao<br>
+              <strong>B:</strong> Backfill de todos em 'aguardando' e 'preparacao'<br>
+              <strong>C:</strong> Backfill opcional via botao na UI
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SECAO 7 — MULTI-ESTADO -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🌎</span>
+      <h2>Multi-Estado — Principios de Design</h2>
+      <span class="section-number">Secao 7</span>
+    </div>
+    <div class="card-highlight-green">
+      <div class="card-title">Regras de Arquitetura para o Davi ser Multi-Estado</div>
+      <ol style="padding-left:20px;line-height:2.1;font-size:0.85rem;">
+        <li><strong>Deteccao de estado:</strong> via <span class="mono">advogados.oab_uf</span> — nunca hardcodar "RS" no codigo do Davi</li>
+        <li><strong>Separadores EPROC por OAB:</strong> mapeamento em tabela ou constante por OAB (RS116571 → hifen, RS131163 → ponto, SC/SP → a definir quando testado)</li>
+        <li><strong>Limite de processos por lote:</strong> 30 por OAB (configuravel, nao hardcoded)</li>
+        <li><strong>Validacoes especificas de estado:</strong> nenhuma — todas as validacoes sao agnosticas (7 docs, PI, comprovante etc. sao universais)</li>
+        <li><strong>EPROC vs outros sistemas:</strong> o Davi so chega ate a porta do EPROC (monta o lote); a Mia executa. Se futuramente houver distribuicao em outros sistemas, o Davi nao precisa mudar</li>
+      </ol>
+      <div style="margin-top:16px;">
+        <div class="card-title">Limitacao MVP</div>
+        <div class="code-block"><span class="c-yellow">EPROC_ESTADOS_SUPORTADOS</span> = [<span class="c-green">'RS'</span>]  <span class="c-muted">// configuracao, nao hardcode</span>
+<span class="c-muted">// Quando SC/SP forem testados: adicionar nessa config</span>
+<span class="c-muted">// O Davi nao quebra — apenas nao filtra processos de outros estados</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 8 — ERROR LOGGING -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔍</span>
+      <h2>Error Logging — Formato Proposto</h2>
+      <span class="section-number">Secao 8</span>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;border-left:3px solid var(--accent);">
+      <p style="font-size:0.82rem;color:var(--text-muted);font-style:italic;line-height:1.6;">
+        "O Davi nao e so um validador — ele e a consciencia do pipeline CRM→distribuicao.
+        Cada erro logado e um insight que melhora o processo inteiro."
+      </p>
+    </div>
+
+    <div class="card" style="margin-bottom:18px;">
+      <div class="card-title">Formato Expandido de Issue em davi_validacoes.issues[]</div>
+      <div class="code-block">{
+  <span class="c-yellow">"codigo"</span>: <span class="c-green">"drive_subpasta_ausente"</span>,
+  <span class="c-yellow">"nivel"</span>: <span class="c-green">"bloqueante"</span>,
+  <span class="c-yellow">"pipeline_step"</span>: <span class="c-green">"drive_audit"</span>,
+  <span class="c-yellow">"mensagem"</span>: <span class="c-green">"Subpasta Drive da restricao nao existe — restricoes.drive_pasta_id NULL"</span>,
+  <span class="c-yellow">"restricao_id"</span>: <span class="c-green">"uuid"</span>,
+  <span class="c-yellow">"restricao_nome"</span>: <span class="c-green">"RGE SUL DISTRIBUIDORA — SERASA"</span>,
+  <span class="c-yellow">"processo_id"</span>: <span class="c-green">"uuid"</span>,
+  <span class="c-yellow">"acao_tomada"</span>: <span class="c-green">"triggered_drive-pasta-restricao"</span>,
+  <span class="c-yellow">"sugestao"</span>: <span class="c-green">"Aguardar webhook criar subpasta e re-validar"</span>
+}</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Codigos de Issue Previstos</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Codigo</th>
+              <th>Nivel</th>
+              <th>Etapa</th>
+              <th>Descricao</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="mono">tipo_ausente</span></td>
+              <td><span class="tag tag-critical">bloqueante</span></td>
+              <td><span class="mono-dim">doc_audit</span></td>
+              <td>Falta tipo obrigatorio na pasta</td>
+            </tr>
+            <tr>
+              <td><span class="mono">drive_subpasta_ausente</span></td>
+              <td><span class="tag tag-alto">aviso</span></td>
+              <td><span class="mono-dim">drive_audit</span></td>
+              <td>Subpasta restricao nao existe</td>
+            </tr>
+            <tr>
+              <td><span class="mono">pi_pasta_errada</span></td>
+              <td><span class="tag tag-alto">aviso</span></td>
+              <td><span class="mono-dim">drive_audit</span></td>
+              <td>PI esta em pasta generica, nao na subpasta</td>
+            </tr>
+            <tr>
+              <td><span class="mono">comprovante_sem_drive</span></td>
+              <td><span class="tag tag-alto">aviso</span></td>
+              <td><span class="mono-dim">drive_audit</span></td>
+              <td>Comprovante no storage mas nao no Drive</td>
+            </tr>
+            <tr>
+              <td><span class="mono">tier1_ausente_no_drive</span></td>
+              <td><span class="tag tag-alto">aviso</span></td>
+              <td><span class="mono-dim">drive_audit</span></td>
+              <td>Doc Tier 1 nao sincronizado para subpasta</td>
+            </tr>
+            <tr>
+              <td><span class="mono">peticao_status_invalido</span></td>
+              <td><span class="tag tag-critical">bloqueante</span></td>
+              <td><span class="mono-dim">pi_check</span></td>
+              <td><span class="mono">peticao_status</span> nao e sucesso/gerada/customizada</td>
+            </tr>
+            <tr>
+              <td><span class="mono">valor_boa_vista_divergente</span></td>
+              <td><span class="tag tag-medio">aviso</span></td>
+              <td><span class="mono-dim">valor_check</span></td>
+              <td><span class="mono">restricoes.valor</span> difere de <span class="mono">processos.valor_causa</span> por &gt;10%</td>
+            </tr>
+            <tr>
+              <td><span class="mono">docs_insuficientes</span></td>
+              <td><span class="tag tag-critical">bloqueante</span></td>
+              <td><span class="mono-dim">doc_count</span></td>
+              <td>Menos de 7 docs na pasta da restricao</td>
+            </tr>
+            <tr>
+              <td><span class="mono">storage_inacessivel</span></td>
+              <td><span class="tag tag-critical">bloqueante</span></td>
+              <td><span class="mono-dim">storage_check</span></td>
+              <td>arquivo_url existe mas HEAD retorna erro</td>
+            </tr>
+            <tr>
+              <td><span class="mono">cef_detectado</span></td>
+              <td><span class="tag tag-baixo">informativo</span></td>
+              <td><span class="mono-dim">lote_filter</span></td>
+              <td>Processo excluido do lote por reu CEF</td>
+            </tr>
+            <tr>
+              <td><span class="mono">duplicata_dia</span></td>
+              <td><span class="tag tag-baixo">informativo</span></td>
+              <td><span class="mono-dim">lote_filter</span></td>
+              <td>Processo excluido por duplicata no dia</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 9 — QUESTOES Q-07 a Q-14 -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">❓</span>
+      <h2>Questoes para o Gustavo — Q-07 a Q-14</h2>
+      <span class="section-number">Secao 9</span>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-07</div>
+      <div class="q-title">Nome das subpastas de restricao no Drive</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>empresa_nome</strong> — ex: "RGE SUL DISTRIBUIDORA DE ENERGIA" <em>· mais limpo</em></div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>empresa_nome – orgao_nome</strong> — ex: "RGE SUL – SERASA" <em>· mais informativo</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-08</div>
+      <div class="q-title">Tier 1 nas subpastas: copiar ou nao?</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>Copiar Tier 1 para CADA subpasta</strong> → subpasta completa e independente <em>· mais util na pratica, mas duplica arquivos</em></div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>Tier 1 fica so na pasta raiz do lead</strong> → subpastas tem so Tier 2 + PI + Comprovante <em>· mais leve</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-09</div>
+      <div class="q-title">PI em pasta generica: o que o Davi faz?</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>Mover para subpasta correta via Drive API</strong> <em>· sem re-gerar, mantem o doc</em></div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>Re-gerar PI na subpasta correta</strong> <em>· caro, desnecessario</em></div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-c">C</span>
+          <div class="q-opt-text"><strong>Registrar como aviso nao-bloqueante</strong> <em>· aceitar e seguir</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-10</div>
+      <div class="q-title">Comprovante Boa Vista (upado manualmente) vai para o Drive?</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>Sim</strong> — Davi sincroniza para subpasta da restricao durante Drive Audit</div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>Nao</strong> — fica so no Storage (bucket leads-docs), nao sobe pro Drive</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-11</div>
+      <div class="q-title">peticao_status: aceitar 'gerada' para distribuir?</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>Davi aceita 'gerada' como PI valida</strong> <em>· nao quebra o atual</em></div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>Corrigir n8n Distribuicao-Gerar-Iniciais</strong> para setar 'sucesso' apos JARBAS-DOC suceder</div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-c">C</span>
+          <div class="q-opt-text"><strong>Davi verifica existencia do arquivo em processos_documentos</strong> <em>· ignora o status, mais robusto</em></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-12</div>
+      <div class="q-title">Multi-estado: confirmar deteccao via advogados.oab_uf?</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>Sim</strong> — <span style="font-family:monospace;font-size:0.82rem;color:var(--accent);">advogados.oab_uf</span> determina o estado (RS, SC, SP)</div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>Nao</strong> — usar parsing do CNJ (campo do tribunal)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-13</div>
+      <div class="q-title">Backfill Drive para processos existentes?</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>So novos processos</strong> a partir da implementacao</div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>Backfill de processos</strong> em 'aguardando' e 'preparacao' existentes</div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-c">C</span>
+          <div class="q-opt-text"><strong>Botao opcional na UI</strong> — "Reparar Drive deste processo"</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-id">Q-14</div>
+      <div class="q-title">Prioridade: criar MDFLOW-DRIVE-PASTA-RESTRICAO-v1 primeiro ou junto com o Davi?</div>
+      <div class="q-options">
+        <div class="q-option">
+          <span class="q-opt-letter opt-a">A</span>
+          <div class="q-opt-text"><strong>Criar primeiro, separadamente</strong> — desbloqueia PI/comprovante imediatamente para novos leads</div>
+        </div>
+        <div class="q-option">
+          <span class="q-opt-letter opt-b">B</span>
+          <div class="q-opt-text"><strong>Criar junto com o Davi</strong> — tudo de uma vez</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 10 — INVESTIGACOES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🔬</span>
+      <h2>Investigacoes Ainda Necessarias — INV-05 a INV-08</h2>
+      <span class="section-number">Secao 10</span>
+    </div>
+
+    <div class="inv-card">
+      <span class="inv-id">INV-05</span>
+      <div class="inv-body">
+        <div class="inv-title">Verificar quantas restricoes tem drive_pasta_id NULL vs preenchido</div>
+        <div class="inv-why">Confirma escala do problema — esperado: proximo de 100% NULL</div>
+        <div class="inv-query">
+          <div class="code-block">SELECT COUNT(*) FROM restricoes WHERE drive_pasta_id IS NULL AND deleted_at IS NULL;</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="inv-card">
+      <span class="inv-id">INV-06</span>
+      <div class="inv-body">
+        <div class="inv-title">Verificar estrutura completa do WH-SYNC-STORAGE-DRIVE (0QxdwlNqJ1zBy7T6)</div>
+        <div class="inv-why">Entender como o Davi vai usar esse workflow para sincronizar docs nas subpastas — quais parametros aceita, se suporta drive_folder_id_override</div>
+      </div>
+    </div>
+
+    <div class="inv-card">
+      <span class="inv-id">INV-07</span>
+      <div class="inv-body">
+        <div class="inv-title">Verificar se processos_documentos tem campo google_drive_id</div>
+        <div class="inv-why">Confirmar onde o Drive ID do doc e salvo apos sync — necessario para o Davi verificar se PI/comprovante ja estao no Drive</div>
+      </div>
+    </div>
+
+    <div class="inv-card">
+      <span class="inv-id">INV-08</span>
+      <div class="inv-body">
+        <div class="inv-title">Verificar quantas PIs foram para a pasta generica hardcoded</div>
+        <div class="inv-why">Mede o backfill necessario para corrigir PIs em pasta errada</div>
+        <div class="inv-query">
+          <div class="code-block">SELECT COUNT(*) FROM processos_documentos
+WHERE categoria = 'peticao_inicial'
+  AND arquivo_url ILIKE '%1JTbKJqbmPzRTLlqRYZEZ5pNY%';</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 11 — ROADMAP -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">🗓️</span>
+      <h2>Roadmap de Implementacao — Visao Geral</h2>
+      <span class="section-number">Secao 11</span>
+    </div>
+    <div class="card">
+      <div class="roadmap">
+        <div class="roadmap-item">
+          <div class="roadmap-dot dot-yellow"></div>
+          <div class="roadmap-content">
+            <div class="roadmap-phase">Fase 0 — Agora</div>
+            <div class="roadmap-title">Decisoes e Investigacoes</div>
+            <div class="roadmap-items-list">
+              D-25 a D-30 aprovadas pelo Gustavo &nbsp;|&nbsp;
+              Q-07 a Q-14 respondidas &nbsp;|&nbsp;
+              INV-05 a INV-08 executadas
+            </div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="roadmap-dot dot-green"></div>
+          <div class="roadmap-content">
+            <div class="roadmap-phase">Fase 1 — Prioridade</div>
+            <div class="roadmap-title">Infraestrutura Drive</div>
+            <div class="roadmap-items-list">
+              Criar MDFLOW-DRIVE-PASTA-RESTRICAO-v1 (webhook n8n) &nbsp;|&nbsp;
+              Corrigir peticao_status se D-28=B &nbsp;|&nbsp;
+              Atualizar PASTA-LEAD-v1 para salvar em processos (G-12)
+            </div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="roadmap-dot dot-blue"></div>
+          <div class="roadmap-content">
+            <div class="roadmap-phase">Fase 2</div>
+            <div class="roadmap-title">Edge Function davi-validar (Mode 1)</div>
+            <div class="roadmap-items-list">
+              Valida por processo: docs, Drive, PI, comprovante, valores &nbsp;|&nbsp;
+              Drive Audit integrado &nbsp;|&nbsp;
+              Tabela davi_validacoes com issues expandidas
+            </div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="roadmap-dot dot-blue"></div>
+          <div class="roadmap-content">
+            <div class="roadmap-phase">Fase 3</div>
+            <div class="roadmap-title">Frontend (preparacao tab)</div>
+            <div class="roadmap-items-list">
+              Botao "Validar com Davi" &nbsp;|&nbsp;
+              Badge bloqueio inline &nbsp;|&nbsp;
+              Detalhes dos issues expandidos com sugestao de acao
+            </div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="roadmap-dot dot-green"></div>
+          <div class="roadmap-content">
+            <div class="roadmap-phase">Fase 4</div>
+            <div class="roadmap-title">Edge Function davi-preparar-lote (Mode 2)</div>
+            <div class="roadmap-items-list">
+              Seleciona, filtra, monta lote &nbsp;|&nbsp;
+              Modal ModalEnviarParaMia modo Davi &nbsp;|&nbsp;
+              Multi-estado por oab_uf configuravel
+            </div>
+          </div>
+        </div>
+        <div class="roadmap-item">
+          <div class="roadmap-dot dot-purple"></div>
+          <div class="roadmap-content">
+            <div class="roadmap-phase">Fase 5</div>
+            <div class="roadmap-title">Observabilidade</div>
+            <div class="roadmap-items-list">
+              Dashboard de erros do Davi &nbsp;|&nbsp;
+              Alertas por tipo de erro &nbsp;|&nbsp;
+              Metricas de pipeline CRM→distribuicao
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SECAO 12 — STATUS DECISOES -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-icon">✅</span>
+      <h2>Estado Atual das Decisoes — D-01 a D-30</h2>
+      <span class="section-number">Secao 12</span>
+    </div>
+
+    <div class="grid g2" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-title">Decisoes Aprovadas</div>
+        <div style="display:flex;align-items:center;gap:16px;padding:12px 0;">
+          <div style="font-size:2.5rem;font-weight:700;color:var(--accent);">D-01 a D-24</div>
+          <div>
+            <div style="font-size:0.9rem;font-weight:600;margin-bottom:4px;">24 decisoes aprovadas</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);">Confirmadas pelo Gustavo em 2026-05-21</div>
+            <div style="margin-top:8px;"><span class="dec-badge dec-done">✅ Todas confirmadas</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="border-color:rgba(167,139,250,0.25);">
+        <div class="card-title">Decisoes Pendentes</div>
+        <div style="display:flex;align-items:center;gap:16px;padding:12px 0;">
+          <div style="font-size:2.5rem;font-weight:700;color:var(--accent5);">D-25 a D-30</div>
+          <div>
+            <div style="font-size:0.9rem;font-weight:600;margin-bottom:4px;">6 decisoes pendentes</div>
+            <div style="font-size:0.8rem;color:var(--text-muted);">Levantadas na investigacao 2026-05-22</div>
+            <div style="margin-top:8px;"><span class="dec-badge dec-pend">⏳ Aguardando resposta</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Tema</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td><strong>D-01</strong></td><td>Estrutura da tabela davi_validacoes</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-02</strong></td><td>Trigger de ativacao do Davi</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-03</strong></td><td>Escopos de validacao (Mode 1 vs Mode 2)</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-04</strong></td><td>Lista de tipos de documento obrigatorios (7 tipos)</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-05</strong></td><td>Tier 1 vs Tier 2 — classificacao de docs</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-06</strong></td><td>Criterios de bloqueio vs aviso</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-07</strong></td><td>Integracao com Modal de envio para Mia</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-08</strong></td><td>Schema da tabela davi_validacoes (colunas)</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-09</strong></td><td>Logica de lote — max 30 por OAB por dia</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-10</strong></td><td>Exclusao de CEF do lote</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-11</strong></td><td>Duplicata no dia — bloquear ou avisar</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-12</strong></td><td>Verificacao de storage inacessivel (HEAD request)</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-13</strong></td><td>Validacao de valor_causa vs restricoes.valor</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-14</strong></td><td>Verificacao de PI gerada (status + google_drive_id)</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-15</strong></td><td>Verificacao de comprovante de restricao</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-16</strong></td><td>Interface do Drive Audit no frontend</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-17</strong></td><td>Retry logic — quantas tentativas antes de bloqueio definitivo</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-18</strong></td><td>Notificacao ao usuario quando Davi bloqueia</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-19</strong></td><td>Armazenamento de issues — JSONB vs tabela separada</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-20</strong></td><td>Performance — paralelismo nas validacoes</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-21</strong></td><td>Comportamento quando lead nao tem pasta Drive</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-22</strong></td><td>Permissoes — quem pode "Forcar distribuicao"</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-23</strong></td><td>Rollback — cancelar lote apos enviar para Mia</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr><td><strong>D-24</strong></td><td>Auditoria — log de quem acionou o Davi e quando</td><td><span class="dec-badge dec-done">✅ Aprovada</span></td></tr>
+          <tr style="background:rgba(167,139,250,0.03);">
+            <td><strong>D-25</strong></td><td>Nome das subpastas de restricao no Drive</td>
+            <td><span class="dec-badge dec-pend">⏳ Pendente</span></td>
+          </tr>
+          <tr style="background:rgba(167,139,250,0.03);">
+            <td><strong>D-26</strong></td><td>Tier 1 nas subpastas — estrategia</td>
+            <td><span class="dec-badge dec-pend">⏳ Pendente</span></td>
+          </tr>
+          <tr style="background:rgba(167,139,250,0.03);">
+            <td><strong>D-27</strong></td><td>PI em pasta errada — acao do Davi</td>
+            <td><span class="dec-badge dec-pend">⏳ Pendente</span></td>
+          </tr>
+          <tr style="background:rgba(167,139,250,0.03);">
+            <td><strong>D-28</strong></td><td>peticao_status — 'gerada' vs 'sucesso'</td>
+            <td><span class="dec-badge dec-pend">⏳ Pendente</span></td>
+          </tr>
+          <tr style="background:rgba(167,139,250,0.03);">
+            <td><strong>D-29</strong></td><td>Multi-estado — deteccao do estado</td>
+            <td><span class="dec-badge dec-pend">⏳ Pendente</span></td>
+          </tr>
+          <tr style="background:rgba(167,139,250,0.03);">
+            <td><strong>D-30</strong></td><td>Backfill Drive para processos existentes</td>
+            <td><span class="dec-badge dec-pend">⏳ Pendente</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    Davi-Mia v1 &nbsp;|&nbsp; Pre-implementacao Round 4 &nbsp;|&nbsp; 2026-05-22 &nbsp;|&nbsp; MdLab LegalTech
+  </div>
+
+</div>
+</body>
+</html>

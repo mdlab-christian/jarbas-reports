@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Modelos de Comprovante de Restrição — MdFlow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0f0e0d;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    background: #1a1815;
+    border-bottom: 1px solid #2a2720;
+    padding: 0 32px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 56px;
+  }
+  .topbar-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #c8c0b0;
+    white-space: nowrap;
+    margin-right: 32px;
+    letter-spacing: 0.01em;
+  }
+  .tabs {
+    display: flex;
+    gap: 2px;
+    height: 100%;
+    align-items: flex-end;
+  }
+  .tab-btn {
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: #6b6050;
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 0 18px 14px;
+    cursor: pointer;
+    letter-spacing: 0.02em;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
+  }
+  .tab-btn:hover { color: #a89880; }
+  .tab-btn.active {
+    color: #e8ddd0;
+    border-bottom-color: #20c997;
+  }
+  .tab-badge {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 7px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+  }
+  .badge-helo { background: rgba(107,33,168,0.25); color: #c084fc; }
+  .badge-bv-helo { background: rgba(61,114,180,0.25); color: #7db4f0; }
+  .badge-christian { background: rgba(204,0,0,0.2); color: #f87171; }
+  .badge-bv-christian { background: rgba(46,125,50,0.2); color: #6ee7b7; }
+
+  /* ── Content area ── */
+  .content {
+    display: none;
+    padding: 40px 32px;
+    min-height: calc(100vh - 56px);
+    justify-content: center;
+    align-items: flex-start;
+  }
+  .content.active { display: flex; }
+
+  /* ── A4 Shell ── */
+  .a4-shell {
+    background: #fff;
+    width: 890px;
+    min-height: 1260px;
+    border-radius: 4px;
+    box-shadow: 0 8px 48px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4);
+    padding: 56px 64px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* ── Template A styles (prefixed ta-) ── */
+  .ta-body { font-family: 'Arial', 'Helvetica', sans-serif; font-size: 9pt; color: #1A1A2E; background: #fff; }
+  .ta-doc-header { padding-bottom: 14px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: flex-end; }
+  .ta-doc-header-title { font-size: 16pt; font-weight: 900; color: #1A1A2E; letter-spacing: -0.5px; line-height: 1.1; margin-bottom: 4px; }
+  .ta-doc-header-meta { font-size: 7pt; color: #999; letter-spacing: 0.3px; }
+  .ta-doc-header-badge { font-size: 7pt; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; padding: 5px 14px; border-radius: 3px; color: #fff; white-space: nowrap; }
+  .ta-alerta { padding: 9px 14px; font-size: 7.5pt; color: #555; line-height: 1.55; margin-bottom: 22px; }
+  .ta-section { margin-bottom: 20px; }
+  .ta-section-title { font-size: 6.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; padding-bottom: 5px; margin-bottom: 12px; }
+  .ta-consumer-list { display: flex; gap: 0; }
+  .ta-consumer-field { flex: 1; padding: 8px 14px; border-left: 1px solid #eee; }
+  .ta-consumer-field:first-child { border-left: none; padding-left: 0; flex: 1.5; }
+  .ta-consumer-field label { display: block; font-size: 6pt; color: #AAA; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px; }
+  .ta-consumer-field span { font-size: 9.5pt; font-weight: 700; color: #1A1A2E; }
+  .ta-empresa-strip { border: 1px solid rgba(0,0,0,0.06); border-radius: 6px; padding: 11px 16px; margin-bottom: 10px; }
+  .ta-empresa-label { font-size: 6pt; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+  .ta-empresa-nome { font-size: 9.5pt; font-weight: 700; line-height: 1.35; }
+  .ta-restricao-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+  .ta-restricao-item { border: 1px solid #eee; border-radius: 5px; padding: 9px 12px; }
+  .ta-restricao-item.full { grid-column: 1 / span 2; }
+  .ta-restricao-item label { display: block; font-size: 6pt; color: #BBB; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 3px; }
+  .ta-restricao-item span { font-size: 8.5pt; font-weight: 600; color: #1A1A2E; }
+  .ta-valor-split { display: flex; border: 1px solid #eee; border-radius: 6px; overflow: hidden; }
+  .ta-valor-split-left { flex: 1; padding: 16px 18px; display: flex; align-items: center; }
+  .ta-valor-split-left .vs-label { font-size: 6pt; text-transform: uppercase; letter-spacing: 1.5px; color: #AAA; }
+  .ta-valor-split-right { padding: 16px 28px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; min-width: 210px; }
+  .ta-valor-split-right .vs-amount-label { font-size: 6pt; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.55); margin-bottom: 5px; }
+  .ta-valor-split-right .vs-amount { font-size: 24pt; font-weight: 900; color: #fff; letter-spacing: -1px; line-height: 1; }
+  .ta-legal-box { border: 1px solid #eee; padding: 12px 16px; font-size: 7.5pt; color: #777; line-height: 1.65; margin-top: 16px; border-radius: 4px; }
+  .ta-legal-title { font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #555; font-size: 6.5pt; margin-bottom: 4px; }
+  .ta-legal-box p { text-align: justify; margin-bottom: 10px; }
+  .ta-legal-box p:last-child { margin-bottom: 0; }
+
+  /* Template A — Serasa variant colors */
+  .ta-serasa .ta-doc-header { border-bottom: 3px solid #6B21A8; }
+  .ta-serasa .ta-doc-header-badge { background: #6B21A8; }
+  .ta-serasa .ta-alerta { background: #FAF5FF; }
+  .ta-serasa .ta-section-title { color: #6B21A8; border-bottom: 1px solid #FAF5FF; }
+  .ta-serasa .ta-empresa-strip { background: #FAF5FF; }
+  .ta-serasa .ta-empresa-label { color: #6B21A8; }
+  .ta-serasa .ta-empresa-nome { color: #6B21A8; }
+  .ta-serasa .ta-valor-split-right { background: #6B21A8; }
+  .ta-serasa .ta-legal-box { border-left: 4px solid #6B21A8; }
+
+  /* Template A — Boa Vista variant colors */
+  .ta-bv .ta-doc-header { border-bottom: 3px solid #3D72B4; }
+  .ta-bv .ta-doc-header-badge { background: #3D72B4; }
+  .ta-bv .ta-alerta { background: #F0F5FF; }
+  .ta-bv .ta-section-title { color: #3D72B4; border-bottom: 1px solid #F0F5FF; }
+  .ta-bv .ta-empresa-strip { background: #F0F5FF; }
+  .ta-bv .ta-empresa-label { color: #3D72B4; }
+  .ta-bv .ta-empresa-nome { color: #3D72B4; }
+  .ta-bv .ta-valor-split-right { background: #3D72B4; }
+  .ta-bv .ta-legal-box { border-left: 4px solid #3D72B4; }
+
+  /* ── Template B styles (prefixed tb-) ── */
+  .tb-body { font-family: 'Segoe UI', 'Arial', sans-serif; font-size: 9.5pt; color: #1A1A1A; background: #fff; }
+  .tb-section { margin-bottom: 14px; }
+  .tb-section-title { font-size: 7pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #333; border-bottom: 1px solid #E0E0E0; padding-bottom: 5px; margin-bottom: 10px; }
+  .tb-consumer-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 0; }
+  .tb-field { padding: 8px 0; }
+  .tb-field label { display: block; font-size: 7pt; color: #999; margin-bottom: 3px; }
+  .tb-field span { font-size: 9.5pt; font-weight: 700; color: #222; word-break: break-word; }
+  .tb-empresa-box { border: 1px solid #E0E0E0; border-radius: 8px; padding: 10px 16px; margin-bottom: 10px; }
+  .tb-empresa-box label { display: block; font-size: 7pt; color: #999; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 4px; }
+  .tb-empresa-nome { font-size: 11pt; font-weight: 700; color: #1A1A1A; word-break: break-word; line-height: 1.3; }
+  .tb-restricao-table { width: 100%; border-collapse: collapse; border: 1px solid #E0E0E0; border-radius: 8px; overflow: hidden; }
+  .tb-restricao-table tr:not(:last-child) td { border-bottom: 1px solid #EEEEEE; }
+  .tb-restricao-table td { padding: 9px 14px; vertical-align: middle; }
+  .tb-restricao-table td.rt-label { font-size: 7.5pt; color: #888; text-transform: uppercase; letter-spacing: 0.5px; width: 28%; white-space: nowrap; }
+  .tb-restricao-table td.rt-value { font-size: 8.5pt; font-weight: 600; color: #1A1A1A; }
+  .tb-valor-box { border-radius: 8px; padding: 14px 18px; margin-top: 10px; }
+  .tb-valor-box .valor { font-size: 22pt; font-weight: 800; line-height: 1; }
+  .tb-valor-box .desc { font-size: 7.5pt; color: #777; margin-top: 4px; }
+  .tb-legal-box { border: 1px solid #E0E0E0; border-radius: 8px; padding: 14px 18px; font-size: 7.5pt; color: #555; line-height: 1.55; margin-top: 14px; }
+  .tb-legal-title { font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #333; font-size: 7.5pt; margin-bottom: 5px; }
+  .tb-legal-box p { text-align: justify; margin-bottom: 10px; }
+  .tb-legal-box p:last-child { margin-bottom: 0; }
+
+  /* Template B — Serasa colors */
+  .tb-serasa .tb-header-bar { background: #CC0000; }
+  .tb-serasa .tb-valor-box { background: #fff5f5; border-left: 4px solid #CC0000; }
+  .tb-serasa .tb-valor-box .valor { color: #CC0000; }
+
+  /* Template B — Boa Vista colors */
+  .tb-bv .tb-header-bar { background: #2e7d32; }
+  .tb-bv .tb-valor-box { background: #f1f8f1; border-left: 4px solid #2e7d32; }
+  .tb-bv .tb-valor-box .valor { color: #2e7d32; }
+
+  .tb-header-bar {
+    border-radius: 8px;
+    padding: 18px 22px;
+    margin-bottom: 16px;
+  }
+  .tb-header-bar h1 {
+    font-size: 16pt;
+    font-weight: 700;
+    color: #fff;
+    margin: 0;
+  }
+  .tb-header-bar p {
+    font-size: 8.5pt;
+    color: rgba(255,255,255,0.85);
+    margin-top: 3px;
+  }
+  .tb-notice {
+    background: #fff;
+    border: 1px solid #E0E0E0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 8pt;
+    color: #555;
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+
+<!-- Topbar with tabs -->
+<div class="topbar">
+  <div class="topbar-title">Modelos de Comprovante de Restricao</div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('ta-serasa')">
+      Template A — Heloi&shy;sa
+      <span class="tab-badge badge-helo">Serasa</span>
+    </button>
+    <button class="tab-btn" onclick="showTab('ta-bv')">
+      Template A — Heloi&shy;sa
+      <span class="tab-badge badge-bv-helo">Boa Vista</span>
+    </button>
+    <button class="tab-btn" onclick="showTab('tb-serasa')">
+      Template B — Christian
+      <span class="tab-badge badge-christian">Serasa</span>
+    </button>
+    <button class="tab-btn" onclick="showTab('tb-bv')">
+      Template B — Christian
+      <span class="tab-badge badge-bv-christian">Boa Vista</span>
+    </button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CONTENT 1 — Template A / Serasa
+════════════════════════════════════════════════════════════ -->
+<div class="content active" id="content-ta-serasa">
+  <div class="a4-shell">
+    <div class="ta-body ta-serasa">
+
+      <div class="ta-doc-header">
+        <div>
+          <div class="ta-doc-header-title">Comprovante de<br>Restrição de Crédito</div>
+          <div class="ta-doc-header-meta">Gerado em 26 de maio de 2026 às 14:30</div>
+        </div>
+        <div class="ta-doc-header-badge">Serasa</div>
+      </div>
+
+      <div class="ta-alerta">
+        Este documento comprova a existência de restrição de crédito em nome do consumidor, conforme dados do sistema interno. Serve como elemento probatório inicial para fins jurídicos.
+      </div>
+
+      <div class="ta-section">
+        <div class="ta-section-title">Dados do Consumidor</div>
+        <div class="ta-consumer-list">
+          <div class="ta-consumer-field">
+            <label>Nome Completo</label>
+            <span>JOÃO DA SILVA SANTOS</span>
+          </div>
+          <div class="ta-consumer-field">
+            <label>CPF</label>
+            <span>123.456.789-00</span>
+          </div>
+          <div class="ta-consumer-field">
+            <label>Nascimento</label>
+            <span>15/03/1985</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ta-section">
+        <div class="ta-section-title">Dados da Restrição</div>
+        <div class="ta-empresa-strip">
+          <div class="ta-empresa-label">Empresa Credora</div>
+          <div class="ta-empresa-nome">BANCO BRADESCO S.A.</div>
+        </div>
+        <div class="ta-restricao-grid">
+          <div class="ta-restricao-item">
+            <label>Órgão de Proteção</label>
+            <span>Serasa</span>
+          </div>
+          <div class="ta-restricao-item">
+            <label>Tipo</label>
+            <span>Negativação</span>
+          </div>
+          <div class="ta-restricao-item full">
+            <label>Código do Contrato</label>
+            <span>7891234567890</span>
+          </div>
+          <div class="ta-restricao-item">
+            <label>Data da Restrição</label>
+            <span>10/01/2024</span>
+          </div>
+          <div class="ta-restricao-item">
+            <label>Situação</label>
+            <span>Ativo</span>
+          </div>
+        </div>
+        <div class="ta-valor-split">
+          <div class="ta-valor-split-left">
+            <div class="vs-label">Valor da Restrição Registrada</div>
+          </div>
+          <div class="ta-valor-split-right">
+            <div class="vs-amount-label">Total</div>
+            <div class="vs-amount">R$ 3.500,00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ta-legal-box">
+        <div class="ta-legal-title">Informações Importantes</div>
+        <p>As informações contidas neste relatório são confidenciais e destinadas exclusivamente à orientação individual do solicitante. O uso indevido ou o compartilhamento com terceiros sem autorização poderá ensejar responsabilização civil e criminal, conforme a legislação vigente.</p>
+        <div class="ta-legal-title">Responsabilidade e Limitação</div>
+        <p>Ainda que sejam utilizados dados oriundos de fontes oficiais e confiáveis, este relatório não garante a completude ou atualização em tempo real das informações. Eventuais divergências podem ocorrer por falhas de transmissão ou atraso no envio por parte dos provedores de dados.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CONTENT 2 — Template A / Boa Vista SCPC
+════════════════════════════════════════════════════════════ -->
+<div class="content" id="content-ta-bv">
+  <div class="a4-shell">
+    <div class="ta-body ta-bv">
+
+      <div class="ta-doc-header">
+        <div>
+          <div class="ta-doc-header-title">Comprovante de<br>Restrição de Crédito</div>
+          <div class="ta-doc-header-meta">Gerado em 26 de maio de 2026 às 14:30</div>
+        </div>
+        <div class="ta-doc-header-badge">Boa Vista SCPC</div>
+      </div>
+
+      <div class="ta-alerta">
+        Este documento comprova a existência de restrição de crédito em nome do consumidor, conforme dados do sistema interno. Serve como elemento probatório inicial para fins jurídicos.
+      </div>
+
+      <div class="ta-section">
+        <div class="ta-section-title">Dados do Consumidor</div>
+        <div class="ta-consumer-list">
+          <div class="ta-consumer-field">
+            <label>Nome Completo</label>
+            <span>JOÃO DA SILVA SANTOS</span>
+          </div>
+          <div class="ta-consumer-field">
+            <label>CPF</label>
+            <span>123.456.789-00</span>
+          </div>
+          <div class="ta-consumer-field">
+            <label>Nascimento</label>
+            <span>15/03/1985</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ta-section">
+        <div class="ta-section-title">Dados da Restrição</div>
+        <div class="ta-empresa-strip">
+          <div class="ta-empresa-label">Empresa Credora</div>
+          <div class="ta-empresa-nome">BANCO BRADESCO S.A.</div>
+        </div>
+        <div class="ta-restricao-grid">
+          <div class="ta-restricao-item">
+            <label>Órgão de Proteção</label>
+            <span>Boa Vista SCPC</span>
+          </div>
+          <div class="ta-restricao-item">
+            <label>Tipo</label>
+            <span>Negativação</span>
+          </div>
+          <div class="ta-restricao-item full">
+            <label>Código do Contrato</label>
+            <span>7891234567890</span>
+          </div>
+          <div class="ta-restricao-item">
+            <label>Data da Restrição</label>
+            <span>10/01/2024</span>
+          </div>
+          <div class="ta-restricao-item">
+            <label>Situação</label>
+            <span>Ativo</span>
+          </div>
+        </div>
+        <div class="ta-valor-split">
+          <div class="ta-valor-split-left">
+            <div class="vs-label">Valor da Restrição Registrada</div>
+          </div>
+          <div class="ta-valor-split-right">
+            <div class="vs-amount-label">Total</div>
+            <div class="vs-amount">R$ 3.500,00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ta-legal-box">
+        <div class="ta-legal-title">Informações Importantes</div>
+        <p>As informações contidas neste relatório são confidenciais e destinadas exclusivamente à orientação individual do solicitante. O uso indevido ou o compartilhamento com terceiros sem autorização poderá ensejar responsabilização civil e criminal, conforme a legislação vigente.</p>
+        <div class="ta-legal-title">Responsabilidade e Limitação</div>
+        <p>Ainda que sejam utilizados dados oriundos de fontes oficiais e confiáveis, este relatório não garante a completude ou atualização em tempo real das informações. Eventuais divergências podem ocorrer por falhas de transmissão ou atraso no envio por parte dos provedores de dados.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CONTENT 3 — Template B / Serasa
+════════════════════════════════════════════════════════════ -->
+<div class="content" id="content-tb-serasa">
+  <div class="a4-shell">
+    <div class="tb-body tb-serasa">
+
+      <div class="tb-header-bar">
+        <h1>Comprovante de Restrição de Crédito</h1>
+        <p>Documento gerado em 26 de maio de 2026 às 14:30</p>
+      </div>
+
+      <div class="tb-notice">
+        ⚠️ Este documento comprova a existência de restrição de crédito em nome do consumidor, conforme dados do sistema interno. Serve como elemento probatório inicial para fins jurídicos.
+      </div>
+
+      <div class="tb-section">
+        <div class="tb-section-title">Dados do Consumidor</div>
+        <div class="tb-consumer-grid">
+          <div class="tb-field">
+            <label>Nome Completo</label>
+            <span>JOÃO DA SILVA SANTOS</span>
+          </div>
+          <div class="tb-field">
+            <label>CPF</label>
+            <span>123.456.789-00</span>
+          </div>
+          <div class="tb-field" style="grid-column:1/span 2">
+            <label>Data de Nascimento</label>
+            <span>15/03/1985</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-section">
+        <div class="tb-section-title">Dados da Restrição</div>
+        <div class="tb-empresa-box">
+          <label>Empresa Credora</label>
+          <div class="tb-empresa-nome">BANCO BRADESCO S.A.</div>
+        </div>
+        <table class="tb-restricao-table">
+          <tr>
+            <td class="rt-label">Órgão de Proteção</td>
+            <td class="rt-value">Serasa</td>
+          </tr>
+          <tr>
+            <td class="rt-label">Código do Contrato</td>
+            <td class="rt-value">7891234567890</td>
+          </tr>
+          <tr>
+            <td class="rt-label">Tipo</td>
+            <td class="rt-value">Negativação</td>
+          </tr>
+          <tr>
+            <td class="rt-label">Data da Restrição</td>
+            <td class="rt-value">10/01/2024</td>
+          </tr>
+        </table>
+        <div class="tb-valor-box">
+          <div class="valor">R$ 3.500,00</div>
+          <div class="desc">Valor da restrição registrada</div>
+        </div>
+      </div>
+
+      <div class="tb-legal-box">
+        <div class="tb-legal-title">Informações Importantes</div>
+        <p>As informações contidas neste relatório são confidenciais e destinadas exclusivamente à orientação individual do solicitante. O uso indevido ou o compartilhamento com terceiros sem autorização poderá ensejar responsabilização civil e criminal, conforme a legislação vigente.</p>
+        <div class="tb-legal-title">Responsabilidade e Limitação</div>
+        <p>Ainda que sejam utilizados dados oriundos de fontes oficiais e confiáveis, este relatório não garante a completude ou atualização em tempo real das informações. Eventuais divergências podem ocorrer por falhas de transmissão ou atraso no envio por parte dos provedores de dados.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     CONTENT 4 — Template B / Boa Vista SCPC
+════════════════════════════════════════════════════════════ -->
+<div class="content" id="content-tb-bv">
+  <div class="a4-shell">
+    <div class="tb-body tb-bv">
+
+      <div class="tb-header-bar">
+        <h1>Comprovante de Restrição de Crédito</h1>
+        <p>Documento gerado em 26 de maio de 2026 às 14:30</p>
+      </div>
+
+      <div class="tb-notice">
+        ⚠️ Este documento comprova a existência de restrição de crédito em nome do consumidor, conforme dados do sistema interno. Serve como elemento probatório inicial para fins jurídicos.
+      </div>
+
+      <div class="tb-section">
+        <div class="tb-section-title">Dados do Consumidor</div>
+        <div class="tb-consumer-grid">
+          <div class="tb-field">
+            <label>Nome Completo</label>
+            <span>JOÃO DA SILVA SANTOS</span>
+          </div>
+          <div class="tb-field">
+            <label>CPF</label>
+            <span>123.456.789-00</span>
+          </div>
+          <div class="tb-field" style="grid-column:1/span 2">
+            <label>Data de Nascimento</label>
+            <span>15/03/1985</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="tb-section">
+        <div class="tb-section-title">Dados da Restrição</div>
+        <div class="tb-empresa-box">
+          <label>Empresa Credora</label>
+          <div class="tb-empresa-nome">BANCO BRADESCO S.A.</div>
+        </div>
+        <table class="tb-restricao-table">
+          <tr>
+            <td class="rt-label">Órgão de Proteção</td>
+            <td class="rt-value">Boa Vista SCPC</td>
+          </tr>
+          <tr>
+            <td class="rt-label">Código do Contrato</td>
+            <td class="rt-value">7891234567890</td>
+          </tr>
+          <tr>
+            <td class="rt-label">Tipo</td>
+            <td class="rt-value">Negativação</td>
+          </tr>
+          <tr>
+            <td class="rt-label">Data da Restrição</td>
+            <td class="rt-value">10/01/2024</td>
+          </tr>
+        </table>
+        <div class="tb-valor-box">
+          <div class="valor">R$ 3.500,00</div>
+          <div class="desc">Valor da restrição registrada</div>
+        </div>
+      </div>
+
+      <div class="tb-legal-box">
+        <div class="tb-legal-title">Informações Importantes</div>
+        <p>As informações contidas neste relatório são confidenciais e destinadas exclusivamente à orientação individual do solicitante. O uso indevido ou o compartilhamento com terceiros sem autorização poderá ensejar responsabilização civil e criminal, conforme a legislação vigente.</p>
+        <div class="tb-legal-title">Responsabilidade e Limitação</div>
+        <p>Ainda que sejam utilizados dados oriundos de fontes oficiais e confiáveis, este relatório não garante a completude ou atualização em tempo real das informações. Eventuais divergências podem ocorrer por falhas de transmissão ou atraso no envio por parte dos provedores de dados.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  const TAB_MAP = {
+    'ta-serasa': 0,
+    'ta-bv':     1,
+    'tb-serasa': 2,
+    'tb-bv':     3,
+  };
+
+  function showTab(key) {
+    // Hide all contents
+    document.querySelectorAll('.content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+
+    // Show target content
+    document.getElementById('content-' + key).classList.add('active');
+
+    // Activate tab button
+    const idx = TAB_MAP[key];
+    document.querySelectorAll('.tab-btn')[idx].classList.add('active');
+  }
+</script>
+
+</body>
+</html>
